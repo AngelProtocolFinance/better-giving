@@ -863,7 +863,10 @@ describe("write_off_owed", () => {
     expect(losses[0]).toMatchObject({ amount: 93.2, reason: "npo closed" });
   });
 
-  test("the same write-off sent twice at once is one entry and one loss, and both get the row", async () => {
+  // pglite serves one connection, so the two run one after the other: this
+  // pins the retry. two at once on postgres queue on the row lock
+  // put_entries takes (FOR UPDATE) and then meet this same retry
+  test("the same write-off sent twice is one entry and one loss, and both get the row", async () => {
     const admin = await seed_user(t.db, "admin@test.com");
     const owed = await record_owed(as_db(t.db), refund_of(npo_a));
     const send = () =>
@@ -876,7 +879,8 @@ describe("write_off_owed", () => {
         })
       );
 
-    const [a, b] = await Promise.all([send(), send()]);
+    const a = await send();
+    const b = await send();
 
     expect(a).toMatchObject({ written_off_usd: 93.2, outstanding_usd: 0 });
     expect(b).toEqual(a);
@@ -1071,8 +1075,9 @@ describe("admin_credit_owed", () => {
     const again = await credit("payout-1");
     const row = await credit("payout-2");
 
-    expect(again).toMatchObject({ credited_back_usd: 30 });
+    expect(again).toMatchObject({ credited_back_usd: 30, added: false });
     expect(row).toMatchObject({
+      added: true,
       credited_back_usd: 60,
       credited_back_at: NOW,
       outstanding_usd: 33.2,
@@ -1095,6 +1100,51 @@ describe("admin_credit_owed", () => {
         expect.objectContaining({ ref: "payout-2" }),
       ])
     );
+  });
+
+  test("a reason the refund core credits under is refused, and writes nothing", async () => {
+    const admin = await seed_user(t.db, "admin@test.com");
+    const owed = await record_owed(as_db(t.db), refund_of(npo_a));
+
+    await expect(
+      admin_credit_owed(as_db(t.db), {
+        owed_id: owed.id,
+        usd: 10,
+        reason: "dispute_won",
+        ref: "c-1",
+        actor: admin!.id,
+        now: NOW,
+      })
+    ).rejects.toThrow(/dispute_won/);
+    expect(await t.db.select().from(owed_entries)).toEqual([]);
+  });
+
+  // a credit an admin wrote under a system reason before such reasons were
+  // refused: the later record must not lift it back into the figure
+  test("an admin's credit under a system reason stays forgiven when the row is recorded again", async () => {
+    const admin = await seed_user(t.db, "admin@test.com");
+    const owed = await record_owed(as_db(t.db), refund_of(npo_a, 45));
+    await t.db.insert(owed_entries).values({
+      owed_id: owed.id,
+      kind: "credit",
+      usd: 10,
+      reason: "dispute_won",
+      ref: "c-1",
+      at: NOW,
+      actor: admin!.id,
+    });
+    await t.db
+      .update(owed_amounts)
+      .set({ credited_back_usd: 10, credited_back_at: NOW })
+      .where(eq(owed_amounts.id, owed.id));
+
+    await record_owed(as_db(t.db), {
+      ...refund_of(npo_a, 90),
+      source_ref: "re_2",
+    });
+
+    const [row] = await owed_for_donation(DON, as_db(t.db));
+    expect(row).toMatchObject({ received_usd: 90, outstanding_usd: 83.2 });
   });
 });
 

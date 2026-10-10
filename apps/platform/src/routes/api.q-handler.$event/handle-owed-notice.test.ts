@@ -32,8 +32,10 @@ const send_email_or_throw = vi.hoisted(() => vi.fn(async (_: any) => ({})));
 vi.mock("$/email", () => ({ send_email_or_throw }));
 const report_error = vi.hoisted(() => vi.fn());
 vi.mock("#/errors/report", () => ({ report_error }));
+const send_alert = vi.hoisted(() => vi.fn(async (_: any) => {}));
+vi.mock("$/kit/discord", () => ({ fiat_monitor: { send_alert } }));
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { ReactElement } from "react";
 import { render } from "react-email";
 import { seed_npo, seed_user } from "#/__tests__/fixtures/funds";
@@ -42,6 +44,7 @@ import type { DbOrTx } from "$/pg/queries/helpers";
 import {
   credit_owed,
   type OwedParty,
+  owed_deductible,
   record_owed,
   write_off_owed,
 } from "$/pg/queries/owed";
@@ -49,7 +52,7 @@ import { claim_owed_notice, owed_notices_due } from "$/pg/queries/owed-notice";
 import { user } from "$/pg/schema/auth";
 import { donations } from "$/pg/schema/donation";
 import { npos } from "$/pg/schema/npo";
-import { owed_amounts } from "$/pg/schema/owed";
+import { owed_amounts, owed_notices } from "$/pg/schema/owed";
 import { loss_logs } from "$/pg/schema/revenue";
 import { user_npo_memberships } from "$/pg/schema/user";
 import { create_test_db } from "$/pg/test-utils/pglite";
@@ -131,6 +134,68 @@ const notify = (id: string) => handle_owed_notice(as_db(db()), { id });
 const deliver_due = async () => {
   for (const n of await due()) await notify(n.id);
 };
+
+/** the notice's lease runs out, as it does 15 minutes after its claim */
+const lease_runs_out = () =>
+  db()
+    .update(owed_notices)
+    .set({ claimed_at: sql`now() - interval '16 minutes'` });
+
+/** the rows a grant or commission run may deduct */
+const deductible = async () =>
+  (
+    await db()
+      .select({ donation_id: owed_amounts.donation_id })
+      .from(owed_amounts)
+      .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+      .where(owed_deductible())
+  ).map((r) => r.donation_id);
+
+describe("a party with nobody to mail", () => {
+  beforeEach(async () => {
+    // a date already past, so a sent notice makes its row deductible
+    terms.date = "2026-10-01";
+    await db().delete(user_npo_memberships);
+  });
+
+  test("leaves the notice unsent and the row undeductible, and tells ops once", async () => {
+    await refund();
+    await deliver_due();
+    await lease_runs_out();
+    await deliver_due();
+    await lease_runs_out();
+    await deliver_due();
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    const [sent] = await db()
+      .select({ sent_at: owed_notices.sent_at })
+      .from(owed_notices);
+    expect(sent?.sent_at).toBeNull();
+    expect(await deductible()).toEqual([]);
+    expect(send_alert).toHaveBeenCalledOnce();
+    expect(send_alert.mock.calls[0]![0]).toMatchObject({
+      title: expect.stringMatching(/no one to tell/i),
+    });
+  });
+
+  test("is mailed once someone is there to read it", async () => {
+    await refund();
+    await deliver_due();
+    const admin = await seed_user(db(), "new@rainforest.org", "Noa");
+    await db()
+      .insert(user_npo_memberships)
+      .values({ user_id: admin!.id, npo_id });
+    await lease_runs_out();
+    await deliver_due();
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(send_email_or_throw.mock.calls[0]![0]).toMatchObject({
+      to: ["new@rainforest.org"],
+    });
+    expect(await deductible()).toEqual(["don-1"]);
+    expect(send_alert).toHaveBeenCalledOnce();
+  });
+});
 
 describe("handle_owed_notice", () => {
   test("mails a recorded row once to the npo's admins, however often it is recorded or delivered", async () => {
@@ -266,9 +331,39 @@ describe("handle_owed_notice", () => {
     expect(mail.subject).toBe("Amount owed credited back: don-1");
     const text = await mail_text(mail);
     expect(text).toMatch(
-      /we credited back \$93\.20 of what was owed on the .*, because its dispute was settled\./
+      /We credited back \$93\.20 of what was owed on the .*, because its dispute was settled\./
     );
+    // the figure is a total, so the date is the latest credit's, said as such
+    expect(text).toMatch(/The most recent credit was on Nov 20, 2026\./);
     expect(text).not.toMatch(/\$0\.00/);
+  });
+
+  test("a second waiver's mail gives the waived total as a total, dated by the latest", async () => {
+    const admin = await seed_user(db(), "ops@better.giving");
+    const row = await dispute();
+    const waive = (now: string) =>
+      write_off_owed(as_db(db()), {
+        owed_id: row.id,
+        reason: "goodwill",
+        actor: admin!.id,
+        now,
+      });
+    await waive(NOW);
+    await deliver_due();
+    // the dispute's fee lands later, owing again, and is waived on its own day
+    await dispute(15);
+    await deliver_due();
+    await waive("2026-11-25T12:00:00.000Z");
+    await deliver_due();
+
+    const mails = send_email_or_throw.mock.calls.map(([m]) => m);
+    const last = mails.at(-1)!;
+    expect(last.subject).toBe("Amount owed waived: don-1");
+    const text = await mail_text(last);
+    expect(text).toMatch(
+      /We have waived \$108\.20 in total of what was owed on the .*, most recently on Nov 25, 2026\./
+    );
+    expect(text).not.toMatch(/On Nov 25, 2026, we waived \$108\.20/);
   });
 
   test("a row owing again after it was settled is mailed as owed again, the won figures not added back", async () => {

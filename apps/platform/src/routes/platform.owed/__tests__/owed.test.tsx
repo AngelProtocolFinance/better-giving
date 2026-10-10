@@ -492,6 +492,63 @@ describe("amounts owed", () => {
     await expect.element(list.getByText("43.20")).toBeVisible();
   });
 
+  it("refuses the second of two credits under one reference sent in the same millisecond", async () => {
+    const admin = { id: await seed_admin("Grace"), role: "admin" };
+    const row = await seed_npo_owed("River Trust");
+    const credit = (usd: number) => ({
+      intent: "credit",
+      owed_id: row.id,
+      usd,
+      reason: "Payout cancelled by hand",
+      ref: "po_1",
+    });
+    // both requests read one clock, so the row's credit date can't tell them apart
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse(NOW) });
+    try {
+      const screen = await post(admin, credit(10), credit(10));
+      const answers = screen.getByRole("status");
+      await vi.waitFor(() =>
+        expect(answers.elements().map((e) => e.textContent)).toEqual([
+          expect.stringMatching(/.+/),
+          expect.stringMatching(/.+/),
+        ])
+      );
+      expect(
+        answers
+          .elements()
+          .map((e) => (e.textContent?.includes('"ok":true') ? "ok" : "refused"))
+          .sort()
+      ).toEqual(["ok", "refused"]);
+    } finally {
+      vi.useRealTimers();
+    }
+    await cleanup();
+    const list = await open_platform("/platform/owed", admin);
+    await expect.element(list.getByText("83.20")).toBeVisible();
+  });
+
+  it("refuses a credit whose reason is one the refund core books its own credits under", async () => {
+    const admin = { id: await seed_admin("Grace"), role: "admin" };
+    const row = await seed_npo_owed("River Trust");
+
+    const screen = await post(admin, {
+      intent: "credit",
+      owed_id: row.id,
+      usd: 10,
+      reason: " refund_failed ",
+      ref: "po_1",
+    });
+
+    await expect
+      .element(screen.getByRole("status").first())
+      .toMatchTextContent(
+        /"status":400.*reserved for credits the system books/
+      );
+    await cleanup();
+    const list = await open_platform("/platform/owed", admin);
+    await expect.element(list.getByText("93.20")).toBeVisible();
+  });
+
   it("answers 404 to a credit on a row that does not exist", async () => {
     const admin = { id: await seed_admin("Grace"), role: "admin" };
 

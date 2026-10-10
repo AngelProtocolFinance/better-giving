@@ -34,7 +34,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       </Link>
       {node}
       <OwedHistory
-        rows={loaderData.owed}
+        rows={loaderData.owed ?? []}
         run_noun="payout"
         received_label="Commission"
       />

@@ -70,11 +70,13 @@ export interface IOwedRecord {
   now: string;
 }
 
-/** what the row was credited back under `reasons` */
+/** what the refund core credited the row back under `reasons`; an admin's
+ * credit (one with an actor) counts under none of them, whatever its words */
 export const credits_under = (reasons: OwedCreditReason[]) =>
   sql`(SELECT COALESCE(SUM(${owed_entries.usd}), 0) FROM ${owed_entries}
     WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
       AND ${owed_entries.kind} = 'credit'
+      AND ${owed_entries.actor} IS NULL
       AND ${owed_entries.reason} IN (${sql.join(
         reasons.map((r) => sql`${r}`),
         sql`, `
@@ -117,7 +119,11 @@ export async function owed_uncredited(
     })
     .from(owed_entries)
     .where(
-      and(eq(owed_entries.owed_id, row.id), eq(owed_entries.kind, "credit"))
+      and(
+        eq(owed_entries.owed_id, row.id),
+        eq(owed_entries.kind, "credit"),
+        isNull(owed_entries.actor)
+      )
     )
     .groupBy(owed_entries.reason);
   const left = {
@@ -252,6 +258,18 @@ export type OwedCreditReason =
    * each back onto its figure */
   | "refund_failed"
   | "refund_failed_fee";
+
+// a Record, so a reason added to the union has to be added here too
+const CREDIT_REASONS: Record<OwedCreditReason, true> = {
+  payout_cancelled: true,
+  transfer_unfunded: true,
+  dispute_reversed: true,
+  dispute_won: true,
+  dispute_won_fee: true,
+  dispute_won_fee_dispute: true,
+  refund_failed: true,
+  refund_failed_fee: true,
+};
 
 export interface IOwedCredit {
   donation_id: string;
@@ -439,18 +457,26 @@ export interface IOwedAdminCredit {
   now: string;
 }
 
-/** null when the row does not exist */
+/** null when the row does not exist; `added` is false when the ref already
+ * had its credit on the row and this call added nothing. throws on a reason
+ * the refund core credits under: those words are its, never an admin's */
 export async function admin_credit_owed(
   tx: DbOrTx,
   c: IOwedAdminCredit
-): Promise<IOwed | null> {
-  return put_entry(
+): Promise<(IOwed & { added: boolean }) | null> {
+  if (Object.hasOwn(CREDIT_REASONS, c.reason)) {
+    throw new Error(
+      `admin_credit_owed: "${c.reason}" is a refund core credit reason`
+    );
+  }
+  const { row, added } = await put_entry_added(
     tx,
     "credit",
     eq(owed_amounts.id, c.owed_id),
     c,
     sql`${finite(c.usd, "admin_credit_owed usd")}::numeric`
   );
+  return row && { ...row, added };
 }
 
 export interface IOwedWriteOff {
@@ -550,15 +576,26 @@ async function put_entry(
   e: IEntryFields,
   usd: SQL
 ): Promise<IOwed | null> {
+  return (await put_entry_added(tx, kind, row_is, e, usd)).row;
+}
+
+/** `put_entry`, saying whether the entry went in */
+async function put_entry_added(
+  tx: DbOrTx,
+  kind: IOwedEntry["kind"],
+  row_is: SQL,
+  e: IEntryFields,
+  usd: SQL
+): Promise<{ row: IOwed | null; added: boolean }> {
   const [row] = await put_entries(tx, kind, row_is, e, usd);
   const notice = NOTICE_OF_ENTRY[kind];
   // under the round it settles, so a row owing again is told of each again
   const round = sql`(SELECT COALESCE(MAX(${owed_notices.round}), 0) FROM ${owed_notices}
     WHERE ${owed_notices.owed_id} = ${owed_amounts.id} AND ${owed_notices.kind} = 'recorded')`;
   if (row && notice) await queue_notice(tx, notice, row.id, e.now, round);
-  if (row) return row;
+  if (row) return { row, added: true };
   const [as_was] = await tx.select().from(owed_amounts).where(row_is);
-  return as_was ?? null;
+  return { row: as_was ?? null, added: false };
 }
 
 /** inserts an entry on each row and adds it to the row's sum in one

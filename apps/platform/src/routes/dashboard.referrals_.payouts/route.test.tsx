@@ -26,6 +26,20 @@ vi.mock("$/pg/db", () => ({
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock({ user_ctx: true })
 );
+// real, and counted: a page past the first must not read the history again
+const history_reads = vi.hoisted(() => ({ n: 0 }));
+vi.mock("$/pg/queries/owed-history", async (io) => {
+  const real = await io<typeof import("$/pg/queries/owed-history")>();
+  return {
+    ...real,
+    referrer_owed_history: (
+      ...a: Parameters<typeof real.referrer_owed_history>
+    ) => {
+      history_reads.n++;
+      return real.referrer_owed_history(...a);
+    },
+  };
+});
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: any) => Component,
   createClientLoaderCache: () => undefined,
@@ -39,6 +53,7 @@ import { user } from "$/pg/schema/auth";
 import { donations } from "$/pg/schema/donation";
 import { npos } from "$/pg/schema/npo";
 import { owed_amounts } from "$/pg/schema/owed";
+import { referrer_payouts } from "$/pg/schema/referrer";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { loader as npo_referrer_loader } from "../admin.$id.referrals_.payouts/api";
 import NpoReferrerPayouts from "../admin.$id.referrals_.payouts/route";
@@ -60,6 +75,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await db().delete(owed_amounts);
+  await db().delete(referrer_payouts);
   await db().delete(donations);
   await db().delete(npos);
   await db().delete(user);
@@ -103,6 +119,30 @@ async function refunded(id: string, party: OwedParty) {
   });
 }
 
+/** nine payouts, a page and one more; the oldest, on the second page, is $999 */
+async function nine_payouts(
+  referrer: { referrer_user: string } | { referrer_npo: string }
+) {
+  await db()
+    .insert(referrer_payouts)
+    .values(
+      Array.from({ length: 9 }, (_, i) => ({
+        ...referrer,
+        id: `rp-${i}`,
+        date: `2026-10-${String(10 + i).padStart(2, "0")}T00:00:00.000Z`,
+        amount: i === 0 ? 999 : 10,
+      }))
+    );
+}
+
+/** the next page lands with its oldest payout, and the history is not read again */
+async function loads_more(screen: Awaited<ReturnType<typeof render>>) {
+  expect(screen.getByText("$999.00").query()).toBeNull();
+  await screen.getByRole("button", { name: "View More" }).click();
+  await expect.element(screen.getByText("$999.00")).toBeVisible();
+  expect(history_reads.n).toBe(1);
+}
+
 describe("a referrer's payouts page", () => {
   it("shows the referrer's own owed rows with what its payouts recovered, and never another referrer's", async () => {
     await referrer("jane@example.com", "REF-JANE");
@@ -117,6 +157,8 @@ describe("a referrer's payouts page", () => {
       ref: "c-run-1",
       now: "2026-11-21T00:00:00.000Z",
     });
+    await nine_payouts({ referrer_user: "REF-JANE" });
+    history_reads.n = 0;
 
     const Stub = createRoutesStub([
       {
@@ -147,6 +189,7 @@ describe("a referrer's payouts page", () => {
       );
     await expect.element(row).toMatchTextContent(/\$4\.50.*\$2\.50/);
     expect(screen.getByText("don-other").query()).toBeNull();
+    await loads_more(screen);
   });
 
   it("for a referring nonprofit, shows its rows as referrer and not the ones it owes as a gift's nonprofit", async () => {
@@ -156,6 +199,8 @@ describe("a referrer's payouts page", () => {
     });
     await refunded("don-referred", { referrer_npo: "NPO-R" });
     await refunded("don-to-npo", { npo_id: npo!.id });
+    await nine_payouts({ referrer_npo: "NPO-R" });
+    history_reads.n = 0;
 
     const Stub = createRoutesStub([
       {
@@ -182,5 +227,6 @@ describe("a referrer's payouts page", () => {
       .element(owed.getByRole("row", { name: "don-referred" }))
       .toMatchTextContent(/Owed/);
     expect(screen.getByText("don-to-npo").query()).toBeNull();
+    await loads_more(screen);
   });
 });

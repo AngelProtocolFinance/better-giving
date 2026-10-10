@@ -7,7 +7,6 @@ import { OwedHistory } from "#/routes/_helpers/owed-history";
 import { search } from "@/helpers/https";
 import {
   grant_run_deductions,
-  type IOwedHistoryRow,
   npo_owed_history,
 } from "$/pg/queries/owed-history";
 import { npo_settlements, type SettlementRow } from "$/pg/queries/payout";
@@ -18,32 +17,29 @@ export const loader = async (x: Route.LoaderArgs) => {
   const { next } = search(x.request);
   const id = x.context.get(admin_ctx);
 
+  // the history is the page's, not each grant page's: a load-more reads
+  // only its grants
   const [page, owed] = await Promise.all([
     npo_settlements(id, { next, limit: 5 }),
-    npo_owed_history(id),
+    next ? undefined : npo_owed_history(id),
   ]);
   return {
     ...page,
-    items: await with_deductions(id, page.items, owed),
-    owed,
+    items: await with_deductions(id, page.items),
+    ...(owed && { owed }),
   };
 };
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 /** a grant that recovered anything owed carries its gross, deductions and net */
-async function with_deductions(
+function with_deductions(
   npo_id: number,
-  grants: SettlementRow[],
-  owed: IOwedHistoryRow[]
+  grants: SettlementRow[]
 ): Promise<IGrantLine[]> {
-  const recovering = new Set(
-    owed.flatMap((r) => r.recoveries.map((l) => l.settlement_id))
-  );
   return Promise.all(
     grants.map(async (g) => {
-      if (!recovering.has(g.id)) return g;
       const run = await grant_run_deductions(npo_id, g.id);
-      return run ? { ...g, run } : g;
+      return run && run.deductions.length > 0 ? { ...g, run } : g;
     })
   );
 }
@@ -69,7 +65,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       </Link>
       {node}
       <OwedHistory
-        rows={loaderData.owed}
+        rows={loaderData.owed ?? []}
         run_noun="grant"
         received_label="Received"
       />

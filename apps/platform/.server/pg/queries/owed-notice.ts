@@ -106,6 +106,9 @@ export type OwedNoticeClaim =
       kind: IOwedNotice["kind"];
       /** a `recorded` notice above 0 tells of the row owing again */
       round: number;
+      /** an earlier claim's lease ran out unsent and unreleased: a holder
+       * that kept it, as one does when there is nobody to mail */
+      reclaimed: boolean;
       party: OwedParty;
       row: IOwedHistoryRow;
     }
@@ -135,17 +138,36 @@ export async function claim_owed_notice(
     .returning({ id: owed_notices.id });
   if (settled) return { status: "done" };
 
+  // the claim as it stood, which RETURNING can't see past the update
+  const before = tx.$with("before").as(
+    tx
+      .select({
+        id: owed_notices.id,
+        held: sql<boolean>`${owed_notices.claimed_at} IS NOT NULL`.as("held"),
+      })
+      .from(owed_notices)
+      .where(eq(owed_notices.id, id))
+  );
   const [claimed] = await tx
+    .with(before)
     .update(owed_notices)
     // ms, so the stamp survives a driver that hands back a Date and still
     // matches `release_owed_notice`'s equality
     .set({ claimed_at: sql`date_trunc('milliseconds', now())` })
-    .where(and(eq(owed_notices.id, id), claimable(tx)))
+    .from(before)
+    .where(
+      and(
+        eq(owed_notices.id, id),
+        eq(before.id, owed_notices.id),
+        claimable(tx)
+      )
+    )
     .returning({
       stamp: owed_notices.claimed_at,
       kind: owed_notices.kind,
       round: owed_notices.round,
       owed_id: owed_notices.owed_id,
+      reclaimed: before.held,
     });
   if (claimed?.stamp) {
     const [owed] = await tx
@@ -162,6 +184,7 @@ export async function claim_owed_notice(
       stamp: claimed.stamp,
       kind: claimed.kind,
       round: claimed.round,
+      reclaimed: claimed.reclaimed,
       party: party_of(owed!),
       row: row!,
     };

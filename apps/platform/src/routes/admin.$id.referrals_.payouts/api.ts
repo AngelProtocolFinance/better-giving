@@ -14,9 +14,10 @@ export const loader = async (args: Route.LoaderArgs) => {
   if (!x.referral_id) throw new Error(`referral_id not found for npo:${id}`);
 
   const { nextKey: next } = search(args.request);
+  // the history is the page's: a load-more reads only its payouts
   const [page, owed] = await Promise.all([
     referrer_payout_list(x.referral_id, { next, limit: 8 }),
-    referrer_owed_history({ referrer_npo: x.referral_id }),
+    next ? undefined : referrer_owed_history({ referrer_npo: x.referral_id }),
   ]);
-  return { ...page, owed };
+  return { ...page, ...(owed && { owed }) };
 };
