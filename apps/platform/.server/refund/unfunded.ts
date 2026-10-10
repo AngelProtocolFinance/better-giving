@@ -4,7 +4,7 @@ import { dist_refund_update } from "../pg/queries/dist";
 import { donation_lock, donation_update } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { npo_balance_update, npo_get_locked } from "../pg/queries/npo";
-import { credit_owed, owed_for_party } from "../pg/queries/owed";
+import { credit_owed, owed_for_party, owed_total } from "../pg/queries/owed";
 import { payouts_move } from "../pg/queries/payout";
 import { dists } from "../pg/schema/dist";
 import { donations } from "../pg/schema/donation";
@@ -14,7 +14,13 @@ import { referrer_commissions } from "../pg/schema/referrer";
 import { rev_logs } from "../pg/schema/revenue";
 import { apply_refund_plan } from "./apply";
 import { donation_refund_status } from "./donation-status";
-import { calc_refund_plan, type RefundEffect, referrer_of } from "./plan";
+import {
+  calc_refund_plan,
+  fee_processing_usd,
+  type RefundEffect,
+  referrer_of,
+} from "./plan";
+import { open_credit, taken_from_npo } from "./share";
 
 export type UnfundedLossReversal =
   | { status: "reversed" }
@@ -119,13 +125,30 @@ export async function reverse_unfunded_payout_loss(
     },
     { source: owed.source, source_ref: owed.source_ref }
   );
-  await credit_owed(tx, {
-    donation_id: dist.donation_id,
-    party,
-    reason: "transfer_unfunded",
-    ref: payout_id,
-    now,
-  });
+  // what the loss recorded for this dist, as the refund would now leave it
+  // with the payout pending: a dispute's open keeps its share's fees owed
+  // (`open_credit`), a refund owes nothing for it
+  const undone =
+    owed.source === "dispute"
+      ? open_credit(owed, taken_from_npo(plan))
+      : Math.min(
+          (dist.net ?? 0) +
+            fee_processing_usd({
+              fee_processing: dist.fee_processing ?? 0,
+              fee_allowance: dist.fee_allowance ?? 0,
+            }),
+          owed_total(owed) - owed.credited_back_usd - owed.written_off_usd
+        );
+  if (undone > 0) {
+    await credit_owed(tx, {
+      donation_id: dist.donation_id,
+      party,
+      usd: undone,
+      reason: "transfer_unfunded",
+      ref: payout_id,
+      now,
+    });
+  }
   await dist_refund_update(tx, dist.id, { refund_status: "completed" });
   await donation_status_recompute(tx, dist.donation_id, now);
   return { status: "reversed" };
