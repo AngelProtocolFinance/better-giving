@@ -1,19 +1,22 @@
+import { and, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 import type { IRefundedStatus } from "@/payouts";
-import type { ILossLog } from "@/revenue";
 import { bal_tx_put } from "../pg/queries/bal-tx";
 import { donation_message_del } from "../pg/queries/donation-message";
 import { form_ltd_inc } from "../pg/queries/form";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { nav_log_append } from "../pg/queries/nav";
 import { npo_balance_update } from "../pg/queries/npo";
+import { type IOwed, type IOwedRecord, record_owed } from "../pg/queries/owed";
 import {
   payout_mark_refunded_loss,
   payout_move_from_pending,
 } from "../pg/queries/payout";
 import { npo_prog_contrib } from "../pg/queries/program";
 import { commission_refund } from "../pg/queries/referrer";
-import { loss_log_put, rev_log_update_status } from "../pg/queries/revenue";
-import type { RefundPlan } from "./plan";
+import { rev_log_update_status } from "../pg/queries/revenue";
+import { dists } from "../pg/schema/dist";
+import { referrer_commissions } from "../pg/schema/referrer";
+import type { OwedFigure, ReferrerParty, RefundPlan } from "./plan";
 
 /** the plan refunds a payout that another writer moved out of `pending` since */
 export class StalePayoutError extends Error {
@@ -23,19 +26,23 @@ export class StalePayoutError extends Error {
   }
 }
 
+/** the refund or dispute an owed figure is recorded against */
+export type OwedSource = Pick<IOwedRecord, "source" | "source_ref">;
+
 export interface IAppliedRefund {
-  loss?: ILossLog;
-  paid_commission?: NonNullable<RefundPlan["paid_commission"]>;
-  /** the commission was claimed by a Wise transfer, so it was taken as a loss */
+  /** each party's row as it stands, one per party */
+  owed: IOwed[];
+  /** the commission was claimed by a Wise transfer: its referrer owes it if
+   * that transfer pays */
   commission_in_flight?: { donation_id: string; amount: number; ref?: string };
 }
 
 export async function apply_refund_plan(
   tx: DbOrTx,
-  plan: RefundPlan
+  plan: RefundPlan,
+  src: OwedSource
 ): Promise<IAppliedRefund> {
-  const res: IAppliedRefund = {};
-  if (plan.paid_commission) res.paid_commission = plan.paid_commission;
+  const res: IAppliedRefund = { owed: [] };
 
   for (const e of plan.effects) {
     switch (e.kind) {
@@ -67,9 +74,20 @@ export async function apply_refund_plan(
         if (was?.status === "processing") {
           const { donation_id, amount, ref } = was;
           res.commission_in_flight = { donation_id, amount, ref };
-        } else if (was?.status === "paid") {
-          const { donation_id, amount } = was;
-          res.paid_commission = { donation_id, amount };
+        }
+        if (was?.status === "processing" || was?.status === "paid") {
+          const others = await referrer_owed_on_other_dists(
+            tx,
+            e.owed,
+            was.donation_id
+          );
+          res.owed.push(
+            await record_owed(tx, {
+              ...e.owed,
+              received_usd: e.owed.received_usd + others,
+              ...src,
+            })
+          );
         }
         break;
       }
@@ -82,12 +100,54 @@ export async function apply_refund_plan(
       case "donation_message_del":
         await donation_message_del(tx, e.donation_id);
         break;
-      case "loss_log":
-        res.loss = e.loss;
-        await loss_log_put(tx, e.loss);
+      case "owed":
+        res.owed.push(await record_owed(tx, { ...e.owed, ...src }));
         break;
     }
   }
 
   return res;
+}
+
+/** what the gift's other dists, already reversed, left owed to the same
+ * referrer: their commissions paid, or claimed by a transfer when refunded.
+ * the row is one per gift per party, so it carries their sum */
+async function referrer_owed_on_other_dists(
+  tx: DbOrTx,
+  owed: OwedFigure & { party: ReferrerParty },
+  dist_id: string
+): Promise<number> {
+  const { party } = owed;
+  const key = `${owed.donation_id}:${"referrer_user" in party ? `u:${party.referrer_user}` : `n:${party.referrer_npo}`}`;
+  // held to commit: a run applying a sibling dist for this referrer waits
+  // here, and its read below then sees this one's commit
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`
+  );
+  const [row] = await tx
+    .select({
+      usd: sql<number>`coalesce(sum(${referrer_commissions.amount}), 0)`.mapWith(
+        Number
+      ),
+    })
+    .from(referrer_commissions)
+    .innerJoin(dists, eq(dists.id, referrer_commissions.donation_id))
+    .where(
+      and(
+        eq(dists.donation_id, owed.donation_id),
+        ne(dists.id, dist_id),
+        inArray(dists.refund_status, ["completed", "loss"]),
+        "referrer_user" in party
+          ? eq(referrer_commissions.referrer_user, party.referrer_user)
+          : eq(referrer_commissions.referrer_npo, party.referrer_npo),
+        or(
+          eq(referrer_commissions.status, "paid"),
+          and(
+            eq(referrer_commissions.status, "refunded_loss"),
+            isNotNull(referrer_commissions.ref)
+          )
+        )
+      )
+    );
+  return row?.usd ?? 0;
 }

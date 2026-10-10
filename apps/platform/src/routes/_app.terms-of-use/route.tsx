@@ -2,7 +2,10 @@ import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
 import { metas } from "#/helpers/seo";
+import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
+
+const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
 
 const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>
@@ -17,9 +20,7 @@ export const meta: Route.MetaFunction = () =>
 export default function TermsDonors() {
   return (
     <main className="prose lg:prose-lg page py-20">
-      <i className="text-gray-11 text-right block">
-        Effective October 25, 2024
-      </i>
+      <i className="text-gray-11 text-right block">Effective {EFFECTIVE}</i>
       <h2 className="text-center">
         Donor <br /> Terms of Use
       </h2>
@@ -79,9 +80,12 @@ export default function TermsDonors() {
               Service as a tax-exempt organization under Internal Revenue Code
               501(c)(3). You understand, acknowledge and agree that all
               donations made to Better Giving are irrevocable, unrestricted and
-              non-refundable charitable contributions and that Better Giving has
-              full and exclusive legal control over any and all donated funds or
-              assets.
+              non-refundable charitable contributions (except that Better Giving
+              may, in its sole discretion, refund a donation) and that Better
+              Giving has full and exclusive legal control over any and all
+              donated funds or assets. A donation that is refunded, reversed or
+              charged back is not a charitable contribution, and any
+              acknowledgment or receipt issued for it is void.
             </li>
             <li>
               <b>Authority</b>. By making a donation to Better Giving, you

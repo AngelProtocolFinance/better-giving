@@ -35,7 +35,7 @@ function Content({
   const submitting = fetcher.state !== "idle";
   const has_blockers = data.previews.some((p) => p.blockers.length > 0);
   const no_dists = data.previews.length === 0;
-  const has_warnings = data.total_loss > 0;
+  const recoveries = data.previews.filter((p) => p.owed > 0);
 
   if (fetcher.data?.ok === true) {
     return (
@@ -84,10 +84,17 @@ function Content({
         )}
       </div>
 
-      {has_warnings && (
+      {recoveries.length > 0 && (
         <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-warning-subtle border border-warning flex items-center gap-2 text-sm text-warning-subtle-fg">
           <AlertTriangleIcon className="shrink-0 icon-md" />
-          <span>${humanize(data.total_loss)} will be a platform loss</span>
+          <div className="flex flex-col gap-0.5">
+            {recoveries.map((p) => (
+              <span key={p.id}>
+                ${humanize(p.owed)} will be recovered from{" "}
+                {p.npo_name || `npo ${p.npo_id}`}'s future grants
+              </span>
+            ))}
+          </div>
         </div>
       )}
 
@@ -123,11 +130,7 @@ function Content({
           onClick={() => fetcher.submit(null, { method: "post" })}
           className="btn btn-primary"
         >
-          {submitting
-            ? "Refunding..."
-            : has_warnings
-              ? "Confirm refund (with loss)"
-              : "Confirm refund"}
+          {submitting ? "Refunding..." : "Confirm refund"}
         </button>
       </Actions>
     </div>

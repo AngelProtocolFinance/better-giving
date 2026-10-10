@@ -1,5 +1,8 @@
 import { metas } from "#/helpers/seo";
+import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
+
+const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
 
 export const headers: Route.HeadersFunction = () => ({
   "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
@@ -15,7 +18,7 @@ export default function TermsReferrals() {
         Better Giving Referral Program Terms of Use
       </h2>
       <p>
-        <strong>Effective Date:</strong> May 21, 2025
+        <strong>Effective Date:</strong> {EFFECTIVE}
       </p>
       <p>
         These Referral Program Terms of Use (“Terms”) govern your participation
@@ -78,6 +81,33 @@ export default function TermsReferrals() {
             Referral earnings are subject to a minimum payout threshold of $25.
             U.S.-based referrers will receive a 1099-MISC if earnings exceed
             $600 in a calendar year.
+          </p>
+        </li>
+        <li>
+          <h3>Refunds and Chargebacks After Payment</h3>
+          <p>
+            The 30-day hold in Section 4 covers refunds and chargebacks that
+            happen before a referral reward is paid. If a donation is refunded,
+            reversed or charged back after the referral reward earned on it has
+            been paid to you, Better Giving may deduct that reward from your
+            next referral payments until it is recovered in full. If only part
+            of a donation is refunded or reversed, you owe the same share of the
+            reward.
+          </p>
+          <p>
+            If a donor disputes a payment with their bank or payment provider
+            after the referral reward earned on it has been paid to you, Better
+            Giving may deduct that reward as soon as the dispute is opened. If
+            the dispute is resolved in Better Giving’s favor, Better Giving will
+            cancel the amount owed and add any part of it already deducted to
+            your next referral payment.
+          </p>
+          <p>
+            Better Giving will notify you of each amount before deducting it,
+            and may waive any amount in whole or in part at its discretion. This
+            section applies only to donations made on or after{" "}
+            {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
+            {EFFECTIVE}.
           </p>
         </li>
         <li>

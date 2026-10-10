@@ -1,3 +1,4 @@
+import { with_actor_names } from "#/.server/loss-log-actors";
 import type { ILossLog, ILossLtd } from "@/revenue";
 import { npos_batch_get } from "$/pg/queries/npo";
 import { loss_log_list, loss_ltd_get } from "$/pg/queries/revenue";
@@ -45,7 +46,7 @@ export const loader = async (_: Route.LoaderArgs) => {
 
   return {
     ltd,
-    logs: logs_page.items,
+    logs: await with_actor_names(logs_page.items),
     logs_next: logs_page.next,
     npo_losses,
   } satisfies LoaderData;

@@ -1,49 +1,24 @@
 import Stripe from "stripe";
 import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import { report_error } from "#/errors/report";
-import type { IDonation } from "@/donations";
+import { type IDonation, is_reversed } from "@/donations";
 import { stripe } from "$/kit/stripe";
-import { type DistRefundGraph, dists_for_refund } from "$/pg/queries/dist";
 import { donation_get, donation_settlement_get } from "$/pg/queries/donation";
 import {
-  earlier_partials,
-  type FullRefund,
+  type DistPreview,
+  has_settled_dists,
+  reversal_preview,
+  reverse_charge,
+} from "$/refund/reverse";
+import { subscription_id_of } from "$/refund/subscription";
+import {
   is_failed_or_canceled,
-  reverse_after_partials,
+  refund_take,
   unsent_refunds,
-} from "$/refund/after-partials";
-import {
-  dist_settled_usd,
-  type PreviewLine,
-  type RefundPreview,
-} from "$/refund/plan";
-import {
-  load_refund_plan,
-  process_refund,
-  type RefundResult,
-} from "$/refund/process";
-import {
-  cancel_refunded_subscription,
-  subscription_id_of,
-} from "$/refund/subscription";
+} from "$/refund/unsent";
 import type { Route } from "./+types/route";
 
-export interface DistPreview {
-  id: string;
-  npo_id: number;
-  npo_name: string;
-  /** usd */
-  amount: number;
-  net: number;
-  refund_status: string | null;
-  refund_error?: string | null;
-  /** what will happen when the refund is processed */
-  effects: PreviewLine[];
-  /** blockers preventing the refund from proceeding */
-  blockers: PreviewLine[];
-  /** non-reversible items — refund proceeds, platform absorbs loss */
-  warnings: PreviewLine[];
-}
+export type { DistPreview };
 
 /** a status stripe has taken the refund on: the money is on its way back */
 export type StripeRefundStatus = "succeeded" | "pending";
@@ -55,8 +30,6 @@ export interface LoaderData {
   donation_id: string;
   already_refunded: boolean;
   previews: DistPreview[];
-  /** total amount platform will absorb as loss */
-  total_loss: number;
   /** stripe subscription id if payment originated from a subscription */
   subscription_id: string | null;
 }
@@ -81,85 +54,14 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
 
   const don = await stripe_donation(donation_id);
 
-  const already_refunded =
-    don.status === "refunded" || don.status === "refunded_loss";
-  const graphs = await dists_for_refund(donation_id);
-
   const sttl = await donation_settlement_get(donation_id);
   const subscription_id = await preview_subscription_id(sttl?.sttl_id ?? null);
-
-  const previews: DistPreview[] = [];
-  let total_loss = 0;
-  for (const g of graphs) {
-    const { dist } = g;
-    const amount = dist_settled_usd({
-      net: dist.net ?? 0,
-      fee_base: dist.fee_base ?? 0,
-      fee_fsa: dist.fee_fsa ?? 0,
-      fee_processing: dist.fee_processing ?? 0,
-      fee_allowance: dist.fee_allowance ?? 0,
-    });
-    if (dist.refund_status === "completed" || dist.refund_status === "loss") {
-      previews.push({
-        id: dist.id,
-        npo_id: dist.to_id ?? 0,
-        npo_name: dist.to_name ?? "",
-        amount,
-        net: dist.net ?? 0,
-        refund_status: dist.refund_status,
-        effects: [
-          {
-            label:
-              dist.refund_status === "loss"
-                ? "Completed with losses"
-                : "Already completed",
-            pass: true,
-          },
-        ],
-        blockers: [],
-        warnings: [],
-      });
-      continue;
-    }
-    const plan = await load_refund_plan(g, {
-      form_id: don.form_id ?? null,
-      program_id: don.program?.id ?? null,
-      sub_id: subscription_id,
-      strict: false,
-    });
-    total_loss +=
-      (plan.is_loss ? plan.amount : 0) + (plan.paid_commission?.amount ?? 0);
-    const p: RefundPreview = plan.preview;
-    previews.push({
-      id: dist.id,
-      npo_id: dist.to_id ?? 0,
-      npo_name: dist.to_name ?? "",
-      amount,
-      net: dist.net ?? 0,
-      refund_status: dist.refund_status,
-      refund_error: dist.refund_error,
-      // process_refund retries a failed dist, so it shows as a retry, not a blocker
-      effects:
-        dist.refund_status === "failed"
-          ? [
-              {
-                label: "Retry failed reversal",
-                pass: true,
-                reason: dist.refund_error ?? "unknown",
-              },
-              ...p.effects,
-            ]
-          : p.effects,
-      blockers: p.blockers,
-      warnings: p.warnings,
-    });
-  }
+  const preview = await reversal_preview(don, subscription_id);
 
   return {
     donation_id,
-    already_refunded,
-    previews,
-    total_loss,
+    already_refunded: is_reversed(don.status),
+    previews: preview.dists,
     subscription_id,
   } satisfies LoaderData;
 };
@@ -201,6 +103,9 @@ async function issue_refund(payment_intent: string, idempotencyKey: string) {
 
 const ALERT_FROM = "refund-action";
 
+const already_refunded = () =>
+  new Response("already refunded", { status: 400 });
+
 /** thrown once the sdk's own retries are spent, by a request stripe may have
  * carried out before the answer was lost */
 const outcome_unknown = (err: unknown) =>
@@ -234,55 +139,65 @@ const incomplete = (
     toast
   );
 
-/** stops the gift's billing, then reverses the donation `r` refunded, or
- * holds the reversal while a refund on the charge is unsent */
+/** reverses the donation `r` refunded, ending its billing, or holds the
+ * reversal while a refund on the charge is unsent */
 async function finish_refund(
   r: Stripe.Refund,
   intent_id: string,
-  don: IDonation,
-  graphs: DistRefundGraph[]
-): Promise<RefundResult | "held"> {
-  // the donor is refunded whatever the reversal does next, so the gift stops
-  // billing now
-  await cancel_refunded_subscription(intent_id);
-
+  don: IDonation
+) {
   const [{ data }, intent] = await Promise.all([
     stripe.refunds.list({ payment_intent: intent_id, limit: 100 }),
-    stripe.paymentIntents.retrieve(intent_id),
+    stripe.paymentIntents.retrieve(intent_id, { expand: ["latest_charge"] }),
   ]);
   // newest first, with `r` as just retrieved rather than as the list read it
   const refunds = [r, ...data.filter((x) => x.id !== r.id)];
-  // an unsent one (a pending bank refund) can still fail: refund.updated
-  // reverses once the last succeeds
-  if (unsent_refunds(refunds).length > 0) return "held";
-
-  const full: FullRefund = {
+  const charge = intent.latest_charge;
+  if (!charge || typeof charge === "string") {
+    throw new Error(`payment ${intent_id} has no charge`);
+  }
+  // the charge's refunds to date, an earlier partial's and a pending one's
+  // included: this refund completes it, so the share is whole. summed off the
+  // list: stripe doesn't document whether `charge.amount_refunded` counts a
+  // pending refund or drops a failed one
+  const counted = refunds.filter((x) => !is_failed_or_canceled(x));
+  const taken = counted.reduce((sum, x) => sum + x.amount, 0);
+  const res = await reverse_charge({
     donation_id: don.id,
-    seen_at: `payment ${intent_id}, admin refund ${r.id}`,
-    currency: r.currency,
-    completing: r,
-    earlier: earlier_partials(refunds, r, intent.amount_received),
+    rail: "stripe",
+    source: "admin",
+    share: { taken, of: charge.amount_captured },
+    refunds: counted.map(refund_take),
+    // an unsent one (a pending bank refund) can still fail, so the entry
+    // holds: refund.updated reverses once the last succeeds
+    unsent_refunds: unsent_refunds(refunds).map((x) => x.id),
+    intent_id,
+    source_ref: r.id,
     alert_from: ALERT_FROM,
-    dist_count: graphs.length,
-  };
-  return reverse_after_partials(full, () =>
-    process_refund(don.id, graphs, {
-      form_id: don.form_id ?? null,
-      program_id: don.program?.id ?? null,
-      alert_from: ALERT_FROM,
-    })
-  );
+    notice: { id: r.id, lines: [`payment ${intent_id}, admin refund ${r.id}`] },
+  });
+  if (
+    res.status === "reversed" ||
+    res.status === "already_reversed" ||
+    res.status === "held"
+  ) {
+    return res;
+  }
+  if (res.status === "failed" && res.reason === "incomplete") return res;
+  // the action checked the gift, its rail and its dists before the refund,
+  // and the refund completes the charge: only a gift or charge changed under
+  // this request lands here
+  const why = res.status === "failed" ? res.reason : res.status;
+  throw new Error(`nothing reversed: ${why}`);
 }
 
 export const action = async ({ params }: Route.ActionArgs) => {
   const { donation_id } = params;
 
   const don = await stripe_donation(donation_id);
-  if (don.status === "refunded" || don.status === "refunded_loss")
-    throw new Response("already refunded", { status: 400 });
+  if (is_reversed(don.status)) throw already_refunded();
 
-  const graphs = await dists_for_refund(donation_id);
-  if (graphs.length === 0)
+  if (!(await has_settled_dists(don.id)))
     throw new Response("no settled dists", { status: 400 });
 
   // with no payment to refund, reversing would take the gift back from the
@@ -348,9 +263,9 @@ export const action = async ({ params }: Route.ActionArgs) => {
   const stripe_refund = r.status;
 
   // past here the donor is refunded, so the admin hears that whatever throws
-  let result: RefundResult | "held";
+  let result: Awaited<ReturnType<typeof finish_refund>>;
   try {
-    result = await finish_refund(r, intent_id, don, graphs);
+    result = await finish_refund(r, intent_id, don);
   } catch (err) {
     report_error(err, { donation_id, refund_id: r.id });
     const reason = err instanceof Error ? err.message : String(err);
@@ -362,14 +277,14 @@ export const action = async ({ params }: Route.ActionArgs) => {
     );
   }
 
-  if (result === "held") {
+  if (result.status === "held") {
     return dataWithSuccess(
       { ok: true as const, stripe_refund, reversal: "held" as const },
       "Refund issued"
     );
   }
 
-  if (result.failures.length > 0) {
+  if (result.status === "failed") {
     return incomplete(
       "issued",
       result.failures,
@@ -378,6 +293,8 @@ export const action = async ({ params }: Route.ActionArgs) => {
     );
   }
 
+  // already_reversed lands here too: past this request's own accepted refund,
+  // whoever reversed first (its charge.refunded webhook, chiefly) finished it
   return dataWithSuccess(
     { ok: true as const, stripe_refund, reversal: "done" as const },
     "Refund processed"

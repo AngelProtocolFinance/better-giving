@@ -3,6 +3,7 @@ import {
   BookOpenCheckIcon,
   Building2Icon,
   DollarSignIcon,
+  HandCoinsIcon,
   HatGlassesIcon,
   LandmarkIcon,
   LineChartIcon,
@@ -75,6 +76,11 @@ export const link_groups: LinkGroup[] = [
         title: "Losses",
         to: routes.losses,
         icon: { fn: TrendingDownIcon, size: 18 },
+      },
+      {
+        title: "Amounts owed",
+        to: routes.owed,
+        icon: { fn: HandCoinsIcon, size: 18 },
       },
       {
         title: "Fundraiser Moderation",

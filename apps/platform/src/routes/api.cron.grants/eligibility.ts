@@ -20,15 +20,26 @@ export type GrantEligibility =
       minimum: number;
       total: number;
       wise_id: string;
+    }
+  /** what the npo owes decides the minimum and whether a recipient is needed */
+  | {
+      status: "nets";
+      npo: Npo;
+      minimum: number;
+      total: number;
+      wise_id: string | null;
     };
 
 /**
  * whether the grants run pays this npo its pending `amounts`, judged on their
- * `total`: the cents the run sends. the schedule notice asks the same
+ * `total`: the cents the run sends. the schedule notice asks the same. a run
+ * that `nets_owed` leaves the minimum and the recipient to the netting, since
+ * an npo owing at least its total is settled with no transfer
  */
 export async function grant_eligibility(
   npo_id: number,
-  amounts: number[]
+  amounts: number[],
+  nets_owed: boolean
 ): Promise<GrantEligibility> {
   const total = payout_total(amounts);
   const npo = await npo_get(npo_id);
@@ -39,6 +50,10 @@ export async function grant_eligibility(
 
   if (npo.active === false) return skip("inactive");
   const wise_id = await npo_default_bapp(npo.id).then((x) => x?.id);
+  if (nets_owed) {
+    const recipient = wise_id ? String(wise_id) : null;
+    return { status: "nets", npo, minimum, total, wise_id: recipient };
+  }
   if (!wise_id) return skip("no wise recipient");
   if (total < minimum) {
     return skip(`payout minimum not met, min: ${minimum}, total: ${total}`);

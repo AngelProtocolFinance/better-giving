@@ -23,6 +23,7 @@ import { payout_put } from "$/pg/queries/payout";
 import { npo_prog_contrib } from "$/pg/queries/program";
 import { commission_put } from "$/pg/queries/referrer";
 import { rev_log_put } from "$/pg/queries/revenue";
+import { owe_takes } from "$/refund/takes";
 
 const plan_ctx = (npo: INpo): NpoSettlementContext => ({
   id: npo.id,
@@ -186,6 +187,8 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
   if (i.program) await npo_prog_contrib(db, i.program.id, dist.net);
 
   await npo_balance_update(db, +i.id, plan.balance_deltas, "inc");
+  // a dispute or refund recorded before this dist existed owed nothing for it
+  await owe_takes(db, i.prnt.id, new Date().toISOString());
 
   console.info(`settled npo ${i.id}, dist ${don.id}`);
 

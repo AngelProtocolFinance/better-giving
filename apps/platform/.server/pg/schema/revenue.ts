@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
 } from "drizzle-orm/pg-core";
+import { user } from "./auth";
 import { numeric_as_number, timestamptz } from "./columns";
 import { funds } from "./fund";
 import { npos } from "./npo";
@@ -61,12 +62,14 @@ export const loss_logs = pgTable(
     id: text("id").primaryKey(),
     date: timestamptz("date").notNull(),
     donation_id: text("donation_id").notNull(),
-    dist_id: text("dist_id").notNull(),
-    npo_id: integer("npo_id")
-      .notNull()
-      .references(() => npos.id),
+    /** null on a write-off, which is of an owed row, not of one dist */
+    dist_id: text("dist_id"),
+    /** whose loss: an npo, or on a write-off of a referrer's owed row, that referrer */
+    npo_id: integer("npo_id").references(() => npos.id),
+    referrer_user: text("referrer_user").references(() => user.referral_code),
+    referrer_npo: text("referrer_npo").references(() => npos.referral_id),
     type: text("type")
-      .$type<"balance_liq" | "balance_lock" | "payout">()
+      .$type<"balance_liq" | "balance_lock" | "payout" | "write_off">()
       .notNull(),
     amount: numeric_as_number("amount", { precision: 38, scale: 18 }).notNull(),
     npo_amount: numeric_as_number("npo_amount", {
@@ -82,11 +85,21 @@ export const loss_logs = pgTable(
       scale: 18,
     }).notNull(),
     reason: text("reason").notNull(),
+    /** the admin who wrote it off */
+    actor: text("actor").references(() => user.id),
   },
   (t) => [
     check(
       "loss_logs_type_check",
-      sql`${t.type} IN ('balance_liq','balance_lock','payout')`
+      sql`${t.type} IN ('balance_liq','balance_lock','payout','write_off')`
+    ),
+    check(
+      "loss_logs_party_xor",
+      sql`num_nonnulls(${t.npo_id}, ${t.referrer_user}, ${t.referrer_npo}) = 1`
+    ),
+    check(
+      "loss_logs_write_off_check",
+      sql`CASE WHEN ${t.type} = 'write_off' THEN ${t.actor} IS NOT NULL ELSE ${t.dist_id} IS NOT NULL END`
     ),
     index("loss_logs_date_idx").on(t.date),
     index("loss_logs_npo_id_idx").on(t.npo_id),

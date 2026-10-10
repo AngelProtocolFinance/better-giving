@@ -10,6 +10,7 @@ export {
   type IFundMemberRemovedPayload,
   type IInviteEmailPayload,
   type ILockTxCreatedPayload,
+  type IOwedNoticePayload,
   type IPaypalOrderCapturePayload,
   type IRegCreatedPayload,
   type ISubCancelFailedEmailPayload,

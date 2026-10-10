@@ -19,21 +19,29 @@ import {
   donation_lock,
   donation_update,
 } from "../pg/queries/donation";
+import type { DbOrTx } from "../pg/queries/helpers";
 import { void_match_event } from "../pg/queries/match";
 import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
+import {
+  credit_owed,
+  type IOwed,
+  owed_for_party,
+  owed_total,
+} from "../pg/queries/owed";
 import type { MatchEvent } from "../pg/schema/match";
-import { apply_refund_plan, StalePayoutError } from "./apply";
+import { apply_refund_plan, type OwedSource, StalePayoutError } from "./apply";
 import { donation_refund_status } from "./donation-status";
 import {
   calc_refund_plan,
-  loss_figures_off,
   type RefundCtx,
   type RefundInputs,
   type RefundPlan,
+  referrer_of,
 } from "./plan";
+import { open_credit, taken_from_npo } from "./share";
 
-export interface ProcessRefundCtx {
+export interface ProcessRefundCtx extends OwedSource {
   form_id: string | null;
   program_id: string | null;
   /** discord alert sender identity, e.g. `refund-action-${stage}` */
@@ -42,7 +50,8 @@ export interface ProcessRefundCtx {
 
 export interface RefundResult {
   failures: string[];
-  loss_msgs: string[];
+  /** what each party now owes back, one line per row */
+  owed_msgs: string[];
   has_loss: boolean;
   applied: number;
 }
@@ -59,11 +68,25 @@ const MAX_STRAGGLER_SWEEPS = 3;
 // the authoritative check, run on the row read under its lock inside the apply
 // transaction. the graph a run was handed can be stale — a concurrent run on
 // the same donation may have reversed the dist since.
-function is_reversed(d: { status: string; refund_status: string | null }) {
+function dist_is_reversed(d: { status: string; refund_status: string | null }) {
   return (
     d.status !== "settled" ||
     (!!d.refund_status && SKIP_STATUSES.has(d.refund_status))
   );
+}
+
+/** the party's row when a dispute's open recorded it: what the npo owes from
+ * it was taken then, so a reversal's own take comes off it, whichever refund
+ * or dispute reverses the gift. a row a refund recorded first never meets a
+ * take: a partial records none where the grant is pending or in balances,
+ * and a paid grant's reversal takes nothing back */
+async function recorded_at_open(
+  tx: DbOrTx,
+  donation_id: string,
+  party: { npo_id: number }
+): Promise<IOwed | null> {
+  const row = await owed_for_party(donation_id, party, tx);
+  return row?.source === "dispute" ? row : null;
 }
 
 /** project a rich DistRefundGraph + fetched npo/nav into the pure calc inputs */
@@ -95,6 +118,7 @@ function project_inputs(
           donation_id: g.commission.donation_id,
           amount: g.commission.amount ?? 0,
           status: g.commission.status,
+          referrer: referrer_of(g.commission),
         }
       : null,
     rev_log_ids: g.rev_logs.map((rl) => rl.id),
@@ -159,25 +183,44 @@ export async function process_refund(
   ctx: ProcessRefundCtx
 ): Promise<RefundResult> {
   const failures: string[] = [];
-  const loss_msgs: string[] = [];
+  const owed_msgs: string[] = [];
+  const src: OwedSource = { source: ctx.source, source_ref: ctx.source_ref };
   let applied = 0;
 
   async function apply_dist(g: DistRefundGraph) {
     const plan = await load_refund_plan(g, {
       form_id: ctx.form_id,
       program_id: ctx.program_id,
-      sub_id: null, // not used during apply; sub cancel is route-owned
+      sub_id: null, // not used during apply; reverse_charge ends the subscription
       strict: true,
     });
 
     return db.transaction(async (tx) => {
       const cur = await dist_refund_state_locked(tx, g.dist.id);
-      if (!cur || is_reversed(cur)) return { skipped: true } as const;
-      const applied = await apply_refund_plan(tx, plan);
+      if (!cur || dist_is_reversed(cur)) return { skipped: true } as const;
+      const party = { npo_id: g.dist.to_id ?? 0 };
+      // read before apply, whose loss path records a row of its own
+      const opened = await recorded_at_open(tx, donation_id, party);
+      const applied = await apply_refund_plan(tx, plan, src);
+      const credit = opened ? open_credit(opened, taken_from_npo(plan)) : 0;
+      if (credit > 0) {
+        await credit_owed(tx, {
+          donation_id,
+          party,
+          usd: credit,
+          reason: "dispute_reversed",
+          ref: `${src.source_ref}:${g.dist.id}`,
+          now: new Date().toISOString(),
+        });
+      }
       await dist_refund_update(tx, g.dist.id, {
         refund_status: plan.is_loss ? "loss" : "completed",
       });
-      return { skipped: false, ...applied } as const;
+      return {
+        skipped: false,
+        ...applied,
+        reasons: plan.loss_reasons,
+      } as const;
     });
   }
 
@@ -199,23 +242,20 @@ export async function process_refund(
       if (res.skipped) return;
       applied += 1;
 
-      const { loss, commission_in_flight: c, paid_commission: pc } = res;
-      if (loss) {
-        const off = loss_figures_off(loss);
-        if (off)
-          report_error(new Error(off), { loss_id: loss.id, donation_id });
-        loss_msgs.push(
-          `npo ${g.dist.to_id}: $${humanize(loss.amount)} — ${loss.reason}`
-        );
-      }
-      if (pc) {
-        loss_msgs.push(
-          `commission ${pc.donation_id}: $${humanize(pc.amount)} — already paid to its referrer, so the refund leaves it with them as the platform's loss`
-        );
-      }
-      if (c) {
-        loss_msgs.push(
-          `commission ${c.donation_id}: $${humanize(c.amount)} — refunded while claimed for a Wise payout to its referrer; check the transfer by customerTransactionId ${c.ref}`
+      const { owed, commission_in_flight: c } = res;
+      for (const o of owed) {
+        const usd = owed_total(o);
+        if (o.npo_id !== null) {
+          owed_msgs.push(
+            `$${humanize(usd)} recorded as owed by ${g.dist.to_name ?? "its npo"} (npo ${g.dist.to_id}), to recover from its future grants — ${res.reasons.join("; ")}`
+          );
+          continue;
+        }
+        const in_flight = c
+          ? `. claimed by the Wise transfer with customerTransactionId ${c.ref}, so owed only if that transfer pays: if it goes unfunded, the commission run credits it back when it catches that, otherwise credit it on Amounts owed (/platform/owed)`
+          : "";
+        owed_msgs.push(
+          `$${humanize(g.commission?.amount ?? 0)} commission ${g.dist.id} recorded as owed by referrer ${o.referrer_user ?? o.referrer_npo}, to recover from its next commission; the gift's row for that referrer totals $${humanize(usd)}${in_flight}`
         );
       }
     } catch (err) {
@@ -269,7 +309,7 @@ export async function process_refund(
     const fin = await db.transaction(async (tx) => {
       await donation_lock(tx, donation_id);
       const pending = await dists_settled_of(tx, donation_id);
-      if (pending.some((d) => !is_reversed(d))) {
+      if (pending.some((d) => !dist_is_reversed(d))) {
         return { flipped: false } as const;
       }
       const status = await donation_refund_status(tx, donation_id);
@@ -306,20 +346,20 @@ export async function process_refund(
     for (const g of await dists_for_refund(donation_id)) await reverse(g);
   }
 
-  // losses are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
-  if (loss_msgs.length > 0) {
+  // owed amounts are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
+  if (owed_msgs.length > 0) {
     await fiat_monitor.send_alert({
       type: "NOTICE",
       from: `${ctx.alert_from}-${stage}`,
-      title: "Refund Completed with Losses",
-      body: `LOSSES:\n${loss_msgs.join("\n")}`,
+      title: "Refund Recorded as Owed",
+      body: ["OWED:", ...owed_msgs].join("\n"),
     });
   }
 
   const has_loss =
     (final ?? (await donation_refund_status(db, donation_id))) ===
     "refunded_loss";
-  return { failures, loss_msgs, has_loss, applied };
+  return { failures, owed_msgs, has_loss, applied };
 }
 
 /**

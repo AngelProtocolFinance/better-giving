@@ -2,9 +2,17 @@ import { EmptyRow, LoadMoreRow } from "@better-giving/ui";
 import { format } from "date-fns";
 import type { IPaginator } from "#/types/components";
 import { humanize } from "@/helpers/decimal";
+import type { IGrantRunDeductions } from "$/pg/queries/owed-history";
 import type { SettlementRow } from "$/pg/queries/payout";
 
-export interface Props extends IPaginator<SettlementRow> {}
+export interface IGrantLine extends SettlementRow {
+  /** set when the grant recovered anything owed */
+  run?: IGrantRunDeductions;
+}
+
+export interface Props extends IPaginator<IGrantLine> {}
+
+const usd = (n: number) => `$${humanize(n)}`;
 
 export function GrantsTable({
   items,
@@ -28,7 +36,26 @@ export function GrantsTable({
           ) : (
             items.map((payout, idx) => (
               <tr key={idx}>
-                <td>${humanize(payout.amount)} </td>
+                <td>
+                  ${humanize(payout.amount)}{" "}
+                  {payout.run && payout.run.deductions.length > 0 && (
+                    <ul className="text-sm text-gray-11">
+                      <li>Gross {usd(payout.run.gross)}</li>
+                      {payout.run.deductions.map((d) => (
+                        <li key={d.owed_id}>
+                          {d.usd < 0
+                            ? "Paid back for gift "
+                            : "Deducted for gift "}
+                          <a href={`#owed-${d.owed_id}`} className="link">
+                            {d.donation_id}
+                          </a>{" "}
+                          {d.usd < 0 ? `+${usd(-d.usd)}` : `-${usd(d.usd)}`}
+                        </li>
+                      ))}
+                      <li>Net {usd(payout.run.net)}</li>
+                    </ul>
+                  )}
+                </td>
                 <td>{format(payout.date, "PP")}</td>
               </tr>
             ))

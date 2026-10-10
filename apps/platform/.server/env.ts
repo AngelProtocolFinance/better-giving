@@ -129,6 +129,10 @@ export const nowpayments = {
   ),
 } as const;
 
+// whether grants net what an npo owes. exactly "on": an optional key's usual `!!`
+// would read "off" as on
+export const owed_deductions = process.env.OWED_DEDUCTIONS === "on";
+
 export const openexchange = {
   app_id: process.env.OPENEXCHANGE_APP_ID,
 } as const;

@@ -19,7 +19,7 @@ export function LogsTable({
         <thead>
           <tr>
             <th>Date</th>
-            <th>NPO</th>
+            <th>Party</th>
             <th>Type</th>
             <th className="text-right">Total</th>
             <th className="text-right">NPO</th>
@@ -33,8 +33,26 @@ export function LogsTable({
           {items.map((l) => (
             <tr key={l.id} className="text-sm">
               <td className="whitespace-nowrap">{toPP(l.date)}</td>
-              <td>{l.npo_id}</td>
-              <td>{l.type}</td>
+              <td>
+                {l.npo_id ?? (
+                  <>
+                    {l.referrer_user ?? l.referrer_npo}
+                    <span className="block text-xs text-gray-11">Referrer</span>
+                  </>
+                )}
+              </td>
+              <td>
+                {l.type === "write_off" ? (
+                  <>
+                    Write-off
+                    <span className="block text-xs text-gray-11">
+                      by {l.actor}
+                    </span>
+                  </>
+                ) : (
+                  l.type
+                )}
+              </td>
               <td className="text-right font-medium">${humanize(l.amount)}</td>
               <td className="text-right">${humanize(l.npo_amount)}</td>
               <td className="text-right">${humanize(l.fees_bg)}</td>

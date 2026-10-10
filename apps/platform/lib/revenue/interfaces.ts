@@ -38,20 +38,26 @@ export interface IRevenuePageOptions {
   next?: string;
 }
 
-export type LossType = "balance_liq" | "balance_lock" | "payout";
+export type LossType = "balance_liq" | "balance_lock" | "payout" | "write_off";
 
 export interface ILossLog {
   id: string;
   date: string;
   donation_id: string;
-  dist_id: string;
-  npo_id: number;
+  /** null on a write-off, which is of an owed row */
+  dist_id: string | null;
+  /** exactly one of the three: whose loss it is */
+  npo_id: number | null;
+  referrer_user: string | null;
+  referrer_npo: string | null;
   type: LossType;
   amount: number; // usd gross of the dist less cash recovered — total platform cost
   npo_amount: number; // r.net less cash recovered — npo balance not recoverable
   fees_bg: number; // base + fsa — reversed from revenue
   fees_processing: number; // stripe fee — never recoverable
   reason: string;
+  /** the admin's user id, on a write-off */
+  actor: string | null;
 }
 
 export interface ILossLtd {
