@@ -3102,6 +3102,66 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     });
   });
 
+  describe("a $30 dispute won, its chargeback delivered late", () => {
+    const APPEAL = "2026-11-05T12:00:00.000Z";
+    const thirty = { dispute_amount: { currency_code: "USD", value: "30.00" } };
+    /** paypal's REVERSED of the dispute's $30 */
+    const reversed_thirty = (sttl_id: string) => {
+      const ev = refunded_ev(sttl_id, "REV-30", "30.00", "30.00");
+      return {
+        ...ev,
+        event_type: "PAYMENT.CAPTURE.REVERSED",
+        resource: {
+          ...ev.resource,
+          amount: { value: "-30.00", currency_code: "USD" },
+        },
+      };
+    };
+    const won_then_reversed = async (won_at?: string) => {
+      const gift = await paypal_gift();
+      await deliver(created_ev(gift.sttl_id, thirty));
+      await deliver(
+        resolved_ev(gift.sttl_id, "RESOLVED_SELLER_FAVOUR", {
+          ...thirty,
+          ...(won_at && { update_time: won_at }),
+        })
+      );
+      await deliver(reversed_thirty(gift.sttl_id));
+      return gift;
+    };
+
+    it("lost on appeal, owes its share again, once", async () => {
+      const { id, sttl_id } = await won_then_reversed();
+      expect(await owed_rows()).toMatchObject([{ outstanding_usd: 0 }]);
+
+      await deliver(
+        resolved_ev(sttl_id, "RESOLVED_BUYER_FAVOUR", { update_time: APPEAL })
+      );
+      expect(await owed_rows()).toMatchObject([{ outstanding_usd: 27.96 }]);
+      await deliver(reversed_thirty(sttl_id));
+      await deliver(
+        resolved_ev(sttl_id, "RESOLVED_BUYER_FAVOUR", { update_time: APPEAL })
+      );
+
+      expect(await owed_rows()).toMatchObject([{ outstanding_usd: 27.96 }]);
+      expect(await disputes_of(db(), id)).toMatchObject([
+        { id: DISPUTE_ID, status: "lost", closed_at: APPEAL },
+      ]);
+      expect((await donation_get(id))?.status).toBe("settled");
+    });
+
+    it("an earlier loss delivered after the win changes nothing", async () => {
+      const { id, sttl_id } = await won_then_reversed(APPEAL);
+
+      await deliver(resolved_ev(sttl_id, "RESOLVED_BUYER_FAVOUR"));
+
+      expect(await owed_rows()).toMatchObject([{ outstanding_usd: 0 }]);
+      expect(await disputes_of(db(), id)).toMatchObject([
+        { id: DISPUTE_ID, status: "won", closed_at: APPEAL },
+      ]);
+    });
+  });
+
   // an accepted claim is paid through a refund, which is its own take
   it("resolved ACCEPTED, records the dispute accepted and credits its part back for the refund that pays it to record again", async () => {
     const { id, sttl_id } = await paypal_gift();

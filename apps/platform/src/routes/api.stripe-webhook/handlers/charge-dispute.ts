@@ -101,8 +101,7 @@ export async function handle_dispute_closed(
     if (won.status === "failed") {
       throw new Error(`dispute ${dispute.id} not credited: ${won.reason}`);
     }
-    // a redelivery finds it won already, and ops were told
-    if (won.status !== "already_reversed" || won.prior_status === "won") return;
+    if (won.status !== "already_reversed") return;
     // keyed on the event: a redelivery collapses into it inside the queue's
     // dedupe window only
     await enqueue(
@@ -114,7 +113,7 @@ export async function handle_dispute_closed(
           title: "Dispute Won on a Reversed Donation",
           body: [
             dispute_line(dispute, don.id, event.id),
-            won.prior_status === "lost"
+            won.prior_status === "lost" || won.charged_back
               ? `stripe returned the disputed ${money(dispute.amount, dispute.currency)} after it was lost, and that loss reversed the donation (${won.donation_status}): credit the nonprofit by hand what the reversal took.`
               : `stripe returned the disputed ${money(dispute.amount, dispute.currency)}, the platform's own withdrawal: the donation was already ${won.donation_status}, reversed by its refund or another dispute rather than this one, so nothing is owed to the nonprofit.`,
           ].join("\n"),

@@ -25,7 +25,7 @@ import { paypal as paypal_env, stage } from "$/env";
 import { paypal } from "$/kit/paypal";
 import { enqueue, schedule } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { dispute_close, dispute_get } from "$/pg/queries/dispute";
+import { dispute_get } from "$/pg/queries/dispute";
 import {
   donation_by_sttl_id,
   donation_get,
@@ -41,7 +41,12 @@ import {
   sub_put,
   sub_update,
 } from "$/pg/queries/subscription";
-import { dispute_opened, dispute_won, owed_lines } from "$/refund/dispute";
+import {
+  dispute_lost,
+  dispute_opened,
+  dispute_won,
+  owed_lines,
+} from "$/refund/dispute";
 import {
   type ReversalSource,
   reverse_charge,
@@ -910,7 +915,28 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
     return new Response(`dispute ${outcome}`, { status: 200 });
   }
   if (outcome === "RESOLVED_BUYER_FAVOUR") {
-    await dispute_close(db, { ...record, status: "lost" });
+    // paypal's own REVERSED takes the money back; a win it reverses on
+    // appeal puts the chargeback that win set aside back here
+    const res = await dispute_lost({
+      donation_id: don.id,
+      rail: "paypal",
+      dispute_id: record.id,
+      opened_at: record.opened_at,
+      closed_at: record.closed_at,
+      alert_from: REFUND_ALERT_FROM,
+      // keyed on the event, so a duplicate delivery posts one notice
+      notice: {
+        id: `paypal-dispute-lost_${ev.id}`,
+        lines: [
+          `donation ${don.id}, dispute ${record.id}, event ${ev.id}`,
+          `resolved ${outcome} after it was won: its chargeback counts again`,
+        ],
+      },
+    });
+    // a rerun retries what failed to reverse
+    if (res?.status === "failed" && res.reason === "incomplete") {
+      return new Response("reversal incomplete", { status: 503 });
+    }
     return new Response(`dispute ${outcome}`, { status: 200 });
   }
   if (!outcome || !SELLER_KEEPS_OUTCOMES.has(outcome)) {

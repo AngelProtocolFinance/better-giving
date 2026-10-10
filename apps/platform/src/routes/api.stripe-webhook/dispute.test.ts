@@ -577,6 +577,26 @@ describe("a late win after the dispute was lost", () => {
       /after it was lost.*credit the nonprofit by hand/
     );
   });
+
+  it("whose notice failed to send, asks ops the same on stripe's redelivery", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(event_of("charge.dispute.created", dispute_of(gift)));
+    await deliver(lost_of(gift));
+    enqueue_mock.mockClear();
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash 503"));
+
+    const won = won_of(gift);
+    const failed = await deliver(won);
+    const res = await deliver(won);
+
+    expect(failed.ok).toBe(false);
+    expect(res.status).toBe(200);
+    const [first, again] = notices();
+    expect(again.payload.alert.body).toBe(first.payload.alert.body);
+    expect(again.payload.alert.body).toMatch(
+      /after it was lost.*credit the nonprofit by hand/
+    );
+  });
 });
 
 describe("a dispute over part of the charge", () => {
