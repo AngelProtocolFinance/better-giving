@@ -1075,8 +1075,9 @@ describe("admin_credit_owed", () => {
     const again = await credit("payout-1");
     const row = await credit("payout-2");
 
-    expect(again).toMatchObject({ credited_back_usd: 30 });
+    expect(again).toMatchObject({ credited_back_usd: 30, added: false });
     expect(row).toMatchObject({
+      added: true,
       credited_back_usd: 60,
       credited_back_at: NOW,
       outstanding_usd: 33.2,

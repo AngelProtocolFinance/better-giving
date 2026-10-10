@@ -104,31 +104,30 @@ export function OwedHistory({ rows, run_noun, received_label }: IOwedHistory) {
   );
 }
 
-/** what has settled part of the row so far. every credit carries the row's
- * latest credit date, the only one it keeps; a credit or write-off figure is
- * dated by the check constraints on it */
+/** what has settled part of the row so far. each credit and the write-off
+ * figure is a total over its entries, and the row keeps only the latest date
+ * of each, so no total is given a date of its own; a credit or write-off
+ * figure is dated by the check constraints on it */
 function history(
   r: IOwedHistoryRow,
   run_noun: IOwedHistory["run_noun"]
 ): string[] {
-  const credited_on = r.credited_back_at && to_utc_day(r.credited_back_at);
   const lines: string[] = [];
   if (r.refund_failed_usd > 0) {
-    lines.push(
-      `Refund failed: ${usd(r.refund_failed_usd)} credited back on ${credited_on}`
-    );
+    lines.push(`Refund failed: ${usd(r.refund_failed_usd)} credited back`);
   }
   if (r.dispute_won_usd > 0) {
-    lines.push(
-      `Dispute settled: ${usd(r.dispute_won_usd)} credited back on ${credited_on}`
-    );
+    lines.push(`Dispute settled: ${usd(r.dispute_won_usd)} credited back`);
   }
   if (r.credited_back_usd > 0) {
-    lines.push(`${usd(r.credited_back_usd)} credited back on ${credited_on}`);
+    lines.push(`${usd(r.credited_back_usd)} credited back`);
+  }
+  if (lines.length > 0) {
+    lines.push(`Most recent credit on ${to_utc_day(r.credited_back_at!)}`);
   }
   if (r.written_off_usd > 0) {
     lines.push(
-      `${usd(r.written_off_usd)} waived on ${to_utc_day(r.written_off_at!)}`
+      `${usd(r.written_off_usd)} waived in total, most recently on ${to_utc_day(r.written_off_at!)}`
     );
   }
   return [...lines, ...r.recoveries.map((l) => run_line(l, run_noun))];

@@ -5,6 +5,7 @@ import { resp } from "@/helpers/https";
 import { db } from "$/pg/db";
 import {
   admin_credit_owed,
+  type OwedCreditReason,
   owed_list,
   write_off_owed,
 } from "$/pg/queries/owed";
@@ -41,6 +42,26 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 const reason = v.pipe(v.string(), v.trim(), v.nonEmpty("A reason is required"));
 const owed_id = v.pipe(v.string(), v.nonEmpty("A row is required"));
 
+/** the refund core books its own credits under these; the ledger refuses
+ * them from an admin, as a throw this would answer with a 500 */
+const RESERVED: Record<OwedCreditReason, true> = {
+  payout_cancelled: true,
+  transfer_unfunded: true,
+  dispute_reversed: true,
+  dispute_won: true,
+  dispute_won_fee: true,
+  dispute_won_fee_dispute: true,
+  refund_failed: true,
+  refund_failed_fee: true,
+};
+const credit_reason = v.pipe(
+  reason,
+  v.check(
+    (r) => !Object.hasOwn(RESERVED, r),
+    "That reason is reserved for credits the system books. Describe this credit in your own words."
+  )
+);
+
 const body = v.variant("intent", [
   v.object({ intent: v.literal("write_off"), owed_id, reason }),
   v.object({
@@ -51,7 +72,7 @@ const body = v.variant("intent", [
       v.finite("An amount is required"),
       v.gtValue(0, "The amount must be more than $0")
     ),
-    reason,
+    reason: credit_reason,
     ref: v.pipe(v.string(), v.trim(), v.nonEmpty("A reference is required")),
   }),
 ]);
@@ -115,9 +136,7 @@ async function credit(
       return r;
     });
     if (!row) return resp.fail(404, "This row no longer exists");
-    // a credit dates the row with its own `now`; an earlier date means the
-    // ref already had its entry and this call added nothing
-    if (Date.parse(row.credited_back_at ?? "") !== Date.parse(now)) {
+    if (!row.added) {
       return resp.fail(
         409,
         `The reference ${ref} was already used for a credit on this row`

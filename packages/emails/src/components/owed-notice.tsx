@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Text } from "react-email";
 import { Hr } from "./hr";
 import { KeyValue } from "./key-value";
@@ -226,52 +225,35 @@ function Recorded({ n, party, gift }: IBody) {
   );
 }
 
+// each credit and the write-off figure is a total over its entries and the
+// row keeps only the latest date of each, so no sentence dates a total; the
+// latest date is said as the latest
+
 function Credited({ n, party, gift }: IBody) {
-  // one sentence per kind of credit, each opening lower-case so the first
-  // can take the date: [opening, the rest]
-  const credits: [string, ReactNode][] = [];
-  if (n.refund_failed_usd > 0) {
-    credits.push([
-      "the refund",
-      <>
-        {" "}
-        of the {gift} failed, so the gift stands and we credited back{" "}
-        <strong>{usd(n.refund_failed_usd)}</strong> of what was owed on it.
-      </>,
-    ]);
-  }
-  // a won dispute, an accepted claim, a closed inquiry or a smaller
-  // chargeback all credit here, so the sentence claims no outcome
-  if (n.dispute_won_usd > 0) {
-    credits.push([
-      "we credited back",
-      <>
-        {" "}
-        <strong>{usd(n.dispute_won_usd)}</strong> of what was owed on the {gift}
-        , because its dispute was settled.
-      </>,
-    ]);
-  }
-  if (n.credited_back_usd > 0) {
-    credits.push([
-      "we credited back",
-      <>
-        {" "}
-        <strong>{usd(n.credited_back_usd)}</strong> of what was owed on the{" "}
-        {gift}.
-      </>,
-    ]);
-  }
   return (
     <>
-      {credits.map(([opening, rest], i) => (
-        <Text key={i}>
-          {i === 0
-            ? `On ${n.credited_back_at}, ${opening}`
-            : opening[0]!.toUpperCase() + opening.slice(1)}
-          {rest}
+      {n.refund_failed_usd > 0 && (
+        <Text>
+          The refund of the {gift} failed, so the gift stands and we credited
+          back <strong>{usd(n.refund_failed_usd)}</strong> of what was owed on
+          it.
         </Text>
-      ))}
+      )}
+      {/* a won dispute, an accepted claim, a closed inquiry or a smaller
+          chargeback all credit here, so the sentence claims no outcome */}
+      {n.dispute_won_usd > 0 && (
+        <Text>
+          We credited back <strong>{usd(n.dispute_won_usd)}</strong> of what was
+          owed on the {gift}, because its dispute was settled.
+        </Text>
+      )}
+      {n.credited_back_usd > 0 && (
+        <Text>
+          We credited back <strong>{usd(n.credited_back_usd)}</strong> of what
+          was owed on the {gift}.
+        </Text>
+      )}
+      <Text>The most recent credit was on {n.credited_back_at}.</Text>
       <Remaining n={n} party={party} />
     </>
   );
@@ -281,9 +263,8 @@ function Waived({ n, party, gift }: IBody) {
   return (
     <>
       <Text>
-        On {n.written_off_at}, we waived{" "}
-        <strong>{usd(n.written_off_usd)}</strong> that was still owed on the{" "}
-        {gift}.
+        We have waived <strong>{usd(n.written_off_usd)}</strong> in total of
+        what was owed on the {gift}, most recently on {n.written_off_at}.
       </Text>
       <Remaining n={n} party={party} />
     </>

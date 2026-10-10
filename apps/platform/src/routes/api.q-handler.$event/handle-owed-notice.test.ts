@@ -266,9 +266,39 @@ describe("handle_owed_notice", () => {
     expect(mail.subject).toBe("Amount owed credited back: don-1");
     const text = await mail_text(mail);
     expect(text).toMatch(
-      /we credited back \$93\.20 of what was owed on the .*, because its dispute was settled\./
+      /We credited back \$93\.20 of what was owed on the .*, because its dispute was settled\./
     );
+    // the figure is a total, so the date is the latest credit's, said as such
+    expect(text).toMatch(/The most recent credit was on Nov 20, 2026\./);
     expect(text).not.toMatch(/\$0\.00/);
+  });
+
+  test("a second waiver's mail gives the waived total as a total, dated by the latest", async () => {
+    const admin = await seed_user(db(), "ops@better.giving");
+    const row = await dispute();
+    const waive = (now: string) =>
+      write_off_owed(as_db(db()), {
+        owed_id: row.id,
+        reason: "goodwill",
+        actor: admin!.id,
+        now,
+      });
+    await waive(NOW);
+    await deliver_due();
+    // the dispute's fee lands later, owing again, and is waived on its own day
+    await dispute(15);
+    await deliver_due();
+    await waive("2026-11-25T12:00:00.000Z");
+    await deliver_due();
+
+    const mails = send_email_or_throw.mock.calls.map(([m]) => m);
+    const last = mails.at(-1)!;
+    expect(last.subject).toBe("Amount owed waived: don-1");
+    const text = await mail_text(last);
+    expect(text).toMatch(
+      /We have waived \$108\.20 in total of what was owed on the .*, most recently on Nov 25, 2026\./
+    );
+    expect(text).not.toMatch(/On Nov 25, 2026, we waived \$108\.20/);
   });
 
   test("a row owing again after it was settled is mailed as owed again, the won figures not added back", async () => {
