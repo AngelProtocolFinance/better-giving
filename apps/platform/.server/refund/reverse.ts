@@ -13,7 +13,12 @@ import { record_takes } from "./partial";
 import { dist_settled_usd, type PreviewLine } from "./plan";
 import { load_refund_plan, process_refund, type RefundResult } from "./process";
 import { fraction_of, type Share } from "./share";
-import { claim_paid, take_chargeback, take_refund } from "./takes";
+import {
+  claim_paid,
+  record_dispute_fees,
+  take_chargeback,
+  take_refund,
+} from "./takes";
 
 export { type Share, WHOLE } from "./share";
 
@@ -287,13 +292,20 @@ export async function reverse_charge(
     return { status: "failed", reason: "not_distributed" };
   }
 
+  const src = {
+    source: r.source === "dispute" ? "dispute" : "refund",
+    source_ref: r.source_ref ?? r.notice.id,
+  } as const;
   const res = await process_refund(don.id, graphs, {
     form_id: don.form_id ?? null,
     program_id: don.program?.id ?? null,
     alert_from: r.alert_from,
-    source: r.source === "dispute" ? "dispute" : "refund",
-    source_ref: r.source_ref ?? r.notice.id,
+    ...src,
   });
+  const now = new Date().toISOString();
+  await db.transaction((tx) =>
+    record_dispute_fees(tx, { donation_id: don.id, src, now })
+  );
 
   const failed = res.failures.length;
   console.info(
