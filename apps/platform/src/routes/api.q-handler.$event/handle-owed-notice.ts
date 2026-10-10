@@ -1,10 +1,12 @@
 import { owed_npo_notif, owed_referrer_notif } from "emails";
 import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
+import type { Alert } from "@/discord";
 import { to_utc_day } from "@/helpers/date";
 import type { IOwedNoticePayload } from "@/queue";
 import { send_email_or_throw } from "$/email";
 import { base_url } from "$/env";
+import { fiat_monitor } from "$/kit/discord";
 import type { DbOrTx } from "$/pg/queries/helpers";
 import { npo_by_rid, npo_get } from "$/pg/queries/npo";
 import type { OwedParty } from "$/pg/queries/owed";
@@ -28,8 +30,9 @@ export async function handle_owed_notice(db: DbOrTx, p: IOwedNoticePayload) {
   // cron enqueues a held notice again once its lease runs out unsent
   if (claim.status !== "claimed") return;
 
+  let mailed: boolean;
   try {
-    await send_notice(claim);
+    mailed = await send_notice(claim);
   } catch (e) {
     // the send's error is the one that has to survive; a failed release keeps
     // the claim until its lease runs out
@@ -38,21 +41,39 @@ export async function handle_owed_notice(db: DbOrTx, p: IOwedNoticePayload) {
     );
     throw e;
   }
+  // nobody to mail: the notice stays unsent, so its row is never deducted
+  // untold, and the claim is kept, so its lease paces the cron's retries and
+  // the next claim reads as a reclaim, which ops are not told of again
+  if (!mailed) return;
   // the mail went: an unstamped notice is sent again once its lease runs out
   await mark_owed_notice_sent(p.id, db);
 }
 
 type IClaimed = Extract<OwedNoticeClaim, { status: "claimed" }>;
 
-async function send_notice(c: IClaimed) {
+/** false when the party has nobody to mail, after telling ops on the
+ * notice's first try */
+async function send_notice(c: IClaimed): Promise<boolean> {
   const { to, node, subject } = await mail_for(c.party, notice_data(c));
-  // nobody to tell reaches ops instead: marking it sent unread would lose it
-  await send_email_or_throw({
-    node,
-    subject,
-    ...(to.length === 0 ? { to: [emails.hi] } : { to, bcc: [emails.hi] }),
-  });
+  if (to.length === 0) {
+    if (!c.reclaimed) await fiat_monitor.send_alert(unreachable(c));
+    return false;
+  }
+  await send_email_or_throw({ node, subject, to, bcc: [emails.hi] });
+  return true;
 }
+
+/** names the row and its party only: the gift's donor stays out of ops chat */
+const unreachable = (c: IClaimed): Alert => ({
+  from: "owed notices",
+  title: `Owed notice held: no one to tell for ${c.row.donation_id}`,
+  body: "The party has no admin, pending invite or address to mail. Its row is not deducted until the notice goes out, which it will once someone can receive it.",
+  fields: [
+    { name: "notice", value: c.kind },
+    { name: "owed row", value: c.row.id },
+    { name: "party", value: JSON.stringify(c.party) },
+  ],
+});
 
 type INoticeData = Omit<owed_npo_notif.IData, "to_name" | "history_url">;
 
@@ -91,7 +112,8 @@ async function mail_for(party: OwedParty, data: INoticeData) {
   };
 }
 
-/** a failed lookup throws: mailing ops alone would mark the party's notice sent */
+/** a failed lookup throws: read as nobody, it would hold the notice and tell
+ * ops the party is unreachable */
 const admin_emails = async (npo_id: number) =>
   (await npo_admins(npo_id)).map((a) => a.email);
 
