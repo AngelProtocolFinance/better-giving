@@ -192,7 +192,7 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
     closed_at: d.closed_at,
   };
   if (loaded.status === "already_reversed") {
-    // read before the close, which turns an open record won
+    // read before the close, which turns an open or earlier-closed record won
     const prior = await dispute_get(d.dispute_id);
     await dispute_close(db, record);
     const { status, donation_status } = loaded;
@@ -201,7 +201,8 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
   const now = new Date().toISOString();
 
   const owed = await db.transaction(async (tx) => {
-    await dispute_close(tx, record);
+    // a close of the provider's after this one stands, a loss on appeal
+    if ((await dispute_close(tx, record)) !== record.status) return [];
     const ds = await settled_dists_locked(tx, don.id);
     const before = await takes_of(tx, don.id);
     const take = await dispute_take(tx, {

@@ -3062,6 +3062,46 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     expect(notices()).toEqual([]);
   });
 
+  describe("lost, then won on appeal", () => {
+    const APPEAL = "2026-11-05T12:00:00.000Z";
+    const lost_then_won = async () => {
+      const gift = await paypal_gift();
+      await deliver(created_ev(gift.sttl_id));
+      await deliver(resolved_ev(gift.sttl_id, "RESOLVED_BUYER_FAVOUR"));
+      await deliver(
+        resolved_ev(gift.sttl_id, "RESOLVED_SELLER_FAVOUR", {
+          update_time: APPEAL,
+        })
+      );
+      return gift;
+    };
+
+    it("records it won, and a late REVERSED leaves nothing owed", async () => {
+      const { id, sttl_id } = await lost_then_won();
+      expect(await owed_rows()).toMatchObject([{ outstanding_usd: 0 }]);
+
+      await deliver(reversed_ev(sttl_id));
+
+      expect(await owed_rows()).toMatchObject([{ outstanding_usd: 0 }]);
+      expect((await donation_get(id))?.status).toBe("settled");
+      expect(await disputes_of(db(), id)).toMatchObject([
+        { id: DISPUTE_ID, status: "won", closed_at: APPEAL },
+      ]);
+    });
+
+    it("stays won when paypal redelivers the loss", async () => {
+      const { id, sttl_id } = await lost_then_won();
+
+      await deliver(resolved_ev(sttl_id, "RESOLVED_BUYER_FAVOUR"));
+      await deliver(reversed_ev(sttl_id));
+
+      expect(await disputes_of(db(), id)).toMatchObject([
+        { id: DISPUTE_ID, status: "won", closed_at: APPEAL },
+      ]);
+      expect(await owed_rows()).toMatchObject([{ outstanding_usd: 0 }]);
+    });
+  });
+
   // an accepted claim is paid through a refund, which is its own take
   it("resolved ACCEPTED, records the dispute accepted and credits its part back for the refund that pays it to record again", async () => {
     const { id, sttl_id } = await paypal_gift();

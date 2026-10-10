@@ -101,7 +101,8 @@ export async function handle_dispute_closed(
     if (won.status === "failed") {
       throw new Error(`dispute ${dispute.id} not credited: ${won.reason}`);
     }
-    if (won.status !== "already_reversed") return;
+    // a redelivery finds it won already, and ops were told
+    if (won.status !== "already_reversed" || won.prior_status === "won") return;
     // keyed on the event: a redelivery collapses into it inside the queue's
     // dedupe window only
     await enqueue(

@@ -139,21 +139,37 @@ describe("dispute_close", () => {
     }
   );
 
+  const LATER = "2026-10-21T12:00:00.000Z";
+  const close = (status: "lost" | "won", closed_at: string) =>
+    dispute_close(as_db(t.db), { ...opened, status, closed_at });
+
   test("a redelivered close changes nothing", async () => {
     await dispute_open(as_db(t.db), opened);
-    await dispute_close(as_db(t.db), {
-      ...opened,
-      status: "lost",
-      closed_at: CLOSED,
-    });
-    await dispute_close(as_db(t.db), {
-      ...opened,
-      status: "won",
-      closed_at: "2026-10-21T12:00:00.000Z",
-    });
+    await close("lost", CLOSED);
 
+    expect(await close("lost", CLOSED)).toBe("lost");
     expect(await disputes_of(t.db, DON)).toMatchObject([
       { status: "lost", closed_at: CLOSED },
+    ]);
+  });
+
+  test("a later close stands: a win on appeal after the loss", async () => {
+    await dispute_open(as_db(t.db), opened);
+    await close("lost", CLOSED);
+
+    expect(await close("won", LATER)).toBe("won");
+    expect(await disputes_of(t.db, DON)).toMatchObject([
+      { status: "won", closed_at: LATER },
+    ]);
+  });
+
+  test("an earlier close delivered after a later one changes nothing, and says what stands", async () => {
+    await dispute_open(as_db(t.db), opened);
+    await close("won", LATER);
+
+    expect(await close("lost", CLOSED)).toBe("won");
+    expect(await disputes_of(t.db, DON)).toMatchObject([
+      { status: "won", closed_at: LATER },
     ]);
   });
 
