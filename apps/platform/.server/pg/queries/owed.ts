@@ -70,11 +70,13 @@ export interface IOwedRecord {
   now: string;
 }
 
-/** what the row was credited back under `reasons` */
+/** what the refund core credited the row back under `reasons`; an admin's
+ * credit (one with an actor) counts under none of them, whatever its words */
 export const credits_under = (reasons: OwedCreditReason[]) =>
   sql`(SELECT COALESCE(SUM(${owed_entries.usd}), 0) FROM ${owed_entries}
     WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
       AND ${owed_entries.kind} = 'credit'
+      AND ${owed_entries.actor} IS NULL
       AND ${owed_entries.reason} IN (${sql.join(
         reasons.map((r) => sql`${r}`),
         sql`, `
@@ -117,7 +119,11 @@ export async function owed_uncredited(
     })
     .from(owed_entries)
     .where(
-      and(eq(owed_entries.owed_id, row.id), eq(owed_entries.kind, "credit"))
+      and(
+        eq(owed_entries.owed_id, row.id),
+        eq(owed_entries.kind, "credit"),
+        isNull(owed_entries.actor)
+      )
     )
     .groupBy(owed_entries.reason);
   const left = {
@@ -252,6 +258,18 @@ export type OwedCreditReason =
    * each back onto its figure */
   | "refund_failed"
   | "refund_failed_fee";
+
+// a Record, so a reason added to the union has to be added here too
+const CREDIT_REASONS: Record<OwedCreditReason, true> = {
+  payout_cancelled: true,
+  transfer_unfunded: true,
+  dispute_reversed: true,
+  dispute_won: true,
+  dispute_won_fee: true,
+  dispute_won_fee_dispute: true,
+  refund_failed: true,
+  refund_failed_fee: true,
+};
 
 export interface IOwedCredit {
   donation_id: string;
@@ -439,11 +457,17 @@ export interface IOwedAdminCredit {
   now: string;
 }
 
-/** null when the row does not exist */
+/** null when the row does not exist. throws on a reason the refund core
+ * credits under: those words are its, never an admin's */
 export async function admin_credit_owed(
   tx: DbOrTx,
   c: IOwedAdminCredit
 ): Promise<IOwed | null> {
+  if (Object.hasOwn(CREDIT_REASONS, c.reason)) {
+    throw new Error(
+      `admin_credit_owed: "${c.reason}" is a refund core credit reason`
+    );
+  }
   return put_entry(
     tx,
     "credit",
