@@ -323,7 +323,6 @@ describe("a dispute on a gift already reversed", () => {
       status: "already_reversed",
       donation_status: "refunded",
       prior_status: null,
-      charged_back: false,
     });
     expect(await disputes_of(test_db.current!.db, id)).toMatchObject([
       { id: `du_${id}`, status: "won", closed_at: CLOSED },
@@ -348,7 +347,6 @@ describe("a dispute on a gift already reversed", () => {
       status: "already_reversed",
       donation_status: "refunded_loss",
       prior_status: "lost",
-      charged_back: true,
     });
   });
 

@@ -1,4 +1,4 @@
-import { eq, or, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { donation_disputes } from "../schema/dispute";
 import type { DbOrTx } from "./helpers";
@@ -48,10 +48,9 @@ export interface IDisputeClose extends IDisputeOpen {
   closed_at: string;
 }
 
-/** recorded closed whether or not its open was. the latest close by the
- * provider's time stands: a win on appeal after a loss is the dispute's
- * outcome, and a redelivery of the earlier close can't take it back. its
- * status as it then stands, this close's or a later one's */
+/** recorded closed whether or not its open was; the first close stands.
+ * the status that stands: this close's when it stood, its redelivery's
+ * included; another when the dispute was closed otherwise first */
 export async function dispute_close(
   tx: DbOrTx,
   d: IDisputeClose
@@ -62,10 +61,7 @@ export async function dispute_close(
     .onConflictDoUpdate({
       target: donation_disputes.id,
       set: { status: d.status, closed_at: d.closed_at },
-      setWhere: or(
-        eq(donation_disputes.status, "open"),
-        sql`${donation_disputes.closed_at} < excluded.closed_at`
-      ),
+      setWhere: eq(donation_disputes.status, "open"),
     })
     .returning({ status: donation_disputes.status });
   if (row) return row.status;

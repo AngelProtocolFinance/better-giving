@@ -8,13 +8,7 @@ import {
 } from "../pg/queries/dispute";
 import { type IOwed, owed_for_donation, owed_total } from "../pg/queries/owed";
 import { take_undo, takes_of } from "../pg/queries/take";
-import {
-  load_reversible,
-  type Rail,
-  type ReversalResult,
-  reverse_charge,
-  type Unreversible,
-} from "./reverse";
+import { load_reversible, type Rail, type Unreversible } from "./reverse";
 import { fraction_of, type Share, settled_dists_locked } from "./share";
 import { dispute_take, move_owed, take_dispute, taken_of } from "./takes";
 
@@ -171,13 +165,14 @@ export type DisputeWonResult =
   /** the dispute is on record won, and nothing is credited. `prior_status`:
    * its record before this win, null when there was none. `lost` is a late
    * win after this dispute's own loss reversed the gift, so the npo was
-   * debited for it; anything else, the gift was reversed some other way.
-   * `charged_back`: its chargeback is on the gift's ledger, so its loss took
-   * the money, which a redelivered win, reading its record won, still says */
+   * debited for it; anything else, the gift was reversed some other way */
   | (Extract<Unreversible, { status: "already_reversed" }> & {
       prior_status: IDispute["status"] | null;
-      charged_back: boolean;
     })
+  /** the dispute was closed otherwise first, `prior_status` (a win on appeal
+   * after its loss): the first close stands, so nothing is credited, and
+   * what it owes stays for ops to settle by hand */
+  | { status: "conflict"; prior_status: IDispute["status"] }
   | Extract<Unreversible, { status: "failed" }>;
 
 /**
@@ -201,25 +196,19 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
     closed_at: d.closed_at,
   };
   if (loaded.status === "already_reversed") {
-    // read before the close, which turns an open or earlier-closed record won
+    // read before the close, which turns an open record won
     const prior = await dispute_get(d.dispute_id);
     await dispute_close(db, record);
-    const charged_back = (await takes_of(db, don.id)).some(
-      (t) => t.ref === d.dispute_id && t.chargeback_ref !== null
-    );
     const { status, donation_status } = loaded;
-    return {
-      status,
-      donation_status,
-      prior_status: prior?.status ?? null,
-      charged_back,
-    };
+    return { status, donation_status, prior_status: prior?.status ?? null };
   }
   const now = new Date().toISOString();
 
-  const owed = await db.transaction(async (tx) => {
-    // a close of the provider's after this one stands, a loss on appeal
-    if ((await dispute_close(tx, record)) !== record.status) return [];
+  return db.transaction(async (tx): Promise<DisputeWonResult> => {
+    const stands = await dispute_close(tx, record);
+    if (stands !== record.status) {
+      return { status: "conflict", prior_status: stands };
+    }
     const ds = await settled_dists_locked(tx, don.id);
     const before = await takes_of(tx, don.id);
     const take = await dispute_take(tx, {
@@ -230,7 +219,9 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
     });
     // none on record, or undone already: by a redelivery, or by the refund
     // that paid an accepted claim
-    if (!take || !(await take_undo(tx, don.id, take.ref))) return [];
+    if (!take || !(await take_undo(tx, don.id, take.ref))) {
+      return { status: "credited", owed: [] };
+    }
     const after = await takes_of(tx, don.id);
     const moves = await move_owed(tx, {
       donation_id: don.id,
@@ -240,60 +231,10 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
       src: { source: "dispute", source_ref: d.dispute_id },
       now,
     });
-    return moves.flatMap((m) => (m.row ? [m.row] : []));
-  });
-  return { status: "credited", owed };
-}
-
-export interface DisputeLost {
-  donation_id: string;
-  rail: Rail;
-  /** the provider's dispute id */
-  dispute_id: string;
-  opened_at: string;
-  closed_at: string;
-  /** for the reversal a chargeback set aside by an earlier win makes */
-  alert_from: string;
-  notice: { id: string; lines: string[] };
-}
-
-/**
- * a dispute closed in the buyer's favour. what its loss takes back comes
- * with its chargeback, which records it; this records the close. one won
- * before, whose chargeback was set aside then (a win the provider reversed
- * on appeal), puts that chargeback back on the gift's ledger, owing what it
- * owes again. null when nothing more is owed: its chargeback not yet in,
- * already counted, or a later close of the dispute standing.
- *
- * safe to rerun: once its chargeback counts again, a rerun finds it counted.
- */
-export async function dispute_lost(
-  d: DisputeLost
-): Promise<ReversalResult | null> {
-  const status = await dispute_close(db, {
-    id: d.dispute_id,
-    donation_id: d.donation_id,
-    status: "lost",
-    opened_at: d.opened_at,
-    closed_at: d.closed_at,
-  });
-  if (status !== "lost") return null;
-  const set_aside = (await takes_of(db, d.donation_id)).find(
-    (t) =>
-      t.ref === d.dispute_id &&
-      t.status === "undone" &&
-      t.chargeback_ref !== null
-  );
-  if (!set_aside?.chargeback_ref) return null;
-  return reverse_charge({
-    donation_id: d.donation_id,
-    rail: d.rail,
-    source: "dispute",
-    share: { taken: set_aside.share, of: 1 },
-    dispute_id: d.dispute_id,
-    source_ref: set_aside.chargeback_ref,
-    alert_from: d.alert_from,
-    notice: d.notice,
+    return {
+      status: "credited",
+      owed: moves.flatMap((m) => (m.row ? [m.row] : [])),
+    };
   });
 }
 

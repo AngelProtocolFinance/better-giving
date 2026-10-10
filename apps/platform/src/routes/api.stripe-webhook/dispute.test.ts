@@ -577,26 +577,6 @@ describe("a late win after the dispute was lost", () => {
       /after it was lost.*credit the nonprofit by hand/
     );
   });
-
-  it("whose notice failed to send, asks ops the same on stripe's redelivery", async () => {
-    const gift = await seed_card_gift(db(), PAID_GRANT);
-    await deliver(event_of("charge.dispute.created", dispute_of(gift)));
-    await deliver(lost_of(gift));
-    enqueue_mock.mockClear();
-    enqueue_mock.mockRejectedValueOnce(new Error("qstash 503"));
-
-    const won = won_of(gift);
-    const failed = await deliver(won);
-    const res = await deliver(won);
-
-    expect(failed.ok).toBe(false);
-    expect(res.status).toBe(200);
-    const [first, again] = notices();
-    expect(again.payload.alert.body).toBe(first.payload.alert.body);
-    expect(again.payload.alert.body).toMatch(
-      /after it was lost.*credit the nonprofit by hand/
-    );
-  });
 });
 
 describe("a dispute over part of the charge", () => {
@@ -634,6 +614,42 @@ describe("a dispute over part of the charge", () => {
       "Stripe Dispute Opened",
       "Lost Dispute: Share Recorded as Owed",
     ]);
+  });
+
+  it("won after its loss, credits nothing and tells ops, once per event", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(event_of("charge.dispute.created", dispute_of(gift, part)));
+    await deliver(
+      event_of(
+        "charge.dispute.closed",
+        dispute_of(gift, { ...part, status: "lost" }),
+        CLOSED_UNIX
+      )
+    );
+    const owed = await owed_of(gift.id);
+    enqueue_mock.mockClear();
+    const won = event_of(
+      "charge.dispute.closed",
+      dispute_of(gift, { ...part, status: "won" }),
+      CLOSED_UNIX + 60
+    );
+
+    await deliver(won);
+    await deliver(won);
+
+    expect(await owed_of(gift.id)).toEqual(owed);
+    expect(await disputes_of(db(), gift.id)).toMatchObject([
+      { status: "lost" },
+    ]);
+    const changed = notices().filter(
+      (n) => n.payload.alert.title === "Dispute Outcome Changed"
+    );
+    expect(new Set(changed.map((n) => n.payload.id))).toEqual(
+      new Set([won.id])
+    );
+    expect(changed[0]!.payload.alert.body).toContain(
+      "won after it was recorded lost: the chargeback stays owed"
+    );
   });
 
   it("records the same share when its loss is the first event handled", async () => {

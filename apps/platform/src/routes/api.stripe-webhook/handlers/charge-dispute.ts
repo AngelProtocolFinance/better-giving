@@ -101,6 +101,24 @@ export async function handle_dispute_closed(
     if (won.status === "failed") {
       throw new Error(`dispute ${dispute.id} not credited: ${won.reason}`);
     }
+    if (won.status === "conflict") {
+      // keyed on the event: a redelivery collapses into it
+      await enqueue(
+        msg("fiat-notice", {
+          id: event.id,
+          alert: {
+            type: "NOTICE",
+            from: `${ALERT_FROM}-${stage}`,
+            title: "Dispute Outcome Changed",
+            body: [
+              dispute_line(dispute, don.id, event.id),
+              `dispute ${dispute.id} won after it was recorded ${won.prior_status}: the chargeback stays owed; credit by hand if stripe returned the money.`,
+            ].join("\n"),
+          },
+        })
+      );
+      return;
+    }
     if (won.status !== "already_reversed") return;
     // keyed on the event: a redelivery collapses into it inside the queue's
     // dedupe window only
@@ -113,7 +131,7 @@ export async function handle_dispute_closed(
           title: "Dispute Won on a Reversed Donation",
           body: [
             dispute_line(dispute, don.id, event.id),
-            won.prior_status === "lost" || won.charged_back
+            won.prior_status === "lost"
               ? `stripe returned the disputed ${money(dispute.amount, dispute.currency)} after it was lost, and that loss reversed the donation (${won.donation_status}): credit the nonprofit by hand what the reversal took.`
               : `stripe returned the disputed ${money(dispute.amount, dispute.currency)}, the platform's own withdrawal: the donation was already ${won.donation_status}, reversed by its refund or another dispute rather than this one, so nothing is owed to the nonprofit.`,
           ].join("\n"),

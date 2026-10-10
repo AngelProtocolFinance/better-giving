@@ -25,7 +25,7 @@ import { paypal as paypal_env, stage } from "$/env";
 import { paypal } from "$/kit/paypal";
 import { enqueue, schedule } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { dispute_get } from "$/pg/queries/dispute";
+import { dispute_close, dispute_get } from "$/pg/queries/dispute";
 import {
   donation_by_sttl_id,
   donation_get,
@@ -41,12 +41,7 @@ import {
   sub_put,
   sub_update,
 } from "$/pg/queries/subscription";
-import {
-  dispute_lost,
-  dispute_opened,
-  dispute_won,
-  owed_lines,
-} from "$/refund/dispute";
+import { dispute_opened, dispute_won, owed_lines } from "$/refund/dispute";
 import {
   type ReversalSource,
   reverse_charge,
@@ -871,6 +866,21 @@ const SELLER_KEEPS_OUTCOMES = new Set([
   "RESOLVED_WITH_PAYOUT",
 ]);
 
+/** an outcome paypal sent after the dispute was recorded closed otherwise
+ * (an appeal): the first close stands and nothing moves, so ops settle it.
+ * keyed on the event, so a redelivery collapses into it */
+const notify_outcome_changed = (
+  ev: WebhookEvent,
+  d: IDispute,
+  don_id: string,
+  line: string
+) =>
+  notify_dispute(ev, d, don_id, {
+    id: `paypal-dispute-changed_${ev.id}`,
+    title: "PayPal Dispute Outcome Changed",
+    lines: [line],
+  });
+
 /** a dispute resolved. an outcome that leaves us the money credits back what
  * its filing recorded; one this can't read is ops' to settle */
 async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
@@ -912,30 +922,26 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
         { event_id: ev.id, dispute_id: record.id, donation_id: don.id }
       );
     }
+    if (closed.status === "conflict") {
+      await notify_outcome_changed(
+        ev,
+        d,
+        don.id,
+        `dispute ${record.id} closed ${closed_as} after it was recorded ${closed.prior_status}: what it took stays owed; credit by hand if paypal returned the money.`
+      );
+    }
     return new Response(`dispute ${outcome}`, { status: 200 });
   }
   if (outcome === "RESOLVED_BUYER_FAVOUR") {
-    // paypal's own REVERSED takes the money back; a win it reverses on
-    // appeal puts the chargeback that win set aside back here
-    const res = await dispute_lost({
-      donation_id: don.id,
-      rail: "paypal",
-      dispute_id: record.id,
-      opened_at: record.opened_at,
-      closed_at: record.closed_at,
-      alert_from: REFUND_ALERT_FROM,
-      // keyed on the event, so a duplicate delivery posts one notice
-      notice: {
-        id: `paypal-dispute-lost_${ev.id}`,
-        lines: [
-          `donation ${don.id}, dispute ${record.id}, event ${ev.id}`,
-          `resolved ${outcome} after it was won: its chargeback counts again`,
-        ],
-      },
-    });
-    // a rerun retries what failed to reverse
-    if (res?.status === "failed" && res.reason === "incomplete") {
-      return new Response("reversal incomplete", { status: 503 });
+    // paypal's own REVERSED takes the money back
+    const stands = await dispute_close(db, { ...record, status: "lost" });
+    if (stands !== "lost") {
+      await notify_outcome_changed(
+        ev,
+        d,
+        don.id,
+        `dispute ${record.id} lost on appeal after it was recorded ${stands}: nothing re-owed; recover by hand.`
+      );
     }
     return new Response(`dispute ${outcome}`, { status: 200 });
   }
@@ -980,6 +986,14 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
     return new Response(`dispute not credited: ${won.reason}`, {
       status: 200,
     });
+  }
+  if (won.status === "conflict") {
+    await notify_outcome_changed(
+      ev,
+      d,
+      don.id,
+      `dispute ${record.id} won after it was recorded ${won.prior_status}: the chargeback stays owed; credit by hand if paypal returned the money.`
+    );
   }
   // once per dispute: a redelivery finds it on record won already
   if (won.status === "already_reversed" && won.prior_status !== "won") {

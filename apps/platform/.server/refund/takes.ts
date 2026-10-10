@@ -344,14 +344,7 @@ export async function take_chargeback(
   }
 ) {
   const takes = await takes_of(tx, c.donation_id);
-  const seen = takes.find((t) => t.chargeback_ref === c.ref);
-  if (seen) {
-    // a redelivery; set aside by a win since lost on appeal, it counts again
-    if (!active(seen) && !(await closed_for_gift(tx, seen.dispute_id))) {
-      await take_update(tx, seen.id, { status: "active" });
-    }
-    return;
-  }
+  if (takes.some((t) => t.chargeback_ref === c.ref)) return;
   const filed = takes.filter(
     (t) =>
       t.kind === "dispute" && t.dispute_id !== null && t.chargeback_ref === null
