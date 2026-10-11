@@ -3,9 +3,9 @@ import { TERMS_EFFECTIVE, terms_date_label, terms_effective_at } from "./terms";
 
 describe("terms_effective_at", () => {
   test("the terms take effect at midnight in New York on their date", () => {
-    expect(TERMS_EFFECTIVE).toBe("2026-10-16");
+    expect(TERMS_EFFECTIVE).toBe("2026-10-18");
     expect(terms_effective_at(TERMS_EFFECTIVE)).toBe(
-      "2026-10-16T04:00:00.000Z"
+      "2026-10-18T04:00:00.000Z"
     );
   });
 

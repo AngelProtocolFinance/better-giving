@@ -15,7 +15,7 @@ describe("referral terms", () => {
 
     await expect
       .element(
-        screen.getByText("Effective Date: October 16, 2026", {
+        screen.getByText("Effective Date: October 18, 2026", {
           exact: true,
         })
       )

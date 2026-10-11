@@ -1,7 +1,7 @@
 /** the day the nonprofit, donor and referral terms' recovery right takes
  * effect: 7 days after their posting. it begins at midnight in New York
  * (`TERMS_ZONE`); `terms_effective_at` turns it into that instant */
-export const TERMS_EFFECTIVE = "2026-10-16";
+export const TERMS_EFFECTIVE = "2026-10-18";
 
 export const TERMS_ZONE = "America/New_York";
 

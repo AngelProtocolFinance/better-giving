@@ -13,7 +13,7 @@ describe("donor terms", () => {
 
     await expect
       .element(
-        screen.getByText("Effective October 16, 2026", {
+        screen.getByText("Effective October 18, 2026", {
           exact: true,
         })
       )
