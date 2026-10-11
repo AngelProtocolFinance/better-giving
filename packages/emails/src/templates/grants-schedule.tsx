@@ -2,12 +2,24 @@ import { flat_colors } from "@better-giving/brand/flat";
 import { Text } from "react-email";
 import { PlatformLayout } from "../components/platform-layout";
 
+/** taken from the npo's grant for a gift it owes on; negative when the gift
+ * is due back to it instead */
+interface IDeduction {
+  donation_id: string;
+  usd: number;
+}
+
 interface IRow {
   id: number;
   name: string;
+  /** the pending total, before anything owed */
   amount: number;
   min: number;
-  effect: "pass" | "skipped";
+  /** recovered: owed at least its pending total, so settled with no transfer */
+  effect: "pass" | "skipped" | "recovered";
+  /** set when the run nets what npos owe: what the transfer sends */
+  net?: number;
+  deductions?: IDeduction[];
 }
 
 export interface IData {
@@ -38,6 +50,15 @@ const td: React.CSSProperties = {
 
 const td_right: React.CSSProperties = { ...td, textAlign: "right" };
 
+const usd = (n: number) => `$${n.toLocaleString()}`;
+/** a deduction reads as money taken, a due-back as money added */
+const signed = (deducted: number) =>
+  deducted > 0
+    ? `-${usd(deducted)}`
+    : deducted < 0
+      ? `+${usd(-deducted)}`
+      : usd(0);
+
 function Jsx({
   rows,
   total_grant,
@@ -45,6 +66,10 @@ function Jsx({
   report_period,
   low_balance,
 }: IData) {
+  const nets = rows.some((r) => r.net !== undefined);
+  const deductions = rows.flatMap((r) =>
+    (r.deductions ?? []).map((d) => ({ ...d, npo_id: r.id }))
+  );
   return (
     <PlatformLayout>
       <Text style={{ fontWeight: 600, fontSize: 16 }}>
@@ -81,6 +106,8 @@ function Jsx({
             <th style={th}>ID</th>
             <th style={th}>Name</th>
             <th style={{ ...th, textAlign: "right" }}>Grant</th>
+            {nets && <th style={{ ...th, textAlign: "right" }}>Owed</th>}
+            {nets && <th style={{ ...th, textAlign: "right" }}>Net</th>}
             <th style={{ ...th, textAlign: "right" }}>Min</th>
             <th style={th}>Effect</th>
           </tr>
@@ -97,13 +124,52 @@ function Jsx({
             >
               <td style={td}>{r.id}</td>
               <td style={td}>{r.name}</td>
-              <td style={td_right}>${r.amount.toLocaleString()}</td>
-              <td style={td_right}>${r.min.toLocaleString()}</td>
+              <td style={td_right}>{usd(r.amount)}</td>
+              {nets && (
+                <td style={td_right}>
+                  {signed((r.deductions ?? []).reduce((a, d) => a + d.usd, 0))}
+                </td>
+              )}
+              {nets && (
+                <td style={td_right}>
+                  {r.net === undefined ? "—" : usd(r.net)}
+                </td>
+              )}
+              <td style={td_right}>{usd(r.min)}</td>
               <td style={td}>{r.effect}</td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {deductions.length > 0 && (
+        <>
+          <Text style={{ fontWeight: 600, marginTop: 24 }}>
+            Deductions by gift
+          </Text>
+          <table
+            data-text-format="dataTable"
+            style={{ borderCollapse: "collapse", width: "100%" }}
+          >
+            <thead>
+              <tr>
+                <th style={th}>Gift</th>
+                <th style={th}>NPO ID</th>
+                <th style={{ ...th, textAlign: "right" }}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deductions.map((d) => (
+                <tr key={`${d.npo_id}:${d.donation_id}`}>
+                  <td style={td}>{d.donation_id}</td>
+                  <td style={td}>{d.npo_id}</td>
+                  <td style={td_right}>{signed(d.usd)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
     </PlatformLayout>
   );
 }

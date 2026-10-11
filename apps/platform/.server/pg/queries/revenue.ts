@@ -109,11 +109,6 @@ export async function loss_log_list(
   };
 }
 
-/** idempotent — skips if id already exists */
-export async function loss_log_put(db: DbOrTx, data: ILossLog) {
-  await db.insert(loss_logs).values(data).onConflictDoNothing();
-}
-
 // --- loss_ltd (view) ---
 
 /** all npo loss totals, from the view */

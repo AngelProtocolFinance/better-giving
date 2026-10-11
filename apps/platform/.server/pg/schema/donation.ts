@@ -63,6 +63,12 @@ export const donations = pgTable(
     // was held
     held_at: timestamptz("held_at"),
     hold_asset: text("hold_asset"),
+    /** no longer written: what a gift has taken back is its active
+     * `donation_takes`, summed */
+    refunded_share: numeric_as_number("refunded_share", {
+      precision: 38,
+      scale: 18,
+    }),
     created_at: timestamptz_now("created_at"),
     updated_at: timestamptz_now("updated_at"),
   },
@@ -70,6 +76,10 @@ export const donations = pgTable(
     check(
       "status_check",
       sql`${t.status} IN ('created','intent','expired','confirmed','settled','failed','refunded','refunded_loss','cancelled')`
+    ),
+    check(
+      "donations_refunded_share_check",
+      sql`${t.refunded_share} > 0 AND ${t.refunded_share} < 1`
     ),
     check(
       "hold_pair_check",

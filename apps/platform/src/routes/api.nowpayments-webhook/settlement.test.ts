@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import type { DbOrTx } from "$/pg/queries/helpers";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -30,16 +31,21 @@ vi.mock("$/env", () => ({
 }));
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert: send_alert_mock },
+  fiat_monitor: { send_alert: vi.fn() },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 vi.mock("$/email", () => ({ send_email: send_email_mock }));
-// the refund plan's own suite covers reversing a dist; here it is the boundary
-vi.mock("$/refund/process", () => ({
-  process_refund: vi.fn(async () => ({
-    failures: [],
-    loss_msgs: [],
-    has_loss: false,
+// the reversal is `reverse.test.ts`'s ground; here it is the boundary
+vi.mock("$/refund/reverse", async () => ({
+  WHOLE: (
+    await vi.importActual<typeof import("$/refund/share")>("$/refund/share")
+  ).WHOLE,
+  reverse_charge: vi.fn(async () => ({
+    status: "reversed",
+    dists: 1,
     applied: 1,
+    owed_msgs: [],
+    has_loss: false,
   })),
 }));
 vi.mock("$/kit/nowpayments", () => ({
@@ -81,8 +87,17 @@ const { handle_settled } = await import("./handlers/settled");
 const { handle_confirming } = await import("./handlers/confirming");
 const { handle_failed } = await import("./handlers/failed");
 const { np } = await import("$/kit/nowpayments");
-const { process_refund } = await import("$/refund/process");
+const { reverse_charge } = await import("$/refund/reverse");
+const { reverse_charge: real_reverse_charge } =
+  await vi.importActual<typeof import("$/refund/reverse")>("$/refund/reverse");
+const { fraction_of } = await import("$/refund/share");
+const { taken_of } = await import("$/refund/takes");
+const { takes_of } = await import("$/pg/queries/take");
 const { dists } = await import("$/pg/schema/dist");
+const { owed_amounts } = await import("$/pg/schema/owed");
+const { bal_txs } = await import("$/pg/schema/bal-tx");
+const { loss_logs } = await import("$/pg/schema/revenue");
+const { donation_takes } = await import("$/pg/schema/take");
 const {
   donation_by_sttl_id,
   donation_get,
@@ -222,6 +237,11 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   send_alert_mock.mockReset();
+  // rows the real reversal writes against a donation
+  await db().delete(owed_amounts);
+  await db().delete(bal_txs);
+  await db().delete(loss_logs);
+  await db().delete(donation_takes);
   await db().delete(dists);
   await db().delete(donation_settlements);
   await db().delete(donation_donors);
@@ -492,25 +512,74 @@ describe("nowpayments ipn settlement", () => {
     const res = await deliver(payment({ payment_status: "refunded" }));
 
     expect(res.status).toBe(200);
-    expect(process_refund).toHaveBeenCalledOnce();
-    const [id, graphs, ctx] = vi.mocked(process_refund).mock.calls[0];
-    expect(id).toBe(ORDER_ID);
-    expect(graphs.map((g) => g.dist.id)).toEqual([`dist-${ORDER_ID}`]);
-    expect(ctx.alert_from).toBe("nowpayments-refunded");
+    expect(reverse_charge).toHaveBeenCalledExactlyOnceWith({
+      donation_id: ORDER_ID,
+      rail: "crypto",
+      source: "refund",
+      share: expect.any(Object),
+      alert_from: "nowpayments-refunded",
+      notice: {
+        id: "nowpayments-refunded_5001",
+        lines: [expect.stringContaining("payment:5001")],
+      },
+    });
+    // nowpayments refunds the whole payment: the entry reverses the gift
+    const { share } = vi.mocked(reverse_charge).mock.calls[0][0];
+    expect(fraction_of(share!)).toBe(1);
     expect(send_alert_mock).toHaveBeenCalledOnce();
     expect(send_alert_mock.mock.calls[0][0].body).toContain("payment:5001");
   });
 
-  it("answers 500 to a refund on a settled donation not yet distributed, writing nothing", async () => {
+  it("takes the whole payment back on the real entry, the donation ending reversed", async () => {
     await seed_donation();
     await deliver(payment());
+    // a dist the real entry can read: credited whole to the npo's savings
+    await db()
+      .insert(dists)
+      .values({
+        id: `dist-${ORDER_ID}`,
+        donation_id: ORDER_ID,
+        status: "settled",
+        date_created: new Date().toISOString(),
+        to_id: npo_id,
+        amount: 100,
+        amount_usd: 100,
+        amount_denom: "USD",
+        net: 100,
+        fee_base: 0,
+        fee_fsa: 0,
+        fee_processing: 0,
+        alloc: { liq: 100, lock: 0, cash: 0 },
+      });
+    vi.mocked(reverse_charge).mockImplementationOnce(real_reverse_charge);
+
+    const res = await deliver(payment({ payment_status: "refunded" }));
+
+    expect(res.status).toBe(200);
+    expect(["refunded", "refunded_loss"]).toContain(
+      (await donation_get(ORDER_ID))!.status
+    );
+    expect(taken_of(await takes_of(db() as unknown as DbOrTx, ORDER_ID))).toBe(
+      1
+    );
+  });
+
+  it("answers 500 to a refund whose reversal left a dist failed, so it is redelivered", async () => {
+    await seed_donation();
+    await deliver(payment());
+    await seed_dist(ORDER_ID);
     send_alert_mock.mockClear();
+    vi.mocked(reverse_charge).mockResolvedValueOnce({
+      status: "failed",
+      reason: "incomplete",
+      dists: 1,
+      applied: 0,
+      failures: [`dist-${ORDER_ID}`],
+    });
 
     const res = await deliver(payment({ payment_status: "refunded" }));
 
     expect(res.status).toBe(500);
-    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
-    expect(process_refund).not.toHaveBeenCalled();
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
@@ -521,14 +590,14 @@ describe("nowpayments ipn settlement", () => {
 
     expect(res.status).toBe(200);
     expect((await donation_get(ORDER_ID))!.status).toBe("refunded");
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
   it("acknowledges a finished redelivered after its refund without alerting", async () => {
     await seed_donation();
     await deliver(payment());
-    // what process_refund writes once every dist is reversed
+    // what reverse_charge writes once every dist is reversed
     await db().update(donations).set({ status: "refunded" });
     enqueue_mock.mockClear();
     send_alert_mock.mockClear();
@@ -1059,31 +1128,15 @@ describe("nowpayments ipn settlement", () => {
     const res = await deliver(child({ payment_status: "refunded" }));
 
     expect(res.status).toBe(200);
-    expect(process_refund).toHaveBeenCalledOnce();
-    const [id, graphs, ctx] = vi.mocked(process_refund).mock.calls[0];
-    expect(id).toBe(child_row.donation_id);
-    expect(graphs.map((g) => g.dist.id)).toEqual([
-      `dist-${child_row.donation_id}`,
-    ]);
-    expect(ctx.alert_from).toBe("nowpayments-refunded");
+    expect(reverse_charge).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        donation_id: child_row.donation_id,
+        notice: expect.objectContaining({ id: "nowpayments-refunded_5002" }),
+      })
+    );
     expect((await donation_get(ORDER_ID))!.status).toBe("settled");
     expect(send_alert_mock).toHaveBeenCalledOnce();
     expect(send_alert_mock.mock.calls[0][0].body).toContain("payment:5002");
-  });
-
-  it("answers 500 to a refund on a settled repeated deposit not yet distributed", async () => {
-    await seed_donation();
-    await deliver(payment());
-    await deliver(child());
-    const [child_row] = (await settlements()).filter(
-      (r) => r.sttl_id === "5002"
-    );
-
-    const res = await deliver(child({ payment_status: "refunded" }));
-
-    expect(res.status).toBe(500);
-    expect((await donation_get(child_row.donation_id))!.status).toBe("settled");
-    expect(process_refund).not.toHaveBeenCalled();
   });
 
   it("acknowledges a refunded repeated deposit that never settled", async () => {

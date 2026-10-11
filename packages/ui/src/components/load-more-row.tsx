@@ -22,13 +22,19 @@ export function LoadMoreTr({
   loading,
   on_load_next,
 }: Props) {
+  // held rather than `disabled`, which would blur the button just pressed and
+  // leave focus on `<body>` when the next page lands
+  const held = !!(disabled || loading);
   return (
     <tr>
       {/* override .table td padding — otherwise button hover bg doesn't fill the cell */}
       <td colSpan={col_span} className="p-0">
         <button
-          disabled={disabled || loading}
-          onClick={on_load_next}
+          aria-disabled={held}
+          aria-busy={!!loading}
+          onClick={() => {
+            if (!held) on_load_next();
+          }}
           type="button"
         >
           <LoaderCircle

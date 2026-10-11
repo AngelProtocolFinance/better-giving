@@ -27,13 +27,14 @@ export interface ICommissionsLtd {
 }
 
 export interface IPayout {
-  /** a paid row's wise `customerTransactionId` (its claim's ref); a random uuid on an error row */
+  /** a paid row's wise `customerTransactionId` (its claim's ref), or the ref
+   * of a run recovered as owed; a random uuid on an error row */
   id: string;
   date: string;
   amount: number;
   referrer_user?: string;
   referrer_npo?: string;
-  // either error or transfer_id
+  // error or transfer_id; neither on a $0 row recovered as owed
   error?: string;
   transfer_id?: number;
 }

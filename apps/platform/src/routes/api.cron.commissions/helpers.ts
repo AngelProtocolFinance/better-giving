@@ -21,13 +21,12 @@ export async function get_referrer(
 
     //get default payout method
     const wise_id = await npo_default_bapp(item.id).then((x) => x?.id);
-    if (!wise_id) return null;
 
     return {
       id: referral_id,
       name: item.name,
       email: "n/a",
-      pay_id: +wise_id,
+      pay_id: wise_id ? +wise_id : undefined,
       pay_min: 50,
     };
   }

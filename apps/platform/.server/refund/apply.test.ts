@@ -8,19 +8,23 @@ import {
   test,
 } from "vitest";
 import type { DbOrTx } from "../pg/queries/helpers";
+import { owed_for_donation } from "../pg/queries/owed";
+import { donations } from "../pg/schema/donation";
 import { npos } from "../pg/schema/npo";
+import { owed_amounts } from "../pg/schema/owed";
 import { payouts, settlements } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { loss_logs } from "../pg/schema/revenue";
 import { create_test_db, type TestDb } from "../pg/test-utils/pglite";
 import { apply_refund_plan, StalePayoutError } from "./apply";
-import { calc_refund_plan, type RefundPlan } from "./plan";
+import { calc_refund_plan } from "./plan";
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
 // which these queries do not read.
 const as_db = (x: unknown) => x as DbOrTx;
 
 const PAYOUT_ID = "payout-1";
+const SRC = { source: "refund", source_ref: "re_1" } as const;
 
 let test_db: TestDb;
 
@@ -34,6 +38,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const db = test_db.db;
+  await db.delete(owed_amounts);
+  await db.delete(donations);
   await db.delete(loss_logs);
   await db.delete(payouts);
   await db.delete(settlements);
@@ -79,19 +85,22 @@ async function seed_payout(type: "pending" | "settled") {
   return npo!.id;
 }
 
-function plan_marking(status: "refunded" | "refunded_loss"): RefundPlan {
-  return {
-    is_loss: status === "refunded_loss",
-    loss_reasons: [],
-    amount: 100,
-    paid_commission: null,
-    effects: [{ kind: "payout_status", payout_id: PAYOUT_ID, status }],
-    preview: { effects: [], blockers: [], warnings: [] },
-  };
-}
-
-// drawn by the planner, so the order under test is the one a refund runs
-function plan_cancelling_cash(npo_id: number): RefundPlan {
+// every plan is drawn by the planner, so the effects and their order are the
+// ones a refund runs
+function plan_for(
+  npo_id: number,
+  o: {
+    payout?: "pending" | "settled" | null;
+    commission?: { status: "pending" | "processing" | "paid" } | null;
+    alloc?: { liq: number; lock: number; cash: number };
+    amount?: number;
+    fees?: { base: number; fsa: number; processing: number };
+    bal?: { liq: number; lock_units: number; cash: number };
+  } = {}
+) {
+  const alloc = o.alloc ?? { liq: 0, lock: 0, cash: 100 };
+  const fees = o.fees ?? { base: 0, fsa: 0, processing: 0 };
+  const amount = o.amount ?? 100;
   return calc_refund_plan(
     {
       dist: {
@@ -99,18 +108,28 @@ function plan_cancelling_cash(npo_id: number): RefundPlan {
         donation_id: "don-1",
         to_id: npo_id,
         to_name: "Apply Test NPO",
-        alloc: { liq: 0, lock: 0, cash: 100 },
+        alloc,
         net: 100,
-        amount: 100,
-        amount_usd: 100,
-        fee_base: 0,
-        fee_fsa: 0,
-        fee_processing: 0,
+        amount,
+        amount_usd: amount,
+        fee_base: fees.base,
+        fee_fsa: fees.fsa,
+        fee_processing: fees.processing,
       },
-      payout: { id: PAYOUT_ID, type: "pending" },
-      commission: null,
+      payout:
+        o.payout === null
+          ? null
+          : { id: PAYOUT_ID, type: o.payout ?? "pending" },
+      commission: o.commission
+        ? {
+            donation_id: "dist-1",
+            amount: 5,
+            status: o.commission.status,
+            referrer: { referrer_npo: "NPO-REF" },
+          }
+        : null,
       rev_log_ids: [],
-      bal: { liq: 0, lock_units: 0, cash: 100 },
+      bal: o.bal ?? { liq: 0, lock_units: 0, cash: 100 },
       nav: null,
       sub_id: null,
     },
@@ -141,27 +160,40 @@ async function payout_type() {
 
 describe("apply_refund_plan payout_status", () => {
   test("throws when the payout it planned to cancel was settled meanwhile", async () => {
-    await seed_payout("settled");
+    const npo_id = await seed_payout("settled");
 
     await expect(
-      apply_refund_plan(as_db(test_db.db), plan_marking("refunded"))
+      apply_refund_plan(
+        as_db(test_db.db),
+        plan_for(npo_id, { payout: "pending" }),
+        SRC
+      )
     ).rejects.toThrow(StalePayoutError);
     expect(await payout_type()).toBe("settled");
   });
 
   test("a pending payout is marked refunded", async () => {
-    await seed_payout("pending");
+    const npo_id = await seed_payout("pending");
 
-    await apply_refund_plan(as_db(test_db.db), plan_marking("refunded"));
+    await apply_refund_plan(
+      as_db(test_db.db),
+      plan_for(npo_id, { payout: "pending" }),
+      SRC
+    );
 
     expect(await payout_type()).toBe("refunded");
   });
 
   // the loss plan is what a re-run produces once the cron has settled the payout
   test("a loss refund marks an already-settled payout refunded_loss", async () => {
-    await seed_payout("settled");
+    const npo_id = await seed_payout("settled");
+    await seed_donation();
 
-    await apply_refund_plan(as_db(test_db.db), plan_marking("refunded_loss"));
+    await apply_refund_plan(
+      as_db(test_db.db),
+      plan_for(npo_id, { payout: "settled" }),
+      SRC
+    );
 
     expect(await payout_type()).toBe("refunded_loss");
   });
@@ -174,7 +206,11 @@ describe("apply_refund_plan lock order", () => {
     const npo_id = await seed_payout("settled");
 
     await expect(
-      apply_refund_plan(as_db(test_db.db), plan_cancelling_cash(npo_id))
+      apply_refund_plan(
+        as_db(test_db.db),
+        plan_for(npo_id, { payout: "pending" }),
+        SRC
+      )
     ).rejects.toThrow(StalePayoutError);
     expect(await npo_cash(npo_id)).toBe(100);
   });
@@ -182,7 +218,11 @@ describe("apply_refund_plan lock order", () => {
   test("a pending payout's cash comes off the npo balance", async () => {
     const npo_id = await seed_payout("pending");
 
-    await apply_refund_plan(as_db(test_db.db), plan_cancelling_cash(npo_id));
+    await apply_refund_plan(
+      as_db(test_db.db),
+      plan_for(npo_id, { payout: "pending" }),
+      SRC
+    );
 
     expect(await npo_cash(npo_id)).toBe(0);
     expect(await payout_type()).toBe("refunded");
@@ -200,8 +240,10 @@ describe("apply_refund_plan commission_status", () => {
         overview_pt: "[]",
         hq_country: "United States",
         referral_id: "NPO-REF",
+        cash: 100,
       })
       .returning();
+    await seed_donation();
     await test_db.db.insert(referrer_commissions).values({
       referrer_npo: "NPO-REF",
       date: "2026-09-01T00:00:00.000Z",
@@ -211,17 +253,23 @@ describe("apply_refund_plan commission_status", () => {
       status,
       ref: status === "pending" ? null : "ref-1",
     });
+    return npo!.id;
   }
 
-  const plan_reversing_commission = (): RefundPlan => ({
-    is_loss: false,
-    loss_reasons: [],
-    amount: 100,
-    paid_commission: null,
-    effects: [
-      { kind: "commission_status", donation_id: "dist-1", status: "refunded" },
-    ],
-    preview: { effects: [], blockers: [], warnings: [] },
+  const plan_reversing_commission = (npo_id: number) =>
+    plan_for(npo_id, {
+      payout: null,
+      commission: { status: "paid" },
+    });
+
+  const referrer_row = expect.objectContaining({
+    donation_id: "don-1",
+    npo_id: null,
+    referrer_npo: "NPO-REF",
+    source: "refund",
+    source_ref: "re_1",
+    received_usd: 5,
+    outstanding_usd: 5,
   });
 
   async function commission_status() {
@@ -232,25 +280,29 @@ describe("apply_refund_plan commission_status", () => {
     return row?.status;
   }
 
-  test("a pending commission is marked refunded", async () => {
-    await seed_commission("pending");
+  test("a pending commission is marked refunded, owed by nobody", async () => {
+    const npo_id = await seed_commission("pending");
 
     const res = await apply_refund_plan(
       as_db(test_db.db),
-      plan_reversing_commission()
+      plan_reversing_commission(npo_id),
+      SRC
     );
 
     expect(await commission_status()).toBe("refunded");
     expect(res.commission_in_flight).toBeUndefined();
+    expect(res.owed).toEqual([]);
+    expect(await owed_for_donation("don-1", as_db(test_db.db))).toEqual([]);
   });
 
   // its wise transfer may already be paying the referrer
-  test("a processing commission is marked refunded_loss and reported", async () => {
-    await seed_commission("processing");
+  test("a processing commission is marked refunded_loss, reported, and owed by its referrer", async () => {
+    const npo_id = await seed_commission("processing");
 
     const res = await apply_refund_plan(
       as_db(test_db.db),
-      plan_reversing_commission()
+      plan_reversing_commission(npo_id),
+      SRC
     );
 
     expect(await commission_status()).toBe("refunded_loss");
@@ -259,122 +311,141 @@ describe("apply_refund_plan commission_status", () => {
       amount: 5,
       ref: "ref-1",
     });
+    expect(res.owed).toEqual([referrer_row]);
   });
 
   // paid after the plan was drawn: the referrer has the money, so it stays paid
-  test("a paid commission is left paid and reported", async () => {
-    await seed_commission("paid");
+  test("a paid commission is left paid and owed by its referrer", async () => {
+    const npo_id = await seed_commission("paid");
 
     const res = await apply_refund_plan(
       as_db(test_db.db),
-      plan_reversing_commission()
+      plan_reversing_commission(npo_id),
+      SRC
     );
 
     expect(await commission_status()).toBe("paid");
-    expect(res.paid_commission).toEqual({ donation_id: "dist-1", amount: 5 });
+    expect(res.owed).toEqual([referrer_row]);
+    expect(await owed_for_donation("don-1", as_db(test_db.db))).toEqual([
+      referrer_row,
+    ]);
   });
 });
 
-describe("apply_refund_plan losses", () => {
-  // the referrer's paid commission is the platform's loss, never the npo's row
-  test("logs only the npo's loss and reports the paid commission", async () => {
+async function seed_donation() {
+  await test_db.db.insert(donations).values({
+    id: "don-1",
+    upusd: 1,
+    status: "settled",
+    amount_base: 100,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "stripe:card",
+  });
+}
+
+describe("apply_refund_plan owed", () => {
+  // the referrer's paid commission is its own row, never the npo's
+  test("records what the npo owes and what the referrer owes, one row each, no loss", async () => {
     const npo_id = await seed_payout("settled");
-    const plan = calc_refund_plan(
-      {
-        dist: {
-          id: "dist-1",
-          donation_id: "don-1",
-          to_id: npo_id,
-          to_name: "Apply Test NPO",
-          alloc: { liq: 0, lock: 0, cash: 100 },
-          net: 100,
-          amount: 100,
-          amount_usd: 100,
-          fee_base: 0,
-          fee_fsa: 0,
-          fee_processing: 0,
-        },
-        payout: { id: PAYOUT_ID, type: "settled" },
-        commission: { donation_id: "dist-1", amount: 5, status: "paid" },
-        rev_log_ids: [],
-        bal: { liq: 0, lock_units: 0, cash: 100 },
-        nav: null,
-        sub_id: null,
-      },
-      {
-        now: "2026-09-03T00:00:00.000Z",
-        nav_date: "2026-09-03T00:00:00.001Z",
-        form_id: null,
-        program_id: null,
-      }
-    );
+    await seed_donation();
+    await test_db.db
+      .update(npos)
+      .set({ referral_id: "NPO-REF" })
+      .where(eq(npos.id, npo_id));
+    await test_db.db.insert(referrer_commissions).values({
+      referrer_npo: "NPO-REF",
+      date: "2026-09-01T00:00:00.000Z",
+      donation_id: "dist-1",
+      npo_id,
+      amount: 5,
+      status: "paid",
+      ref: "ref-1",
+    });
+    const plan = plan_for(npo_id, {
+      payout: "settled",
+      commission: { status: "paid" },
+    });
 
-    const res = await apply_refund_plan(as_db(test_db.db), plan);
+    const res = await apply_refund_plan(as_db(test_db.db), plan, SRC);
 
-    const rows = await test_db.db.select().from(loss_logs);
-    expect(rows.map((r) => r.amount)).toEqual([100]);
-    expect(res.loss?.amount).toBe(100);
-    expect(res.paid_commission).toEqual({ donation_id: "dist-1", amount: 5 });
+    const owed = await owed_for_donation("don-1", as_db(test_db.db));
+    const npo_row = expect.objectContaining({
+      npo_id,
+      source: "refund",
+      source_ref: "re_1",
+      recorded_at: "2026-09-03T00:00:00.000Z",
+      received_usd: 100,
+      fee_processing_usd: 0,
+      outstanding_usd: 100,
+    });
+    const referrer_row = expect.objectContaining({
+      npo_id: null,
+      referrer_npo: "NPO-REF",
+      source: "refund",
+      source_ref: "re_1",
+      recorded_at: "2026-09-03T00:00:00.000Z",
+      received_usd: 5,
+      outstanding_usd: 5,
+    });
+    expect(owed).toHaveLength(2);
+    expect(owed).toEqual(expect.arrayContaining([npo_row, referrer_row]));
+    expect(res.owed).toEqual([referrer_row, npo_row]);
+    expect(await test_db.db.select().from(loss_logs)).toEqual([]);
   });
 });
 
-// a savings shortfall is the loss; the cash share still sits in a pending payout
+// a savings shortfall is owed; the cash share still sits in a pending payout
 describe("apply_refund_plan savings shortfall beside a cash payout", () => {
-  function plan_liq_short(npo_id: number, payout: "pending" | "settled") {
-    return calc_refund_plan(
-      {
-        dist: {
-          id: "dist-1",
-          donation_id: "don-1",
-          to_id: npo_id,
-          to_name: "Apply Test NPO",
-          alloc: { liq: 50, lock: 0, cash: 50 },
-          net: 100,
-          amount: 110,
-          amount_usd: 110,
-          fee_base: 5,
-          fee_fsa: 3,
-          fee_processing: 2,
-        },
-        payout: { id: PAYOUT_ID, type: payout },
-        commission: null,
-        rev_log_ids: [],
-        bal: { liq: 10, lock_units: 0, cash: 100 },
-        nav: null,
-        sub_id: null,
-      },
-      {
-        now: "2026-09-03T00:00:00.000Z",
-        nav_date: "2026-09-03T00:00:00.001Z",
-        form_id: null,
-        program_id: null,
-      }
-    );
-  }
+  const plan_liq_short = (npo_id: number, payout: "pending" | "settled") =>
+    plan_for(npo_id, {
+      payout,
+      alloc: { liq: 50, lock: 0, cash: 50 },
+      amount: 110,
+      fees: { base: 5, fsa: 3, processing: 2 },
+      bal: { liq: 10, lock_units: 0, cash: 100 },
+    });
 
-  test("a pending payout is cancelled as refunded and its cash comes off the npo", async () => {
+  test("a pending payout is cancelled, its cash comes off the npo, and the unreversed share is owed", async () => {
     const npo_id = await seed_payout("pending");
+    await seed_donation();
 
     await apply_refund_plan(
       as_db(test_db.db),
-      plan_liq_short(npo_id, "pending")
+      plan_liq_short(npo_id, "pending"),
+      SRC
     );
 
     expect(await payout_type()).toBe("refunded");
     expect(await npo_cash(npo_id)).toBe(50);
-    const rows = await test_db.db.select().from(loss_logs);
-    expect(rows.map((r) => r.type)).toEqual(["balance_liq"]);
+    const owed = await owed_for_donation("don-1", as_db(test_db.db));
+    expect(owed).toEqual([
+      expect.objectContaining({
+        npo_id,
+        received_usd: 50,
+        fee_processing_usd: 2,
+        outstanding_usd: 52,
+      }),
+    ]);
+    expect(await test_db.db.select().from(loss_logs)).toEqual([]);
   });
 
-  test("a payout already sent is marked refunded_loss and its cash stays", async () => {
+  test("a payout already sent is marked refunded_loss, its cash stays, and the whole share is owed", async () => {
     const npo_id = await seed_payout("settled");
+    await seed_donation();
 
     await apply_refund_plan(
       as_db(test_db.db),
-      plan_liq_short(npo_id, "settled")
+      plan_liq_short(npo_id, "settled"),
+      SRC
     );
 
     expect(await payout_type()).toBe("refunded_loss");
     expect(await npo_cash(npo_id)).toBe(100);
+    const [owed] = await owed_for_donation("don-1", as_db(test_db.db));
+    expect(owed).toMatchObject({ received_usd: 100, outstanding_usd: 102 });
   });
 });

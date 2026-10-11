@@ -73,6 +73,11 @@ export interface IDonMatchChasePayload {
   id: string;
 }
 
+export interface IOwedNoticePayload {
+  /** the `owed_notices` row; the handler reads everything else at send time */
+  id: string;
+}
+
 export interface IBankingPayload {
   npo_id: number;
   bank_summary?: string;
@@ -195,6 +200,7 @@ export type Payloads = {
   "fund-member-removed": IFundMemberRemovedPayload;
   "invite-email": IInviteEmailPayload;
   "lock-tx-created": ILockTxCreatedPayload;
+  "owed-notice": IOwedNoticePayload;
   "paypal-order-capture": IPaypalOrderCapturePayload;
   "reg-created": IRegCreatedPayload;
   "reg-updated": IReg;
@@ -251,6 +257,7 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
     `invite_${p.invitee}_${p.npo_id}_${p.sent_at.replace(/:/g, "")}`,
   "lock-tx-created": (p) =>
     `lock_tx_${p.npo_id}_${String(p.date_created).replace(/:/g, "")}`,
+  "owed-notice": (p) => `owed.notice_${p.id}`,
   "paypal-order-capture": (p) => `paypal.order-capture_${p.order_id}`,
   "reg-created": (p) => `reg.created_${p.id}`,
   // one key per row state: every write stamps updated_at, so a new save is a
@@ -303,6 +310,10 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   "fund-member-removed": { retries: 3 },
   "invite-email": { retries: 3 },
   "lock-tx-created": { retries: 3 },
+  // the handler acks a notice already sent or held under another's lease; a
+  // notice still unsent past its lease is enqueued again by the owed-notices
+  // cron, so these retries only have to cover a failed send
+  "owed-notice": { retries: 3 },
   // only the welcome mail; registration's update side is `reg-updated`.
   "reg-created": { retries: 3 },
   "sub-cancel-failed-email": { retries: 3 },

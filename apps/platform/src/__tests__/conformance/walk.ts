@@ -37,13 +37,17 @@ export interface Source {
 /** repo-relative path + text of every scanned file, sorted. the calling sweep
  *  is skipped — it spells its own needles out — so pass its `import.meta.url`.
  *  `transform` is how a sweep that reads raw text rather than `className=`
- *  attributes blanks comments before the search runs. */
+ *  attributes blanks comments before the search runs. `roots` are
+ *  repo-relative; a dot-named one (`apps/platform/.server`) is walked, though
+ *  dot-named entries below a root are not. */
 export function sources_of(
   meta_url: string,
-  transform: (text: string) => string = (t) => t
+  transform: (text: string) => string = (t) => t,
+  roots: string[] = ROOTS
 ): Source[] {
   const self = relative(repo, fileURLToPath(meta_url)).split(sep).join("/");
-  return ROOTS.flatMap((r) => walk(join(repo, r)))
+  return roots
+    .flatMap((r) => walk(join(repo, r)))
     .map((f) => ({
       file: relative(repo, f).split(sep).join("/"),
       text: transform(readFileSync(f, "utf8")),

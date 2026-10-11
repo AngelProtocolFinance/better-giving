@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { report_error } from "#/errors/report";
 import type { INpoAdmin, IUserBookmark, IUserNpo } from "@/users/interfaces";
 import type {
@@ -97,6 +97,24 @@ export async function user_contact_by_id(
     )
     .limit(1);
   return row;
+}
+
+/** each found user's first name, else email, by id: a label for internal
+ * audit views, so unverified and banned users are named too. an id with no
+ * user is absent */
+export async function user_names_by_ids(
+  ids: string[],
+  tx: DbOrTx = db
+): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const rows = await tx
+    .select({
+      id: user.id,
+      name: sql<string>`COALESCE(NULLIF(btrim(${user.first_name}), ''), ${user.email})`,
+    })
+    .from(user)
+    .where(inArray(user.id, ids));
+  return new Map(rows.map((r) => [r.id, r.name]));
 }
 
 /**

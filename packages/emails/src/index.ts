@@ -29,6 +29,9 @@ export * as fund_opt_out_notif from "./templates/fund-opt-out-notif";
 export * as grants_schedule from "./templates/grants-schedule";
 // auth
 export * as login_link from "./templates/login-link";
+// owed
+export * as owed_npo_notif from "./templates/owed-npo-notif";
+export * as owed_referrer_notif from "./templates/owed-referrer-notif";
 // registration
 export * as registration_approved from "./templates/registration-approved";
 export * as registration_new from "./templates/registration-new";

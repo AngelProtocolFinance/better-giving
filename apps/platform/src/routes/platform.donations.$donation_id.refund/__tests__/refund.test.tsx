@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { createRoutesStub } from "react-router";
 import Stripe from "stripe";
 import {
@@ -12,9 +11,7 @@ import {
   vi,
 } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
-import { seed_npo } from "#/__tests__/fixtures/funds";
 import { donation_settlements, donations } from "$/pg/schema/donation";
-import { subscriptions } from "$/pg/schema/subscription";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -62,32 +59,25 @@ vi.mock("$/kit/queue", () => ({ enqueue }));
 const report_error = vi.hoisted(() => vi.fn());
 vi.mock("#/errors/report", () => ({ report_error }));
 
-// the dist graph and its reversal are `process.test.ts`'s ground; here they are
-// the boundary, so the route's own branching on the reversal's answer runs real
-const refund = vi.hoisted(() => ({ failures: [] as string[], applied: 0 }));
+// the reversal is `reverse.test.ts`'s ground, and `action.test.ts` runs it for
+// real; here it is the boundary, so the modal shows what each test says it
+// answered
+vi.mock("$/refund/reverse", async (orig) => ({
+  ...(await orig<typeof import("$/refund/reverse")>()),
+  reverse_charge: vi.fn(),
+}));
+// the preview's plan per dist. browser mode links every named import the real
+// `reverse` module makes, so `process_refund` is stubbed though never reached
 vi.mock("$/refund/process", () => ({
   load_refund_plan: vi.fn(async () => ({
+    amount: [],
     preview: {
       effects: [{ label: "Reverse payout", pass: true }],
       blockers: [],
       warnings: [],
     },
   })),
-  // flips the donation as the real one does once nothing failed
-  process_refund: vi.fn(async (donation_id: string) => {
-    if (refund.failures.length === 0) {
-      await test_db
-        .current!.db.update(donations)
-        .set({ status: "refunded" })
-        .where(eq(donations.id, donation_id));
-    }
-    return {
-      failures: refund.failures,
-      loss_msgs: [],
-      has_loss: false,
-      applied: refund.applied,
-    };
-  }),
+  process_refund: vi.fn(),
 }));
 vi.mock("$/pg/queries/dist", async (orig) => ({
   ...(await orig<typeof import("$/pg/queries/dist")>()),
@@ -107,7 +97,8 @@ vi.mock("$/pg/queries/dist", async (orig) => ({
 
 import { dists_for_refund } from "$/pg/queries/dist";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import { load_refund_plan, process_refund } from "$/refund/process";
+import { load_refund_plan } from "$/refund/process";
+import { type ReversalResult, reverse_charge } from "$/refund/reverse";
 import { action, loader } from "../api";
 import Page from "../route";
 
@@ -119,9 +110,29 @@ afterAll(async () => {
   await test_db.current?.client.close();
 });
 
+const reversed: ReversalResult = {
+  status: "reversed",
+  dists: 1,
+  applied: 1,
+  owed_msgs: [],
+  has_loss: false,
+};
+
+const incomplete = (failures: string[], applied = 0): ReversalResult => ({
+  status: "failed",
+  reason: "incomplete",
+  dists: 1,
+  applied,
+  failures,
+});
+
 beforeEach(() => {
+  vi.mocked(reverse_charge).mockResolvedValue(reversed);
   refunds_list.mockResolvedValue({ data: [] });
-  intents_retrieve.mockResolvedValue({ amount_received: 10000 });
+  // no refunded total: the share is summed off the refund list
+  intents_retrieve.mockResolvedValue({
+    latest_charge: { amount_captured: 10000 },
+  });
   // unless a test says otherwise, the refund stands as stripe created it
   refunds_retrieve.mockImplementation(async (id: string) => ({
     ...refunds_create.mock.settledResults.at(-1)?.value,
@@ -133,8 +144,6 @@ afterEach(async () => {
   await cleanup();
   // reset, not cleared: an implementation one test sets must not carry into the next
   vi.resetAllMocks();
-  refund.failures = [];
-  refund.applied = 0;
 });
 
 let n = 0;
@@ -166,43 +175,6 @@ async function seed_settlement(donation_id: string, sttl_id: string) {
   });
 }
 
-/** an active stripe subscription that billed `payment_intent` */
-async function seed_subscription(payment_intent: string) {
-  const db = test_db.current!.db;
-  const npo = await seed_npo(db, { registration_number: `EIN-REFUND-${++n}` });
-  const id = `sub_${n}`;
-  await db.insert(subscriptions).values({
-    id,
-    interval: "month",
-    interval_count: 1,
-    next_billing: "2026-11-01T00:00:00.000Z",
-    amount: 100,
-    amount_usd: 100,
-    currency: "usd",
-    product_id: "prod_1",
-    to_npo_id: npo!.id,
-    to_name: "Fund Test NPO",
-    platform: "stripe",
-    status: "active",
-    from_id: "donor@example.com",
-    created_at: "2026-09-01T00:00:00.000Z",
-    updated_at: "2026-09-01T00:00:00.000Z",
-  });
-  invoice_payments_list.mockImplementation(async (p: any) => ({
-    data:
-      p.payment.payment_intent === payment_intent
-        ? [
-            {
-              invoice: {
-                parent: { subscription_details: { subscription: id } },
-              },
-            },
-          ]
-        : [],
-  }));
-  return id;
-}
-
 async function open_and_confirm(donation_id: string) {
   const Stub = createRoutesStub([
     {
@@ -223,27 +195,31 @@ async function open_and_confirm(donation_id: string) {
 }
 
 describe("refund modal", () => {
-  it.each([
-    ["succeeded", /stripe refund completed/i],
-    ["pending", /reverses once the bank refund succeeds/i],
-  ])("reports a %s stripe refund by its status", async (status, wording) => {
-    refunds_create.mockResolvedValue({ id: "re_1", status });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
+  it.each<[string, RegExp, ReversalResult]>([
+    ["succeeded", /stripe refund completed/i, reversed],
+    ["pending", /reverses once the bank refund succeeds/i, { status: "held" }],
+  ])(
+    "reports a %s stripe refund by its status",
+    async (status, wording, answer) => {
+      vi.mocked(reverse_charge).mockResolvedValue(answer);
+      refunds_create.mockResolvedValue({ id: "re_1", status });
+      const id = await seed_donation();
+      await seed_settlement(id, `pi_${id}`);
 
-    const screen = await open_and_confirm(id);
+      const screen = await open_and_confirm(id);
 
-    await expect.element(screen.getByText(wording)).toBeInTheDocument();
-    const others = [
-      /stripe refund completed/i,
-      /reverses once the bank refund succeeds/i,
-    ].filter((w) => String(w) !== String(wording));
-    for (const w of others) expect(screen.getByText(w).query()).toBeNull();
-    expect(refunds_create).toHaveBeenCalledWith(
-      expect.objectContaining({ payment_intent: `pi_${id}` }),
-      expect.anything()
-    );
-  });
+      await expect.element(screen.getByText(wording)).toBeInTheDocument();
+      const others = [
+        /stripe refund completed/i,
+        /reverses once the bank refund succeeds/i,
+      ].filter((w) => String(w) !== String(wording));
+      for (const w of others) expect(screen.getByText(w).query()).toBeNull();
+      expect(refunds_create).toHaveBeenCalledWith(
+        expect.objectContaining({ payment_intent: `pi_${id}` }),
+        expect.anything()
+      );
+    }
+  );
 
   it("moves focus to the outcome heading once the refund is processed", async () => {
     refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
@@ -271,7 +247,7 @@ describe("refund modal", () => {
         .element(alert)
         .toMatchTextContent(`Stripe refund re_1 is ${status}`);
       expect(screen.getByText("Refund processed").query()).toBeNull();
-      expect(process_refund).not.toHaveBeenCalled();
+      expect(reverse_charge).not.toHaveBeenCalled();
     }
   );
 
@@ -321,7 +297,7 @@ describe("refund modal", () => {
     await expect
       .element(screen.getByRole("alert"))
       .toMatchTextContent("Stripe refund re_1 is failed");
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
   });
 
   it("reverses nothing while the stripe refund needs action, and says to retry", async () => {
@@ -335,11 +311,13 @@ describe("refund modal", () => {
     await expect.element(alert).toMatchTextContent(/re_1 needs action/i);
     await expect.element(alert).toMatchTextContent(/nothing was reversed/i);
     await expect.element(alert).toMatchTextContent(/retry/i);
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
   });
 
   it("keeps a refund with a failed reversal open, listing what failed", async () => {
-    refund.failures = ["dist dist-1: payout already sent"];
+    vi.mocked(reverse_charge).mockResolvedValue(
+      incomplete(["dist dist-1: payout already sent"])
+    );
     refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
     const id = await seed_donation();
     await seed_settlement(id, `pi_${id}`);
@@ -379,12 +357,13 @@ describe("refund modal", () => {
     await expect
       .element(screen.getByText("Refund processed"))
       .toBeInTheDocument();
-    expect(process_refund).toHaveBeenCalledOnce();
+    expect(reverse_charge).toHaveBeenCalledOnce();
   });
 
   it("says how many dists were reversed when only some were", async () => {
-    refund.failures = ["dist dist-2: payout already sent"];
-    refund.applied = 1;
+    vi.mocked(reverse_charge).mockResolvedValue(
+      incomplete(["dist dist-2: payout already sent"], 1)
+    );
     refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
     const id = await seed_donation();
     await seed_settlement(id, `pi_${id}`);
@@ -400,26 +379,6 @@ describe("refund modal", () => {
 });
 
 describe("refund preview", () => {
-  // the npo's $100 reverses in full; only the referrer's paid $5 is lost
-  it("totals the loss from what the plan loses, not the dist's amount", async () => {
-    vi.mocked(load_refund_plan).mockResolvedValue({
-      is_loss: false,
-      amount: 100,
-      paid_commission: { donation_id: "dist-1", amount: 5 },
-      preview: {
-        effects: [{ label: "Reverse payout", pass: true }],
-        blockers: [],
-        warnings: [{ label: "Commission", pass: false, reason: "paid" }],
-      },
-    } as any);
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const data: any = await loader({ params: { donation_id: id } } as any);
-
-    expect(data.total_loss).toBe(5);
-  });
-
   // ¥50,000 gift pledged at $333.33 that settled at $313.50: the row's $
   // column shows the settled usd, the money the refund moves
   const yen_dist = (refund_status: string | null) => ({
@@ -441,8 +400,7 @@ describe("refund preview", () => {
     vi.mocked(dists_for_refund).mockResolvedValue([yen_dist(null)] as any);
     vi.mocked(load_refund_plan).mockResolvedValue({
       is_loss: false,
-      amount: 313.5,
-      paid_commission: null,
+      amount: [],
       preview: { effects: [], blockers: [], warnings: [] },
     } as any);
     const id = await seed_donation();
@@ -463,11 +421,33 @@ describe("refund preview", () => {
     expect(data.previews[0].amount).toBe(313.5);
   });
 
-  it("banners the loss without saying it is recorded", async () => {
+  it("shows a dist already refunded after its grant as recorded as owed, not a loss", async () => {
+    vi.mocked(dists_for_refund).mockResolvedValue([yen_dist("loss")] as any);
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+    const Stub = createRoutesStub([
+      {
+        path: "/platform/donations/:donation_id/refund",
+        Component: Page,
+        HydrateFallback: () => null,
+        loader: loader as any,
+      },
+    ]);
+
+    const screen = await render(
+      <Stub initialEntries={[`/platform/donations/${id}/refund`]} />
+    );
+
+    await expect
+      .element(screen.getByText("Recorded as owed", { exact: true }))
+      .toBeInTheDocument();
+    expect(screen.getByText("Completed with losses").query()).toBeNull();
+  });
+
+  it("says a paid grant will be recovered from the npo's future grants, not lost", async () => {
     vi.mocked(load_refund_plan).mockResolvedValue({
       is_loss: true,
-      amount: 100,
-      paid_commission: null,
+      amount: [{ party: { npo_id: 7 }, usd: 93.2 }],
       preview: {
         effects: [],
         blockers: [],
@@ -490,427 +470,15 @@ describe("refund preview", () => {
     );
 
     await expect
-      .element(screen.getByText("$100.00 will be a platform loss"))
+      .element(
+        screen.getByText(
+          "$93.20 will be recovered from Save the Whales's future grants"
+        )
+      )
       .toBeInTheDocument();
+    expect(screen.getByText("will be a platform loss").query()).toBeNull();
+    await expect
+      .element(screen.getByRole("button", { name: /confirm refund/i }))
+      .toHaveTextContent("Confirm refund");
   });
-});
-
-describe("refund api", () => {
-  it("leaves every dist unreversed when the Stripe refund errors", async () => {
-    refunds_create.mockRejectedValue(new Error("stripe timed out"));
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res.ok).toBe(false);
-    expect(res.failures).toEqual([
-      "Stripe refund not issued: stripe timed out",
-    ]);
-    expect(process_refund).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    [
-      "a lost connection",
-      () =>
-        new Stripe.errors.StripeConnectionError({
-          message: "socket hang up",
-        }),
-    ],
-    [
-      "a 5xx",
-      () =>
-        new Stripe.errors.StripeAPIError({
-          type: "api_error",
-          message: "internal error",
-          statusCode: 500,
-        }),
-    ],
-  ])("calls the refund unknown, not unissued, after %s", async (_, error) => {
-    refunds_create.mockRejectedValue(error());
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res).toMatchObject({ ok: false, refund: "unknown", reversed: 0 });
-    expect(process_refund).not.toHaveBeenCalled();
-  });
-
-  it("tells the admin the refund went out when the reversal throws after it", async () => {
-    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
-    refunds_list
-      .mockResolvedValueOnce({ data: [] }) // keying the refund
-      .mockRejectedValueOnce(new Error("stripe list timed out"));
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res).toMatchObject({
-      ok: false,
-      refund_issued: true,
-      refund: "issued",
-      reversed: null,
-    });
-    expect(res.failures).toEqual([
-      "Stripe refund re_1 issued, reversal stopped: stripe list timed out",
-    ]);
-  });
-
-  it("issues a replacement refund when a retry follows a failed one", async () => {
-    // stripe's side: a repeated key replays its first refund, and the
-    // charge's refunds are listed newest first
-    const by_key = new Map<string, object>();
-    refunds_create.mockImplementation(
-      async (_p: unknown, opts: { idempotencyKey: string }) => {
-        const r = by_key.get(opts.idempotencyKey) ?? {
-          id: `re_${by_key.size + 1}`,
-          status: by_key.size === 0 ? "failed" : "succeeded",
-          amount: 10000,
-          currency: "usd",
-        };
-        by_key.set(opts.idempotencyKey, r);
-        return r;
-      }
-    );
-    refunds_list.mockImplementation(async () => ({
-      data: [...by_key.values()].reverse(),
-    }));
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-    const args = { params: { donation_id: id } } as any;
-
-    const first: any = await action(args);
-    const retry: any = await action(args);
-
-    expect(first).toMatchObject({ ok: false, refund: "not_issued" });
-    expect(by_key.size).toBe(2);
-    expect(retry).toMatchObject({ ok: true, stripe_refund: "succeeded" });
-  });
-
-  it("sends no after-partial notices for a replacement refund after a failed one", async () => {
-    const failed = {
-      id: "re_failed",
-      status: "failed",
-      amount: 10000,
-      currency: "usd",
-      created: 1_700_000_000,
-    };
-    const ours = {
-      ...failed,
-      id: "re_full",
-      status: "succeeded",
-      created: 1_700_000_060,
-    };
-    refunds_create.mockResolvedValue(ours);
-    refunds_list.mockResolvedValue({ data: [ours, failed] });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res).toMatchObject({ ok: true, stripe_refund: "succeeded" });
-    const notices = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "fiat-notice");
-    expect(notices).toHaveLength(0);
-  });
-
-  it("sends one idempotency key for two submits racing before any failure", async () => {
-    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
-    refund.failures = ["dist dist-1: db timeout"]; // keeps the donation open
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-    const args = { params: { donation_id: id } } as any;
-
-    await Promise.all([action(args), action(args)]);
-
-    const [[, a], [, b]] = refunds_create.mock.calls as any;
-    expect(a.idempotencyKey).toBe(b.idempotencyKey);
-  });
-
-  it("refunds the donor once across a retried submit", async () => {
-    // stripe's idempotency: a repeated key replays the first result
-    const issued = new Map<string, { id: string; status: string }>();
-    refunds_create.mockImplementation(
-      async (_p: unknown, opts?: { idempotencyKey?: string }) => {
-        const key = opts?.idempotencyKey ?? crypto.randomUUID();
-        const r = issued.get(key) ?? {
-          id: `re_${issued.size}`,
-          status: "succeeded",
-        };
-        issued.set(key, r);
-        return r;
-      }
-    );
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-    const args = { params: { donation_id: id } } as any;
-
-    refund.failures = ["dist dist-1: db timeout"];
-    await action(args);
-    refund.failures = [];
-    await action(args);
-
-    expect(issued.size).toBe(1);
-  });
-
-  it("tells ops to undo their hand adjustment when earlier partial refunds exist", async () => {
-    const ours = {
-      id: "re_full",
-      status: "succeeded",
-      amount: 9500,
-      currency: "usd",
-    };
-    const partial = {
-      id: "re_part",
-      status: "succeeded",
-      amount: 500,
-      currency: "usd",
-    };
-    refunds_create.mockResolvedValue(ours);
-    refunds_list.mockResolvedValue({ data: [ours, partial] });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    await action({ params: { donation_id: id } } as any);
-
-    const [starting, notice] = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "fiat-notice");
-    expect(starting.payload.alert.title).toBe(
-      "Full Refund After Partial: Reversal Starting"
-    );
-    expect(starting.payload.alert.body).toContain(
-      "earlier partial refunds: 5.00 USD (re_part, succeeded)"
-    );
-    expect(notice.payload.alert.title).toBe(
-      "Reversal Complete: Undo Hand Adjustment"
-    );
-    expect(notice.payload.alert.body).toContain(
-      "completing refund: 95.00 USD (re_full, succeeded)"
-    );
-    const [starting_at] = enqueue.mock.invocationCallOrder;
-    const [reversed_at] = vi.mocked(process_refund).mock.invocationCallOrder;
-    expect(starting_at).toBeLessThan(reversed_at);
-  });
-
-  it("tells ops to keep their hand adjustment when the reversal after partials fails", async () => {
-    const ours = {
-      id: "re_full",
-      status: "succeeded",
-      amount: 9500,
-      currency: "usd",
-    };
-    const partial = {
-      id: "re_part",
-      status: "succeeded",
-      amount: 500,
-      currency: "usd",
-    };
-    refunds_create.mockResolvedValue(ours);
-    refunds_list.mockResolvedValue({ data: [ours, partial] });
-    refund.failures = ["dist dist-1: payout already sent"];
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    await action({ params: { donation_id: id } } as any);
-
-    const notices = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "fiat-notice");
-    expect(notices).toHaveLength(2);
-    const [, notice] = notices;
-    expect(notice.payload.alert.title).toBe(
-      "Reversal Did Not Complete: Keep Hand Adjustment"
-    );
-    expect(notice.payload.alert.body).toContain(
-      "1 of 1 dists failed to reverse"
-    );
-    // the key the webhook would use for the same refund, so the two never both land
-    expect(notice.dedupe).toBe("fiat.notice_re_full_keep");
-  });
-
-  it("still reports the refund processed when its outcome notice can't be queued, keeping the instruction in sentry", async () => {
-    const ours = {
-      id: "re_full",
-      status: "succeeded",
-      amount: 9500,
-      currency: "usd",
-    };
-    const partial = {
-      id: "re_part",
-      status: "succeeded",
-      amount: 500,
-      currency: "usd",
-    };
-    refunds_create.mockResolvedValue(ours);
-    refunds_list.mockResolvedValue({ data: [ours, partial] });
-    enqueue
-      .mockResolvedValueOnce(undefined) // the start notice
-      .mockRejectedValueOnce(new Error("qstash 503"));
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res.ok).toBe(true);
-    expect(report_error).toHaveBeenCalledOnce();
-    const [err, ctx] = report_error.mock.calls[0]!;
-    expect(err).toMatchObject({ message: "qstash 503" });
-    expect(ctx).toMatchObject({
-      donation_id: id,
-      title: "Reversal Complete: Undo Hand Adjustment",
-    });
-  });
-
-  it("posts no partial-refund notice when the admin refund is the charge's only one", async () => {
-    const ours = {
-      id: "re_full",
-      status: "succeeded",
-      amount: 10000,
-      currency: "usd",
-    };
-    refunds_create.mockResolvedValue(ours);
-    refunds_list.mockResolvedValue({ data: [ours] });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res.ok).toBe(true);
-    expect(refunds_list).toHaveBeenCalled();
-    expect(
-      enqueue.mock.calls.flat().filter((m) => m.id === "fiat-notice")
-    ).toEqual([]);
-  });
-
-  it("reverses a donation whose charge an earlier attempt already refunded", async () => {
-    // past stripe's idempotency window a retry meets the refund it made before
-    refunds_create.mockRejectedValue(
-      new Stripe.errors.StripeInvalidRequestError({
-        type: "invalid_request_error",
-        code: "charge_already_refunded",
-        message: "Charge ch_1 has already been refunded.",
-      })
-    );
-    refunds_list.mockResolvedValue({
-      data: [{ id: "re_earlier", status: "succeeded", amount: 10000 }],
-    });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res).toMatchObject({ ok: true, stripe_refund: "succeeded" });
-    expect(process_refund).toHaveBeenCalledOnce();
-  });
-
-  it("leaves the reversal to refund.updated while the bank refund is pending, stopping the gift's billing now", async () => {
-    refunds_create.mockResolvedValue({ id: "re_1", status: "pending" });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-    const sub_id = await seed_subscription(`pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res).toMatchObject({
-      ok: true,
-      stripe_refund: "pending",
-      reversal: "held",
-    });
-    expect(process_refund).not.toHaveBeenCalled();
-    const [deactivated] = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "sub-deactivated");
-    expect(deactivated?.payload).toMatchObject({
-      id: sub_id,
-      status_cancel_reason: "refunded",
-    });
-  });
-
-  it("holds the reversal when its own refund succeeded but an earlier one on the charge is pending", async () => {
-    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
-    refunds_list.mockResolvedValue({
-      data: [
-        { id: "re_1", status: "succeeded", amount: 500 },
-        { id: "re_earlier", status: "pending", amount: 9500 },
-      ],
-    });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res).toMatchObject({ ok: true, reversal: "held" });
-    expect(process_refund).not.toHaveBeenCalled();
-  });
-
-  it("reverses a succeeded card refund at once", async () => {
-    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res).toMatchObject({
-      ok: true,
-      stripe_refund: "succeeded",
-      reversal: "done",
-    });
-    expect(process_refund).toHaveBeenCalledOnce();
-  });
-
-  it("refuses a stripe donation with no payment on record, reversing nothing", async () => {
-    const id = await seed_donation();
-
-    const res = await action({ params: { donation_id: id } } as any).catch(
-      (r: unknown) => r
-    );
-
-    expect(res).toBeInstanceOf(Response);
-    expect((res as Response).status).toBe(400);
-    expect(process_refund).not.toHaveBeenCalled();
-  });
-
-  it("stops a recurring gift's billing once refunded, though a dist failed to reverse", async () => {
-    refund.failures = ["dist dist-1: payout already sent"];
-    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-    const sub_id = await seed_subscription(`pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res).toMatchObject({ ok: false, refund_issued: true });
-    const [deactivated] = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "sub-deactivated");
-    expect(deactivated?.payload).toMatchObject({
-      id: sub_id,
-      status: "inactive",
-      status_cancel_reason: "refunded",
-    });
-  });
-
-  it.each(["nowpayments:crypto", "paypal:paypal", "chariot:daf"])(
-    "refuses a %s donation in loader and action, reversing nothing",
-    async (via) => {
-      const id = await seed_donation(via);
-      await seed_settlement(id, `sttl_${id}`);
-      const args = { params: { donation_id: id } } as any;
-
-      const from_loader = await loader(args).catch((r: unknown) => r);
-      const from_action = await action(args).catch((r: unknown) => r);
-
-      expect(from_loader).toBeInstanceOf(Response);
-      expect((from_loader as Response).status).toBe(400);
-      expect(from_action).toBeInstanceOf(Response);
-      expect((from_action as Response).status).toBe(400);
-      expect(process_refund).not.toHaveBeenCalled();
-      expect(refunds_create).not.toHaveBeenCalled();
-    }
-  );
 });

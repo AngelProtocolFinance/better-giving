@@ -20,6 +20,7 @@ import {
 import { donation_match_events } from "$/pg/schema/match";
 import { npos } from "$/pg/schema/npo";
 import { rev_logs } from "$/pg/schema/revenue";
+import { donation_takes } from "$/pg/schema/take";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
@@ -43,15 +44,28 @@ vi.mock("$/kit/stripe", () => ({
   stripe: {
     // no subscription billed the payment
     invoicePayments: { list: vi.fn(async () => ({ data: [] })) },
-    // a refund stripe accepts; the action re-reads it and lists earlier ones
+    // a refund of the whole $5 charge stripe accepts; the action re-reads it
+    // and lists earlier ones
     refunds: {
-      create: vi.fn(async () => ({ id: "re_1", status: "succeeded" })),
-      retrieve: vi.fn(async () => ({ id: "re_1", status: "succeeded" })),
+      create: vi.fn(async () => ({
+        id: "re_1",
+        status: "succeeded",
+        amount: 500,
+        currency: "usd",
+      })),
+      retrieve: vi.fn(async () => ({
+        id: "re_1",
+        status: "succeeded",
+        amount: 500,
+        currency: "usd",
+      })),
       list: vi.fn(async () => ({ data: [] })),
     },
-    // the action reads the charge amount beside the refund list
+    // the action sizes the refund against the expanded charge's captured amount
     paymentIntents: {
-      retrieve: vi.fn(async () => ({ amount_received: 10000 })),
+      retrieve: vi.fn(async () => ({
+        latest_charge: { amount_captured: 500 },
+      })),
     },
   },
 }));
@@ -128,6 +142,7 @@ beforeEach(async () => {
   await test_db.current!.db.delete(donation_settlements);
   await test_db.current!.db.delete(donation_donors);
   await test_db.current!.db.delete(donation_recipients);
+  await test_db.current!.db.delete(donation_takes);
   await test_db.current!.db.delete(donations);
   await test_db.current!.db.delete(npos);
   counter = 0;

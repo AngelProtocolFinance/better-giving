@@ -10,6 +10,7 @@ import {
 } from "vitest";
 import { dist_refund_update, dists_for_refund } from "../pg/queries/dist";
 import type { DbOrTx } from "../pg/queries/helpers";
+import { owed_for_donation } from "../pg/queries/owed";
 import { bal_txs } from "../pg/schema/bal-tx";
 import { dists } from "../pg/schema/dist";
 import {
@@ -19,6 +20,7 @@ import {
 } from "../pg/schema/donation";
 import { donation_match_events } from "../pg/schema/match";
 import { npos } from "../pg/schema/npo";
+import { owed_amounts } from "../pg/schema/owed";
 import { payouts } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { loss_logs } from "../pg/schema/revenue";
@@ -97,7 +99,23 @@ import { reverse_unfunded_payout_loss } from "./unfunded";
 // --- setup ---
 
 const as_db = (x: unknown) => x as DbOrTx;
-const ctx = { form_id: null, program_id: null, alert_from: "test" };
+const ctx = {
+  form_id: null,
+  program_id: null,
+  alert_from: "test",
+  source: "refund",
+  source_ref: "re_1",
+} as const;
+// read through the module's own query, gift by gift
+const owed_rows = async () => {
+  const db = test_db.current!.db as unknown as DbOrTx;
+  const gifts = await test_db
+    .current!.db.select({ id: donations.id })
+    .from(donations);
+  return (
+    await Promise.all(gifts.map((g) => owed_for_donation(g.id, db)))
+  ).flat();
+};
 let counter = 0;
 
 beforeAll(async () => {
@@ -115,6 +133,7 @@ beforeEach(async () => {
   send_email.mockResolvedValue({ data: { id: "msg-1" }, error: null });
   await test_db.current!.db.delete(bal_txs);
   await test_db.current!.db.delete(loss_logs);
+  await test_db.current!.db.delete(owed_amounts);
   await test_db.current!.db.delete(payouts);
   await test_db.current!.db.delete(dists);
   await test_db.current!.db.delete(donation_match_events);
@@ -126,15 +145,10 @@ beforeEach(async () => {
   counter = 0;
 });
 
-/**
- * a settled donation, optionally with a match event. no dists: an empty graph
- * list is the shape that isolates the finalization step, so what runs is
- * exactly the status flip, the void, and the heads-up.
- */
+/** a settled donation, optionally with a match event, and no dists */
 async function seed(o?: {
   stamps?: Partial<{ pack_sent_at: string; submitted_at: string }>;
   event?: boolean;
-  company_name?: string | null;
 }) {
   counter++;
   const db = test_db.current!.db;
@@ -172,7 +186,7 @@ async function seed(o?: {
     donation_id: id,
     email: "donor@test.com",
     name: "Ada Lovelace",
-    company_name: o?.company_name ?? "Acme Inc",
+    company_name: "Acme Inc",
   });
 
   if (o?.event !== false) {
@@ -188,95 +202,6 @@ async function seed(o?: {
 
 const events = () => test_db.current!.db.select().from(donation_match_events);
 const dons = () => test_db.current!.db.select().from(donations);
-
-describe("process_refund — voiding the match event", () => {
-  test("stamps the void alongside the status flip", async () => {
-    const { id } = await seed();
-
-    await process_refund(id, [], ctx);
-
-    expect((await dons())[0]!.status).toBe("refunded");
-    const [ev] = await events();
-    expect(ev!.voided_at).not.toBeNull();
-    expect(ev!.void_reason).toBe("refunded");
-  });
-
-  test("a donation that never entered the workflow still flips", async () => {
-    const { id } = await seed({ event: false });
-
-    await process_refund(id, [], ctx);
-
-    expect((await dons())[0]!.status).toBe("refunded");
-    expect(await events()).toHaveLength(0);
-  });
-});
-
-describe("process_refund — the filed-claim heads-up", () => {
-  test("mails the team when the donor had already filed", async () => {
-    const { id, npo_name } = await seed({
-      stamps: { submitted_at: "2026-07-02T00:00:00.000Z" },
-    });
-
-    await process_refund(id, [], ctx);
-
-    expect(send_email).toHaveBeenCalledTimes(1);
-    const sent = send_email.mock.calls[0]![0];
-    // internal only: the beneficiary has nothing to answer, and the donor asked
-    // for their own money back
-    expect(sent.to).toEqual(["hi@better.giving"]);
-    const data = sent.node.props;
-    expect(data.employer_name).toBe("Acme Inc");
-    expect(data.donor_email).toBe("donor@test.com");
-    expect(data.to_name).toBe(npo_name);
-    expect(data.filed_at).toBe("2026-07-02T00:00:00.000Z");
-    expect(data.void_reason).toBe("refunded");
-  });
-
-  test("says nothing when the claim was never filed", async () => {
-    // the pack went out and the donor never came back — there is no claim
-    // outstanding anywhere, so a refund is unremarkable
-    const { id } = await seed();
-
-    await process_refund(id, [], ctx);
-
-    expect(send_email).not.toHaveBeenCalled();
-  });
-
-  test("says nothing when there is no event at all", async () => {
-    const { id } = await seed({ event: false });
-
-    await process_refund(id, [], ctx);
-
-    expect(send_email).not.toHaveBeenCalled();
-  });
-
-  test("a refused send is reported and does not fail the refund", async () => {
-    const { id } = await seed({
-      stamps: { submitted_at: "2026-07-02T00:00:00.000Z" },
-    });
-    // send_email swallows provider errors into its return
-    send_email.mockResolvedValue({ data: null, error: new Error("550") });
-
-    const res = await process_refund(id, [], ctx);
-
-    expect(res.failures).toEqual([]);
-    expect(report_error).toHaveBeenCalled();
-    // the money is already back; a missing notice is not a failed refund
-    expect((await dons())[0]!.status).toBe("refunded");
-  });
-
-  test("a throwing send does not fail the refund either", async () => {
-    const { id } = await seed({
-      stamps: { submitted_at: "2026-07-02T00:00:00.000Z" },
-    });
-    send_email.mockRejectedValue(new Error("connection reset"));
-
-    await expect(process_refund(id, [], ctx)).resolves.toMatchObject({
-      failures: [],
-    });
-    expect((await dons())[0]!.status).toBe("refunded");
-  });
-});
 
 describe("process_refund — concurrent runs", () => {
   test("two runs on the same stale graphs reverse the dist once", async () => {
@@ -447,7 +372,7 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     });
   }
 
-  test("a payout settled after the graph was read ends in a logged loss", async () => {
+  test("a payout settled after the graph was read ends owed by the npo", async () => {
     const { id, npo_id } = await seed({ event: false });
     await seed_cash_dist(id, npo_id);
     const db = test_db.current!.db;
@@ -464,10 +389,17 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     const [dist] = await db.select().from(dists);
     expect(dist!.status).toBe("refunded");
     expect(dist!.refund_status).toBe("loss");
-    const logs = await db.select().from(loss_logs);
-    expect(logs.map((l) => [l.dist_id, l.type])).toEqual([
-      [`dist-${id}`, "payout"],
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({
+        donation_id: id,
+        npo_id,
+        source: "refund",
+        source_ref: "re_1",
+        received_usd: 100,
+        outstanding_usd: 100,
+      }),
     ]);
+    expect(await db.select().from(loss_logs)).toEqual([]);
     // the settled payout's cash already left; nothing to take back
     const [npo] = await db.select().from(npos).where(eq(npos.id, npo_id));
     expect(npo!.cash).toBe(100);
@@ -476,37 +408,9 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     expect((await dons())[0]!.status).toBe("refunded_loss");
   });
 
-  // amount_usd is the pledge at the donation-time rate; the loss is what settled
-  test("a non-USD gift refunded at a loss logs its settled USD and alerts it formatted", async () => {
+  test("running the same refund twice leaves one owed row with the same figure", async () => {
     const { id, npo_id } = await seed({ event: false });
-    await seed_cash_dist(id, npo_id, {
-      amount: 50_000,
-      amount_usd: 333.33,
-      denom: "JPY",
-    });
-    const db = test_db.current!.db;
-    await db
-      .update(payouts)
-      .set({ type: "settled", settled_date: "2026-07-02T00:00:00.000Z" })
-      .where(eq(payouts.id, `payout-${id}`));
-    const graphs = await dists_for_refund(id);
-
-    const res = await process_refund(id, graphs, ctx);
-
-    const [log] = await db.select().from(loss_logs);
-    expect(log!.amount).toBe(100);
-    expect(res.loss_msgs).toEqual([
-      expect.stringContaining(`npo ${npo_id}: $100.00 `),
-    ]);
-  });
-
-  test("a legacy dist with no USD amount logs net plus fees as the loss", async () => {
-    const { id, npo_id } = await seed({ event: false });
-    await seed_cash_dist(id, npo_id, {
-      amount: 110,
-      amount_usd: null,
-      denom: "USD",
-    });
+    await seed_cash_dist(id, npo_id);
     const db = test_db.current!.db;
     await db
       .update(payouts)
@@ -515,12 +419,14 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     const graphs = await dists_for_refund(id);
 
     await process_refund(id, graphs, ctx);
+    await process_refund(id, graphs, ctx);
 
-    const [log] = await db.select().from(loss_logs);
-    expect(log!.amount).toBe(100);
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({ npo_id, outstanding_usd: 100 }),
+    ]);
   });
 
-  test("a payout the cron claimed for a transfer in flight ends in a logged loss", async () => {
+  test("a payout the cron claimed for a transfer in flight ends owed by the npo", async () => {
     const { id, npo_id } = await seed({ event: false });
     await seed_cash_dist(id, npo_id);
     const db = test_db.current!.db;
@@ -536,9 +442,8 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     expect(res.failures).toEqual([]);
     const [dist] = await db.select().from(dists);
     expect(dist!.refund_status).toBe("loss");
-    const logs = await db.select().from(loss_logs);
-    expect(logs.map((l) => [l.dist_id, l.type])).toEqual([
-      [`dist-${id}`, "payout"],
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({ npo_id, received_usd: 100 }),
     ]);
     // the cash is on its way to the npo; the settle takes it off the balance
     const [npo] = await db.select().from(npos).where(eq(npos.id, npo_id));
@@ -547,7 +452,7 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     expect(po!.type).toBe("refunded_loss");
   });
 
-  test("a savings shortfall whose pending payout the cron claims mid-refund re-plans to the full loss", async () => {
+  test("a savings shortfall whose pending payout the cron claims mid-refund re-plans to owing it all", async () => {
     const { id, npo_id } = await seed({ event: false });
     const db = test_db.current!.db;
     await db.update(npos).set({ liq: 10, cash: 40 }).where(eq(npos.id, npo_id));
@@ -591,12 +496,8 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     // the cash is in the transfer, so none of it comes back
     const [npo] = await db.select().from(npos).where(eq(npos.id, npo_id));
     expect(npo).toMatchObject({ liq: 10, cash: 40 });
-    const [log] = await db.select().from(loss_logs);
-    expect(log).toMatchObject({
-      type: "balance_liq",
-      amount: 100,
-      npo_amount: 100,
-    });
+    const [owed] = await owed_rows();
+    expect(owed).toMatchObject({ received_usd: 100, outstanding_usd: 100 });
   });
 
   test("a payout that is stale on the re-plan too leaves the dist failed", async () => {
@@ -616,7 +517,7 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     const [dist] = await db.select().from(dists);
     expect(dist!.status).toBe("settled");
     expect(dist!.refund_status).toBe("failed");
-    expect(await db.select().from(loss_logs)).toHaveLength(0);
+    expect(await owed_rows()).toHaveLength(0);
     const [po] = await db.select().from(payouts);
     expect(po!.type).toBe("pending");
     expect((await dons())[0]!.status).toBe("settled");
@@ -705,62 +606,6 @@ describe("process_refund — a loss reversed before the flip", () => {
   });
 });
 
-describe("reverse_unfunded_payout_loss — a balance loss whose payout went unfunded", () => {
-  test("cancels the payout, takes back its cash and cuts the loss by it", async () => {
-    const { id, npo_id } = await seed({ event: false });
-    const db = test_db.current!.db;
-    await db.update(npos).set({ liq: 10, cash: 40 }).where(eq(npos.id, npo_id));
-    await db.insert(dists).values({
-      id: "dist-1",
-      donation_id: id,
-      status: "settled",
-      date_created: "2026-07-01T00:00:00.000Z",
-      to_id: npo_id,
-      to_name: "npo",
-      amount: 100,
-      amount_usd: 100,
-      amount_denom: "USD",
-      net: 100,
-      fee_base: 0,
-      fee_fsa: 0,
-      fee_processing: 0,
-      alloc: { liq: 60, lock: 0, cash: 40 },
-    });
-    await db.insert(payouts).values({
-      id: "payout-1",
-      source_id: "dist-1",
-      npo_id,
-      source: "donation",
-      date: "2026-07-01T00:00:00.000Z",
-      amount: 40,
-      type: "processing",
-    });
-    await process_refund(id, await dists_for_refund(id), ctx);
-
-    const reversed = await db.transaction((tx) =>
-      reverse_unfunded_payout_loss(as_db(tx), "payout-1")
-    );
-
-    expect(reversed).toEqual({ status: "loss_reduced" });
-    const [po] = await db.select().from(payouts);
-    expect(po!.type).toBe("refunded");
-    const [npo] = await db.select().from(npos).where(eq(npos.id, npo_id));
-    expect(npo).toMatchObject({ liq: 10, cash: 0 });
-    // the savings shortfall is still the loss
-    const logs = await db.select().from(loss_logs);
-    expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatchObject({
-      type: "balance_liq",
-      amount: 60,
-      npo_amount: 60,
-    });
-    expect(logs[0]!.reason).not.toContain("payout");
-    const [dist] = await db.select().from(dists);
-    expect(dist!.refund_status).toBe("loss");
-    expect((await dons())[0]!.status).toBe("refunded_loss");
-  });
-});
-
 describe("process_refund — a commission the commissions cron claims mid-refund", () => {
   async function seed_referred_dist(donation_id: string, npo_id: number) {
     const db = test_db.current!.db;
@@ -793,7 +638,7 @@ describe("process_refund — a commission the commissions cron claims mid-refund
     });
   }
 
-  test("a commission claimed for a Wise transfer is refunded as a loss and alerted", async () => {
+  test("a commission claimed for a Wise transfer goes refunded_loss and is owed by its referrer, alerted with the transfer's ref", async () => {
     const { id, npo_id } = await seed({ event: false });
     await seed_referred_dist(id, npo_id);
     const db = test_db.current!.db;
@@ -809,20 +654,25 @@ describe("process_refund — a commission the commissions cron claims mid-refund
     expect(res.failures).toEqual([]);
     const [comm] = await db.select().from(referrer_commissions);
     expect(comm!.status).toBe("refunded_loss");
-    // the npo's side reverses in full; only the commission is lost
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({
+        donation_id: id,
+        npo_id: null,
+        referrer_npo: "NPO-REF",
+        received_usd: 5,
+        outstanding_usd: 5,
+      }),
+    ]);
+    // the npo's side reverses in full
     const [dist] = await db.select().from(dists);
     expect(dist!.refund_status).toBe("completed");
     expect((await dons())[0]!.status).toBe("refunded");
-    expect(res.loss_msgs).toEqual([
-      expect.stringContaining(`commission dist-${id}: $5`),
+    expect(res.owed_msgs).toEqual([
+      `$5.00 commission dist-${id} recorded as owed by referrer NPO-REF, to recover from its next commission; the gift's row for that referrer totals $5.00. claimed by the Wise transfer with customerTransactionId ref-1, so owed only if that transfer pays: if it goes unfunded, the commission run credits it back when it catches that, otherwise credit it on Amounts owed (/platform/owed)`,
     ]);
-    expect(res.loss_msgs[0]).toContain("ref-1");
-    expect(fiat_alert).toHaveBeenCalledWith(
-      expect.objectContaining({ body: expect.stringContaining("ref-1") })
-    );
   });
 
-  test("a commission already paid to its referrer stays paid and is alerted as the platform's loss", async () => {
+  test("a redelivered refund leaves one referrer row with the same amount", async () => {
     const { id, npo_id } = await seed({ event: false });
     await seed_referred_dist(id, npo_id);
     const db = test_db.current!.db;
@@ -830,111 +680,18 @@ describe("process_refund — a commission the commissions cron claims mid-refund
       .update(referrer_commissions)
       .set({ status: "paid", ref: "ref-1" })
       .where(eq(referrer_commissions.donation_id, `dist-${id}`));
+    const graphs = await dists_for_refund(id);
 
-    const res = await process_refund(id, await dists_for_refund(id), ctx);
+    await process_refund(id, graphs, ctx);
+    await process_refund(id, graphs, { ...ctx, source_ref: "re_2" });
 
-    expect(res.failures).toEqual([]);
-    const [comm] = await db.select().from(referrer_commissions);
-    expect(comm!.status).toBe("paid");
-    expect(await db.select().from(loss_logs)).toEqual([]);
-    const [dist] = await db.select().from(dists);
-    expect(dist!.refund_status).toBe("completed");
-    expect((await dons())[0]!.status).toBe("refunded");
-    expect(res.loss_msgs).toEqual([
-      expect.stringContaining(`commission dist-${id}: $5`),
-    ]);
-    expect(fiat_alert).toHaveBeenCalledWith(
+    expect(await owed_rows()).toEqual([
       expect.objectContaining({
-        body: expect.stringContaining("the platform's loss"),
-      })
-    );
-  });
-
-  /** one cash dist whose payout is in flight, refunded as a loss, then that payout's transfer goes unfunded */
-  async function refund_then_unfund(commission: {
-    status: "pending" | "processing" | "paid";
-    ref: string | null;
-  }) {
-    const { id, npo_id } = await seed({ event: false });
-    const db = test_db.current!.db;
-    await db
-      .update(npos)
-      .set({ cash: 100, referral_id: "NPO-REF" })
-      .where(eq(npos.id, npo_id));
-    await db.insert(dists).values({
-      id: "dist-1",
-      donation_id: id,
-      status: "settled",
-      date_created: "2026-07-01T00:00:00.000Z",
-      to_id: npo_id,
-      to_name: "npo",
-      amount: 100,
-      amount_denom: "USD",
-      net: 100,
-      fee_base: 0,
-      fee_fsa: 0,
-      fee_processing: 0,
-      alloc: { liq: 0, lock: 0, cash: 100 },
-    });
-    await db.insert(payouts).values({
-      id: "payout-1",
-      source_id: "dist-1",
-      npo_id,
-      source: "donation",
-      date: "2026-07-01T00:00:00.000Z",
-      amount: 100,
-      type: "processing",
-    });
-    await db.insert(referrer_commissions).values({
-      referrer_npo: "NPO-REF",
-      date: "2026-07-01T00:00:00.000Z",
-      donation_id: "dist-1",
-      npo_id,
-      amount: 5,
-      ...commission,
-    });
-    await process_refund(id, await dists_for_refund(id), ctx);
-    const [refunded] = await db.select().from(referrer_commissions);
-
-    const reversed = await db.transaction((tx) =>
-      reverse_unfunded_payout_loss(as_db(tx), "payout-1")
-    );
-
-    expect(reversed).toEqual({ status: "reversed" });
-    const [dist] = await db.select().from(dists);
-    expect(dist!.refund_status).toBe("completed");
-    const [comm] = await db.select().from(referrer_commissions);
-    return { after_refund: refunded!.status, after_reversal: comm!.status };
-  }
-
-  // its payout's transfer went unfunded, but the commission's transfer is its own
-  test("an unfunded payout's loss reversal leaves a commission claimed for a transfer refunded_loss", async () => {
-    const res = await refund_then_unfund({
-      status: "processing",
-      ref: "ref-1",
-    });
-
-    expect(res).toEqual({
-      after_refund: "refunded_loss",
-      after_reversal: "refunded_loss",
-    });
-  });
-
-  // its loss came only from the npo's payout, which the reversal undoes
-  test("an unfunded payout's loss reversal returns an unclaimed commission to refunded", async () => {
-    const res = await refund_then_unfund({ status: "pending", ref: null });
-
-    expect(res).toEqual({
-      after_refund: "refunded_loss",
-      after_reversal: "refunded",
-    });
-  });
-
-  // the referrer keeps it either way, and it was never a loss_logs row
-  test("an unfunded payout's loss reversal leaves a paid commission paid", async () => {
-    const res = await refund_then_unfund({ status: "paid", ref: "ref-1" });
-
-    expect(res).toEqual({ after_refund: "paid", after_reversal: "paid" });
-    expect(await test_db.current!.db.select().from(loss_logs)).toEqual([]);
+        referrer_npo: "NPO-REF",
+        source_ref: "re_1",
+        received_usd: 5,
+        outstanding_usd: 5,
+      }),
+    ]);
   });
 });

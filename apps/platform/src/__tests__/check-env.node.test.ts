@@ -363,6 +363,7 @@ describe("missing_keys", () => {
       "SENTRY_PROJECT",
       "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
       "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
+      "OWED_DEDUCTIONS",
     ]);
   });
 

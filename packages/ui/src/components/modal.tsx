@@ -44,6 +44,16 @@ interface Props extends PropsWithChildren {
    * controls, still close it — those stay the caller's to disable.
    */
   busy?: boolean;
+  /**
+   * where focus goes at close when the element that had it at open has since
+   * left the document (a row the dialog's own action removed, a list reload
+   * that remounted it), or nothing had it. called once per close, against the
+   * DOM as it stands then; never while that element is still connected. an
+   * element that isn't focusable on its own (a table cell, a heading) holds a
+   * tab stop only while focused. `null` leaves focus to zag, which has no
+   * live element left to return to, so it lands on `<body>`.
+   */
+  returnFocusFallback?: () => HTMLElement | null;
 }
 export function Modal({ size = "sm", busy = false, ...props }: Props) {
   const title_id = useId();
@@ -62,7 +72,8 @@ export function Modal({ size = "sm", busy = false, ...props }: Props) {
       finalFocusEl={() =>
         settle_return_target(
           return_to.current,
-          document.getElementById(content_id)
+          document.getElementById(content_id),
+          props.returnFocusFallback
         )
       }
       open={props.open}
