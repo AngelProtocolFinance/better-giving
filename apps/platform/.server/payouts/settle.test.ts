@@ -19,9 +19,6 @@ const send_alert = vi.hoisted(() => vi.fn());
 /** makes the next `payouts_move` out of this status throw, as a dropped socket would */
 const fail_move = vi.hoisted(() => ({ from: null as string | null }));
 const deductions = vi.hoisted(() => ({ on: false }));
-/** the netting's reads: the npo's owed rows, and the npo row it locks first */
-const owed_read = vi.hoisted(() => vi.fn());
-const npo_lock = vi.hoisted(() => vi.fn());
 
 vi.mock("#/errors/report", () => ({ report_error }));
 vi.mock("../pg/queries/payout", async (io) => {
@@ -36,16 +33,6 @@ vi.mock("../pg/queries/payout", async (io) => {
       return actual.payouts_move(...args);
     },
   };
-});
-vi.mock("../pg/queries/owed", async (io) => {
-  const actual = await io<typeof import("../pg/queries/owed")>();
-  owed_read.mockImplementation(actual.outstanding_for_npo);
-  return { ...actual, outstanding_for_npo: owed_read };
-});
-vi.mock("../pg/queries/npo", async (io) => {
-  const actual = await io<typeof import("../pg/queries/npo")>();
-  npo_lock.mockImplementation(actual.npo_get_locked);
-  return { ...actual, npo_get_locked: npo_lock };
 });
 vi.mock("../env", () => ({
   stage: "test",
@@ -88,6 +75,7 @@ const { owed_amounts, owed_entries, owed_notices } = await import(
   "../pg/schema/owed"
 );
 const { create_test_db } = await import("../pg/test-utils/pglite");
+const { owed_for_donation } = await import("../pg/queries/owed");
 const { npos } = await import("../pg/schema/npo");
 const { payouts, settlements } = await import("../pg/schema/payout");
 
@@ -109,8 +97,6 @@ beforeEach(async () => {
   send_alert.mockReset();
   fail_move.from = null;
   deductions.on = false;
-  owed_read.mockClear();
-  npo_lock.mockClear();
   await db().delete(bal_txs);
   await db().delete(loss_logs);
   await db().delete(owed_amounts);
@@ -226,9 +212,18 @@ const refund_in_flight = async (donation_id: string) =>
     source_ref: "re_1",
   });
 
+const owed_rows = async () =>
+  (
+    await Promise.all(
+      (
+        await db().select({ id: donations.id }).from(donations)
+      ).map((g) => owed_for_donation(g.id, db() as never))
+    )
+  ).flat();
+
 /** what the npo owes on each refunded gift, and how much of it is outstanding */
 const owed = async () =>
-  (await db().select().from(owed_amounts)).map((o) => ({
+  (await owed_rows()).map((o) => ({
     donation_id: o.donation_id,
     credited_back_usd: o.credited_back_usd,
     outstanding_usd: o.outstanding_usd,
@@ -886,25 +881,6 @@ describe("settle_npo_payouts: owed deductions", () => {
       { donation_id: "don-owed", credited_back_usd: 0, outstanding_usd: 93.2 },
     ]);
     expect(await credits()).toEqual([]);
-    expect(owed_read).not.toHaveBeenCalled();
-    expect(npo_lock).not.toHaveBeenCalled();
-  });
-
-  test("switched on, the claim locks the npo row, then reads its owed rows", async () => {
-    deductions.on = true;
-    const npo = await seed_npo({ cash: 500 });
-    await seed_payout(npo.id, "p-1", 500);
-
-    await settle_npo_payouts(npo, ["p-1"], {
-      ref_key: RECIPIENT,
-      pay: async () => TRANSFER_ID,
-    });
-
-    expect(npo_lock).toHaveBeenCalledWith(expect.anything(), npo.id);
-    expect(owed_read).toHaveBeenCalledWith(expect.anything(), npo.id);
-    expect(npo_lock.mock.invocationCallOrder[0]).toBeLessThan(
-      owed_read.mock.invocationCallOrder[0]!
-    );
   });
 
   test("switched on, what the npo owes as a referrer is never netted from its grants", async () => {
@@ -981,7 +957,7 @@ describe("settle_npo_payouts: owed deductions", () => {
     expect(stlmt).toMatchObject({ other_id: ref, amount: 406.8 });
     // the payouts leave the npo's cash whole: part paid, part recovered
     expect(await npo_cash(npo.id)).toBe(0);
-    const [row] = await db().select().from(owed_amounts);
+    const [row] = await owed_rows();
     expect(row).toMatchObject({
       recovered_usd: 93.2,
       recovered_at: RUN_AT,
@@ -1026,7 +1002,7 @@ describe("settle_npo_payouts: owed deductions", () => {
       { id: stlmt!.id, date: RUN_AT },
     ]);
     expect(await npo_cash(npo.id)).toBe(0);
-    const [row] = await db().select().from(owed_amounts);
+    const [row] = await owed_rows();
     expect(row).toMatchObject({ recovered_usd: 80, outstanding_usd: 13.2 });
     expect(await credits()).toEqual([
       { kind: "recover", reason: "grant_run", ref: stlmt!.id, usd: 80 },
@@ -1260,7 +1236,7 @@ describe("settle_npo_payouts: owed deductions", () => {
     await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay });
 
     expect(pay).toHaveBeenCalledWith(expect.any(String), 406.8);
-    const [row] = await db().select().from(owed_amounts);
+    const [row] = await owed_rows();
     expect(row).toMatchObject({ recovered_usd: 93.2 });
     expect(row?.outstanding_usd).toBeCloseTo(0.0051, 10);
   });
@@ -1279,37 +1255,35 @@ describe("settle_npo_payouts: owed deductions", () => {
     await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay });
 
     expect(pay).toHaveBeenCalledWith(expect.any(String), 456.8);
-    const [row] = await db().select().from(owed_amounts);
+    const [row] = await owed_rows();
     expect(row).toMatchObject({ recovered_usd: 43.2, outstanding_usd: 0 });
   });
 
-  test("switched on, every payout keeps the amount it was pending with, paid or recovered", async () => {
+  test("switched on, a payout fully recovered settles with no transfer, and the next run pays what is left after the rest owed", async () => {
     deductions.on = true;
     const npo = await seed_npo({ cash: 580 });
     await seed_owed(npo.id, "don-owed", 93.2);
     await seed_payout(npo.id, "p-1", 80);
-    await settle_npo_payouts(npo, ["p-1"], {
-      ref_key: RECIPIENT,
-      pay: vi.fn<Pay>(),
-    });
+    const first = vi.fn<Pay>();
+    await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay: first });
     await seed_payout(npo.id, "p-2", 300);
     await seed_payout(npo.id, "p-3", 200);
+    const second = vi.fn<Pay>(async () => TRANSFER_ID);
 
     await settle_npo_payouts(npo, ["p-2", "p-3"], {
       ref_key: RECIPIENT,
-      pay: async () => {
-        return TRANSFER_ID;
-      },
+      pay: second,
     });
 
-    const rows = await db()
-      .select({ id: payouts.id, type: payouts.type, amount: payouts.amount })
-      .from(payouts)
-      .orderBy(payouts.id);
-    expect(rows).toEqual([
-      { id: "p-1", type: "settled", amount: 80 },
-      { id: "p-2", type: "settled", amount: 300 },
-      { id: "p-3", type: "settled", amount: 200 },
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledWith(expect.any(String), 486.8);
+    expect(
+      (await db().select({ usd: settlements.amount }).from(settlements))
+        .map((r) => r.usd)
+        .sort((a, b) => a - b)
+    ).toEqual([0, 486.8]);
+    expect(await owed()).toEqual([
+      { donation_id: "don-owed", credited_back_usd: 0, outstanding_usd: 0 },
     ]);
   });
 });

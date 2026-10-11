@@ -44,7 +44,7 @@ import type { DbOrTx } from "$/pg/queries/helpers";
 import {
   credit_owed,
   type OwedParty,
-  owed_deductible,
+  outstanding_for_npo,
   record_owed,
   write_off_owed,
 } from "$/pg/queries/owed";
@@ -141,15 +141,9 @@ const lease_runs_out = () =>
     .update(owed_notices)
     .set({ claimed_at: sql`now() - interval '16 minutes'` });
 
-/** the rows a grant or commission run may deduct */
+/** the rows a grant run may deduct, as it reads them */
 const deductible = async () =>
-  (
-    await db()
-      .select({ donation_id: owed_amounts.donation_id })
-      .from(owed_amounts)
-      .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
-      .where(owed_deductible())
-  ).map((r) => r.donation_id);
+  (await outstanding_for_npo(as_db(db()), npo_id)).map((r) => r.donation_id);
 
 describe("a party with nobody to mail", () => {
   beforeEach(async () => {
@@ -266,6 +260,11 @@ describe("handle_owed_notice", () => {
     await expect(notify(notice!.id)).resolves.toBeUndefined();
 
     expect(send_email_or_throw).not.toHaveBeenCalled();
+    // the cron finds it again once the lease runs out, and the mail goes
+    await lease_runs_out();
+    await deliver_due();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(await due()).toEqual([]);
   });
 
   test("a credit-back and a write-off each mail one follow-up", async () => {

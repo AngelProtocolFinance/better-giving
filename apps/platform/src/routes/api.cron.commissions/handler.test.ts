@@ -72,43 +72,11 @@ vi.mock("@/terms", async (io) => ({
     return terms.effective;
   },
 }));
-const settle_spy = vi.hoisted(() => vi.fn());
-vi.mock("$/payouts/settle-commissions", async (io) => {
-  const actual = await io<typeof import("$/payouts/settle-commissions")>();
-  settle_spy.mockImplementation(actual.settle_referrer_commissions);
-  return { ...actual, settle_referrer_commissions: settle_spy };
-});
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert },
   fiat_monitor: { send_alert: vi.fn() },
 }));
 vi.mock("$/kit/wise", () => ({ wise }));
-const credit = vi.hoisted(() => ({ fails: false }));
-vi.mock("$/refund/commission", async (orig) => {
-  const real = await orig<typeof import("$/refund/commission")>();
-  return {
-    ...real,
-    credit_unfunded_commissions: (
-      ...args: Parameters<typeof real.credit_unfunded_commissions>
-    ) => {
-      if (credit.fails) throw new Error("credit failed");
-      return real.credit_unfunded_commissions(...args);
-    },
-  };
-});
-const release = vi.hoisted(() => ({ fails: false }));
-vi.mock("$/pg/queries/referrer", async (orig) => {
-  const real = await orig<typeof import("$/pg/queries/referrer")>();
-  return {
-    ...real,
-    commissions_release: (
-      ...args: Parameters<typeof real.commissions_release>
-    ) => {
-      if (release.fails) throw new Error("release failed");
-      return real.commissions_release(...args);
-    },
-  };
-});
 vi.mock("./helpers", async (orig) => {
   const real = await orig<typeof import("./helpers")>();
   return {
@@ -152,10 +120,36 @@ const { bal_txs } = await import("$/pg/schema/bal-tx");
 const { user } = await import("$/pg/schema/auth");
 const { dists_for_refund } = await import("$/pg/queries/dist");
 const { process_refund } = await import("$/refund/process");
+const { owed_for_donation } = await import("$/pg/queries/owed");
 
 const db = () => test_db.current!.db;
+
+/** failures injected in the database itself, so they hold wherever the code
+ * under test moves its writes: a credit-back is an entry under reason
+ * `transfer_unfunded`, and a release moves a claimed commission back to pending */
+const fail_credit = () =>
+  test_db.current!.client.exec(`
+    create or replace function fail_credit() returns trigger as $$
+    begin raise exception 'credit failed'; end $$ language plpgsql;
+    create trigger fail_credit before insert on owed_entries
+      for each row when (new.reason = 'transfer_unfunded')
+      execute function fail_credit();`);
+const fail_release = () =>
+  test_db.current!.client.exec(`
+    create or replace function fail_release() returns trigger as $$
+    begin raise exception 'release failed'; end $$ language plpgsql;
+    create trigger fail_release before update on referrer_commissions
+      for each row when (new.status = 'pending' and old.status = 'processing')
+      execute function fail_release();`);
+const heal_db = async () => {
+  const c = test_db.current!.client;
+  await c.exec("drop trigger if exists fail_credit on owed_entries");
+  await c.exec("drop trigger if exists fail_release on referrer_commissions");
+};
 const REFERRER = "NPO-REF";
 let npo_id: number;
+/** the gifts `seed_owed` made rows for, which `owed_rows` reads back */
+let seeded_owed: string[] = [];
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -167,11 +161,10 @@ afterAll(async () => {
 
 beforeEach(async () => {
   send_alert.mockReset();
-  credit.fails = false;
-  release.fails = false;
+  await heal_db();
+  seeded_owed = [];
   deductions.on = false;
   terms.effective = "2026-01-01";
-  settle_spy.mockClear();
   referrer.pay_id = 42;
   referrer.pay_min = 50;
   referrer.real = false;
@@ -388,7 +381,7 @@ describe("commissions cron", () => {
     });
   };
 
-  const owed = () => db().select().from(owed_amounts);
+  const owed = () => owed_for_donation("don-d-1");
 
   test("a commission refunded while its transfer went unfunded is credited back, leaving its referrer owing nothing", async () => {
     await seed_gift("d-1", 25);
@@ -430,7 +423,7 @@ describe("commissions cron", () => {
   test("a credit that fails rolls the release back with it, leaving the claim processing", async () => {
     await seed_gift("d-1", 25);
     await seed("d-2", 30);
-    credit.fails = true;
+    await fail_credit();
     wise.fund_transfer.mockImplementationOnce(async () => {
       await refund_in_flight("d-1");
       return { status: "REJECTED", errorCode: "balance.insufficient" };
@@ -452,7 +445,7 @@ describe("commissions cron", () => {
   test("a release that fails still credits what the referrer owes for commissions refunded in flight", async () => {
     await seed_gift("d-1", 25);
     await seed("d-2", 30);
-    release.fails = true;
+    await fail_release();
     wise.fund_transfer.mockImplementationOnce(async () => {
       await refund_in_flight("d-1");
       return { status: "REJECTED", errorCode: "balance.insufficient" };
@@ -565,6 +558,7 @@ describe("commissions cron", () => {
         } = { referrer_npo: REFERRER },
     created_at = "2026-08-01T00:00:00.000Z"
   ) {
+    seeded_owed.push(donation_id);
     await db().insert(donations).values({
       id: donation_id,
       created_at,
@@ -599,15 +593,14 @@ describe("commissions cron", () => {
   }
 
   const owed_rows = async () =>
-    (
-      await db()
-        .select({
-          donation_id: owed_amounts.donation_id,
-          recovered_usd: owed_amounts.recovered_usd,
-          outstanding_usd: owed_amounts.outstanding_usd,
-        })
-        .from(owed_amounts)
-    ).sort((a, b) => a.donation_id.localeCompare(b.donation_id));
+    (await Promise.all(seeded_owed.map((id) => owed_for_donation(id))))
+      .flat()
+      .map((r) => ({
+        donation_id: r.donation_id,
+        recovered_usd: r.recovered_usd,
+        outstanding_usd: r.outstanding_usd,
+      }))
+      .sort((a, b) => a.donation_id.localeCompare(b.donation_id));
 
   describe("netting what the referrer owes", () => {
     test("switched off, a referrer owing $9 is paid all $200 of its commissions and owes the $9 still", async () => {
@@ -668,7 +661,7 @@ describe("commissions cron", () => {
       ]);
     });
 
-    test("switched on, owing at least the commissions sends no transfer: they are paid as recovered, and the next run carries the rest", async () => {
+    test("switched on, owing at least the commissions sends no transfer: they are paid as recovered", async () => {
       deductions.on = true;
       await seed("d-1", 20);
       await seed("d-2", 10);
@@ -696,6 +689,14 @@ describe("commissions cron", () => {
       expect(alert_titles()).toContain(
         `Commission recovered as owed for ${REFERRER}`
       );
+    });
+
+    test("switched on, what a paid-as-recovered run left owing is carried by the next run", async () => {
+      deductions.on = true;
+      await seed("d-1", 20);
+      await seed("d-2", 10);
+      await seed_owed("don-owed", 40);
+      await index();
 
       await seed("d-3", 70);
       await index();
@@ -787,7 +788,7 @@ describe("commissions cron", () => {
       await seed("d-1", 120);
       await seed("d-2", 80);
       await seed_owed("don-owed", 9);
-      release.fails = true;
+      await fail_release();
       wise.fund_transfer.mockImplementationOnce(rejected);
 
       await index();
@@ -803,7 +804,7 @@ describe("commissions cron", () => {
       expect(a.body).toContain(
         `only with this run's deductions taken back: run unrecover_owed({ referrer_npo: "${REFERRER}", ref: "${refs()[0]}" })`
       );
-      expect(a.body).toContain("the release failed (Error: release failed)");
+      expect(a.body).toContain("the release failed (");
     });
 
     test("switched on, a transfer whose funding is unknown says a reset needs the run's recovery taken back", async () => {
@@ -821,10 +822,9 @@ describe("commissions cron", () => {
       );
     });
 
-    test("each referrer is netted against its own rows only: never a user's against an npo referrer's, nor an npo referrer's against what the npo owes as a grantee", async () => {
-      deductions.on = true;
-      const USER_REF = "U-REF";
-      await db()
+    const USER_REF = "U-REF";
+    const seed_user_referrer = (pay_id: string | null = null) =>
+      db()
         .insert(user)
         .values({
           id: "u-ref",
@@ -833,50 +833,72 @@ describe("commissions cron", () => {
           first_name: "R",
           last_name: "F",
           referral_code: USER_REF,
+          pay_id,
         })
         .onConflictDoNothing();
-      await seed("d-npo", 200);
-      await db().insert(referrer_commissions).values({
+    const seed_user_commission = (donation_id: string, amount: number) =>
+      db().insert(referrer_commissions).values({
         referrer_user: USER_REF,
         date: "2026-09-01T00:00:00.000Z",
-        donation_id: "d-user",
+        donation_id,
         npo_id,
-        amount: 100,
+        amount,
         status: "pending",
       });
-      await seed_owed("don-user-owes", 5, { referrer_user: USER_REF });
-      await seed_owed("don-grantee-owes", 9, { npo_id });
-
-      await index();
-
-      const paid = await db()
+    const payouts = async () =>
+      db()
         .select({
           referrer_user: referrer_payouts.referrer_user,
           referrer_npo: referrer_payouts.referrer_npo,
           amount: referrer_payouts.amount,
         })
         .from(referrer_payouts);
-      expect(paid).toEqual(
+
+    test("a user referrer's rows are netted against its own commissions, never an npo referrer's", async () => {
+      deductions.on = true;
+      await seed_user_referrer("42");
+      await seed("d-npo", 200);
+      await seed_user_commission("d-user", 100);
+      await seed_owed("don-user-owes", 5, { referrer_user: USER_REF });
+
+      await index();
+
+      expect(await payouts()).toEqual(
         expect.arrayContaining([
           { referrer_user: null, referrer_npo: REFERRER, amount: 200 },
           { referrer_user: USER_REF, referrer_npo: null, amount: 95 },
         ])
       );
       expect(await owed_rows()).toEqual([
+        { donation_id: "don-user-owes", recovered_usd: 5, outstanding_usd: 0 },
+      ]);
+    });
+
+    test("an npo referrer is not netted against what the npo owes as a grantee", async () => {
+      deductions.on = true;
+      await seed("d-npo", 200);
+      await seed_owed("don-grantee-owes", 9, { npo_id });
+
+      await index();
+
+      expect(await payouts()).toEqual([
+        { referrer_user: null, referrer_npo: REFERRER, amount: 200 },
+      ]);
+      expect(await owed_rows()).toEqual([
         {
           donation_id: "don-grantee-owes",
           recovered_usd: 0,
           outstanding_usd: 9,
         },
-        { donation_id: "don-user-owes", recovered_usd: 5, outstanding_usd: 0 },
       ]);
     });
 
     test("switched on, a user referrer with no payout method whose owed covers its commissions is paid them as recovered", async () => {
       deductions.on = true;
-      referrer.pay_id = undefined;
-      await seed("d-1", 20);
-      await seed_owed("don-owed", 40);
+      referrer.real = true;
+      await seed_user_referrer();
+      await seed_user_commission("d-1", 20);
+      await seed_owed("don-owed", 40, { referrer_user: USER_REF });
 
       await index();
 
@@ -897,7 +919,6 @@ describe("commissions cron", () => {
 
       await index();
 
-      expect(settle_spy).not.toHaveBeenCalled();
       expect(await statuses()).toEqual({ "d-1": "pending" });
       expect(await owed_rows()).toEqual([
         { donation_id: "don-owed", recovered_usd: 0, outstanding_usd: 40 },

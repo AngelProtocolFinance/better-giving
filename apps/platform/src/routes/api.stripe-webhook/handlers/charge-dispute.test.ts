@@ -45,7 +45,6 @@ const { ReversalIncompleteError } = await import(
 );
 
 const DON_ID = "0195c1f0-4c37-7c1a-b8f1-1f1f0a2f9d3e";
-let don_status = "settled";
 /** stripe's side of the $100 charge: refunds made before the dispute, newest first */
 let refunds: { id: string; amount: number; status: string }[] = [];
 
@@ -78,7 +77,6 @@ const notice_text = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  don_status = "settled";
   refunds = [];
   charge_retrieve_mock.mockImplementation(async () => ({
     id: "ch_1",
@@ -89,7 +87,7 @@ beforeEach(() => {
   refunds_list_mock.mockImplementation(async () => ({ data: [...refunds] }));
   const settled = async () => ({
     id: DON_ID,
-    status: don_status,
+    status: "settled",
     via: "stripe:card",
     settlement: { id: "pi_1", fee: 320, currency: "USD" },
     form_id: "form-1",
@@ -97,20 +95,15 @@ beforeEach(() => {
   });
   donation_by_sttl_id_mock.mockImplementation(settled);
   donation_get_mock.mockImplementation(settled);
-  load_reversible_mock.mockImplementation(async () =>
-    don_status === "settled"
-      ? { status: "reversible" }
-      : { status: "already_reversed", donation_status: don_status }
-  );
-  reverse_charge_mock.mockImplementation(async () => {
-    don_status = "refunded";
-    return {
-      status: "reversed",
-      dists: 1,
-      applied: 1,
-      owed_msgs: [],
-      has_loss: false,
-    };
+  load_reversible_mock.mockResolvedValue({ status: "reversible" });
+  // what a reversal answers is each test's to say; `../dispute.test.ts` and
+  // `../refund.test.ts` run the real one and judge the outcome
+  reverse_charge_mock.mockResolvedValue({
+    status: "reversed",
+    dists: 1,
+    applied: 1,
+    owed_msgs: [],
+    has_loss: false,
   });
   send_alert_mock.mockResolvedValue(undefined);
   enqueue_mock.mockResolvedValue(undefined);
@@ -179,7 +172,7 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
     expect(again).toBe(first);
   });
 
-  it("reverses when a lost dispute takes what earlier refunds left, and names those refunds", async () => {
+  it("hands over the succeeded refunds a lost dispute's part is added to, a pending one left out", async () => {
     refunds = [
       { id: "re_2", amount: 1_000, status: "pending" },
       { id: "re_1", amount: 6_000, status: "succeeded" },
@@ -197,13 +190,18 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
     expect(notice_text()).toContain("60.00 USD (re_1, succeeded)");
   });
 
-  it("acknowledges a lost dispute stripe redelivers after it reversed, asking stripe nothing", async () => {
-    const lost = dispute_event("charge.dispute.closed", "lost");
-    await handle_dispute_closed(lost);
+  it("acknowledges a lost dispute on a donation already reversed, asking stripe nothing", async () => {
+    load_reversible_mock.mockResolvedValue({
+      status: "already_reversed",
+      donation_status: "refunded",
+    });
     charge_retrieve_mock.mockRejectedValue(new Error("stripe unavailable"));
 
-    await expect(handle_dispute_closed(lost)).resolves.toBeUndefined();
-    expect(reverse_charge_mock).toHaveBeenCalledOnce();
+    await expect(
+      handle_dispute_closed(dispute_event("charge.dispute.closed", "lost"))
+    ).resolves.toBeUndefined();
+
+    expect(reverse_charge_mock).not.toHaveBeenCalled();
   });
 
   const failing = {
@@ -232,7 +230,6 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
     await expect(handle_dispute_closed(lost)).rejects.toThrow();
     await expect(handle_dispute_closed(lost)).resolves.toBeUndefined();
 
-    expect(don_status).toBe("refunded");
     const ids = reverse_charge_mock.mock.calls.map(([r]) => r.notice.id);
     expect(ids).toEqual([lost.id, lost.id, lost.id]);
   });

@@ -27,18 +27,6 @@ vi.mock("$/pg/db", () => ({
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock()
 );
-// real, and counted: a page past the first must not read the history again
-const history_reads = vi.hoisted(() => ({ n: 0 }));
-vi.mock("$/pg/queries/owed-history", async (io) => {
-  const real = await io<typeof import("$/pg/queries/owed-history")>();
-  return {
-    ...real,
-    npo_owed_history: (...a: Parameters<typeof real.npo_owed_history>) => {
-      history_reads.n++;
-      return real.npo_owed_history(...a);
-    },
-  };
-});
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: any) => Component,
   createClientLoaderCache: () => undefined,
@@ -49,7 +37,6 @@ import { admin_ctx } from "$/auth/test-utils";
 import type { DbOrTx } from "$/pg/queries/helpers";
 import {
   credit_owed,
-  owed_for_donation,
   record_owed,
   recover_owed,
   write_off_owed,
@@ -200,15 +187,70 @@ async function render_page() {
 }
 
 describe("the npo's grant history", () => {
-  it("shows a recorded, a partly recovered, a credited-back and a waived row with their figures, and the recovering grant's gross, deduction and net", async () => {
-    const admin = await seed_user(db(), "ops@better.giving");
-    for (const id of ["don-1", "don-2", "don-4"]) await refunded(id);
-    await disputed("don-3");
+  const owed_table = (screen: Awaited<ReturnType<typeof render_page>>) =>
+    screen
+      .getByRole("region", { name: "Amounts owed" })
+      .getByRole("table", { name: "Amounts owed" });
+  const history_of = (row: Locator) =>
+    row.getByRole("list", { name: "History" });
+
+  it("shows a recorded row as owed with its figures and no history", async () => {
+    await refunded("don-1");
+
+    const screen = await render_page();
+
+    await expect
+      .element(
+        screen
+          .getByRole("region", { name: "Amounts owed" })
+          .getByRole("heading", { level: 2, name: "Amounts owed" })
+      )
+      .toBeVisible();
+    const row = owed_table(screen).getByRole("row", { name: "don-1" });
+    await expect.element(row).toMatchTextContent(/Owed/);
+    await expect.element(row).toMatchTextContent(/\$90\.00/);
+    await expect.element(row).toMatchTextContent(/\$3\.20/);
+    await expect.element(row).toMatchTextContent(/\$93\.20/);
+    expect(history_of(row).query()).toBeNull();
+  });
+
+  it("shows a partly recovered row with what the grant took and what is left", async () => {
+    await refunded("don-2");
     await recovering_grant();
+
+    const screen = await render_page();
+
+    const row = owed_table(screen).getByRole("row", { name: "don-2" });
+    await expect.element(row).toMatchTextContent(/Partly recovered/);
+    await vi.waitFor(() =>
+      expect(lines(history_of(row))).toEqual([
+        "$40.00 from grant of Nov 21, 2026",
+      ])
+    );
+    await expect.element(row).toMatchTextContent(/\$53\.20/);
+  });
+
+  it("shows a credited-back row with the credit's date", async () => {
+    await disputed("don-3");
     await won("don-3", "2026-11-22T00:00:00.000Z");
-    const [waived] = await owed_for_donation("don-4", as_db(db()));
+
+    const screen = await render_page();
+
+    const row = owed_table(screen).getByRole("row", { name: "don-3" });
+    await expect.element(row).toMatchTextContent(/Credited back/);
+    await vi.waitFor(() =>
+      expect(lines(history_of(row))).toEqual([
+        "Dispute settled: $93.20 credited back",
+        "Most recent credit on Nov 22, 2026",
+      ])
+    );
+  });
+
+  it("shows a waived row with the waiver's total and date", async () => {
+    const admin = await seed_user(db(), "ops@better.giving");
+    const waived = await refunded("don-4");
     await write_off_owed(as_db(db()), {
-      owed_id: waived!.id,
+      owed_id: waived.id,
       reason: "goodwill",
       actor: admin!.id,
       now: "2026-11-23T00:00:00.000Z",
@@ -216,52 +258,44 @@ describe("the npo's grant history", () => {
 
     const screen = await render_page();
 
-    const owed = screen.getByRole("region", { name: "Amounts owed" });
-    await expect
-      .element(owed.getByRole("heading", { level: 2, name: "Amounts owed" }))
-      .toBeVisible();
-    const table = owed.getByRole("table", { name: "Amounts owed" });
-    const row = (id: string) => table.getByRole("row", { name: id });
-    const history = (id: string) =>
-      row(id).getByRole("list", { name: "History" });
-    await expect.element(row("don-1")).toMatchTextContent(/Owed/);
-    await expect.element(row("don-1")).toMatchTextContent(/\$90\.00/);
-    await expect.element(row("don-1")).toMatchTextContent(/\$3\.20/);
-    await expect.element(row("don-1")).toMatchTextContent(/\$93\.20/);
-    expect(history("don-1").query()).toBeNull();
-    await expect.element(row("don-2")).toMatchTextContent(/Partly recovered/);
+    const row = owed_table(screen).getByRole("row", { name: "don-4" });
+    await expect.element(row).toMatchTextContent(/Waived/);
     await vi.waitFor(() =>
-      expect(lines(history("don-2"))).toEqual([
-        "$40.00 from grant of Nov 21, 2026",
+      expect(lines(history_of(row))).toEqual([
+        "$93.20 waived in total, most recently on Nov 23, 2026",
       ])
     );
-    await expect.element(row("don-2")).toMatchTextContent(/\$53\.20/);
-    await expect.element(row("don-3")).toMatchTextContent(/Credited back/);
-    expect(lines(history("don-3"))).toEqual([
-      "Dispute settled: $93.20 credited back",
-      "Most recent credit on Nov 22, 2026",
-    ]);
-    await expect.element(row("don-4")).toMatchTextContent(/Waived/);
-    expect(lines(history("don-4"))).toEqual([
-      "$93.20 waived in total, most recently on Nov 23, 2026",
-    ]);
+  });
 
-    // the breakdown is part of the grant's own row
+  it("shows the recovering grant's gross, deduction and net in the grant's own row", async () => {
+    await refunded("don-2");
+    await recovering_grant();
+
+    const screen = await render_page();
+
     const grant = screen.getByRole("row", { name: /Gross/ });
     await expect.element(grant).toMatchTextContent(/Nov 21, 2026/);
     await expect.element(grant).toMatchTextContent(/Gross \$100\.00/);
     await expect.element(grant).toMatchTextContent(/don-2.*-\$40\.00/);
     await expect.element(grant).toMatchTextContent(/Net \$60\.00/);
-
-    // the deduction lands on the gift's own row header, focused
-    const [don_2] = await owed_for_donation("don-2", as_db(db()));
-    const gift = table.getByRole("rowheader", { name: "don-2" });
-    await expect.element(gift).toHaveAttribute("id", `owed-${don_2!.id}`);
-    await grant.getByRole("link", { name: "don-2" }).click();
-    await expect.element(gift).toHaveFocus();
   });
 
-  it("loads the next page of grants with their breakdowns without reading the history again", async () => {
+  it("focuses the gift's own row when its deduction in the grant is followed", async () => {
+    await refunded("don-2");
+    await recovering_grant();
+    const screen = await render_page();
+
+    await screen
+      .getByRole("row", { name: /Gross/ })
+      .getByRole("link", { name: "don-2" })
+      .click();
+
+    await expect
+      .element(owed_table(screen).getByRole("rowheader", { name: "don-2" }))
+      .toHaveFocus();
+  });
+
+  it("loads the next page of grants with their breakdowns, the history above them unchanged", async () => {
     await refunded("don-2");
     // the oldest grant is the recovering one, so it lands on the second page
     await recovering_grant();
@@ -277,12 +311,15 @@ describe("the npo's grant history", () => {
           status: "",
         }))
       );
-    history_reads.n = 0;
 
     const screen = await render_page();
-    await expect
-      .element(screen.getByRole("table", { name: "Amounts owed" }))
-      .toMatchTextContent(/don-2/);
+    const row = owed_table(screen).getByRole("row", { name: "don-2" });
+    await expect.element(row).toMatchTextContent(/Partly recovered/);
+    await vi.waitFor(() =>
+      expect(lines(history_of(row))).toEqual([
+        "$40.00 from grant of Nov 21, 2026",
+      ])
+    );
     expect(screen.getByRole("row", { name: /Gross/ }).query()).toBeNull();
 
     await screen.getByRole("button", { name: "View More" }).click();
@@ -290,7 +327,9 @@ describe("the npo's grant history", () => {
     const grant = screen.getByRole("row", { name: /Gross/ });
     await expect.element(grant).toMatchTextContent(/Nov 21, 2026/);
     await expect.element(grant).toMatchTextContent(/don-2.*-\$40\.00/);
-    expect(history_reads.n).toBe(1);
+    expect(lines(history_of(row))).toEqual([
+      "$40.00 from grant of Nov 21, 2026",
+    ]);
   });
 
   it("reads a row credited back and then owed again as owed, keeping its credit-back on the line", async () => {

@@ -139,26 +139,38 @@ describe("dispute_close", () => {
     }
   );
 
-  test("a redelivered close stands as it was, and a different later one changes nothing and says what stands", async () => {
+  test("a redelivered close stands as it was", async () => {
     await dispute_open(as_db(t.db), opened);
-    const first = await dispute_close(as_db(t.db), {
+    const close = () =>
+      dispute_close(as_db(t.db), {
+        ...opened,
+        status: "lost",
+        closed_at: CLOSED,
+      });
+    const first = await close();
+    const again = await close();
+
+    expect([first, again]).toEqual(["lost", "lost"]);
+    expect(await disputes_of(t.db, DON)).toMatchObject([
+      { status: "lost", closed_at: CLOSED },
+    ]);
+  });
+
+  test("a different later close changes nothing and says what stands", async () => {
+    await dispute_open(as_db(t.db), opened);
+    await dispute_close(as_db(t.db), {
       ...opened,
       status: "lost",
       closed_at: CLOSED,
     });
-    const again = await dispute_close(as_db(t.db), {
-      ...opened,
-      status: "lost",
-      closed_at: CLOSED,
-    });
+
     const other = await dispute_close(as_db(t.db), {
       ...opened,
       status: "won",
       closed_at: "2026-10-21T12:00:00.000Z",
     });
 
-    expect([first, again, other]).toEqual(["lost", "lost", "lost"]);
-
+    expect(other).toBe("lost");
     expect(await disputes_of(t.db, DON)).toMatchObject([
       { status: "lost", closed_at: CLOSED },
     ]);

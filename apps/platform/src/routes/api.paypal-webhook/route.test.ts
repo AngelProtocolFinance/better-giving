@@ -19,6 +19,7 @@ import {
   it,
   vi,
 } from "vitest";
+import type { DbOrTx } from "$/pg/queries/helpers";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -126,6 +127,10 @@ const { npos } = await import("$/pg/schema/npo");
 const { PLACEHOLDER_EMAIL } = await import("@/donations/schema");
 const { subscriptions } = await import("$/pg/schema/subscription");
 const { owed_amounts, owed_entries } = await import("$/pg/schema/owed");
+const { owed_for_donation } = await import("$/pg/queries/owed");
+const { loss_log_list } = await import("$/pg/queries/revenue");
+const { takes_of } = await import("$/pg/queries/take");
+const { taken_of } = await import("$/refund/takes");
 const { payouts } = await import("$/pg/schema/payout");
 const { reverse_charge: real_reverse_charge } =
   await vi.importActual<typeof import("$/refund/reverse")>("$/refund/reverse");
@@ -386,20 +391,15 @@ beforeEach(async () => {
   before_lock.current = null;
   enqueue_mock.mockResolvedValue(undefined);
   schedule_mock.mockResolvedValue(undefined);
-  reverse_charge_mock.mockImplementation(
-    async (r: { share: { taken: number; of: number } | null }) =>
-      !r.share
-        ? { status: "unsized" }
-        : r.share.taken >= r.share.of
-          ? {
-              status: "reversed",
-              dists: 1,
-              applied: 1,
-              owed_msgs: [],
-              has_loss: false,
-            }
-          : { status: "partial_owed", owed_msgs: [] }
-  );
+  // what a reversal answers is each test's to say; the blocks on the real
+  // entry judge the outcome
+  reverse_charge_mock.mockResolvedValue({
+    status: "reversed",
+    dists: 1,
+    applied: 1,
+    owed_msgs: [],
+    has_loss: false,
+  });
   get_capture_mock.mockImplementation(async (id: string) => ({
     ...capture_copy(),
     id,
@@ -1469,7 +1469,8 @@ describe("refunds and reversals", () => {
 
     expect(res.status).toBe(200);
     expect(get_order_mock).not.toHaveBeenCalled();
-    expect(reverse_charge_mock).toHaveBeenCalledOnce();
+    expect(reversal().source).toBe("dispute");
+    expect(taken_back()).toBe(1);
   });
 
   it("reverses a chargeback of a capture paypal already reads refunded, without the order", async () => {
@@ -1486,7 +1487,8 @@ describe("refunds and reversals", () => {
 
     expect(res.status).toBe(200);
     expect(get_order_mock).not.toHaveBeenCalled();
-    expect(reverse_charge_mock).toHaveBeenCalledOnce();
+    expect(reversal().source).toBe("dispute");
+    expect(taken_back()).toBe(1);
   });
 
   it("reverses a sale paypal reports reversed as the sale itself", async () => {
@@ -1504,7 +1506,8 @@ describe("refunds and reversals", () => {
 
     expect(res.status).toBe(200);
     expect(get_sale_mock).toHaveBeenLastCalledWith(SALE_ID);
-    expect(reverse_charge_mock).toHaveBeenCalledOnce();
+    expect(reversal().source).toBe("dispute");
+    expect(taken_back()).toBe(1);
   });
 
   it("hands a sale chargeback of part of the charge over by its own part", async () => {
@@ -1607,6 +1610,14 @@ describe("refunds and reversals", () => {
     const res = await deliver(capture_refund_ev());
 
     expect(res.status).toBe(200);
+    expect(reversal()).toMatchObject({
+      donation_id: ORDER_ID,
+      source: "refund",
+    });
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(
+      enqueue_mock.mock.calls.flat().filter((m: any) => m.id === "fiat-notice")
+    ).toEqual([]);
   });
 
   it("reports a refund that lands before its capture settles as degraded", async () => {
@@ -1691,7 +1702,7 @@ describe("refunds and reversals", () => {
           settled_date: "2026-01-03T00:00:00.000Z",
         });
     };
-    const owed_rows = () => db().select().from(owed_amounts);
+    const owed_rows = () => owed_for_donation(ORDER_ID);
 
     beforeEach(() => {
       reverse_charge_mock.mockImplementation(real_reverse_charge);
@@ -1755,6 +1766,54 @@ describe("refunds and reversals", () => {
       expect((await donation_get(ORDER_ID))?.status).toBe("settled");
       expect(dedupes(-1)).toEqual(first);
     });
+
+    const chargeback_ev = (value: string) => {
+      const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+      ev.resource.amount.value = value;
+      return ev;
+    };
+    const taken = async () =>
+      taken_of(await takes_of(db() as unknown as DbOrTx, ORDER_ID));
+
+    it("reverses the gift on a $60 chargeback after a $40 refund, together the whole charge", async () => {
+      await grant_paid();
+      paypal_capture_is("PARTIALLY_REFUNDED");
+      await deliver(refund_ev("REF-40", "40.00", "40.00"));
+      const before = await taken();
+
+      const res = await deliver(chargeback_ev("-60.00"));
+
+      expect(res.status).toBe(200);
+      expect(before).toBe(0.4);
+      expect(await taken()).toBe(1);
+      expect((await donation_get(ORDER_ID))?.status).toBe("refunded_loss");
+      expect(await owed_rows()).toEqual([
+        expect.objectContaining({ received_usd: 90, outstanding_usd: 93.2 }),
+      ]);
+    });
+
+    it.each([
+      ["a chargeback", "PARTIALLY_REFUNDED", "-60.00", 0.6, "settled"],
+      [
+        "a chargeback of the whole capture",
+        "COMPLETED",
+        "-100.00",
+        1,
+        "refunded_loss",
+      ],
+    ])(
+      "takes %s back by its own part",
+      async (_, capture_status, value, share, status) => {
+        await grant_paid();
+        paypal_capture_is(capture_status);
+
+        const res = await deliver(chargeback_ev(value));
+
+        expect(res.status).toBe(200);
+        expect(await taken()).toBe(share);
+        expect((await donation_get(ORDER_ID))?.status).toBe(status);
+      }
+    );
 
     it("records $40 of a $100 v1 sale by the refund's own amount", async () => {
       await grant_paid("sale");
@@ -2274,18 +2333,22 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     resource: dispute_resource(charge, o),
   });
 
-  const owed_rows = () =>
-    db()
-      .select({
-        npo_id: owed_amounts.npo_id,
-        source: owed_amounts.source,
-        source_ref: owed_amounts.source_ref,
-        received_usd: owed_amounts.received_usd,
-        fee_processing_usd: owed_amounts.fee_processing_usd,
-        fee_dispute_usd: owed_amounts.fee_dispute_usd,
-        outstanding_usd: owed_amounts.outstanding_usd,
-      })
-      .from(owed_amounts);
+  /** each owed row on any gift seeded, by the columns the tests read */
+  const owed_rows = async () => {
+    const gifts = await db().select({ id: donations.id }).from(donations);
+    const rows = (
+      await Promise.all(gifts.map((g) => owed_for_donation(g.id)))
+    ).flat();
+    return rows.map((o) => ({
+      npo_id: o.npo_id,
+      source: o.source,
+      source_ref: o.source_ref,
+      received_usd: o.received_usd,
+      fee_processing_usd: o.fee_processing_usd,
+      fee_dispute_usd: o.fee_dispute_usd,
+      outstanding_usd: o.outstanding_usd,
+    }));
+  };
 
   beforeEach(() => {
     reverse_charge_mock.mockImplementation(real_reverse_charge);
@@ -2473,7 +2536,7 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
         },
       ]);
       expect((await donation_get(id))?.status).toBe("refunded_loss");
-      expect(await db().select().from(loss_logs)).toEqual([]);
+      expect((await loss_log_list({ limit: 100 })).items).toEqual([]);
     }
   );
 
@@ -2499,7 +2562,7 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     await deliver_in(sttl_id, ["created", "reversed"]);
 
     expect(await npo_debit(npo_id, before)).toBeCloseTo(93.2, 10);
-    expect(await db().select().from(loss_logs)).toEqual([]);
+    expect((await loss_log_list({ limit: 100 })).items).toEqual([]);
   });
 
   const resolved_ev = (

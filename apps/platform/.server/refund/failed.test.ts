@@ -128,7 +128,7 @@ describe("refund_failed — part of the charge", () => {
     expect(await outstanding(id)).toEqual([55.92]);
   });
 
-  test("two failed partials each credit their own share, and a redelivery of either changes nothing", async () => {
+  test("two failed partials each credit their own share", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 40, "re_1");
     await refund(id, 30, "re_2");
@@ -139,6 +139,18 @@ describe("refund_failed — part of the charge", () => {
     expect(await taken(id)).toBe(0.3);
 
     await fail(id, "re_2");
+
+    expect(await outstanding(id)).toEqual([0]);
+    expect(await taken(id)).toBe(0);
+  });
+
+  test("a redelivery of either failure, after both failed, changes nothing", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, 40, "re_1");
+    await refund(id, 30, "re_2");
+    await fail(id, "re_1");
+    await fail(id, "re_2");
+
     await fail(id, "re_1");
     await fail(id, "re_2");
 
@@ -217,7 +229,7 @@ describe("refund_failed — part of the charge", () => {
     expect(await outstanding(id)).toEqual([18.64]);
   });
 
-  test("a failed $40 partial owes nothing, and a later $60 refund owes its own share, not reversing the gift", async () => {
+  test("a failed $40 partial owes nothing", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 40, "re_1");
     expect(await outstanding(id)).toEqual([37.28]);
@@ -230,8 +242,15 @@ describe("refund_failed — part of the charge", () => {
     });
     expect(await outstanding(id)).toEqual([0]);
     expect(await taken(id)).toBe(0);
+  });
+
+  test("a $60 refund after a failed $40 partial owes its own share, not reversing the gift", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, 40, "re_1");
+    await fail(id, "re_1");
 
     expect((await refund(id, 60, "re_2")).status).toBe("partial_owed");
+
     expect(await outstanding(id)).toEqual([55.92]);
     expect((await gift(id))?.status).toBe("settled");
     expect(await taken(id)).toBe(0.6);

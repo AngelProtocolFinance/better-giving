@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -20,7 +19,6 @@ import {
   admin_credit_owed,
   credit_owed,
   outstanding_for_npo,
-  owed_deductible,
   record_owed,
   write_off_owed,
 } from "./owed";
@@ -124,11 +122,13 @@ describe("the recorded notice", () => {
     });
   });
 
-  test("is none for a gift made before the effective date, or for any while it is unset", async () => {
+  test("is none for a gift made before the effective date", async () => {
     await gift("don-before", DAY_BEFORE);
     await refund("don-before");
     expect(await due()).toEqual([]);
+  });
 
+  test("is none for any gift while the date is unset", async () => {
     terms.date = "";
     await gift("don-on", EFFECTIVE);
     await refund("don-on");
@@ -292,70 +292,6 @@ describe("the recorded notice, re-armed", () => {
   });
 });
 
-describe("owed_deductible", () => {
-  const deductible = async () =>
-    (
-      await t.db
-        .select({ donation_id: owed_amounts.donation_id })
-        .from(owed_amounts)
-        .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
-        .where(owed_deductible())
-    ).map((r) => r.donation_id);
-  const send = async () => {
-    for (const n of await owed_notices_due(50, as_db(t.db))) {
-      await claim_owed_notice(n.id, as_db(t.db));
-      await mark_owed_notice_sent(n.id, as_db(t.db));
-    }
-  };
-
-  test("holds a row back until its recorded notice is sent", async () => {
-    await gift("don-1", EFFECTIVE);
-    await refund("don-1");
-    expect(await deductible()).toEqual([]);
-
-    await send();
-    expect(await deductible()).toEqual(["don-1"]);
-  });
-
-  test("holds a row back again once it owes anew, until that notice is sent", async () => {
-    await gift("don-1", EFFECTIVE);
-    await refund("don-1");
-    await send();
-    await credit_owed(as_db(t.db), {
-      donation_id: "don-1",
-      party: { npo_id: npo_a },
-      reason: "dispute_won",
-      ref: "dp_won",
-      now: NOW,
-    });
-    await t.db.transaction((tx) =>
-      record_owed(as_db(tx), {
-        donation_id: "don-1",
-        party: { npo_id: npo_a },
-        source: "dispute",
-        source_ref: "dp_2",
-        received_usd: 90,
-        fee_processing_usd: 3.2,
-        fee_dispute_usd: 15,
-        now: NOW,
-      })
-    );
-    expect(await deductible()).toEqual([]);
-
-    await send();
-    expect(await deductible()).toEqual(["don-1"]);
-  });
-
-  test("holds every row back while the date is unset, notice sent or not", async () => {
-    await gift("don-1", EFFECTIVE);
-    await refund("don-1");
-    await send();
-
-    terms.date = "";
-    expect(await deductible()).toEqual([]);
-  });
-});
-
 describe("what a run nets (outstanding_for_npo)", () => {
   const owing = (donation_id: string, received_usd: number, fee: number) =>
     t.db.transaction((tx) =>
@@ -399,10 +335,50 @@ describe("what a run nets (outstanding_for_npo)", () => {
     expect(await nets()).toEqual([]);
   });
 
-  test("a row whose recorded notice is unsent is not netted", async () => {
+  test("a row whose recorded notice is unsent is not netted, until it is sent", async () => {
     await gift("don-on", EFFECTIVE);
     await owing("don-on", 50, 0);
+    expect(await nets()).toEqual([]);
 
+    await send_all();
+    expect(await nets()).toEqual([["don-on", 50]]);
+  });
+
+  test("a row owing anew is held back again until that notice is sent", async () => {
+    await gift("don-1", EFFECTIVE);
+    await refund("don-1");
+    await send_all();
+    await credit_owed(as_db(t.db), {
+      donation_id: "don-1",
+      party: { npo_id: npo_a },
+      reason: "dispute_won",
+      ref: "dp_won",
+      now: NOW,
+    });
+    await t.db.transaction((tx) =>
+      record_owed(as_db(tx), {
+        donation_id: "don-1",
+        party: { npo_id: npo_a },
+        source: "dispute",
+        source_ref: "dp_2",
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 15,
+        now: NOW,
+      })
+    );
+    expect(await nets()).toEqual([]);
+
+    await send_all();
+    expect(await nets()).toEqual([["don-1", 108.2]]);
+  });
+
+  test("nothing is netted while the date is unset, notice sent or not", async () => {
+    await gift("don-1", EFFECTIVE);
+    await refund("don-1");
+    await send_all();
+
+    terms.date = "";
     expect(await nets()).toEqual([]);
   });
 });
@@ -483,8 +459,9 @@ describe("follow-ups", () => {
     });
 
     const notices = await owed_notices_due(50, as_db(t.db));
-    expect(notices.map((n) => [n.owed_id, n.kind])).toEqual(
-      expect.arrayContaining([[owed.id, "credited"]])
-    );
+    expect(notices.map((n) => [n.owed_id, n.kind]).sort()).toEqual([
+      [owed.id, "credited"],
+      [owed.id, "recorded"],
+    ]);
   });
 });

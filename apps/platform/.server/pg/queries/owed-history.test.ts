@@ -116,12 +116,19 @@ describe("which rows reach their party", () => {
     expect(rows.map((r) => r.donation_id)).toEqual(["don-on"]);
   });
 
-  test("while the date is unset no row reaches the npo, and the admin list still has it", async () => {
+  test("while the date is unset no row reaches the npo", async () => {
     terms.date = "";
     await gift("don-on", EFFECTIVE);
     await refund("don-on", { npo_id: npo_a });
 
     expect(await npo_owed_history(npo_a, as_db(t.db))).toEqual([]);
+  });
+
+  test("while the date is unset the admin list still has the row", async () => {
+    terms.date = "";
+    await gift("don-on", EFFECTIVE);
+    await refund("don-on", { npo_id: npo_a });
+
     const admin = await owed_list({ sort: "date", dir: "desc" }, as_db(t.db));
     expect(admin.items.map((r) => r.donation_id)).toEqual(["don-on"]);
   });

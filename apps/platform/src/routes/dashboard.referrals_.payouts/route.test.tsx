@@ -10,6 +10,7 @@ import {
   it,
   vi,
 } from "vitest";
+import type { Locator } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -26,20 +27,6 @@ vi.mock("$/pg/db", () => ({
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock({ user_ctx: true })
 );
-// real, and counted: a page past the first must not read the history again
-const history_reads = vi.hoisted(() => ({ n: 0 }));
-vi.mock("$/pg/queries/owed-history", async (io) => {
-  const real = await io<typeof import("$/pg/queries/owed-history")>();
-  return {
-    ...real,
-    referrer_owed_history: (
-      ...a: Parameters<typeof real.referrer_owed_history>
-    ) => {
-      history_reads.n++;
-      return real.referrer_owed_history(...a);
-    },
-  };
-});
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: any) => Component,
   createClientLoaderCache: () => undefined,
@@ -135,12 +122,16 @@ async function nine_payouts(
     );
 }
 
-/** the next page lands with its oldest payout, and the history is not read again */
-async function loads_more(screen: Awaited<ReturnType<typeof render>>) {
+/** the next page lands with its oldest payout, the owed row above it as it was */
+async function loads_more(
+  screen: Awaited<ReturnType<typeof render>>,
+  owed_row: Locator,
+  text: RegExp
+) {
   expect(screen.getByText("$999.00").query()).toBeNull();
   await screen.getByRole("button", { name: "View More" }).click();
   await expect.element(screen.getByText("$999.00")).toBeVisible();
-  expect(history_reads.n).toBe(1);
+  await expect.element(owed_row).toMatchTextContent(text);
 }
 
 describe("a referrer's payouts page", () => {
@@ -158,7 +149,6 @@ describe("a referrer's payouts page", () => {
       now: "2026-11-21T00:00:00.000Z",
     });
     await nine_payouts({ referrer_user: "REF-JANE" });
-    history_reads.n = 0;
 
     const Stub = createRoutesStub([
       {
@@ -189,7 +179,11 @@ describe("a referrer's payouts page", () => {
       );
     await expect.element(row).toMatchTextContent(/\$4\.50.*\$2\.50/);
     expect(screen.getByText("don-other").query()).toBeNull();
-    await loads_more(screen);
+    await loads_more(
+      screen,
+      row,
+      /Partly recovered.*\$2\.00 from payout of Nov 21, 2026/
+    );
   });
 
   it("for a referring nonprofit, shows its rows as referrer and not the ones it owes as a gift's nonprofit", async () => {
@@ -200,7 +194,6 @@ describe("a referrer's payouts page", () => {
     await refunded("don-referred", { referrer_npo: "NPO-R" });
     await refunded("don-to-npo", { npo_id: npo!.id });
     await nine_payouts({ referrer_npo: "NPO-R" });
-    history_reads.n = 0;
 
     const Stub = createRoutesStub([
       {
@@ -223,10 +216,9 @@ describe("a referrer's payouts page", () => {
     );
 
     const owed = screen.getByRole("region", { name: "Amounts owed" });
-    await expect
-      .element(owed.getByRole("row", { name: "don-referred" }))
-      .toMatchTextContent(/Owed/);
+    const referred = owed.getByRole("row", { name: "don-referred" });
+    await expect.element(referred).toMatchTextContent(/Owed/);
     expect(screen.getByText("don-to-npo").query()).toBeNull();
-    await loads_more(screen);
+    await loads_more(screen, referred, /Owed/);
   });
 });

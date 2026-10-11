@@ -31,11 +31,9 @@ const props = (o: Partial<IOwedTable> = {}): IOwedTable => ({
 });
 
 describe("owed table", () => {
-  test("lists both parties; filter, sort, load more and row actions call back with their args", async () => {
-    const p = props();
-    const screen = await render(<OwedTable {...p} />);
+  test("lists both parties, a referrer with no name on file by its referral code", async () => {
+    const screen = await render(<OwedTable {...props()} />);
 
-    // a referrer with no name on file reads as its referral code
     await expect.element(screen.getByText("River Trust")).toBeVisible();
     await expect.element(screen.getByText("REF42")).toBeVisible();
     await expect
@@ -46,20 +44,42 @@ describe("owed table", () => {
       .toBeVisible();
     await expect.element(screen.getByText("53.20")).toBeVisible();
     await expect.element(screen.getByText("dp_9")).toBeVisible();
+  });
+
+  test("choosing a party filter calls back with it", async () => {
+    const p = props();
+    const screen = await render(<OwedTable {...p} />);
 
     await screen.getByRole("combobox", { name: "Party" }).click();
     await screen.getByRole("option", { name: "Referrers" }).click();
-    expect(p.on_party_change).toHaveBeenCalledWith("referrer");
 
+    expect(p.on_party_change).toHaveBeenCalledWith("referrer");
+  });
+
+  test("a column header sorts, calling back with the column and the direction it flips to", async () => {
+    const p = props();
+    const screen = await render(<OwedTable {...p} />);
     const recorded = screen.getByRole("columnheader", { name: "Recorded" });
     await expect.element(recorded).toHaveAttribute("aria-sort", "descending");
+
     await screen.getByRole("button", { name: "Recorded" }).click();
     expect(p.on_sort_change).toHaveBeenLastCalledWith("date", "asc");
     await screen.getByRole("button", { name: "Outstanding" }).click();
     expect(p.on_sort_change).toHaveBeenLastCalledWith("outstanding", "desc");
+  });
+
+  test("view more calls back to load the next page", async () => {
+    const p = props();
+    const screen = await render(<OwedTable {...p} />);
 
     await screen.getByRole("button", { name: "View More" }).click();
+
     expect(p.on_load_more).toHaveBeenCalledOnce();
+  });
+
+  test("a row's actions call back with that row's id", async () => {
+    const p = props();
+    const screen = await render(<OwedTable {...p} />);
 
     await screen.getByRole("button", { name: "Write off REF42" }).click();
     expect(p.on_write_off).toHaveBeenCalledWith("owed-2");

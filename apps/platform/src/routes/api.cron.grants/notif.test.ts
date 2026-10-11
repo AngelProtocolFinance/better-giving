@@ -11,13 +11,19 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const deductions = vi.hoisted(() => ({ on: false }));
-const template = vi.hoisted(() =>
-  vi.fn((_: unknown) => ({ node: null, subject: "schedule" }))
-);
+/** spies the real template, for the tests that read the run's data */
+const template = vi.hoisted(() => vi.fn());
+/** the transport: the text part is the one the provider receives */
+const send_mail = vi.hoisted(() => vi.fn());
+vi.mock("nodemailer", () => {
+  const createTransport = () => ({ sendMail: send_mail });
+  return { default: { createTransport }, createTransport };
+});
 
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 vi.mock("$/env", () => ({
   wise: { profile_id: "1", balance_id_usd: "2" },
+  smtp: { password: "test-token" },
   stage: "test",
   get owed_deductions() {
     return deductions.on;
@@ -37,8 +43,11 @@ vi.mock("$/kit/discord", () => ({
 vi.mock("$/kit/wise", () => ({
   wise: { balance: async () => ({ totalWorth: { value: 150 } }) },
 }));
-vi.mock("$/email", () => ({ send_email: vi.fn() }));
-vi.mock("emails", () => ({ grants_schedule: { template } }));
+vi.mock("emails", async (io) => {
+  const real = await io<typeof import("emails")>();
+  template.mockImplementation(real.grants_schedule.template);
+  return { ...real, grants_schedule: { ...real.grants_schedule, template } };
+});
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
     {},
@@ -72,6 +81,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   template.mockClear();
+  send_mail.mockReset().mockResolvedValue({ messageId: "<m@bg>" });
   deductions.on = false;
   terms.effective = "2026-01-01";
   await db().delete(owed_amounts);
@@ -152,6 +162,16 @@ async function seed_owed(name: string, donation_id: string, usd: number) {
   });
 }
 
+/** the text line beginning with `first`, split on the column gutter */
+const row_cells = (text: string, first: string) =>
+  text
+    .split("\n")
+    .find((l) => l.trimStart().startsWith(`${first} `))
+    ?.trim()
+    .split(/\s{2,}/);
+
+const sent_text = () => send_mail.mock.calls[0]![0].text as string;
+
 describe("grants schedule notice", () => {
   test("lists only the nonprofits the payout run will pay as pass, and totals those alone", async () => {
     await seed_npo("Paid", { amount: 100 });
@@ -208,21 +228,36 @@ describe("grants schedule notice", () => {
 
     await index();
 
-    const data = template.mock.calls[0]![0] as any;
-    const rows = Object.fromEntries(data.rows.map((r: any) => [r.name, r]));
-    expect(rows.Nets).toMatchObject({
-      amount: 500,
-      net: 406.8,
-      effect: "pass",
-      deductions: [{ donation_id: "don-owed", usd: 93.2 }],
-    });
-    expect(rows.Covered).toMatchObject({
-      amount: 80,
-      net: 0,
-      effect: "recovered",
-      deductions: [{ donation_id: "don-big", usd: 80 }],
-    });
-    expect(data.total_grant).toBe(406.8);
+    const text = sent_text();
+    expect(row_cells(text, `${npo_ids.Nets}`)).toEqual([
+      `${npo_ids.Nets}`,
+      "Nets",
+      "$500",
+      "-$93.2",
+      "$406.8",
+      "$50",
+      "pass",
+    ]);
+    expect(row_cells(text, `${npo_ids.Covered}`)).toEqual([
+      `${npo_ids.Covered}`,
+      "Covered",
+      "$80",
+      "-$80",
+      "$0",
+      "$50",
+      "recovered",
+    ]);
+    expect(row_cells(text, "don-owed")).toEqual([
+      "don-owed",
+      `${npo_ids.Nets}`,
+      "-$93.2",
+    ]);
+    expect(row_cells(text, "don-big")).toEqual([
+      "don-big",
+      `${npo_ids.Covered}`,
+      "-$80",
+    ]);
+    expect(text).toMatch(/Grant total: \$406\.8/);
   });
 
   test("switched on with no terms effective date, a row is the gross one, as if switched off", async () => {
@@ -233,17 +268,16 @@ describe("grants schedule notice", () => {
 
     await index();
 
-    const data = template.mock.calls[0]![0] as any;
-    expect(data.rows).toEqual([
-      {
-        id: npo_ids.Gross,
-        name: "Gross",
-        amount: 500,
-        min: 50,
-        effect: "pass",
-      },
+    const text = sent_text();
+    expect(row_cells(text, `${npo_ids.Gross}`)).toEqual([
+      `${npo_ids.Gross}`,
+      "Gross",
+      "$500",
+      "$50",
+      "pass",
     ]);
-    expect(data.total_grant).toBe(500);
+    expect(text).not.toContain("don-owed");
+    expect(text).toMatch(/Grant total: \$500/);
   });
 
   test("switched on, an npo whose net falls under its minimum is skipped, still showing what it owes", async () => {
@@ -253,14 +287,22 @@ describe("grants schedule notice", () => {
 
     await index();
 
-    const data = template.mock.calls[0]![0] as any;
-    expect(data.rows[0]).toMatchObject({
-      amount: 80,
-      net: 30,
-      effect: "skipped",
-      deductions: [{ donation_id: "don-owed", usd: 50 }],
-    });
-    expect(data.total_grant).toBe(0);
+    const text = sent_text();
+    expect(row_cells(text, `${npo_ids.Small}`)).toEqual([
+      `${npo_ids.Small}`,
+      "Small",
+      "$80",
+      "-$50",
+      "$30",
+      "$50",
+      "skipped",
+    ]);
+    expect(row_cells(text, "don-owed")).toEqual([
+      "don-owed",
+      `${npo_ids.Small}`,
+      "-$50",
+    ]);
+    expect(text).toMatch(/Grant total: \$0/);
   });
 
   test("switched on, an npo owed a transfer with no wise recipient is skipped, its total left out", async () => {
@@ -271,9 +313,16 @@ describe("grants schedule notice", () => {
 
     await index();
 
-    const data = template.mock.calls[0]![0] as any;
-    const row = data.rows.find((r: any) => r.name === "NoRecipient");
-    expect(row).toMatchObject({ net: 406.8, effect: "skipped" });
-    expect(data.total_grant).toBe(100);
+    const text = sent_text();
+    expect(row_cells(text, `${npo_ids.NoRecipient}`)).toEqual([
+      `${npo_ids.NoRecipient}`,
+      "NoRecipient",
+      "$500",
+      "-$93.2",
+      "$406.8",
+      "$50",
+      "skipped",
+    ]);
+    expect(text).toMatch(/Grant total: \$100/);
   });
 });

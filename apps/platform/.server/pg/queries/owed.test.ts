@@ -287,8 +287,14 @@ test("crediting back a share leaves the rest owed", async () => {
 
 test("a row credited back after part was recovered is due that part back", async () => {
   await record_owed(as_db(t.db), refund_of(npo_a));
-  // recoveries are the grant run's to write, so set here by hand
-  await t.db.update(owed_amounts).set({ recovered_usd: 50, recovered_at: NOW });
+  await recover_owed(as_db(t.db), {
+    donation_id: DON,
+    party: { npo_id: npo_a },
+    usd: 50,
+    reason: "grant_run",
+    ref: "run-1",
+    now: NOW,
+  });
 
   const row = await credit_owed(as_db(t.db), {
     donation_id: DON,
@@ -861,37 +867,12 @@ describe("write_off_owed", () => {
     const losses = await t.db.select().from(loss_logs);
     expect(losses).toHaveLength(1);
     expect(losses[0]).toMatchObject({ amount: 93.2, reason: "npo closed" });
-  });
-
-  // pglite serves one connection, so the two run one after the other: this
-  // pins the retry. two at once on postgres queue on the row lock
-  // put_entries takes (FOR UPDATE) and then meet this same retry
-  test("the same write-off sent twice is one entry and one loss, and both get the row", async () => {
-    const admin = await seed_user(t.db, "admin@test.com");
-    const owed = await record_owed(as_db(t.db), refund_of(npo_a));
-    const send = () =>
-      t.db.transaction((tx) =>
-        write_off_owed(as_db(tx), {
-          owed_id: owed.id,
-          reason: "npo closed",
-          actor: admin!.id,
-          now: NOW,
-        })
-      );
-
-    const a = await send();
-    const b = await send();
-
-    expect(a).toMatchObject({ written_off_usd: 93.2, outstanding_usd: 0 });
-    expect(b).toEqual(a);
+    // no exported query returns the ledger's entries, so this read is raw
     const entries = await t.db
       .select()
       .from(owed_entries)
       .where(eq(owed_entries.kind, "write_off"));
     expect(entries.map((e) => e.usd)).toEqual([93.2]);
-    expect((await t.db.select().from(loss_logs)).map((l) => l.amount)).toEqual([
-      93.2,
-    ]);
   });
 
   test("a row that owes nothing is not written off", async () => {

@@ -36,9 +36,12 @@ describe("owed_netting_on", () => {
     expect(send_alert).not.toHaveBeenCalled();
   });
 
-  test("is off with the switch off, date or no date", async () => {
+  test.each([
+    ["the date set", "2026-10-16"],
+    ["no date", ""],
+  ])("is off with the switch off and %s", async (_, date) => {
     state.on = false;
-    state.date = "";
+    state.date = date;
     expect(await (await netting_on())()).toBe(false);
     expect(send_alert).not.toHaveBeenCalled();
   });

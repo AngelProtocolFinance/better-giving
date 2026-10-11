@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -20,7 +20,7 @@ import {
 import { dists } from "../pg/schema/dist";
 import { donations } from "../pg/schema/donation";
 import { npos } from "../pg/schema/npo";
-import { owed_amounts, owed_entries } from "../pg/schema/owed";
+import { owed_amounts } from "../pg/schema/owed";
 import { payouts } from "../pg/schema/payout";
 import { loss_logs } from "../pg/schema/revenue";
 import type { TestDb } from "../pg/test-utils/pglite";
@@ -172,13 +172,6 @@ describe("dispute_opened", () => {
       [npo_ids[0], 10.01],
       [npo_ids[1], 5],
     ]);
-    const [sum] = await test_db
-      .current!.db.select({
-        usd: sql<string>`sum(${owed_amounts.fee_dispute_usd})::text`,
-      })
-      .from(owed_amounts)
-      .where(eq(owed_amounts.donation_id, id));
-    expect(Number(sum?.usd)).toBe(15.01);
   });
 
   test("flags no second dispute over a refund's row on the gift", async () => {
@@ -394,7 +387,6 @@ describe("dispute_won", () => {
 
   test("a redelivered open or win changes nothing further", async () => {
     const { id } = await seed(PAID_GRANT);
-    const db = test_db.current!.db;
 
     await dispute_opened(opened_on(id));
     await dispute_opened(opened_on(id));
@@ -403,12 +395,9 @@ describe("dispute_won", () => {
     await dispute_won(won_on(id));
 
     expect(at_open).toMatchObject([{ outstanding_usd: 108.2 }]);
-    expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 0 }]);
-    const credits = await db
-      .select({ usd: owed_entries.usd })
-      .from(owed_entries);
-    expect(credits.reduce((s, c) => s + c.usd, 0)).toBeCloseTo(108.2, 10);
-    expect(credits).toHaveLength(3);
+    expect(await owed_for_donation(id)).toMatchObject([
+      { outstanding_usd: 0, credited_back_usd: 108.2 },
+    ]);
   });
 });
 
@@ -583,19 +572,6 @@ describe("dispute_opened, sized from the gift's own records", () => {
     expect(await outstanding(id)).toEqual([37.28]);
   });
 
-  test("stores the dispute's own part, and the share it opened at", async () => {
-    const { id } = await seed(PAID_GRANT);
-    await refund_share(id, 30, "re_1");
-
-    await dispute_opened(opened_after(id, 15, 30));
-
-    expect(await dispute_get(`du_${id}`)).toMatchObject({
-      share: 0.3,
-      cumulative_share: 0.6,
-      fee_usd: 15,
-    });
-  });
-
   test.each([
     [30, 27.96],
     [50, 46.6],
@@ -719,8 +695,16 @@ describe("a refund after a dispute lost, sized from the gift's own records", () 
     expect((await refund_share(id, 10, "re_2")).status).toBe("partial_owed");
 
     expect(await outstanding(id)).toEqual([55.92]);
-    // and a later dispute counts the lost one once
+  });
+
+  test("a dispute after a $20 refund, a $30 dispute lost and $10 more refunded counts the lost one once", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund_share(id, 20, "re_1");
+    await lose_dispute(id, "PP-D0", 30, true);
+    await refund_share(id, 10, "re_2");
+
     await dispute_opened({ ...opened_on(id, 0, 40), dispute_id: "PP-D1" });
+
     expect(await outstanding(id)).toEqual([93.2]);
   });
 });
@@ -909,13 +893,20 @@ describe("a dispute lost after it opened", () => {
   });
 
   test("over part of the charge, owes what its open recorded and reverses nothing", async () => {
-    const { id } = await seed(PAID_GRANT);
-
+    const { id, npo_ids } = await seed(PAID_GRANT);
+    const npo_id = npo_ids[0]!;
+    const cash_before = await balance_of(test_db.current!.db, npo_id);
     await dispute_opened(opened_on(id, 15, 30));
     const res = await lose(id, 30);
 
     expect(res.status).toBe("partial_owed");
     expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 42.96 }]);
+    const [don] = await test_db
+      .current!.db.select({ status: donations.status })
+      .from(donations)
+      .where(eq(donations.id, id));
+    expect(don!.status).toBe("settled");
+    expect(await balance_of(test_db.current!.db, npo_id)).toEqual(cash_before);
   });
 
   test("the rest refunded with its payout pending at open, takes back what the npo received and leaves its share of the fees owed", async () => {

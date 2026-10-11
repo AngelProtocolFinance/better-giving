@@ -26,7 +26,8 @@ describe("losses log table", () => {
     const screen = await render(
       <LogsTable
         items={[
-          loss({}),
+          // a reason without "payout", so the Type cell is the only place it reads
+          loss({ reason: "refunded after grant" }),
           loss({
             id: "loss-2",
             donation_id: "don-2",
@@ -49,7 +50,9 @@ describe("losses log table", () => {
     await expect.element(write_off).toMatchTextContent("referrer unreachable");
 
     const payout = screen.getByRole("row").filter({ hasText: "don-1" });
-    await expect.element(payout).toMatchTextContent("payout");
+    const cells = payout.getByRole("cell");
+    await expect.element(cells.nth(1)).toHaveTextContent("7");
+    await expect.element(cells.nth(2)).toHaveTextContent("payout");
     await expect.element(payout).not.toMatchTextContent("Referrer");
   });
 });

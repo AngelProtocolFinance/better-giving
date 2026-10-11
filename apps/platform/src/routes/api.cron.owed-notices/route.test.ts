@@ -105,6 +105,7 @@ describe("api.cron.owed-notices", () => {
     await refunded_gift("don-1", EFFECTIVE);
     await refunded_gift("don-2", EFFECTIVE);
     const ids = (await owed_notices_due(50, as_db(db()))).map((n) => n.id);
+    expect(ids).toHaveLength(2);
 
     expect((await tick()).status).toBe(200);
     await tick();
@@ -116,6 +117,10 @@ describe("api.cron.owed-notices", () => {
 
   test("a gift made before the effective date, or any while it is unset, queues nothing, and the admin list still has it", async () => {
     await refunded_gift("don-before", "2026-10-31T23:59:59.000Z");
+    // date still set: only the gift's own date can hold it back
+    await tick();
+    expect(enqueued()).toEqual([]);
+
     terms.date = "";
     await refunded_gift("don-on", EFFECTIVE);
 

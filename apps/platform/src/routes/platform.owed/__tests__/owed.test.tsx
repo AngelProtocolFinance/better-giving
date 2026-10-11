@@ -49,7 +49,7 @@ vi.mock("#/.server/auth", async () => {
 });
 
 import { type AuthUser, admin_mdlwr, user_ctx } from "#/.server/auth";
-import { record_owed } from "$/pg/queries/owed";
+import { type IOwed, record_owed, recover_owed } from "$/pg/queries/owed";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { loader as losses_loader } from "../../platform.losses/api";
 import LossesPage from "../../platform.losses/route";
@@ -144,11 +144,18 @@ async function seed_admin(first: string) {
   return admin!.id;
 }
 
-async function recover(owed_id: string, usd: number) {
-  await db()
-    .update(owed_amounts)
-    .set({ recovered_usd: usd, recovered_at: NOW })
-    .where(eq(owed_amounts.id, owed_id));
+/** a grant or commission run takes `usd` of what `row` owes */
+async function recover(row: IOwed, usd: number) {
+  await recover_owed(db() as any, {
+    donation_id: row.donation_id,
+    party: row.npo_id
+      ? { npo_id: row.npo_id }
+      : { referrer_user: row.referrer_user! },
+    usd,
+    reason: row.npo_id ? "grant_run" : "commission_run",
+    ref: `run-${row.id}`,
+    now: NOW,
+  });
 }
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -254,7 +261,7 @@ describe("amounts owed", () => {
     await seed_npo_owed("River Trust");
     await seed_referrer_owed("Ada", "Lovelace");
     const settled = await seed_npo_owed("Paid Up Trust");
-    await recover(settled.id, 93.2);
+    await recover(settled, 93.2);
 
     const screen = await open_platform("/platform/owed", {
       id: await seed_admin("Grace"),
@@ -270,7 +277,7 @@ describe("amounts owed", () => {
   it("writes off what is left after a recovery and books it as a loss by the admin", async () => {
     const admin = await seed_admin("Grace");
     const row = await seed_npo_owed("River Trust");
-    await recover(row.id, 40);
+    await recover(row, 40);
 
     const screen = await open_platform("/platform/owed", {
       id: admin,
@@ -342,7 +349,7 @@ describe("amounts owed", () => {
   it("refuses to write off a row that owes nothing", async () => {
     const admin = { id: await seed_admin("Grace"), role: "admin" };
     const row = await seed_npo_owed("River Trust");
-    await recover(row.id, 93.2);
+    await recover(row, 93.2);
 
     const screen = await post(admin, {
       intent: "write_off",
@@ -376,7 +383,7 @@ describe("amounts owed", () => {
   it("books one loss when the same write-off arrives twice", async () => {
     const admin = { id: await seed_admin("Grace"), role: "admin" };
     const row = await seed_npo_owed("River Trust");
-    await recover(row.id, 40);
+    await recover(row, 40);
     const w = { intent: "write_off", owed_id: row.id, reason: "Closed" };
 
     const screen = await post(admin, w, w);
@@ -398,7 +405,7 @@ describe("amounts owed", () => {
   it("credits part of what a row owes, and the list shows what is left", async () => {
     const admin = { id: await seed_admin("Grace"), role: "admin" };
     const row = await seed_npo_owed("River Trust");
-    await recover(row.id, 40);
+    await recover(row, 40);
 
     const screen = await open_platform("/platform/owed", admin);
     await screen.getByRole("button", { name: "Credit River Trust" }).click();
@@ -418,7 +425,7 @@ describe("amounts owed", () => {
   it("refuses a credit of nothing, or of more than the row has outstanding", async () => {
     const admin = { id: await seed_admin("Grace"), role: "admin" };
     const row = await seed_npo_owed("River Trust");
-    await recover(row.id, 40);
+    await recover(row, 40);
     const credit = (usd: number) => ({
       intent: "credit",
       owed_id: row.id,
@@ -468,7 +475,7 @@ describe("amounts owed", () => {
   it("refuses a second credit under a reference already used", async () => {
     const admin = { id: await seed_admin("Grace"), role: "admin" };
     const row = await seed_npo_owed("River Trust");
-    await recover(row.id, 40);
+    await recover(row, 40);
     const credit = (usd: number) => ({
       intent: "credit",
       owed_id: row.id,

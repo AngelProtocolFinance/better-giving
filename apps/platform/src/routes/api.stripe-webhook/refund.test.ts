@@ -49,7 +49,8 @@ const { action } = await import("./route");
 const { owed_for_donation, recover_owed } = await import("$/pg/queries/owed");
 const { donations } = await import("$/pg/schema/donation");
 const { owed_amounts } = await import("$/pg/schema/owed");
-const { donation_takes } = await import("$/pg/schema/take");
+const { takes_of } = await import("$/pg/queries/take");
+const { taken_of } = await import("$/refund/takes");
 const { PAID_GRANT, clear_card_gifts, seed_card_gift, seed_paid_commission } =
   await import("#/__tests__/fixtures/card-gift");
 
@@ -214,14 +215,10 @@ const gift_of = async (donation_id: string) => {
     .select({ status: donations.status })
     .from(donations)
     .where(eq(donations.id, donation_id));
-  const takes = await db()
-    .select()
-    .from(donation_takes)
-    .where(eq(donation_takes.donation_id, donation_id));
-  const taken = takes
-    .filter((t) => t.status === "active")
-    .reduce((sum, t) => sum + t.share, 0);
-  return { status: row?.status, taken };
+  return {
+    status: row?.status,
+    taken: taken_of(await takes_of(db() as unknown as DbOrTx, donation_id)),
+  };
 };
 
 /** each party's row on the gift, npos by id */
@@ -687,5 +684,281 @@ describe("a dispute won on a charge with refunds", () => {
     expect(await owed_of(charge_of.id)).toMatchObject([
       { outstanding_usd: 37.28 },
     ]);
+  });
+});
+
+describe("a dispute lost on a charge with refunds", () => {
+  it("takes the whole charge once the refunds and the dispute together cover it", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(6_000));
+    await deliver(
+      dispute_event("charge.dispute.created", 4_000, "needs_response")
+    );
+    const before = await gift_of(charge_of.id);
+
+    const res = await deliver(
+      dispute_event("charge.dispute.closed", 4_000, "lost")
+    );
+
+    expect(res.status).toBe(200);
+    expect(before.status).toBe("settled");
+    expect(await gift_of(charge_of.id)).toEqual({
+      status: "refunded_loss",
+      taken: 1,
+    });
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { received_usd: 90, fee_processing_usd: 3.2 },
+    ]);
+  });
+
+  it("leaves the gift settled while the refunds and the dispute leave part of it", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(4_000));
+    await deliver(
+      dispute_event("charge.dispute.created", 3_000, "needs_response")
+    );
+
+    await deliver(dispute_event("charge.dispute.closed", 3_000, "lost"));
+
+    expect(await gift_of(charge_of.id)).toEqual({
+      status: "settled",
+      taken: 0.7,
+    });
+  });
+});
+
+describe("a bank refund completing the charge", () => {
+  it("holds the reversal while pending, and reverses once refund.updated says it succeeded", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(10_000, "pending"));
+    const while_pending = await gift_of(charge_of.id);
+
+    await deliver(settle("re_1", "succeeded"));
+
+    expect(while_pending).toEqual({ status: "settled", taken: 0 });
+    expect(notice_text()).toMatch(
+      /Reversal Held[\s\S]*100\.00 USD \(re_1, pending\)/
+    );
+    expect((await gift_of(charge_of.id)).status).toBe("refunded_loss");
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { source_ref: "re_1", outstanding_usd: 93.2 },
+    ]);
+  });
+
+  it.each(["failed", "canceled"])(
+    "takes nothing back when the pending refund is %s",
+    async (status) => {
+      charge_of = await seed_card_gift(db(), PAID_GRANT);
+      await deliver(refund(10_000, "pending"));
+
+      await deliver(settle("re_1", status));
+
+      expect(await owed_of(charge_of.id)).toEqual([]);
+      expect(await gift_of(charge_of.id)).toEqual({
+        status: "settled",
+        taken: 0,
+      });
+    }
+  );
+
+  it("reverses once when refund.updated lands before the charge.refunded it belongs to", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    const created = refund(10_000, "pending");
+    await deliver(settle("re_1", "succeeded"));
+
+    await deliver(created);
+    await deliver(created); // stripe redelivers
+
+    expect((await gift_of(charge_of.id)).status).toBe("refunded_loss");
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: 93.2 },
+    ]);
+  });
+
+  it("holds on an earlier pending refund though the completing one succeeded, naming what it waits on", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(9_500, "pending"));
+    const completing = refund(500);
+
+    await deliver(completing);
+    await deliver(completing); // stripe redelivers
+
+    expect(notice_text()).toMatch(/waiting on: 95\.00 USD \(re_1, pending\)/);
+    expect(await gift_of(charge_of.id)).toEqual({
+      status: "settled",
+      taken: 0,
+    });
+    const held = enqueue_mock.mock.calls
+      .flat()
+      .filter((m) => m.payload?.id === "re_2_held");
+    expect(new Set(held.map((m) => m.dedupe))).toEqual(
+      new Set(["fiat.notice_re_2_held"])
+    );
+  });
+
+  it("reverses once when the earlier pending refund succeeds after the completing one", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(9_500, "pending"));
+    await deliver(refund(500));
+    const updated = settle("re_1", "succeeded");
+
+    await deliver(updated);
+    await deliver(updated); // stripe redelivers
+
+    expect((await gift_of(charge_of.id)).status).toBe("refunded_loss");
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: 93.2 },
+    ]);
+  });
+
+  it("waits for the completing refund when an earlier pending partial succeeds first", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(500, "pending"));
+    await deliver(refund(9_500, "pending"));
+
+    await deliver(settle("re_1", "succeeded"));
+    const after_first = await gift_of(charge_of.id);
+    await deliver(settle("re_2", "succeeded"));
+
+    expect(after_first.status).toBe("settled");
+    expect((await gift_of(charge_of.id)).status).toBe("refunded_loss");
+  });
+});
+
+describe("a refund event that is stale by the time it is handled", () => {
+  it("judges the charge as stripe has it now, not the event's copy", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    const stale = refund(500);
+    refund(9_500);
+
+    await deliver(stale);
+
+    expect((await gift_of(charge_of.id)).status).toBe("refunded_loss");
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: 93.2 },
+    ]);
+  });
+
+  it("changes nothing for a partial event that arrives after the gift was reversed", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    const late = refund(500);
+    await deliver(refund(9_500));
+    const reversed = await owed_of(charge_of.id);
+    enqueue_mock.mockClear();
+
+    const res = await deliver(late);
+
+    expect(res.status).toBe(200);
+    expect(await owed_of(charge_of.id)).toEqual(reversed);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("reverses once when two deliveries of the completing refund run at the same time", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(500));
+    const completing = refund(9_500);
+
+    await Promise.all([deliver(completing), deliver(completing)]);
+
+    expect((await gift_of(charge_of.id)).status).toBe("refunded_loss");
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: 93.2 },
+    ]);
+  });
+});
+
+describe("the notice a partial refund posts", () => {
+  beforeEach(async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+  });
+
+  const new_line = () =>
+    notice_text()
+      .split("\n")
+      .filter((l) => l.startsWith("new in this event:"))
+      .at(-1);
+
+  it("names the refunds on the charge and the total refunded so far", async () => {
+    await deliver(refund(500));
+
+    const text = notice_text();
+    expect(text).toContain(charge_of.id);
+    expect(text).toContain("5.00 USD (re_1, succeeded)");
+    expect(text).toMatch(/total refunded so far: 5\.00 USD of 100\.00 USD/);
+  });
+
+  it("marks only the second refund as new on the second partial's notice", async () => {
+    await deliver(refund(500));
+    await deliver(refund(1_000));
+
+    expect(new_line()).toBe("new in this event: 10.00 USD (re_2, succeeded)");
+    expect(notice_text()).toMatch(
+      /total refunded so far: 15\.00 USD of 100\.00 USD/
+    );
+  });
+
+  it("names every partial when a failed first notice is redelivered after a second partial", async () => {
+    const first = refund(500);
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash 503"));
+    const failed = await deliver(first);
+    await deliver(refund(1_000));
+
+    await deliver(first); // stripe redelivers
+
+    expect(failed.status).not.toBe(200);
+    expect(new_line()).toBe("new in this event: 5.00 USD (re_1, succeeded)");
+    expect(notice_text()).toContain("10.00 USD (re_2, succeeded)");
+    expect(notice_text()).toMatch(
+      /total refunded so far: 15\.00 USD of 100\.00 USD/
+    );
+  });
+
+  it("keys a redelivery on its event, so it collapses into the notice already posted", async () => {
+    await deliver(refund(500));
+    const second = refund(1_000);
+    await deliver(second);
+    await deliver(second); // stripe redelivers
+
+    const posted = enqueue_mock.mock.calls
+      .flat()
+      .filter((m) => m.id === "fiat-notice" && m.payload.id === second.id);
+    expect(posted).toHaveLength(2);
+    expect(new Set(posted.map((m) => m.dedupe)).size).toBe(1);
+    expect(new_line()).toBe("new in this event: 10.00 USD (re_2, succeeded)");
+  });
+
+  it("names the latest refund by the event's time when the event carries no previous attributes", async () => {
+    await deliver(refund(500));
+    const second = refund(1_000);
+    delete (second.data as any).previous_attributes;
+    refund(2_000); // made after the event, so not in it
+
+    await deliver(second);
+
+    expect(new_line()).toBe("new in this event: 10.00 USD (re_2, succeeded)");
+  });
+
+  it("says it could not tell when two refunds share the latest second and the event carries no previous attributes", async () => {
+    await deliver(refund(500));
+    const second = refund(1_000);
+    delete (second.data as any).previous_attributes;
+    refunds[1]!.created = refunds[0]!.created; // both made in the same second
+
+    await deliver(second);
+
+    expect(new_line()).toBe(
+      "new in this event: could not tell which refund is new"
+    );
+  });
+
+  it("says it could not tell rather than guess when an earlier refund has since failed", async () => {
+    await deliver(refund(500));
+    refunds[0]!.status = "failed"; // the bank refund bounced back
+
+    await deliver(refund(500));
+
+    expect(new_line()).toBe(
+      "new in this event: could not tell which refund is new"
+    );
   });
 });

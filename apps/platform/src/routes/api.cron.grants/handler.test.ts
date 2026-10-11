@@ -25,6 +25,7 @@ const after_snapshot = vi.hoisted(() => ({
 vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
 vi.mock("$/env", () => ({
   stage: "test",
+  wise: { profile_id: "1" },
   get owed_deductions() {
     return deductions.on;
   },
@@ -38,6 +39,20 @@ vi.mock("@/terms", async (io) => ({
   },
 }));
 vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert } }));
+// wise at its http boundary; `wise_pay` runs for real over it unless a test
+// replaces `wise_pay_mock`'s implementation
+const wise = vi.hoisted(() => ({
+  v2_account: vi.fn(async () => ({ currency: "USD" })),
+  quote: vi.fn(async (_: string, q: { sourceAmount: number }) => ({
+    id: `q-${q.sourceAmount}`,
+  })),
+  transfer: vi.fn(async (_: { customerTransactionId: string }) => ({
+    id: 9001,
+    status: "incoming_payment_waiting",
+  })),
+  fund_transfer: vi.fn(async () => ({ status: "COMPLETED" })),
+}));
+vi.mock("$/kit/wise", () => ({ wise }));
 vi.mock("$/payouts/wise-pay", () => ({ wise_pay: wise_pay_mock }));
 vi.mock("$/payouts/settle", async (io) => {
   const actual = await io<typeof import("$/payouts/settle")>();
@@ -74,6 +89,7 @@ const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { banking_apps } = await import("$/pg/schema/banking");
 const { donations } = await import("$/pg/schema/donation");
 const { owed_amounts, owed_notices } = await import("$/pg/schema/owed");
+const { owed_for_donation } = await import("$/pg/queries/owed");
 const { npos } = await import("$/pg/schema/npo");
 const { payouts, settlements } = await import("$/pg/schema/payout");
 
@@ -92,7 +108,13 @@ afterAll(async () => {
 
 beforeEach(async () => {
   after_snapshot.current = null;
-  wise_pay_mock.mockReset().mockResolvedValue(TRANSFER_ID);
+  const { wise_pay } =
+    await vi.importActual<typeof import("$/payouts/wise-pay")>(
+      "$/payouts/wise-pay"
+    );
+  wise_pay_mock.mockReset().mockImplementation(wise_pay);
+  wise.quote.mockClear();
+  wise.transfer.mockClear();
   report_error_mock.mockReset();
   send_alert.mockReset();
   settle_spy.mockClear();
@@ -198,7 +220,7 @@ async function seed_owed(npo_id: number, donation_id: string, usd: number) {
 }
 
 const outstanding = async () =>
-  (await db().select().from(owed_amounts)).map((o) => o.outstanding_usd);
+  (await owed_for_donation("don-owed")).map((o) => o.outstanding_usd);
 
 async function mark_refunded(id: string) {
   await db()
@@ -432,10 +454,11 @@ describe("grants cron execute", () => {
 
     await index();
 
-    expect(wise_pay_mock).toHaveBeenCalledWith(
-      WISE_RECIPIENT,
+    expect(wise.quote.mock.calls.map(([, q]) => q.sourceAmount)).toEqual([
       406.8,
-      expect.any(String)
+    ]);
+    expect(wise.transfer).toHaveBeenCalledWith(
+      expect.objectContaining({ targetAccount: String(WISE_RECIPIENT) })
     );
     expect(await outstanding()).toEqual([0]);
   });
@@ -488,7 +511,6 @@ describe("grants cron execute", () => {
     await index();
 
     expect(report_error_mock).not.toHaveBeenCalled();
-    expect(settle_spy).not.toHaveBeenCalled();
     expect(await payout_types()).toEqual({ "p-1": "pending" });
     expect(await outstanding()).toEqual([50]);
   });

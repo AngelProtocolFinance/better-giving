@@ -17,7 +17,7 @@ import { referrer_commissions } from "../pg/schema/referrer";
 import { loss_logs } from "../pg/schema/revenue";
 import { create_test_db, type TestDb } from "../pg/test-utils/pglite";
 import { apply_refund_plan, StalePayoutError } from "./apply";
-import { calc_refund_plan, type RefundPlan } from "./plan";
+import { calc_refund_plan } from "./plan";
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
 // which these queries do not read.
@@ -85,18 +85,22 @@ async function seed_payout(type: "pending" | "settled") {
   return npo!.id;
 }
 
-function plan_marking(status: "refunded" | "refunded_loss"): RefundPlan {
-  return {
-    is_loss: status === "refunded_loss",
-    loss_reasons: [],
-    amount: [],
-    effects: [{ kind: "payout_status", payout_id: PAYOUT_ID, status }],
-    preview: { effects: [], blockers: [], warnings: [] },
-  };
-}
-
-// drawn by the planner, so the order under test is the one a refund runs
-function plan_cancelling_cash(npo_id: number): RefundPlan {
+// every plan is drawn by the planner, so the effects and their order are the
+// ones a refund runs
+function plan_for(
+  npo_id: number,
+  o: {
+    payout?: "pending" | "settled" | null;
+    commission?: { status: "pending" | "processing" | "paid" } | null;
+    alloc?: { liq: number; lock: number; cash: number };
+    amount?: number;
+    fees?: { base: number; fsa: number; processing: number };
+    bal?: { liq: number; lock_units: number; cash: number };
+  } = {}
+) {
+  const alloc = o.alloc ?? { liq: 0, lock: 0, cash: 100 };
+  const fees = o.fees ?? { base: 0, fsa: 0, processing: 0 };
+  const amount = o.amount ?? 100;
   return calc_refund_plan(
     {
       dist: {
@@ -104,18 +108,28 @@ function plan_cancelling_cash(npo_id: number): RefundPlan {
         donation_id: "don-1",
         to_id: npo_id,
         to_name: "Apply Test NPO",
-        alloc: { liq: 0, lock: 0, cash: 100 },
+        alloc,
         net: 100,
-        amount: 100,
-        amount_usd: 100,
-        fee_base: 0,
-        fee_fsa: 0,
-        fee_processing: 0,
+        amount,
+        amount_usd: amount,
+        fee_base: fees.base,
+        fee_fsa: fees.fsa,
+        fee_processing: fees.processing,
       },
-      payout: { id: PAYOUT_ID, type: "pending" },
-      commission: null,
+      payout:
+        o.payout === null
+          ? null
+          : { id: PAYOUT_ID, type: o.payout ?? "pending" },
+      commission: o.commission
+        ? {
+            donation_id: "dist-1",
+            amount: 5,
+            status: o.commission.status,
+            referrer: { referrer_npo: "NPO-REF" },
+          }
+        : null,
       rev_log_ids: [],
-      bal: { liq: 0, lock_units: 0, cash: 100 },
+      bal: o.bal ?? { liq: 0, lock_units: 0, cash: 100 },
       nav: null,
       sub_id: null,
     },
@@ -146,29 +160,38 @@ async function payout_type() {
 
 describe("apply_refund_plan payout_status", () => {
   test("throws when the payout it planned to cancel was settled meanwhile", async () => {
-    await seed_payout("settled");
+    const npo_id = await seed_payout("settled");
 
     await expect(
-      apply_refund_plan(as_db(test_db.db), plan_marking("refunded"), SRC)
+      apply_refund_plan(
+        as_db(test_db.db),
+        plan_for(npo_id, { payout: "pending" }),
+        SRC
+      )
     ).rejects.toThrow(StalePayoutError);
     expect(await payout_type()).toBe("settled");
   });
 
   test("a pending payout is marked refunded", async () => {
-    await seed_payout("pending");
+    const npo_id = await seed_payout("pending");
 
-    await apply_refund_plan(as_db(test_db.db), plan_marking("refunded"), SRC);
+    await apply_refund_plan(
+      as_db(test_db.db),
+      plan_for(npo_id, { payout: "pending" }),
+      SRC
+    );
 
     expect(await payout_type()).toBe("refunded");
   });
 
   // the loss plan is what a re-run produces once the cron has settled the payout
   test("a loss refund marks an already-settled payout refunded_loss", async () => {
-    await seed_payout("settled");
+    const npo_id = await seed_payout("settled");
+    await seed_donation();
 
     await apply_refund_plan(
       as_db(test_db.db),
-      plan_marking("refunded_loss"),
+      plan_for(npo_id, { payout: "settled" }),
       SRC
     );
 
@@ -183,7 +206,11 @@ describe("apply_refund_plan lock order", () => {
     const npo_id = await seed_payout("settled");
 
     await expect(
-      apply_refund_plan(as_db(test_db.db), plan_cancelling_cash(npo_id), SRC)
+      apply_refund_plan(
+        as_db(test_db.db),
+        plan_for(npo_id, { payout: "pending" }),
+        SRC
+      )
     ).rejects.toThrow(StalePayoutError);
     expect(await npo_cash(npo_id)).toBe(100);
   });
@@ -193,7 +220,7 @@ describe("apply_refund_plan lock order", () => {
 
     await apply_refund_plan(
       as_db(test_db.db),
-      plan_cancelling_cash(npo_id),
+      plan_for(npo_id, { payout: "pending" }),
       SRC
     );
 
@@ -213,6 +240,7 @@ describe("apply_refund_plan commission_status", () => {
         overview_pt: "[]",
         hq_country: "United States",
         referral_id: "NPO-REF",
+        cash: 100,
       })
       .returning();
     await seed_donation();
@@ -225,28 +253,14 @@ describe("apply_refund_plan commission_status", () => {
       status,
       ref: status === "pending" ? null : "ref-1",
     });
+    return npo!.id;
   }
 
-  const plan_reversing_commission = (): RefundPlan => ({
-    is_loss: false,
-    loss_reasons: [],
-    amount: [],
-    effects: [
-      {
-        kind: "commission_status",
-        donation_id: "dist-1",
-        status: "refunded",
-        owed: {
-          donation_id: "don-1",
-          party: { referrer_npo: "NPO-REF" },
-          received_usd: 5,
-          fee_processing_usd: 0,
-          now: "2026-09-03T00:00:00.000Z",
-        },
-      },
-    ],
-    preview: { effects: [], blockers: [], warnings: [] },
-  });
+  const plan_reversing_commission = (npo_id: number) =>
+    plan_for(npo_id, {
+      payout: null,
+      commission: { status: "paid" },
+    });
 
   const referrer_row = expect.objectContaining({
     donation_id: "don-1",
@@ -267,11 +281,11 @@ describe("apply_refund_plan commission_status", () => {
   }
 
   test("a pending commission is marked refunded, owed by nobody", async () => {
-    await seed_commission("pending");
+    const npo_id = await seed_commission("pending");
 
     const res = await apply_refund_plan(
       as_db(test_db.db),
-      plan_reversing_commission(),
+      plan_reversing_commission(npo_id),
       SRC
     );
 
@@ -283,11 +297,11 @@ describe("apply_refund_plan commission_status", () => {
 
   // its wise transfer may already be paying the referrer
   test("a processing commission is marked refunded_loss, reported, and owed by its referrer", async () => {
-    await seed_commission("processing");
+    const npo_id = await seed_commission("processing");
 
     const res = await apply_refund_plan(
       as_db(test_db.db),
-      plan_reversing_commission(),
+      plan_reversing_commission(npo_id),
       SRC
     );
 
@@ -302,11 +316,11 @@ describe("apply_refund_plan commission_status", () => {
 
   // paid after the plan was drawn: the referrer has the money, so it stays paid
   test("a paid commission is left paid and owed by its referrer", async () => {
-    await seed_commission("paid");
+    const npo_id = await seed_commission("paid");
 
     const res = await apply_refund_plan(
       as_db(test_db.db),
-      plan_reversing_commission(),
+      plan_reversing_commission(npo_id),
       SRC
     );
 
@@ -351,40 +365,10 @@ describe("apply_refund_plan owed", () => {
       status: "paid",
       ref: "ref-1",
     });
-    const plan = calc_refund_plan(
-      {
-        dist: {
-          id: "dist-1",
-          donation_id: "don-1",
-          to_id: npo_id,
-          to_name: "Apply Test NPO",
-          alloc: { liq: 0, lock: 0, cash: 100 },
-          net: 100,
-          amount: 100,
-          amount_usd: 100,
-          fee_base: 0,
-          fee_fsa: 0,
-          fee_processing: 0,
-        },
-        payout: { id: PAYOUT_ID, type: "settled" },
-        commission: {
-          donation_id: "dist-1",
-          amount: 5,
-          status: "paid",
-          referrer: { referrer_npo: "NPO-REF" },
-        },
-        rev_log_ids: [],
-        bal: { liq: 0, lock_units: 0, cash: 100 },
-        nav: null,
-        sub_id: null,
-      },
-      {
-        now: "2026-09-03T00:00:00.000Z",
-        nav_date: "2026-09-03T00:00:00.001Z",
-        form_id: null,
-        program_id: null,
-      }
-    );
+    const plan = plan_for(npo_id, {
+      payout: "settled",
+      commission: { status: "paid" },
+    });
 
     const res = await apply_refund_plan(as_db(test_db.db), plan, SRC);
 
@@ -416,37 +400,14 @@ describe("apply_refund_plan owed", () => {
 
 // a savings shortfall is owed; the cash share still sits in a pending payout
 describe("apply_refund_plan savings shortfall beside a cash payout", () => {
-  function plan_liq_short(npo_id: number, payout: "pending" | "settled") {
-    return calc_refund_plan(
-      {
-        dist: {
-          id: "dist-1",
-          donation_id: "don-1",
-          to_id: npo_id,
-          to_name: "Apply Test NPO",
-          alloc: { liq: 50, lock: 0, cash: 50 },
-          net: 100,
-          amount: 110,
-          amount_usd: 110,
-          fee_base: 5,
-          fee_fsa: 3,
-          fee_processing: 2,
-        },
-        payout: { id: PAYOUT_ID, type: payout },
-        commission: null,
-        rev_log_ids: [],
-        bal: { liq: 10, lock_units: 0, cash: 100 },
-        nav: null,
-        sub_id: null,
-      },
-      {
-        now: "2026-09-03T00:00:00.000Z",
-        nav_date: "2026-09-03T00:00:00.001Z",
-        form_id: null,
-        program_id: null,
-      }
-    );
-  }
+  const plan_liq_short = (npo_id: number, payout: "pending" | "settled") =>
+    plan_for(npo_id, {
+      payout,
+      alloc: { liq: 50, lock: 0, cash: 50 },
+      amount: 110,
+      fees: { base: 5, fsa: 3, processing: 2 },
+      bal: { liq: 10, lock_units: 0, cash: 100 },
+    });
 
   test("a pending payout is cancelled, its cash comes off the npo, and the unreversed share is owed", async () => {
     const npo_id = await seed_payout("pending");
