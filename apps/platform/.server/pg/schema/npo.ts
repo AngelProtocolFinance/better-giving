@@ -102,6 +102,23 @@ export const npos = pgTable(
     cash: numeric_as_number("cash", { precision: 38, scale: 18 })
       .notNull()
       .default(0),
+    stripe_account_id: text("stripe_account_id").unique(),
+    // local mirror of the connected account's readiness, as stripe last reported it
+    stripe_charges_enabled: boolean("stripe_charges_enabled")
+      .notNull()
+      .default(false),
+    stripe_payouts_enabled: boolean("stripe_payouts_enabled")
+      .notNull()
+      .default(false),
+    stripe_details_submitted: boolean("stripe_details_submitted")
+      .notNull()
+      .default(false),
+    /** `requirements.currently_due` */
+    stripe_requirements_due: text("stripe_requirements_due")
+      .array()
+      .notNull()
+      .default([]),
+    stripe_synced_at: timestamptz("stripe_synced_at"),
     created_at: timestamptz_now("created_at"),
     updated_at: timestamptz_now("updated_at"),
   },

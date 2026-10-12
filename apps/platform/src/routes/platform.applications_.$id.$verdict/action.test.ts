@@ -233,6 +233,30 @@ describe("approve", () => {
     expect(await test_db.current!.db.select().from(npos)).toHaveLength(1);
   });
 
+  test("copies the registration's stripe account onto the new npo", async () => {
+    const db = test_db.current!.db;
+    await db.update(registrations).set({ o_stripe_account_id: "acct_test123" });
+
+    await verdict("approved");
+
+    const [npo] = await db.select().from(npos);
+    expect(npo).toMatchObject({
+      stripe_account_id: "acct_test123",
+      stripe_charges_enabled: false,
+      stripe_payouts_enabled: false,
+      stripe_details_submitted: false,
+      stripe_requirements_due: [],
+      stripe_synced_at: null,
+    });
+  });
+
+  test("a registration with no stripe account approves into an npo with none", async () => {
+    await verdict("approved");
+
+    const [npo] = await test_db.current!.db.select().from(npos);
+    expect(npo?.stripe_account_id).toBeNull();
+  });
+
   // a stale prompt pressed long after: the same keys would mail again
   test("a repeat after the dedupe window succeeds and enqueues nothing", async () => {
     await verdict("approved");

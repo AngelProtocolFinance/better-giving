@@ -30,6 +30,7 @@ export type EndowContentFromReg = Pick<
   | "referrer_npo"
   | "referrer_expiry"
   | "referral_id"
+  | "stripe_account_id"
 >;
 
 /** what `reg-updated` carries, plus the npo the approval minted: met by the
@@ -70,6 +71,7 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
       r.o_type === "501c3" ? r.o_ein : r.o_registration_number,
     url: r.o_website,
     referral_id: rid,
+    stripe_account_id: r.o_stripe_account_id,
   };
 
   if (r.rm === "referral" && r.rm_referral_code) {
