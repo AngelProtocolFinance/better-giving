@@ -1,5 +1,5 @@
 import { metas } from "#/helpers/seo";
-import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
+import { TERMS_EFFECTIVE, TERMS_ZONE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
 
 const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
@@ -97,15 +97,22 @@ export default function TermsReferrals() {
           <p>
             If a donor disputes a payment with their bank or payment provider
             after the referral reward earned on it has been paid to you, Better
-            Giving may deduct that reward as soon as the dispute is opened. If
-            the dispute is resolved in Better Giving’s favor, Better Giving will
-            cancel the amount owed and add any part of it already deducted to
-            your next referral payment.
+            Giving may deduct the disputed share of that reward as soon as the
+            dispute is opened. If the dispute is resolved in Better Giving’s
+            favor, or the donor withdraws it, or it closes without the payment
+            being reversed, Better Giving will cancel the amount owed; if it is
+            resolved partly in Better Giving’s favor, you owe only the share of
+            the reward on the part the donor keeps. Any part of a cancelled
+            amount already deducted is added to your next referral payment. If a
+            dispute that closed in Better Giving’s favor is later reopened,
+            appealed or reversed and the donor keeps all or part of the payment,
+            Better Giving may deduct the share of the reward on that part.
           </p>
           <p>
             Better Giving will notify you of each amount before deducting it,
             and may waive any amount in whole or in part at its discretion. This
-            section applies only to donations made on or after{" "}
+            section applies only to donations made on or after 12:00 a.m.
+            Eastern Time ({TERMS_ZONE}) on{" "}
             {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
             {EFFECTIVE}.
           </p>

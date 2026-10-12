@@ -7,9 +7,19 @@ const Stub = createRoutesStub([
   { path: "/terms-of-use", Component: TermsDonors },
 ]);
 
+const item = async (title: string) => {
+  const screen = await render(<Stub initialEntries={["/terms-of-use"]} />);
+  return {
+    screen,
+    text:
+      screen.getByText(title, { exact: true }).element().closest("li")
+        ?.textContent ?? "",
+  };
+};
+
 describe("donor terms", () => {
-  test("Control of Funds voids a reversed gift's receipt, under the effective date", async () => {
-    const screen = await render(<Stub initialEntries={["/terms-of-use"]} />);
+  test("Control of Funds reissues a reversed gift's receipt, partial refunds included, under the effective date", async () => {
+    const { screen, text } = await item("Control of Funds");
 
     await expect
       .element(
@@ -18,13 +28,26 @@ describe("donor terms", () => {
         })
       )
       .toBeVisible();
+    expect(text).toContain(
+      "Better Giving may, in its sole discretion, refund all or part of a donation"
+    );
+    expect(text).toContain(
+      "Better Giving will issue you a corrected or reissued receipt showing the amount Better Giving kept, if any (for a partial refund, the original amount less the amount returned to you)"
+    );
+    expect(text).not.toContain("void");
+  });
 
-    const control = screen
-      .getByText("Control of Funds", { exact: true })
-      .element()
-      .closest("li");
-    expect(control?.textContent).toContain(
-      "A donation that is refunded, reversed or charged back is not a charitable contribution, and any acknowledgment or receipt issued for it is void."
+  test("Disputed Payments: a win or a withdrawal keeps the receipt, a reopened win recovers again", async () => {
+    const { text } = await item("Disputed Payments");
+
+    expect(text).toContain(
+      "If the dispute is resolved in Better Giving’s favor, or you withdraw it, or it closes without the payment being reversed, the donation stands as a charitable contribution and your original receipt remains valid."
+    );
+    expect(text).toContain(
+      "If you keep all or part of the disputed amount, that amount is treated as refunded under Section 1(a)"
+    );
+    expect(text).toContain(
+      "If a dispute that closed in Better Giving’s favor is later reopened, appealed or reversed"
     );
   });
 });
