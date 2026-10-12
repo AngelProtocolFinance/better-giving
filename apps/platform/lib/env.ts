@@ -9,6 +9,8 @@ export const SERVER_KEYS = [
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "STRIPE_SUBS_PRODUCT_ID",
+  "STRIPE_CONNECT_CLIENT_ID",
+  "STRIPE_CONNECT_WEBHOOK_SECRET",
   "PAYPAL_API_URL",
   "PAYPAL_CLIENT_ID",
   "PAYPAL_CLIENT_SECRET",
@@ -99,6 +101,10 @@ export const OPTIONAL_KEYS = [
   "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
   // the owed-deductions switch, off unless "on"
   "OWED_DEDUCTIONS",
+  // stripe connect: without the client id the connect start route answers
+  // 503; without the connect secret only platform-signed events verify
+  "STRIPE_CONNECT_CLIENT_ID",
+  "STRIPE_CONNECT_WEBHOOK_SECRET",
 ] as const satisfies readonly ServerKey[];
 
 export type OptionalKey = (typeof OPTIONAL_KEYS)[number];

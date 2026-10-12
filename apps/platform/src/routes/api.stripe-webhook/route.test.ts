@@ -20,6 +20,7 @@ const refund_failed_mock = vi.hoisted(() => vi.fn());
 const refund_updated_mock = vi.hoisted(() => vi.fn());
 const dispute_opened_mock = vi.hoisted(() => vi.fn());
 const dispute_closed_mock = vi.hoisted(() => vi.fn());
+const account_updated_mock = vi.hoisted(() => vi.fn());
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
 vi.mock("$/kit/stripe", () => ({
@@ -52,6 +53,7 @@ vi.mock("./handlers", () => ({
   handle_refund_updated: refund_updated_mock,
   handle_dispute_opened: dispute_opened_mock,
   handle_dispute_closed: dispute_closed_mock,
+  handle_account_updated: account_updated_mock,
 }));
 vi.mock("./handlers/intent-suceeded", () => ({
   handle_intent_succeeded: intent_succeeded_mock,
@@ -71,6 +73,7 @@ const { sub_get } = await import("$/pg/queries/subscription");
 const { subscriptions } = await import("$/pg/schema/subscription");
 const { npos } = await import("$/pg/schema/npo");
 const { seed_npo } = await import("#/__tests__/fixtures/funds");
+const { stripe: stripe_env } = await import("$/env");
 
 const post = (body: string, headers: Record<string, string> = {}): Request =>
   new Request("https://x/api/stripe-webhook", {
@@ -227,6 +230,69 @@ describe("api.stripe-webhook action", () => {
 
     expect(res.status).toBe(200);
     expect(handler).toHaveBeenCalledWith(event);
+  });
+});
+
+describe("account.updated (stripe connect)", () => {
+  // the real verifier, so which secret signed the body is what decides
+  const webhooks = new Stripe("sk_test_unused").webhooks;
+  const signed_with = (secret: string) => {
+    const payload = JSON.stringify({
+      id: "evt_acct_1",
+      object: "event",
+      type: "account.updated",
+      account: "acct_connected_1",
+      created: 1_791_806_400,
+      data: { object: { id: "acct_connected_1", object: "account" } },
+    });
+    return post(payload, {
+      "stripe-signature": webhooks.generateTestHeaderString({
+        payload,
+        secret,
+      }),
+    });
+  };
+
+  beforeEach(() => {
+    construct_event_mock.mockImplementation(
+      (body: string, sig: string, secret: string) =>
+        webhooks.constructEvent(body, sig, secret)
+    );
+  });
+
+  it.each([
+    ["the platform endpoint's secret", () => stripe_env.webhook_secret],
+    ["the connect endpoint's secret", () => stripe_env.connect_webhook_secret!],
+  ])(
+    "verifies an event signed with %s and hands it over",
+    async (_, secret) => {
+      account_updated_mock.mockResolvedValue(true);
+
+      const res = await invoke(signed_with(secret()));
+
+      expect(res.status).toBe(200);
+      expect(account_updated_mock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "account.updated",
+          account: "acct_connected_1",
+        })
+      );
+    }
+  );
+
+  it("acknowledges an account no npo holds", async () => {
+    account_updated_mock.mockResolvedValue(false);
+
+    const res = await invoke(signed_with(stripe_env.connect_webhook_secret!));
+
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses an event neither secret signed", async () => {
+    const res = await invoke(signed_with("whsec_someone_else"));
+
+    expect(res.status).toBe(400);
+    expect(account_updated_mock).not.toHaveBeenCalled();
   });
 });
 

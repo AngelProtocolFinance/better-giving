@@ -168,6 +168,9 @@ export const stripe = {
   secret_key: process.env.STRIPE_SECRET_KEY,
   webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
   subs_product_id: process.env.STRIPE_SUBS_PRODUCT_ID,
+  // optional: an environment without connect still boots
+  connect_client_id: process.env.STRIPE_CONNECT_CLIENT_ID,
+  connect_webhook_secret: process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
 } as const;
 
 export const wise = {
