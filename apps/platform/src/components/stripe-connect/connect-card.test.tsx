@@ -125,7 +125,10 @@ describe("StripeConnectCard", () => {
       /wasn't changed.*confirm/i,
     ],
     [{ result: "error", reason: "expired" }, /timed out/i],
-    [{ result: "error", reason: "forbidden" }, /only this nonprofit's admins/i],
+    [
+      { result: "error", reason: "forbidden" },
+      /don't have permission to connect/i,
+    ],
     [
       { result: "error", reason: "failed" },
       /couldn't connect your stripe account/i,
