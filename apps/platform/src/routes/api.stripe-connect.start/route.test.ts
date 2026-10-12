@@ -66,7 +66,7 @@ const member_of_npo = async (tag: string) => {
 
 const seed_reg = async (
   r_id: string,
-  o: { o_stripe_account_id?: string } = {}
+  o: { o_stripe_account_id?: string; status?: "01" | "02" | "03" | "04" } = {}
 ) => {
   const id = crypto.randomUUID();
   await db()
@@ -171,6 +171,17 @@ describe("stripe connect start", () => {
       t: { kind: "reg", reg_id },
       uid: "u-app",
     });
+  });
+
+  // in review or decided: a connect could only be refused after stripe has
+  // already linked the account, leaving it connected and stored nowhere
+  test("the applicant's registration out of their hands is refused", async () => {
+    const reg_id = await seed_reg("in-review@reg.test", { status: "02" });
+    session.user = { id: "u-rev", email: "in-review@reg.test", role: "user" };
+
+    const res = await call(`kind=reg&reg_id=${reg_id}`);
+
+    expect(res.status).toBe(403);
   });
 
   test("someone else's registration is refused", async () => {

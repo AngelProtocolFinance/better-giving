@@ -102,6 +102,46 @@ describe("sync_npo_account", () => {
     expect(retrieve).not.toHaveBeenCalled();
   });
 
+  // right after a connect stripe is still verifying, so an account.updated
+  // can land while this read is in flight
+  test("an event written while stripe was answering is kept", async () => {
+    const npo = await seed_npo(db(), {
+      registration_number: "EIN-SYNC-4",
+      stripe_account_id: "acct_sync_4",
+    });
+    retrieve.mockImplementation(async (id: string) => {
+      await db()
+        .update(npos)
+        .set({
+          stripe_charges_enabled: true,
+          stripe_payouts_enabled: true,
+          stripe_details_submitted: true,
+          stripe_requirements_due: [],
+          stripe_synced_at: new Date(Date.now() + 60_000).toISOString(),
+        })
+        .where(eq(npos.id, npo!.id));
+      return {
+        ...stripe_account(id),
+        charges_enabled: false,
+        payouts_enabled: false,
+        details_submitted: false,
+      };
+    });
+
+    const m = await sync_npo_account(npo!.id);
+
+    expect(m).toEqual({
+      charges_enabled: true,
+      payouts_enabled: true,
+      details_submitted: true,
+      requirements_due: [],
+    });
+    const r = await row(npo!.id);
+    expect(r.stripe_charges_enabled).toBe(true);
+    expect(r.stripe_payouts_enabled).toBe(true);
+    expect(r.stripe_details_submitted).toBe(true);
+  });
+
   // a replace landing while the old account is being read: the old account's
   // flags must not end up describing the new one
   test("re-reads the new account when it changed mid-read", async () => {

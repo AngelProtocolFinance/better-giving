@@ -1,5 +1,6 @@
 import { and, eq, isNull, ne, or } from "drizzle-orm";
 import { steps } from "#/pages/registration/routes";
+import { EDITABLE } from "@/reg/schema";
 import {
   CONNECT_REASON_PARAM,
   CONNECT_RESULT_PARAM,
@@ -24,7 +25,8 @@ export type TTargetAccess =
   | { ok: false; status: 403 | 404 };
 
 /** whether `actor` may connect an account to `t`, and the account it holds now.
- * registration: its applicant or an admin. npo: a member or an admin. */
+ * registration: its applicant or an admin, while it is still editable.
+ * npo: a member or an admin. */
 export async function target_access(
   actor: IConnectActor,
   t: TConnectTarget
@@ -36,6 +38,9 @@ export async function target_access(
     if (!reg) return { ok: false, status: 404 };
     if (reg.r_id !== actor.email && !is_admin)
       return { ok: false, status: 403 };
+    // in review or decided, the write is refused anyway — refused here, it is
+    // refused before stripe links an account that would then be stored nowhere
+    if (!EDITABLE.includes(reg.status)) return { ok: false, status: 403 };
     return { ok: true, acct: reg.o_stripe_account_id ?? null };
   }
 

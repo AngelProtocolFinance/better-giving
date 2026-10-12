@@ -73,7 +73,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const { won } = await reg_update_from(db, t.reg_id, EDITABLE, {
       o_stripe_account_id: acct,
     });
-    // submitted or decided since the connect started
+    // submitted between target_access above and this write
     return won ? redirect(return_path(t, "connected")) : fail("forbidden");
   }
 

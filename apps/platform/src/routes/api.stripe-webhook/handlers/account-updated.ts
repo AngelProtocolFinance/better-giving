@@ -1,9 +1,9 @@
-import { and, eq, isNull, lte, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { account_mirror } from "@/stripe-connect/readiness";
 import { db } from "$/pg/db";
 import { npos } from "$/pg/schema/npo";
-import { mirror_columns } from "$/stripe-connect/sync";
+import { mirror_columns, not_newer_than } from "$/stripe-connect/sync";
 
 /** writes the readiness `ev` carries onto the npo holding its account, unless
  * that npo was synced after the event happened. false when nothing was written:
@@ -25,7 +25,7 @@ export async function handle_account_updated(
       and(
         eq(npos.stripe_account_id, acct),
         // in the statement, not a prior read: two deliveries race otherwise
-        or(isNull(npos.stripe_synced_at), lte(npos.stripe_synced_at, at))
+        not_newer_than(at)
       )
     )
     .returning({ id: npos.id });

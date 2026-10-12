@@ -198,6 +198,21 @@ describe("api.stripe-webhook action", () => {
     expect(intent_succeeded_mock).toHaveBeenCalledOnce();
   });
 
+  // a connected account's own payments and refunds are not ours: the platform
+  // handlers would read its ids as our donations
+  it("acknowledges a connected account's event without handling it", async () => {
+    construct_event_mock.mockReturnValue({
+      type: "payment_intent.succeeded",
+      account: "acct_connected_1",
+      data: { object: { id: "pi_theirs" } },
+    });
+
+    const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect(res.status).toBe(200);
+    expect(intent_succeeded_mock).not.toHaveBeenCalled();
+  });
+
   it("hands a failed refund to its handler", async () => {
     const event = { type: "refund.failed", data: { object: { id: "re_1" } } };
     construct_event_mock.mockReturnValue(event);

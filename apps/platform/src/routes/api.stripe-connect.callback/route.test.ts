@@ -289,6 +289,26 @@ describe("stripe connect callback", () => {
       expect((await npo_row(npo.id)).stripe_account_id).toBeNull();
     });
 
+    test("a registration submitted since the connect started", async () => {
+      const reg_id = await own_reg("cb-submitted@reg.test");
+      const state = sign_state({
+        t: { kind: "reg", reg_id },
+        uid: session.user!.id,
+        replace: false,
+      });
+      await db()
+        .update(registrations)
+        .set({ status: "02" })
+        .where(eq(registrations.id, reg_id));
+      token.mockResolvedValue({ stripe_user_id: "acct_after_submit" });
+
+      const res = await call({ code: "ac_submitted", state });
+
+      expect(landed(res).reason).toBe("forbidden");
+      expect(token).not.toHaveBeenCalled();
+      expect(await reg_acct(reg_id)).toBeNull();
+    });
+
     test("the user declining on stripe goes back as denied", async () => {
       const { user, npo } = await member_of_npo("cb-denied");
 

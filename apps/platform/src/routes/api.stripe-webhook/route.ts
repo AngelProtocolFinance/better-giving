@@ -95,6 +95,14 @@ export async function action({ request }: Route.ActionArgs) {
     // land in the catch below (reported + 4xx) instead of escaping as a 500.
     const stripe_event = verify_event(body, signature);
 
+    // a connected account's own objects, not ours: only its readiness is read
+    if (stripe_event.account && stripe_event.type !== "account.updated") {
+      return new Response(
+        `connected account event not handled: ${stripe_event.type}`,
+        { status: 200 }
+      );
+    }
+
     switch (stripe_event.type) {
       case "payment_intent.succeeded":
         await handle_intent_succeeded(stripe_event.data);
