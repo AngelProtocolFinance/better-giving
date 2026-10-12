@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm";
 import type { INposPage, INpoWithRegNum } from "@/npo/interfaces";
 import type { INposSearchObj } from "@/npo/schema";
+import type { IAccountMirror } from "@/stripe-connect/readiness";
 import type { IBalanceDeltas } from "@/types/donation";
 import { db } from "../db";
 import { finite } from "../schema/columns";
@@ -113,6 +114,33 @@ export async function npo_get(
   const [row] = await joined_select(conn).where(eq(npos.id, id));
   if (!row) return undefined;
   return row_to_npo(row);
+}
+
+export interface INpoStripe {
+  acct: string | null;
+  /** null until stripe has reported on `acct` */
+  synced_at: string | null;
+  mirror: IAccountMirror;
+}
+
+/** the npo's connected stripe account and its readiness mirror */
+export async function npo_stripe_get(
+  id: number
+): Promise<INpoStripe | undefined> {
+  const [row] = await db
+    .select({
+      acct: npos.stripe_account_id,
+      synced_at: npos.stripe_synced_at,
+      charges_enabled: npos.stripe_charges_enabled,
+      payouts_enabled: npos.stripe_payouts_enabled,
+      details_submitted: npos.stripe_details_submitted,
+      requirements_due: npos.stripe_requirements_due,
+    })
+    .from(npos)
+    .where(eq(npos.id, id));
+  if (!row) return undefined;
+  const { acct, synced_at, ...mirror } = row;
+  return { acct, synced_at, mirror };
 }
 
 /**
