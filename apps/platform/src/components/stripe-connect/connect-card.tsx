@@ -32,7 +32,7 @@ const reason_messages: Record<TConnectNoticeReason, string> = {
   replace_unconfirmed:
     "Your connected Stripe account wasn't changed. To switch, choose Connect a different account and confirm.",
   expired: "The link to Stripe timed out. Try again.",
-  forbidden: "Only this nonprofit's admins can connect its Stripe account.",
+  forbidden: "You don't have permission to connect a Stripe account here.",
   failed: "We couldn't connect your Stripe account. Try again.",
 };
 
