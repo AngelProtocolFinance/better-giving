@@ -20,6 +20,9 @@ if (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null; then
   echo "port $PORT is taken by something this skill didn't start; set VERIFY_PORT or stop it" >&2; exit 1
 fi
 
+# drive.mjs reads the whole stub log, so a 400 left by an earlier filler-key
+# launch would mark this run's flows blocked
+rm -f "$STATE/stripe-stub.log"
 "$HERE/pg-up.sh"
 # pg-up.sh's per-cluster password (hex, so it needs no url-escaping)
 export PGPASSWORD; PGPASSWORD=$(cat "$STATE/pg.pass")
@@ -59,6 +62,9 @@ cd "$APP"
 DATABASE_URL=$DB STRIPE_SECRET_KEY=$(grep -m1 "^STRIPE_SECRET_KEY=" "$APP/.env.verify" | cut -d= -f2-) VERIFY_STATE=$STATE NODE_OPTIONS="$PRELOAD" VERIFY_WS_PORT=${VERIFY_WS_PORT:-5488} \
   setsid nohup pnpm exec react-router dev --mode verify --host 127.0.0.1 --port "$PORT" >"$STATE/dev.log" 2>&1 &
 echo $! > "$STATE/dev.pid"; echo "$PORT" > "$STATE/port"
+# start time (/proc stat field 22) pins the pid's identity for cleanup.sh; if
+# the server already died it stays empty and the readiness loop reports it
+{ sed 's/.*) //' "/proc/$!/stat" 2>/dev/null | cut -d' ' -f20; } > "$STATE/dev.starttime" || true
 
 for _ in $(seq 1 90); do
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 "http://127.0.0.1:$PORT/" || true)

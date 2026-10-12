@@ -64,17 +64,17 @@ Selectors are ARIA/text/`name=` handles from the real UI (`getByRole("button", {
 
 ## Evidence
 
-`$VERIFY_OUT/`: `results.json` (per flow: status pass|fail|blocked, observed facts, error, screenshots, log), `<flow>[-step].png` full-page screenshots of each step (on failure `<flow>-final.png`), `<flow>.log` (browser console, page errors, every HTTP ≥400), `drive.txt`, `launch-doctor.log`, and every server log from the state dir (`dev.log`, `migrate.log`, `packages-build.log`, `stripe-stub.log` — what was faked). The logs are copied on every exit, ^C and kill included, before cleanup deletes the state dir.
+`$VERIFY_OUT/`: `results.json` (per flow: status pass|fail|blocked, observed facts, error, screenshots, log), `<flow>[-step].png` full-page screenshots of each step (on failure `<flow>-final.png`), `<flow>.log` (browser console, page errors, every HTTP ≥400), `drive.txt`, `launch-doctor.log`, and every server log from the state dir (`dev.log`, `migrate.log`, `packages-build.log`, `stripe-stub.log` — what was faked). The logs are copied before cleanup deletes the state dir whenever run.sh exits normally or on SIGINT (^C) or SIGTERM — the signals its trap catches. A SIGKILL (`kill -9`) can't be trapped, so it leaves both the logs and the state dir in place; the next run's pre-launch cleanup removes them.
 
 Proof standards: the real user path only (clicks/typing, no test endpoints); capture each step, not just the end; check side effects (db-backed text on screen, stub log); a flow that can't run for want of secrets is `blocked` with the reason, never `pass`. Read the screenshots before claiming success.
 
 ## Cleanup
 
-`scripts/cleanup.sh` (run.sh calls it before launch, and on every exit — including ^C/kill — via a trap): kills the dev server **process group from `dev.pid`** (never by name), removes `.env.verify`, stops and deletes the throwaway Postgres (`KEEP_DB=1` keeps it), removes `/tmp/bg-verify`. Never touches `$VERIFY_OUT`. It deletes `VERIFY_PG_DIR` only if pg-up.sh's `.verify-platform-owned` marker is in it, and exits 1 leaving the dir intact when the marker is missing or a running Postgres won't stop; run.sh then aborts with 3 before launching.
+`scripts/cleanup.sh` (run.sh calls it before launch, and from its `EXIT`/`INT`/`TERM` trap — a normal exit, ^C or SIGTERM; not SIGKILL, which no trap can catch): kills the dev server **process group from `dev.pid`** (never by name), removes `.env.verify`, stops and deletes the throwaway Postgres (`KEEP_DB=1` keeps it), removes `/tmp/bg-verify`. It signals that group only while the pid's `/proc` start time still matches the `dev.starttime` launch.sh recorded; a missing or mismatched token means the pid exited or was reused, so it logs why and signals nothing. Never touches `$VERIFY_OUT`. It deletes `VERIFY_PG_DIR` only if pg-up.sh's `.verify-platform-owned` marker is in it, and exits 1 leaving the dir intact when the marker is missing or a running Postgres won't stop; run.sh then aborts with 3 before launching.
 
 ## Tests
 
-For changes to these scripts: `tests/test-pg-pass-symlink.sh` (state-dir and `pg.pass` refusals; fast, uses `sudo -n` for the foreign-owner case) and `tests/test-sigint-logs.sh [INT|TERM]` (a real run on spare ports, interrupted mid-drive; checks the logs reached `VERIFY_OUT` and everything stopped).
+For changes to these scripts: `tests/test-pg-pass-symlink.sh` (state-dir and `pg.pass` refusals; fast, uses `sudo -n` for the foreign-owner case), `tests/test-sigint-logs.sh [INT|TERM]` (a real run on spare ports, interrupted mid-drive; checks the logs reached `VERIFY_OUT` and everything stopped), and `tests/test-cleanup-pid-token.sh` (cleanup signals `dev.pid` only on a matching `dev.starttime`; fast, no postgres — but like any cleanup.sh run it deletes `.env.verify`, so not beside a live launch).
 
 ## Gotchas
 

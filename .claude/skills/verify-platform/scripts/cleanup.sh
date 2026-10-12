@@ -6,10 +6,20 @@
 # after postgres is confirmed stopped; otherwise exits 1 and leaves it intact.
 STATE=${VERIFY_STATE:-/tmp/bg-verify}
 HERE=$(cd "$(dirname "$0")" && pwd)
+# a pid alone can be reused by an unrelated process once ours is gone, so it is
+# signalled only if its /proc start time still matches the one launch.sh saved
+starttime() { sed 's/.*) //' "/proc/$1/stat" 2>/dev/null | cut -d' ' -f20; }
 if pid=$(cat "$STATE/dev.pid" 2>/dev/null); then
-  kill -- -"$pid" 2>/dev/null || kill "$pid" 2>/dev/null; echo "stopped dev server group $pid"
-  PORT=$(cat "$STATE/port" 2>/dev/null || echo 4200)
-  for _ in $(seq 1 20); do (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null || break; sleep 0.5; done
+  want=$(cat "$STATE/dev.starttime" 2>/dev/null); have=$(starttime "$pid")
+  if [ -z "$want" ]; then
+    echo "not signalling pid $pid: no dev.starttime recorded"
+  elif [ "$have" != "$want" ]; then
+    echo "not signalling pid $pid: start time ${have:-<gone>} != recorded $want (exited or reused)"
+  else
+    kill -- -"$pid" 2>/dev/null || kill "$pid" 2>/dev/null; echo "stopped dev server group $pid"
+    PORT=$(cat "$STATE/port" 2>/dev/null || echo 4200)
+    for _ in $(seq 1 20); do (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null || break; sleep 0.5; done
+  fi
 fi
 rm -f "$HERE/../../../../apps/platform/.env.verify"
 if [ "${KEEP_DB:-0}" != 1 ]; then
