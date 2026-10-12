@@ -14,18 +14,37 @@ STATE=${VERIFY_STATE:-/tmp/bg-verify}
 # leftovers from an earlier run; a refusal (foreign VERIFY_PG_DIR, db that won't
 # stop) aborts before anything is launched
 "$HERE/cleanup.sh" >/dev/null || { echo "pre-launch cleanup refused (see above)" >&2; exit 3; }
-# from here on, every exit — normal, failure, ^C, kill — runs cleanup once
-cleaned=0
-finish() { [ "$cleaned" = 1 ] && return; cleaned=1; "$HERE/cleanup.sh"; }
+# from here on, every exit — normal, failure, ^C, kill — copies the server logs
+# into $VERIFY_OUT and then runs cleanup (which deletes $STATE), once
+cleaned=0; child=
+stop_child() {
+  [ -n "$child" ] && kill -0 "$child" 2>/dev/null || return 0
+  # a step leads its own process group (setsid below): TERM the whole group,
+  # so playwright closes chromium and launch.sh stops mid-step
+  kill -TERM -- "-$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null
+  for _ in $(seq 1 20); do kill -0 "$child" 2>/dev/null || break; sleep 0.5; done
+  kill -KILL -- "-$child" 2>/dev/null
+  wait "$child" 2>/dev/null; child=
+}
+finish() {
+  [ "$cleaned" = 1 ] && return; cleaned=1
+  stop_child
+  cp "$STATE"/*.log "$VERIFY_OUT/" 2>/dev/null
+  "$HERE/cleanup.sh"
+}
 trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-{ "$HERE/launch.sh" && "$HERE/doctor.sh"; } 2>&1 | tee "$VERIFY_OUT/launch-doctor.log"
-if [ "${PIPESTATUS[0]}" != 0 ]; then
-  cp "$STATE"/*.log "$VERIFY_OUT/" 2>/dev/null; exit 3
-fi
-node "$HERE/drive.mjs" "$@" 2>&1 | tee "$VERIFY_OUT/drive.txt"; code=${PIPESTATUS[0]}
-cp "$STATE"/{dev,migrate,stripe-stub}.log "$VERIFY_OUT/" 2>/dev/null
+# run a step in the background and `wait` on it: bash defers traps until a
+# foreground command returns, but `wait` returns as soon as a signal lands.
+# the step's stdout+stderr are tee'd to $1; returns the step's exit code.
+step() {
+  local log=$1; shift
+  setsid bash -o pipefail -c '"${@:2}" 2>&1 | tee "$1"' _ "$log" "$@" &
+  child=$!; wait "$child"; local rc=$?; child=; return $rc
+}
+step "$VERIFY_OUT/launch-doctor.log" bash -c '"$1/launch.sh" && "$1/doctor.sh"' _ "$HERE" || exit 3
+step "$VERIFY_OUT/drive.txt" node "$HERE/drive.mjs" "$@"; code=$?
 finish
 echo "evidence: $VERIFY_OUT ($(ls "$VERIFY_OUT" | wc -l) files) exit=$code"
 exit $code

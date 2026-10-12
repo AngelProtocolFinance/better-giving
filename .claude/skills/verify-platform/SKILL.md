@@ -30,7 +30,7 @@ Report `results.json` + screenshot paths verbatim. `blocked` is **not** `pass`.
 3. builds `packages/*` (platform imports their `dist/`).
 4. migrates with the repo's own `.server/pg/migrate.ts`, seeds `scripts/seed.sql` (npo `Verify Test Nonprofit`, USD rates).
 5. `react-router dev --mode verify --host 127.0.0.1 --port 4200` with `NODE_OPTIONS="--import neon-local.mjs --import stripe-stub.mjs"`.
-Ready = `GET /` → 200 (first SSR compile takes ~10–60 s). State in `/tmp/bg-verify` (`dev.pid`, `port`, `npo_id`, `pg.pass`, `dev.log`, `stripe-stub.log`).
+Ready = `GET /` → 200 (first SSR compile takes ~10–60 s). State in `/tmp/bg-verify` (`dev.pid`, `port`, `npo_id`, `pg.pass`, `dev.log`, `stripe-stub.log`). The state dir must be private: launch.sh/pg-up.sh create it `0700`, and refuse an existing one that is a symlink, not owned by you, or not `0700` (another local user could pre-plant the fixed `/tmp` path); `pg.pass` is never written through a symlink (`scripts/lib.sh`). On a refusal, remove the dir or set `VERIFY_STATE` to a fresh path.
 
 Preloads (verification scaffolding — **no product code is changed**):
 - `neon-local.mjs`: points the `@neondatabase/serverless` driver at local Postgres — HTTP queries via `fetchFunction` run through `pg`; transactions go over a ws→tcp pipe on `:5488`, which only dials `DATABASE_URL`'s own port and refuses any request carrying an `Origin` header (i.e. any browser).
@@ -64,13 +64,17 @@ Selectors are ARIA/text/`name=` handles from the real UI (`getByRole("button", {
 
 ## Evidence
 
-`$VERIFY_OUT/`: `results.json` (per flow: status pass|fail|blocked, observed facts, error, screenshots, log), `<flow>[-step].png` full-page screenshots of each step (on failure `<flow>-final.png`), `<flow>.log` (browser console, page errors, every HTTP ≥400), `drive.txt`, `launch-doctor.log`, `dev.log`, `migrate.log`, `stripe-stub.log` (what was faked).
+`$VERIFY_OUT/`: `results.json` (per flow: status pass|fail|blocked, observed facts, error, screenshots, log), `<flow>[-step].png` full-page screenshots of each step (on failure `<flow>-final.png`), `<flow>.log` (browser console, page errors, every HTTP ≥400), `drive.txt`, `launch-doctor.log`, and every server log from the state dir (`dev.log`, `migrate.log`, `packages-build.log`, `stripe-stub.log` — what was faked). The logs are copied on every exit, ^C and kill included, before cleanup deletes the state dir.
 
 Proof standards: the real user path only (clicks/typing, no test endpoints); capture each step, not just the end; check side effects (db-backed text on screen, stub log); a flow that can't run for want of secrets is `blocked` with the reason, never `pass`. Read the screenshots before claiming success.
 
 ## Cleanup
 
 `scripts/cleanup.sh` (run.sh calls it before launch, and on every exit — including ^C/kill — via a trap): kills the dev server **process group from `dev.pid`** (never by name), removes `.env.verify`, stops and deletes the throwaway Postgres (`KEEP_DB=1` keeps it), removes `/tmp/bg-verify`. Never touches `$VERIFY_OUT`. It deletes `VERIFY_PG_DIR` only if pg-up.sh's `.verify-platform-owned` marker is in it, and exits 1 leaving the dir intact when the marker is missing or a running Postgres won't stop; run.sh then aborts with 3 before launching.
+
+## Tests
+
+For changes to these scripts: `tests/test-pg-pass-symlink.sh` (state-dir and `pg.pass` refusals; fast, uses `sudo -n` for the foreign-owner case) and `tests/test-sigint-logs.sh [INT|TERM]` (a real run on spare ports, interrupted mid-drive; checks the logs reached `VERIFY_OUT` and everything stopped).
 
 ## Gotchas
 

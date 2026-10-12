@@ -7,7 +7,8 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../../../.." && pwd)
 APP="$ROOT/apps/platform"
-STATE=${VERIFY_STATE:-/tmp/bg-verify}; mkdir -p "$STATE"
+. "$HERE/lib.sh"
+STATE=${VERIFY_STATE:-/tmp/bg-verify}; ensure_private_dir "$STATE"
 PORT=${VERIFY_PORT:-4200}; PGPORT=${VERIFY_PG_PORT:-5433}
 export PATH="$HOME/.local/node24/bin:$PATH"
 export COREPACK_HOME=${COREPACK_HOME_OVERRIDE:-$HOME/.cache/corepack}
