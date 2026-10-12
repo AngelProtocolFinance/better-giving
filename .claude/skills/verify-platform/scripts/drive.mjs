@@ -30,6 +30,7 @@ const NPO =
     ? fs.readFileSync(`${STATE}/npo_id`, "utf8").trim()
     : "1");
 const T = 60_000;
+const HOME_TITLE = "Fundraising Platform for Nonprofits - Better Giving";
 
 class Blocked extends Error {}
 const expect_ok = (cond, msg) => {
@@ -47,16 +48,22 @@ const FLOWS = {
       });
       expect_ok(r.status() === 200, `GET / → ${r.status()}`);
       const title = await page.title();
+      expect_ok(
+        title === HOME_TITLE,
+        `title "${title}", expected "${HOME_TITLE}"`
+      );
       const login = page
         .getByRole("link", { name: /log ?in|sign ?in/i })
         .first();
       await login.waitFor({ timeout: T });
+      const href = await login.getAttribute("href");
+      const dest = new URL(href ?? "", page.url());
+      expect_ok(
+        dest.origin === new URL(BASE).origin && dest.pathname === "/login",
+        `login link → ${href}, expected /login`
+      );
       await shot();
-      return [
-        `GET / → 200`,
-        `title "${title}"`,
-        `login link → ${await login.getAttribute("href")}`,
-      ];
+      return [`GET / → 200`, `title "${title}"`, `login link → ${href}`];
     },
   },
   login: {
@@ -174,6 +181,7 @@ const FLOWS = {
       await card
         .locator('input[name="number"]')
         .fill("4242424242424242", { timeout: T });
+      await shot("4-card");
       facts.push("stripe payment element accepted test card 4242…");
       return facts;
     },
@@ -206,10 +214,11 @@ for (const n of names)
   }
 
 fs.mkdirSync(OUT, { recursive: true });
-const pk =
-  (fs
-    .readFileSync(path.join(APP, ".env.verify"), "utf8")
-    .match(/^VITE_STRIPE_PK=(.*)$/m) ?? [])[1] ?? "";
+const env_file = path.join(APP, ".env.verify");
+const pk = fs.existsSync(env_file)
+  ? ((fs.readFileSync(env_file, "utf8").match(/^VITE_STRIPE_PK=(.*)$/m) ??
+      [])[1] ?? "")
+  : "";
 const browser = await chromium.launch();
 const results = [];
 for (const name of names) {

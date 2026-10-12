@@ -25,15 +25,15 @@ Report `results.json` + screenshot paths verbatim. `blocked` is **not** `pass`.
 ## Launch
 
 `scripts/launch.sh` (run.sh calls it). It:
-1. `pg-up.sh` — initdb/start Postgres at `127.0.0.1:5433`, db `app`, data `/tmp/bg-verify-pg` (needs `apt install postgresql`; `sudo` works on the box).
-2. writes `apps/platform/.env.verify` (gitignored): `.env.test` + local `DATABASE_URL` + `BASE_URL=http://127.0.0.1:4200`. Started with `--mode verify`, and mode files beat `.env`, so a developer's real `.env` never applies.
+1. `pg-up.sh` — initdb/start Postgres at `127.0.0.1:5433`, db `app`, data `/tmp/bg-verify-pg` (needs `apt install postgresql`; `sudo` works on the box). No trust auth and no unix socket: TCP on 127.0.0.1 only, scram-sha-256 with a random per-cluster password (`$VERIFY_STATE/pg.pass`, 0600). It writes a `.verify-platform-owned` marker into the data dir and refuses to reuse an existing dir without one.
+2. writes `apps/platform/.env.verify` (gitignored, 0600): `.env.test` + local `DATABASE_URL` (with that password) + `BASE_URL=http://127.0.0.1:4200`. Started with `--mode verify`, and mode files beat `.env`, so a developer's real `.env` never applies.
 3. builds `packages/*` (platform imports their `dist/`).
 4. migrates with the repo's own `.server/pg/migrate.ts`, seeds `scripts/seed.sql` (npo `Verify Test Nonprofit`, USD rates).
 5. `react-router dev --mode verify --host 127.0.0.1 --port 4200` with `NODE_OPTIONS="--import neon-local.mjs --import stripe-stub.mjs"`.
-Ready = `GET /` → 200 (first SSR compile takes ~10–60 s). State in `/tmp/bg-verify` (`dev.pid`, `port`, `npo_id`, `dev.log`, `stripe-stub.log`).
+Ready = `GET /` → 200 (first SSR compile takes ~10–60 s). State in `/tmp/bg-verify` (`dev.pid`, `port`, `npo_id`, `pg.pass`, `dev.log`, `stripe-stub.log`).
 
 Preloads (verification scaffolding — **no product code is changed**):
-- `neon-local.mjs`: points the `@neondatabase/serverless` driver at local Postgres — HTTP queries via `fetchFunction` run through `pg`; transactions go over a ws→tcp pipe on `:5488`.
+- `neon-local.mjs`: points the `@neondatabase/serverless` driver at local Postgres — HTTP queries via `fetchFunction` run through `pg`; transactions go over a ws→tcp pipe on `:5488`, which only dials `DATABASE_URL`'s own port and refuses any request carrying an `Origin` header (i.e. any browser).
 - `stripe-stub.mjs`: while `STRIPE_SECRET_KEY` is filler, server-side `api.stripe.com` calls hit an in-process stub: `GET /v1/country_specs/:cc` is answered, everything else gets a Stripe-shaped 400 and is logged. With real test keys it is inert.
 
 Full card flow: `VERIFY_STRIPE_SK=sk_test_… VERIFY_STRIPE_PK=pk_test_… scripts/run.sh donate-card` (live keys are refused). Never paste keys into files.
@@ -54,10 +54,10 @@ One instance per box at a time on the default ports (4200 is the app's `strictPo
 
 | flow | proves |
 |---|---|
-| `home` | `/` 200, title, header login link |
+| `home` | `/` 200, title is "Fundraising Platform for Nonprofits - Better Giving", header login link resolves to `/login` |
 | `login` | `/login` renders Google + email/password; wrong password → "Invalid email or password", stays on /login (better-auth + db) |
 | `marketplace` | seeded npo card listed (db read path) |
-| `donate-card` | `/donate/:id` → +100 USD → Continue with Card → donor info → payment step with summary $100.00; with real test keys, types 4242… into the Stripe Payment Element |
+| `donate-card` | `/donate/:id` → +100 USD → Continue with Card → donor info → payment step with summary $100.00; with real test keys, types 4242… into the Stripe Payment Element (`donate-card-4-card.png`) |
 | `smoke-paths` | smoke.yml's `/`, `/api/currencies`, `/form-embed.js` < 400 locally |
 
 Selectors are ARIA/text/`name=` handles from the real UI (`getByRole("button", {name: "+100 USD"})`, `input[name="email"]`, …). Add a flow by adding an entry to `FLOWS` in drive.mjs **and** a file in `features/`.
@@ -70,7 +70,7 @@ Proof standards: the real user path only (clicks/typing, no test endpoints); cap
 
 ## Cleanup
 
-`scripts/cleanup.sh` (run.sh calls it): kills the dev server **process group from `dev.pid`** (never by name), removes `.env.verify`, stops and deletes the throwaway Postgres (`KEEP_DB=1` keeps it), removes `/tmp/bg-verify`. Never touches `$VERIFY_OUT`.
+`scripts/cleanup.sh` (run.sh calls it before launch, and on every exit — including ^C/kill — via a trap): kills the dev server **process group from `dev.pid`** (never by name), removes `.env.verify`, stops and deletes the throwaway Postgres (`KEEP_DB=1` keeps it), removes `/tmp/bg-verify`. Never touches `$VERIFY_OUT`. It deletes `VERIFY_PG_DIR` only if pg-up.sh's `.verify-platform-owned` marker is in it, and exits 1 leaving the dir intact when the marker is missing or a running Postgres won't stop; run.sh then aborts with 3 before launching.
 
 ## Gotchas
 

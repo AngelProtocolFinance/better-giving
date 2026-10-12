@@ -11,7 +11,6 @@ STATE=${VERIFY_STATE:-/tmp/bg-verify}; mkdir -p "$STATE"
 PORT=${VERIFY_PORT:-4200}; PGPORT=${VERIFY_PG_PORT:-5433}
 export PATH="$HOME/.local/node24/bin:$PATH"
 export COREPACK_HOME=${COREPACK_HOME_OVERRIDE:-$HOME/.cache/corepack}
-DB="postgresql://postgres@127.0.0.1:$PGPORT/app"
 
 if [ -f "$STATE/dev.pid" ] && kill -0 "$(cat "$STATE/dev.pid")" 2>/dev/null; then
   echo "already running (pid $(cat "$STATE/dev.pid")) on :$PORT — run cleanup.sh first"; exit 0
@@ -21,6 +20,9 @@ if (exec 3<>/dev/tcp/127.0.0.1/$PORT) 2>/dev/null; then
 fi
 
 "$HERE/pg-up.sh"
+# pg-up.sh's per-cluster password (hex, so it needs no url-escaping)
+export PGPASSWORD; PGPASSWORD=$(cat "$STATE/pg.pass")
+DB="postgresql://postgres:$PGPASSWORD@127.0.0.1:$PGPORT/app"
 
 # optional real stripe TEST keys for the full card flow; live keys refused
 for v in VERIFY_STRIPE_SK VERIFY_STRIPE_PK; do

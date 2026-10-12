@@ -7,8 +7,8 @@ if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then echo "ok   dev server pid $
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "http://127.0.0.1:$PORT/")
 [ "$code" = 200 ] && echo "ok   GET / → 200 on :$PORT" || { echo "FAIL GET / → $code on :$PORT"; ok=1; }
 PSQL=$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)/psql
-n=$("$PSQL" -h 127.0.0.1 -p "${VERIFY_PG_PORT:-5433}" -U postgres app -tAc "select count(*) from drizzle.__drizzle_migrations" 2>/dev/null)
+n=$(PGPASSWORD=$(cat "$STATE/pg.pass" 2>/dev/null) "$PSQL" -h 127.0.0.1 -p "${VERIFY_PG_PORT:-5433}" -U postgres app -tAc "select count(*) from drizzle.__drizzle_migrations" 2>/dev/null)
 [ -n "$n" ] && echo "ok   local postgres, $n migrations applied" || { echo "FAIL local postgres unreachable"; ok=1; }
-grep -q '^DATABASE_URL=postgresql://postgres@127.0.0.1' "$(dirname "$0")/../../../../apps/platform/.env.verify" 2>/dev/null \
+grep -q '^DATABASE_URL=postgresql://postgres:[0-9a-f]*@127.0.0.1:' "$(dirname "$0")/../../../../apps/platform/.env.verify" 2>/dev/null \
   && echo "ok   .env.verify points at local db" || { echo "FAIL .env.verify missing or non-local db"; ok=1; }
 exit $ok

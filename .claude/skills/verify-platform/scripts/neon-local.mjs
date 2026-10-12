@@ -6,7 +6,10 @@
 //     with `pg`, answering in neon's /sql json shape (raw text, array mode)
 //   - transactions (pool.connect over websocket) → a ws→tcp pipe on
 //     VERIFY_WS_PORT (default 5488)
-// refuses any DATABASE_URL whose host isn't localhost/127.0.0.1.
+// refuses any DATABASE_URL whose host isn't localhost/127.0.0.1. the pipe only
+// ever dials DATABASE_URL's own port and refuses any request carrying an
+// Origin header — node's `ws` client sends none, a browser always does — so a
+// web page open during a run can't use it to reach local services.
 import { createRequire } from "node:module";
 import net from "node:net";
 import path from "node:path";
@@ -42,6 +45,7 @@ if (!["localhost", "127.0.0.1"].includes(host)) {
 }
 
 const WS_PORT = Number(process.env.VERIFY_WS_PORT ?? 5488);
+const PG_PORT = Number(new URL(url).port || 5432);
 const raw = { getTypeParser: () => (v) => v };
 const pools = new Map();
 const pool_for = (cs) => {
@@ -116,7 +120,17 @@ neonConfig.fetchFunction = async (_ep, init) => {
 };
 
 if (!globalThis.__verify_ws) {
-  const wss = new WebSocketServer({ host: "127.0.0.1", port: WS_PORT });
+  const wss = new WebSocketServer({
+    host: "127.0.0.1",
+    port: WS_PORT,
+    verifyClient: ({ req }, done) => {
+      if (req.headers.origin !== undefined) {
+        console.error(`[neon-local] ws refused Origin ${req.headers.origin}`);
+        return done(false, 403, "Forbidden");
+      }
+      done(true);
+    },
+  });
   wss.on("error", (e) => {
     if (e.code !== "EADDRINUSE") console.error("[neon-local] ws", e);
   });
@@ -124,8 +138,14 @@ if (!globalThis.__verify_ws) {
     const addr =
       new URL(reqm.url, "http://x").searchParams.get("address") ?? "";
     const [h, port] = addr.split(":");
-    if (!["localhost", "127.0.0.1"].includes(h)) return sock.close();
-    const tcp = net.connect(Number(port || 5432), h);
+    if (
+      !["localhost", "127.0.0.1"].includes(h) ||
+      Number(port || 5432) !== PG_PORT
+    ) {
+      console.error(`[neon-local] ws refused address "${addr}"`);
+      return sock.close(1008, "address not allowed");
+    }
+    const tcp = net.connect(PG_PORT, "127.0.0.1");
     tcp.on("data", (d) => sock.send(d));
     sock.on("message", (d) => tcp.write(d));
     tcp.on("close", () => sock.close());
