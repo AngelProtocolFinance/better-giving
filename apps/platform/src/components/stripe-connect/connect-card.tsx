@@ -1,17 +1,16 @@
 import { Actions, type AskProps, Modal, use_ask } from "@better-giving/ui";
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { useEffect, useId, useRef } from "react";
+import type {
+  TConnectErrorReason,
+  TConnectResult,
+} from "@/stripe-connect/return";
 import { StripeConnectStatus, type TConnectStatus } from "./status";
 
-export type TConnectNoticeReason =
-  | "already_linked"
-  | "replace_unconfirmed"
-  | "expired"
-  | "forbidden"
-  | "failed";
+export type TConnectNoticeReason = TConnectErrorReason;
 
 export interface IConnectNotice {
-  result: "connected" | "denied" | "error";
+  result: TConnectResult;
   reason?: TConnectNoticeReason;
 }
 

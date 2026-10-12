@@ -1,11 +1,8 @@
 import { ExtLink } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
+import type { TConnectStatus } from "@/stripe-connect/readiness";
 
-export type TConnectStatus =
-  | "not_connected"
-  | "incomplete"
-  | "pending"
-  | "ready";
+export type { TConnectStatus };
 
 interface ITone {
   label: string;
