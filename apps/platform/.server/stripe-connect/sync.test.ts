@@ -142,6 +142,40 @@ describe("sync_npo_account", () => {
     expect(r.stripe_details_submitted).toBe(true);
   });
 
+  // stripe stamps events in whole seconds, so an event in the second the read
+  // began carries the same stamp as the read and must still win
+  test("an event from the same second as the read is kept", async () => {
+    const npo = await seed_npo(db(), {
+      registration_number: "EIN-SYNC-5",
+      stripe_account_id: "acct_sync_5",
+    });
+    retrieve.mockImplementation(async (id: string) => {
+      const sec = Math.floor(Date.now() / 1000);
+      await db()
+        .update(npos)
+        .set({
+          stripe_charges_enabled: true,
+          stripe_payouts_enabled: true,
+          stripe_details_submitted: true,
+          stripe_requirements_due: [],
+          stripe_synced_at: new Date(sec * 1000).toISOString(),
+        })
+        .where(eq(npos.id, npo!.id));
+      return {
+        ...stripe_account(id),
+        charges_enabled: false,
+        payouts_enabled: false,
+        details_submitted: false,
+      };
+    });
+
+    await sync_npo_account(npo!.id);
+
+    const r = await row(npo!.id);
+    expect(r.stripe_charges_enabled).toBe(true);
+    expect(r.stripe_details_submitted).toBe(true);
+  });
+
   // a replace landing while the old account is being read: the old account's
   // flags must not end up describing the new one
   test("re-reads the new account when it changed mid-read", async () => {

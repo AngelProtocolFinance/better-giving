@@ -1,4 +1,4 @@
-import { and, eq, isNull, lte, or } from "drizzle-orm";
+import { and, eq, isNull, lt, lte, or } from "drizzle-orm";
 import Stripe from "stripe";
 import { report_error } from "#/errors/report";
 import {
@@ -29,9 +29,13 @@ export const mirror_unset = {
   stripe_synced_at: null,
 };
 
-/** the stamp guard every mirror write shares: an older reading never lands on a newer one */
-export const not_newer_than = (at: string) =>
-  or(isNull(npos.stripe_synced_at), lte(npos.stripe_synced_at, at));
+/** the stamp guard every mirror write shares: an older reading never lands on
+ * a newer one. `strict` makes a same-stamp tie go to the row already written */
+export const not_newer_than = (at: string, strict = false) =>
+  or(
+    isNull(npos.stripe_synced_at),
+    strict ? lt(npos.stripe_synced_at, at) : lte(npos.stripe_synced_at, at)
+  );
 
 /** refreshes the npo's readiness mirror from stripe; null when it has no account */
 export async function sync_npo_account(
@@ -43,8 +47,9 @@ export async function sync_npo_account(
     .where(eq(npos.id, npo_id));
   if (!npo?.acct) return null;
 
-  // taken before the read: an event stamped after it describes a newer state
-  const at = new Date().toISOString();
+  // taken before the read, and in whole seconds like stripe's event stamps: an
+  // event from the same second may describe a newer state, so the tie is its
+  const at = new Date(Math.floor(Date.now() / 1000) * 1000).toISOString();
   const m = account_mirror(await stripe.accounts.retrieve(npo.acct));
   const written = await db
     .update(npos)
@@ -53,7 +58,7 @@ export async function sync_npo_account(
       and(
         eq(npos.id, npo_id),
         eq(npos.stripe_account_id, npo.acct),
-        not_newer_than(at)
+        not_newer_than(at, true)
       )
     )
     .returning({ id: npos.id });
