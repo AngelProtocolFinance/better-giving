@@ -405,10 +405,10 @@ export default function TermsNonprofits() {
               granted to you from that donation (for example, if a quarter of
               the donation is refunded, a quarter of that grant), plus the same
               fraction of its payment processing fees, plus any dispute fee in
-              full (split in proportion to the amounts granted where the
-              donation supported more than one NPO). Better Giving will notify
-              you of each Recovery Amount, identifying the donation and the date
-              it was reversed, before deducting it.
+              full (split in proportion to the amounts allocated to each NPO
+              where the donation supported more than one NPO). Better Giving
+              will notify you of each Recovery Amount, identifying the donation
+              and the date it was reversed, before deducting it.
             </li>
             <li>
               <b>Savings and Investment Balances.</b> If any part of a Reversed
@@ -420,8 +420,10 @@ export default function TermsNonprofits() {
               the Fund equal in value to the amount allocated to Investment from
               that donation, at the Fund’s unit value on the day of the
               reversal. If the balance is not enough to cover that part, for
-              example because of a Withdrawal, the part Better Giving does not
-              take back from your balances is a Recovery Amount.
+              example because of a Withdrawal, Better Giving may instead treat
+              the whole part, with its payment processing fees, as a Recovery
+              Amount. Any dispute fee on the donation is a Recovery Amount in
+              every case.
             </li>
             <li>
               <b>Disputed Payments.</b> If a Donor disputes a payment with the
@@ -466,8 +468,9 @@ export default function TermsNonprofits() {
               agree to pay it within thirty (30) days of the invoice. Better
               Giving may also collect it from you by any other lawful means.
               Better Giving may waive any Recovery Amount in whole or in part at
-              its discretion. Sections 4(g) through 4(j) apply only to donations
-              made on or after 12:00 a.m. Eastern Time ({TERMS_ZONE}) on{" "}
+              its discretion. Sections 4(g), 4(i) and 4(j), and the last two
+              sentences of Section 4(h), apply only to donations made on or
+              after 12:00 a.m. Eastern Time ({TERMS_ZONE}) on{" "}
               {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
               {EFFECTIVE}.
             </li>
@@ -501,6 +504,12 @@ export default function TermsNonprofits() {
                   Better Giving to a nonprofit bank account. These could include
                   just the transaction costs, or if required — currency exchange
                   costs.
+                </li>
+                <li>
+                  <U>Payment Processing Fees</U>. Card, bank and other payment
+                  processing fees charged on a donation are deducted from it
+                  before it is allocated, unless the Donor chooses to cover
+                  them.
                 </li>
               </ol>
             </li>

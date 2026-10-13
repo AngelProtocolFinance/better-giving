@@ -86,10 +86,11 @@ export default function TermsDonors() {
               and all donated funds or assets. Any amount of a donation that is
               refunded, reversed or charged back to you is not a charitable
               contribution. If that happens after Better Giving has issued a
-              receipt for the donation, Better Giving will issue you a corrected
-              or reissued receipt showing the amount Better Giving kept, if any
+              receipt for the donation, that receipt does not cover the amount
+              returned to you, and Better Giving will, on request, issue you a
+              corrected receipt showing the amount Better Giving kept, if any
               (for a partial refund, the original amount less the amount
-              returned to you), and that receipt replaces the original one.
+              returned to you), which replaces the original one.
             </li>
             <li>
               <b>Authority</b>. By making a donation to Better Giving, you
@@ -109,11 +110,11 @@ export default function TermsDonors() {
               reversed, the donation stands as a charitable contribution and
               your original receipt remains valid. If you keep all or part of
               the disputed amount, that amount is treated as refunded under
-              Section 1(a), including the corrected or reissued receipt. If a
-              dispute that closed in Better Giving’s favor is later reopened,
-              appealed or reversed and you keep all or part of the payment, the
-              same applies to that part. Before disputing a payment, please
-              contact us at {EMAILS.hi}.
+              Section 1(a), including the corrected receipt. If a dispute that
+              closed in Better Giving’s favor is later reopened, appealed or
+              reversed and you keep all or part of the payment, the same applies
+              to that part. Before disputing a payment, please contact us at{" "}
+              {EMAILS.hi}.
             </li>
             <li>
               <b>Donation Frequency</b>. When you make a donation on the

@@ -17,7 +17,7 @@ describe("prior nonprofit terms", () => {
       .element(screen.getByText("Effective October 25, 2024", { exact: true }))
       .toBeVisible();
     expect(screen.container.textContent).toContain(
-      "which applied until October 18, 2026"
+      "effective from October 25, 2024 until October 18, 2026"
     );
     expect(screen.container.textContent).toContain(
       "All changes are effective immediately when we post them."

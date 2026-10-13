@@ -5,8 +5,9 @@ import { metas } from "#/helpers/seo";
 import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
 
-/** the October 2024 nonprofit terms, kept word for word as they stood before
- * the version effective `TERMS_EFFECTIVE` replaced them */
+/** the October 2024 nonprofit terms, kept word for word below the "Prior
+ * version" banner as they stood before the version effective
+ * `TERMS_EFFECTIVE` replaced them */
 const SUPERSEDED = terms_date_label(TERMS_EFFECTIVE);
 
 const U = ({ children }: PropsWithChildren) => (
@@ -26,9 +27,9 @@ export default function TermsNonprofits2024() {
     <div className="page prose lg:prose-lg py-20">
       <p>
         <b>Prior version.</b> These are the Nonprofit Organization Terms of Use
-        effective October 25, 2024, which applied until {SUPERSEDED}. The
-        current version is at{" "}
-        <Link to={href("/terms-of-use-npo")}>Nonprofit Terms of Use</Link>.
+        effective from October 25, 2024 until {SUPERSEDED}. The current version
+        is at <Link to={href("/terms-of-use-npo")}>Nonprofit Terms of Use</Link>
+        .
       </p>
       <i className="text-gray-11 text-right block">
         Effective October 25, 2024

@@ -18,7 +18,7 @@ const item = async (title: string) => {
 };
 
 describe("donor terms", () => {
-  test("Control of Funds reissues a reversed gift's receipt, partial refunds included, under the effective date", async () => {
+  test("Control of Funds offers a corrected receipt for a reversed gift, partial refunds included, under the effective date", async () => {
     const { screen, text } = await item("Control of Funds");
 
     await expect
@@ -32,7 +32,7 @@ describe("donor terms", () => {
       "Better Giving may, in its sole discretion, refund all or part of a donation"
     );
     expect(text).toContain(
-      "Better Giving will issue you a corrected or reissued receipt showing the amount Better Giving kept, if any (for a partial refund, the original amount less the amount returned to you)"
+      "that receipt does not cover the amount returned to you, and Better Giving will, on request, issue you a corrected receipt showing the amount Better Giving kept, if any (for a partial refund, the original amount less the amount returned to you)"
     );
     expect(text).not.toContain("void");
   });
