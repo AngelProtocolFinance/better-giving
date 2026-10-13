@@ -37,6 +37,28 @@ describe("donor terms", () => {
     expect(text).not.toContain("void");
   });
 
+  test("the refund item that Disputed Payments cites as Section 1(a) is Control of Funds", async () => {
+    const { screen, text } = await item("Disputed Payments");
+    const first = screen.container.querySelector(
+      "main > ol > li > ol > li:first-child"
+    );
+
+    expect(text).toContain("refunded under Section 1(a)");
+    expect(first?.textContent?.startsWith("Control of Funds")).toBe(true);
+    expect(first?.textContent).toContain("corrected receipt");
+  });
+
+  test("Control of Funds names the receipt it will reissue, on request", async () => {
+    const { text } = await item("Control of Funds");
+
+    expect(text).toContain(
+      "Better Giving will, on request, issue you a corrected receipt"
+    );
+    expect(text).toContain(
+      "that receipt does not cover the amount returned to you"
+    );
+  });
+
   test("Disputed Payments: a win or a withdrawal keeps the receipt, a reopened win recovers again", async () => {
     const { text } = await item("Disputed Payments");
 

@@ -9,6 +9,7 @@ vi.mock("@/terms", async (io) => ({
 
 import TermsDonors from "#/routes/_app.terms-of-use/route";
 import TermsNonprofits from "#/routes/_app.terms-of-use-npo/route";
+import TermsNonprofits2024 from "#/routes/_app.terms-of-use-npo-2024/route";
 import TermsReferrals from "#/routes/_app.terms-of-use-referrals/route";
 
 describe("terms pages", () => {
@@ -30,6 +31,13 @@ describe("terms pages", () => {
       page: TermsReferrals,
       effective_line: "Effective Date: March 5, 2027",
       n: 2,
+    },
+    {
+      // its own date is the archived one; only "until <date>" follows
+      name: "2024 nonprofit",
+      page: TermsNonprofits2024,
+      effective_line: "Effective October 25, 2024",
+      n: 1,
     },
   ])(
     "$name terms date every line from TERMS_EFFECTIVE",
