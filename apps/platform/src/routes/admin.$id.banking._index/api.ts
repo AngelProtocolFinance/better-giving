@@ -9,6 +9,7 @@ import {
 } from "@/stripe-connect/card-data";
 import {
   connect_status,
+  mirror_of,
   type TConnectStatus,
 } from "@/stripe-connect/readiness";
 import { npo_bapps } from "$/pg/queries/banking";
@@ -38,13 +39,7 @@ async function stripe_status(npo_id: number): Promise<TConnectStatus> {
   if (!npo?.stripe_account_id) return "not_connected";
   const deauthorized_at = npo.stripe_deauthorized_at;
   if (npo.stripe_synced_at || deauthorized_at) {
-    const mirror = {
-      charges_enabled: npo.stripe_charges_enabled,
-      payouts_enabled: npo.stripe_payouts_enabled,
-      details_submitted: npo.stripe_details_submitted,
-      requirements_due: npo.stripe_requirements_due,
-    };
-    return connect_status(mirror, deauthorized_at);
+    return connect_status(mirror_of(npo), deauthorized_at);
   }
   try {
     const m = await sync_npo_account(npo_id);

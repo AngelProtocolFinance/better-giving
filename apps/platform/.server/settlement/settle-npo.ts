@@ -16,7 +16,7 @@ import {
   dist_update,
   dists_routed_untransferred,
 } from "$/pg/queries/dist";
-import { donation_status_shared } from "$/pg/queries/donation";
+import { donation_lock, donation_status_shared } from "$/pg/queries/donation";
 import { donation_message_put } from "$/pg/queries/donation-message";
 import { form_ltd_inc } from "$/pg/queries/form";
 import type { DbOrTx } from "$/pg/queries/helpers";
@@ -54,26 +54,40 @@ async function book_pooled(
 /** a routed dist no transfer paid, as `settle_unrouted` rebooks it */
 interface IUnroutedDist {
   id: string;
+  donation_id: string;
   to_id: number;
+  /** what lands in bg's books for the share */
   net: number;
   date_created: string;
 }
 
+export type TUnrouted =
+  /** a transfer was stored, or another delivery rebooked it first */
+  | { status: "taken" }
+  /** the donation was reversed meanwhile: unrouted, nothing booked */
+  | { status: "reversed" }
+  /** with the lock-purchase notices the booking owes */
+  | { status: "booked"; msgs: IMsg[] };
+
 /**
  * books a routed dist stripe refused to transfer as settlement books a pooled
- * share of the npo today: it stops being routed, and its net lands in the
- * npo's balances and payout by its current split. the lock-purchase notices
- * the booking owes, or null when a transfer was stored or another delivery
- * rebooked it first. run in the caller's transaction
+ * share of the npo today: it stops being routed, and `net` lands in the npo's
+ * balances and payout by its current split. run in the caller's transaction
  */
 export async function settle_unrouted(
   db: DbOrTx,
   d: IUnroutedDist
-): Promise<IMsg[] | null> {
-  // npo before dist, as settle_npo takes them
+): Promise<TUnrouted> {
+  // donation, then npo, then dist: the order refunds and settle_npo take them.
+  // a refund holding the donation is waited out, and one after sees the dist
+  // pooled
+  await donation_lock(db, d.donation_id);
+  const status = await donation_status_shared(db, d.donation_id);
   const npo = await npo_get_locked(db, d.to_id);
   if (!npo) throw new Error(`npo:${d.to_id} not found`);
-  if (!(await dist_unroute(d.id, db))) return null;
+  if (!(await dist_unroute(d.id, db))) return { status: "taken" };
+  // the refund took nothing back from a routed dist, so there is nothing to book
+  if (status && is_reversed(status)) return { status: "reversed" };
 
   const { alloc, fell_back } = pooled_allocation(npo.allocation);
   if (fell_back) {
@@ -94,7 +108,7 @@ export async function settle_unrouted(
   });
   await dist_update(db, d.id, { alloc });
   await book_pooled(db, npo.id, booking, []);
-  return msgs;
+  return { status: "booked", msgs };
 }
 
 /**

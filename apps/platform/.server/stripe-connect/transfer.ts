@@ -13,8 +13,12 @@ import {
   npo_donation_get,
 } from "../pg/queries/dist";
 import { donation_status_shared } from "../pg/queries/donation";
-import { charge_refunds, refund_take } from "../refund/unsent";
-import { settle_unrouted } from "../settlement/settle-npo";
+import {
+  type ChargeRefunds,
+  charge_refunds,
+  refund_take,
+} from "../refund/unsent";
+import { settle_unrouted, type TUnrouted } from "../settlement/settle-npo";
 import { is_refusal } from "./refusal";
 import { reverse_routed_refunds } from "./reverse";
 
@@ -35,11 +39,11 @@ export async function transfer_routed_dist(
   if (stored) return reverse_refunded_before(p, await charge_of(p));
 
   const dist = await npo_donation_get(p.dist_id);
-  // stored since the read above
+  // a racing delivery stored its transfer after the read above
   if (!dist || dist.stripe_transfer_id) return;
   // a refusal rebooked it pooled; this delivery may be the retry of one whose
   // notice never went
-  if (!dist.stripe_routed_to) return enqueue(refused_notice(p));
+  if (!dist.stripe_routed_to) return enqueue(refused_notice(p, "taken", 0));
   const npo_id = dist.to_id;
   if (npo_id === null) throw new Error(`dist ${p.dist_id} has no npo`);
 
@@ -56,7 +60,7 @@ export async function transfer_routed_dist(
 
   const what = `stripe transfer for dist ${p.dist_id} of donation ${p.donation_id}`;
   const net = dist.net ?? 0;
-  let charge: string;
+  let charge: string | undefined;
   let tr: Stripe.Transfer;
   try {
     charge = await charge_of(p);
@@ -72,15 +76,19 @@ export async function transfer_routed_dist(
           stripe_code: e.code,
         }
       );
-      const lock_msgs = await db.transaction((tx) =>
+      // refused reading the intent: there is no charge to have refunds
+      const cut = charge ? refunds_cut(net, await charge_refunds(charge)) : 0;
+      const r = await db.transaction((tx) =>
         settle_unrouted(tx, {
           id: dist.id,
+          donation_id: p.donation_id,
           to_id: npo_id,
-          net,
+          net: net - cut,
           date_created: dist.date_created,
         })
       );
-      return enqueue(refused_notice(p), ...(lock_msgs ?? []));
+      const msgs = r.status === "booked" ? r.msgs : [];
+      return enqueue(refused_notice(p, r.status, cut), ...msgs);
     }
     // no rebook: the transfer stripe never answered for may have been made
     if (attempt.last) await enqueue(unanswered_notice(p));
@@ -101,7 +109,29 @@ export async function transfer_routed_dist(
   await reverse_refunded_before(p, charge);
 }
 
-const refused_notice = (p: IConnectTransferPayload) =>
+/**
+ * usd the charge's live refunds take off a routed `net`: the cents their cut
+ * of its transfer would have been (`refund_cuts` in `./reverse` cuts the same
+ * total), all of it once they take the whole charge
+ */
+const refunds_cut = (
+  net: number,
+  { of, live }: Pick<ChargeRefunds, "of" | "live">
+): number => {
+  const taken = Math.min(
+    live.reduce((sum, r) => sum + r.amount, 0),
+    of
+  );
+  if (taken === 0) return 0;
+  if (taken === of) return net;
+  return Math.round((payout_cents([net]) * taken) / of) / 100;
+};
+
+const refused_notice = (
+  p: IConnectTransferPayload,
+  outcome: TUnrouted["status"],
+  cut: number
+) =>
   msg("fiat-notice", {
     id: `connect-refused_${p.dist_id}`,
     alert: {
@@ -110,7 +140,21 @@ const refused_notice = (p: IConnectTransferPayload) =>
       title: "Routed Transfer Refused: Settled Pooled",
       body: [
         `donation ${p.donation_id}, dist ${p.dist_id}`,
-        "stripe refused the transfer to the nonprofit's connected account, so its share was settled the way a pooled one is: into its balances and a pending payout the grants run pays like any other. check the nonprofit's stripe connection; later card gifts keep routing to it until it reads disconnected or not ready.",
+        {
+          reversed:
+            "stripe refused the transfer to the nonprofit's connected account, and the donation was refunded in full meanwhile: the share was unrouted and nothing booked, since the donor has the money back.",
+          booked:
+            "stripe refused the transfer to the nonprofit's connected account, so its share was settled the way a pooled one is: into its balances and a pending payout the grants run pays like any other.",
+          // a redelivery, after the delivery that unrouted it
+          taken:
+            "stripe refused the transfer to the nonprofit's connected account and the share is no longer routed: see this dist's balance and payout rows for what was booked.",
+        }[outcome],
+        ...(outcome === "booked" && cut > 0
+          ? [
+              `booked less ${cut} usd, its share of the charge's refunds, which the transfer would have reversed.`,
+            ]
+          : []),
+        "check the nonprofit's stripe connection; later card gifts keep routing to it until it reads disconnected or not ready.",
       ].join("\n"),
     },
   });

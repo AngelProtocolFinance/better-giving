@@ -413,6 +413,48 @@ describe("transfer_routed_dist", () => {
     expect(after!.cash).toBe(100);
   });
 
+  // the refund recorded nothing while the dist was routed: its cut was to come
+  // off the transfer
+  test("a refusal after a partial refund books the share less the refund's cut", async () => {
+    const { payload } = await settle_routed();
+    stripe.refunds.list.mockResolvedValue({
+      data: [
+        { id: "re_1", amount: 2_500, status: "succeeded", created: 1 },
+        // stripe won't send it, so it takes nothing
+        { id: "re_2", amount: 1_000, status: "failed", created: 2 },
+      ],
+    });
+    stripe.transfers.create.mockRejectedValueOnce(refusals[0][1]);
+
+    await transfer_routed_dist(payload, RETRY);
+
+    const [payout] = await db().select().from(payouts);
+    expect(payout!.amount).toBe(75);
+    const [after] = await db().select().from(npos);
+    expect(after!.cash).toBe(75);
+    expect(notices()[0]!.payload.alert.body).toContain("refund");
+  });
+
+  // the refund core took nothing back: the dist was routed, so it had none
+  test("a refusal racing a full refund unroutes the share and books nothing", async () => {
+    const { payload } = await settle_routed();
+    stripe.transfers.create.mockImplementationOnce(async () => {
+      await db()
+        .update(donations)
+        .set({ status: "refunded" })
+        .where(eq(donations.id, DON_ID));
+      throw refusals[0][1];
+    });
+
+    await transfer_routed_dist(payload, RETRY);
+
+    expect((await row(payload.dist_id)).stripe_routed_to).toBeNull();
+    expect(await db().select().from(payouts)).toEqual([]);
+    const [after] = await db().select().from(npos);
+    expect(after!.cash).toBe(0);
+    expect(notices()[0]!.payload.alert.body).toContain("refunded");
+  });
+
   // stripe may have made the transfer it never answered for
   test("the last attempt at a transfer stripe never answered tells ops and leaves it routed", async () => {
     const { payload } = await settle_routed();
