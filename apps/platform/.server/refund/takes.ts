@@ -149,6 +149,32 @@ export async function owe_unreversed(u: {
   });
 }
 
+/**
+ * the npo's row credited back the cut of its routed dist's transfer stripe
+ * refused to reverse for a refund that then failed: the donor got nothing
+ * back, so nothing is owed for it. keyed on the refund, so a rerun credits
+ * nothing more, and counted as a failed refund, so a later record of the row
+ * adds it back on rather than owing it again
+ */
+export async function credit_unreversed(u: {
+  donation_id: string;
+  npo_id: number;
+  usd: number;
+  refund_id: string;
+}) {
+  await db.transaction(async (tx) => {
+    const party = { npo_id: u.npo_id };
+    const row = await owed_for_party(u.donation_id, party, tx);
+    if (!row) return;
+    await credit_parts(
+      tx,
+      row,
+      { donation_id: u.donation_id, party, now: new Date().toISOString() },
+      [["refund_failed", u.usd, refund_failed_ref(u.refund_id)]]
+    );
+  });
+}
+
 export interface OwedMove {
   party: OwedParty;
   /** the row before anything was credited back; none when the party owed

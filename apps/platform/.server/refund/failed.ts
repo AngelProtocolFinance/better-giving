@@ -10,7 +10,12 @@ import { type ITake, take_add, take_undo, takes_of } from "../pg/queries/take";
 import { donations } from "../pg/schema/donation";
 import { loss_logs } from "../pg/schema/revenue";
 import { fee_processing_usd, referrer_of } from "./plan";
-import { load_reversible, type Rail, type Unreversible } from "./reverse";
+import {
+  load_reversible,
+  type Rail,
+  routed_refund_failed,
+  type Unreversible,
+} from "./reverse";
 import {
   credit_parts,
   gift_dists_locked,
@@ -50,8 +55,13 @@ export type RefundFailedResult =
   /** the gift has none of the refund on record (it failed before an event
    * recorded it, or a run before this one credited it back): nothing
    * credited, and the refund kept on record as failed, so no later event
-   * adds it */
-  | { status: "not_recorded"; donation_status: IDonation["status"] }
+   * adds it. `by_hand`, when present: what a routed dist's transfer had
+   * given back for it all the same */
+  | {
+      status: "not_recorded";
+      donation_status: IDonation["status"];
+      by_hand?: string[];
+    }
   | Extract<Unreversible, { status: "failed" }>;
 
 /**
@@ -69,9 +79,27 @@ export async function refund_failed(
   const loaded = await load_reversible(r.donation_id, r.rail);
   if (loaded.status === "failed") return loaded;
   const { don } = loaded;
+  const res = await credit_failed(r, don);
+  // after the commit: a provider round-trip under the gift's lock would hold
+  // it, and a redelivery finds the refund undone and lands here again
+  const routed = await routed_refund_failed(r.rail, don.id, r.refund_id);
+  if (res.status === "not_recorded") {
+    return routed.length > 0 ? { ...res, by_hand: routed } : res;
+  }
+  const by_hand = [...(res.status === "by_hand" ? res.by_hand : []), ...routed];
+  return by_hand.length > 0 ? { ...res, status: "by_hand", by_hand } : res;
+}
+
+async function credit_failed(
+  r: RefundFailed,
+  don: IDonation
+): Promise<
+  | Exclude<RefundFailedResult, { status: "not_recorded" | "failed" }>
+  | Omit<Extract<RefundFailedResult, { status: "not_recorded" }>, "by_hand">
+> {
   const now = new Date().toISOString();
 
-  return db.transaction(async (tx): Promise<RefundFailedResult> => {
+  return db.transaction(async (tx) => {
     const ds = await gift_dists_locked(tx, don.id);
     await donation_lock(tx, don.id);
     const [cur] = await tx
@@ -263,8 +291,10 @@ const cash_recovered = (d: LockedDist) =>
     ? (d.cash_pct / 100) * d.net
     : 0;
 
-/** what of the dist the refund moved outside the ledger, for ops to undo */
+/** what of the dist the refund moved outside the ledger, for ops to undo; a
+ * routed dist's is its transfer's, which `routed_refund_failed` words */
 function taken_by_hand(d: LockedDist): string | null {
+  if (d.routed) return null;
   if (d.status === "settled") {
     return grant_went_out(d)
       ? null

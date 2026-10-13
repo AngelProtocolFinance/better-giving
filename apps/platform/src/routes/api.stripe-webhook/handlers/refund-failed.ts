@@ -58,14 +58,17 @@ export async function handle_refund_failed(event: Stripe.RefundFailedEvent) {
 
   if (res.status === "not_recorded") {
     const credited = await refunds_credited_back(db, don.id, [refund.id]);
+    const by_hand = res.by_hand ? ["undo by hand:", ...res.by_hand] : [];
     // a delivery that credited it and died before its alert landed
     const text = credited.has(refund.id)
       ? body([
           `the donation stays ${res.donation_status}. an earlier delivery already credited back what the refund had taken back; each party's row now:`,
           ...(await owed_for_donation(don.id)).map(row_line),
+          ...by_hand,
         ])
       : body([
           `the refund had taken nothing back from the donation (status ${res.donation_status}): nothing was changed automatically.`,
+          ...by_hand,
         ]);
     // awaited: nothing was written, so a redelivery tells it the same
     await send(text);

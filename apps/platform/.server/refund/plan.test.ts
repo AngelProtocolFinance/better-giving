@@ -650,7 +650,7 @@ describe("calc_refund_plan", () => {
   test("a routed dist → no balance, investment or loss, its own accounting reversed as pooled", () => {
     const plan = calc_refund_plan(
       make_inputs({
-        dist: { ...make_inputs().dist, routed: true },
+        dist: { ...make_inputs().dist, routed: { transferred: true } },
         // what the npo holds from other gifts stays its own
         bal: { liq: 500, lock_units: 0, cash: 500 },
       }),
@@ -663,8 +663,31 @@ describe("calc_refund_plan", () => {
       "program_decrement",
       "donation_message_del",
     ]);
-    expect(plan.preview.effects.map((l) => l.label)).toEqual([
-      "Stripe transfer",
+    expect(plan.preview.effects).toEqual([
+      {
+        label: "Stripe transfer",
+        pass: true,
+        reason:
+          "the refunded share is reversed from the nonprofit's Stripe account",
+      },
+    ]);
+  });
+
+  test("a routed dist not yet transferred → previews that nothing reaches the nonprofit, none reversed", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: { ...make_inputs().dist, routed: { transferred: false } },
+      }),
+      make_ctx()
+    );
+    expect(kinds(plan.effects)).toEqual(["donation_message_del"]);
+    expect(plan.preview.effects).toEqual([
+      {
+        label: "Stripe transfer",
+        pass: true,
+        reason:
+          "not yet sent to the nonprofit's Stripe account, and once refunded it won't be",
+      },
     ]);
   });
 });

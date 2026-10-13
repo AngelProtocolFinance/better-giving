@@ -1,20 +1,14 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { report_error } from "#/errors/report";
+import { humanize } from "@/helpers/decimal";
 import { stripe } from "../kit/stripe";
 import { db } from "../pg/db";
 import { dists } from "../pg/schema/dist";
-import { owe_unreversed } from "../refund/takes";
+import type { RoutedRefunds } from "../refund/reverse";
+import { credit_unreversed, owe_unreversed } from "../refund/takes";
 import { is_refusal } from "./refusal";
 
-/** a charge's refunds, as the refund core takes them */
-export interface IChargeRefunds {
-  /** the charge's captured amount, in the refunds' unit */
-  of: number;
-  /** its refunds stripe has sent, each its own amount */
-  refunds: { id: string; amount: number; created_at?: string }[];
-}
-
-export interface IRoutedTransfer {
+interface IRoutedTransfer {
   donation_id: string;
   dist_id: string;
   npo_id: number;
@@ -34,7 +28,7 @@ interface ICut {
  * reverses the whole transfer; ties on time break on the id, so every run
  * cuts alike
  */
-export function refund_cuts(transferred: number, c: IChargeRefunds): ICut[] {
+function refund_cuts(transferred: number, c: RoutedRefunds): ICut[] {
   const oldest_first = [...c.refunds].sort(
     (a, b) =>
       (a.created_at ?? "").localeCompare(b.created_at ?? "") ||
@@ -72,37 +66,43 @@ const shortfalls = (metadata: Record<string, string> | null) =>
  */
 export async function reverse_routed_refunds(
   donation_id: string,
-  c: IChargeRefunds
+  c: RoutedRefunds
 ) {
-  const transferred = await db
-    .select({
-      dist_id: dists.id,
-      npo_id: sql<number>`${dists.to_id}`,
-      transfer_id: sql<string>`${dists.stripe_transfer_id}`,
-    })
-    .from(dists)
-    .where(
-      and(
-        eq(dists.donation_id, donation_id),
-        isNotNull(dists.stripe_transfer_id)
-      )
-    );
-  for (const t of transferred) {
-    await reverse_refunded_share({ donation_id, ...t }, c);
+  // the refund event that sees the last one sent reverses them all
+  if (c.refunds.length === 0 || c.unsent.length > 0) return;
+  for (const t of await transferred_of(donation_id)) {
+    await reverse_refunded_share(t, c);
   }
 }
 
+/** the gift's dists a stripe transfer paid, whatever became of them since */
+const transferred_of = async (donation_id: string) =>
+  (
+    await db
+      .select({
+        dist_id: dists.id,
+        npo_id: sql<number>`${dists.to_id}`,
+        npo_name: dists.to_name,
+        transfer_id: sql<string>`${dists.stripe_transfer_id}`,
+      })
+      .from(dists)
+      .where(
+        and(
+          eq(dists.donation_id, donation_id),
+          isNotNull(dists.stripe_transfer_id)
+        )
+      )
+  ).map((t) => ({ donation_id, ...t }));
+
 /**
  * reverses each refund's cut of `t` once: a cut stripe has reversed, or
- * refused to and that was recorded owed, is answered already. a cut stripe
+ * refused and was marked on the transfer, is answered already. a cut stripe
  * refuses (the account's balance can't cover it, the account is gone) is
- * recorded on the transfer and as owed by the npo, and reported; the donor's
- * refund stands either way. anything else throws, for the caller to retry
+ * marked and reported, and every marked cut is then recorded as owed by the
+ * npo; the donor's refund stands either way. anything else throws, for the
+ * caller to retry
  */
-export async function reverse_refunded_share(
-  t: IRoutedTransfer,
-  c: IChargeRefunds
-) {
+async function reverse_refunded_share(t: IRoutedTransfer, c: RoutedRefunds) {
   const tr = await stripe.transfers.retrieve(t.transfer_id);
   const { data: reversals } = await stripe.transfers.listReversals(
     t.transfer_id,
@@ -139,16 +139,9 @@ export async function reverse_refunded_share(
       // 503 for stripe's redelivery, unreported
       if (!is_refusal(e)) throw e;
       short.set(cut.refund_id, amount);
-      // on the transfer first: once there, no later run asks stripe again,
-      // and a run that dies before the owed row records it from here
+      // no later run asks stripe again for a cut marked here
       await stripe.transfers.update(t.transfer_id, {
         metadata: { [`${SHORT}${cut.refund_id}`]: String(amount) },
-      });
-      await owe_unreversed({
-        donation_id: t.donation_id,
-        npo_id: t.npo_id,
-        usd: [...short.values()].reduce((sum, c) => sum + c, 0) / 100,
-        source_ref: cut.refund_id,
       });
       report_error(
         new Error(
@@ -165,4 +158,56 @@ export async function reverse_refunded_share(
       );
     }
   }
+  // every cut marked refused, this run's and earlier ones', so a run that
+  // died between a mark and this write has it recorded by the next. a
+  // refund failed since is no longer among them: its credit stands
+  const owed = [...short].filter(([id]) => c.refunds.some((r) => r.id === id));
+  if (owed.length > 0) {
+    await owe_unreversed({
+      donation_id: t.donation_id,
+      npo_id: t.npo_id,
+      usd: owed.reduce((sum, [, cents]) => sum + cents, 0) / 100,
+      source_ref: owed[0]![0],
+    });
+  }
+}
+
+/**
+ * what the gift's routed dists had taken back for a refund that failed after
+ * it succeeded, for ops: a cut reversed from a transfer is ours again and
+ * the npo's to be paid back by hand; a cut stripe refused, recorded owed, is
+ * credited back here. one line per dist, as `refund_failed` words them
+ */
+export async function routed_refund_failed(
+  donation_id: string,
+  refund_id: string
+): Promise<string[]> {
+  const lines: string[] = [];
+  for (const t of await transferred_of(donation_id)) {
+    const tr = await stripe.transfers.retrieve(t.transfer_id);
+    const { data: reversals } = await stripe.transfers.listReversals(
+      t.transfer_id,
+      { limit: 100 }
+    );
+    const at = `dist ${t.dist_id} to ${t.npo_name || "its npo"} (npo ${t.npo_id})`;
+    const reversed = reversals.find((r) => r.metadata?.refund_id === refund_id);
+    if (reversed) {
+      lines.push(
+        `${at}: $${humanize(reversed.amount / 100)} reversed from transfer ${t.transfer_id} for this refund; re-pay it to the nonprofit by hand`
+      );
+    }
+    const cents = shortfalls(tr.metadata).get(refund_id);
+    if (cents) {
+      await credit_unreversed({
+        donation_id,
+        npo_id: t.npo_id,
+        usd: cents / 100,
+        refund_id,
+      });
+      lines.push(
+        `${at}: its $${humanize(cents / 100)} shortfall, which stripe refused to reverse from transfer ${t.transfer_id} and was recorded owed, is credited back`
+      );
+    }
+  }
+  return lines;
 }

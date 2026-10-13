@@ -24,9 +24,10 @@ export interface RefundDistInput {
   fee_processing: number;
   /** 0 or absent when the donor didn't cover fees */
   fee_allowance?: number;
-  /** settled to a connected account: its net left in a stripe transfer, so
-   * no balance, investment or payout of it is ours to take back */
-  routed?: boolean;
+  /** settled to a connected account: its net leaves in a stripe transfer,
+   * once `transferred`, so no balance, investment or payout of it is ours to
+   * take back */
+  routed?: { transferred: boolean };
 }
 
 export type ReferrerParty = Exclude<OwedParty, { npo_id: number }>;
@@ -252,8 +253,10 @@ export function calc_refund_plan(
     preview.effects.push({
       label: "Stripe transfer",
       pass: true,
-      reason:
-        "the refunded share is reversed from the nonprofit's Stripe account",
+      // a refunded gift's transfer is never sent (`transfer_routed_dist`)
+      reason: dist.routed.transferred
+        ? "the refunded share is reversed from the nonprofit's Stripe account"
+        : "not yet sent to the nonprofit's Stripe account, and once refunded it won't be",
     });
   }
 

@@ -111,7 +111,9 @@ function project_inputs(
       fee_fsa: dist.fee_fsa ?? 0,
       fee_processing: dist.fee_processing ?? 0,
       fee_allowance: dist.fee_allowance ?? 0,
-      routed: dist.stripe_routed_to !== null,
+      ...(dist.stripe_routed_to !== null && {
+        routed: { transferred: dist.stripe_transfer_id !== null },
+      }),
     },
     payout: g.payout ? { id: g.payout.id, type: g.payout.type ?? null } : null,
     commission: g.commission

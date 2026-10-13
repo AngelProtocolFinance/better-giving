@@ -13,11 +13,7 @@ import {
   npo_donation_get,
 } from "../pg/queries/dist";
 import { donation_status_shared } from "../pg/queries/donation";
-import {
-  is_failed_or_canceled,
-  refund_take,
-  unsent_refunds,
-} from "../refund/unsent";
+import { charge_refunds, refund_take } from "../refund/unsent";
 import { settle_unrouted } from "../settlement/settle-npo";
 import { is_refusal } from "./refusal";
 import { reverse_routed_refunds } from "./reverse";
@@ -143,20 +139,17 @@ async function charge_of(p: IConnectTransferPayload) {
 /**
  * reverses the share of the transfer the charge's refunds took before it was
  * stored. a refund event reverses only a transfer already stored, so the
- * refunds it handled first are this one's; one that comes after finds it.
- * while a refund is unsent, the refund event that sees it sent reverses them
+ * refunds it handled first are this one's; one that comes after finds it
  */
 async function reverse_refunded_before(
   p: IConnectTransferPayload,
   charge: string
 ) {
-  const { data } = await stripe.refunds.list({ charge, limit: 100 });
-  const live = data.filter((r) => !is_failed_or_canceled(r));
-  if (live.length === 0 || unsent_refunds(data).length > 0) return;
-  const { amount_captured } = await stripe.charges.retrieve(charge);
+  const { of, live, unsent } = await charge_refunds(charge);
   await reverse_routed_refunds(p.donation_id, {
-    of: amount_captured,
+    of,
     refunds: live.map(refund_take),
+    unsent: unsent.map((r) => r.id),
   });
 }
 

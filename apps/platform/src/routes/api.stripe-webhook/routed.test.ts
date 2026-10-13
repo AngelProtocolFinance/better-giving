@@ -25,7 +25,11 @@ const transfers = vi.hoisted(() => ({
   listReversals: vi.fn(),
   createReversal: vi.fn(),
 }));
-const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
+const test_db = vi.hoisted(() => ({
+  current: null as TestDb | null,
+  /** the next transaction throws, as a lost neon connection does */
+  fail_next_tx: false,
+}));
 
 vi.mock("$/kit/stripe", () => ({
   stripe: {
@@ -43,6 +47,12 @@ vi.mock("$/pg/db", () => ({
       get(_, prop) {
         const real = test_db.current?.db;
         if (!real) throw new Error("test_db not initialized");
+        if (prop === "transaction" && test_db.fail_next_tx) {
+          test_db.fail_next_tx = false;
+          return async () => {
+            throw new Error("Connection terminated unexpectedly");
+          };
+        }
         return (real as any)[prop];
       },
     }
@@ -139,6 +149,36 @@ const refund = (amount: number, status = "succeeded") => {
     },
   };
 };
+
+/** the card network returns refund `id` to stripe; returns stripe's refund.failed */
+const fail = (id: string) => {
+  const r = refunds.find((x) => x.id === id);
+  if (!r) throw new Error(`no refund ${id}`);
+  r.status = "failed";
+  clock += 60;
+  return {
+    id: `evt_${++event_n}`,
+    type: "refund.failed",
+    created: clock,
+    data: {
+      object: {
+        ...r,
+        charge: charge_now().id,
+        payment_intent: charge_of.sttl_id,
+        currency: "usd",
+        failure_reason: "expired_or_canceled_card",
+      },
+    },
+  };
+};
+
+/** the finance alert a failed refund posts */
+const failed_alert = () =>
+  enqueue_mock.mock.calls
+    .flat()
+    .filter((m) => m.payload?.alert?.title === "Stripe Refund Failed")
+    .map((m) => m.payload.alert.body)
+    .join("\n");
 
 /** stripe's `type` event for a chargeback of `amount` cents on the charge,
  * its funds withdrawn with a $15 fee; `status` as stripe has it then */
@@ -237,6 +277,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  test_db.fail_next_tx = false;
   refunds = [];
   captured = 10_000;
   stripe_transfers = new Map();
@@ -319,6 +360,8 @@ describe("partial dashboard refunds of a routed gift", () => {
     expect(await status_of(charge_of.id)).toBe("settled");
     expect(await owed_of(charge_of.id)).toEqual([]);
     expect(notice_text()).not.toMatch(/still in the npo's balances|pending/);
+    expect(notice_text()).toMatch(/^Partial Refund: Nothing Owed$/m);
+    expect(notice_text()).not.toMatch(/Recorded as Owed/);
 
     await deliver(refund(6_000));
 
@@ -458,6 +501,28 @@ describe("a reversal stripe refuses", () => {
     expect(await status_of(charge_of.id)).toBe("refunded");
   });
 
+  it("records the shortfall on redelivery when the db fails after stripe has the cut marked refused", async () => {
+    charge_of = await seed_card_gift(db(), ROUTED);
+    const tr = paid_by_transfer(charge_of);
+    short.add(tr);
+    transfers.update.mockImplementationOnce(
+      async (id: string, p: { metadata: Record<string, string> }) => {
+        Object.assign(stripe_transfers.get(id)!.metadata, p.metadata);
+        test_db.fail_next_tx = true;
+        return {};
+      }
+    );
+    const event = refund(4_000);
+
+    expect((await deliver(event)).status).not.toBe(200);
+    expect((await deliver(event)).status).toBe(200);
+
+    expect(transfers.createReversal).toHaveBeenCalledTimes(1);
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { received_usd: 36, outstanding_usd: 36 },
+    ]);
+  });
+
   it("records the whole transfer owed when a full refund's reversal is refused", async () => {
     charge_of = await seed_card_gift(db(), ROUTED);
     short.add(paid_by_transfer(charge_of));
@@ -555,5 +620,53 @@ describe("a dispute on a routed gift", () => {
     ]);
     expect(await balance_of(db(), charge_of.npo_ids[0]!)).toBe(0);
     expect(transfers.createReversal).not.toHaveBeenCalled();
+  });
+});
+
+// the money is back in our balance and the npo's share stays reversed: no
+// transfer pays it back on its own, so ops re-pays it
+describe("a refund that fails after a routed gift's cut was reversed", () => {
+  it("tells ops to re-pay the reversed share by hand, naming the dist, transfer and amount", async () => {
+    charge_of = await seed_card_gift(db(), ROUTED);
+    const tr = paid_by_transfer(charge_of);
+    await deliver(refund(4_000));
+
+    expect((await deliver(fail("re_1"))).status).toBe(200);
+
+    const alert = failed_alert();
+    expect(alert).toContain(
+      `dist dist-${charge_of.id}-0 to NPO ${charge_of.id.slice(4)}-0 (npo ${charge_of.npo_ids[0]}): $36.00 reversed from transfer ${tr} for this refund; re-pay it to the nonprofit by hand`
+    );
+    expect(alert).not.toMatch(/hand adjustment|balances or pending payout/);
+  });
+
+  it("names the reversal of a full refund that failed, not the npo's balances", async () => {
+    charge_of = await seed_card_gift(db(), ROUTED);
+    const tr = paid_by_transfer(charge_of);
+    await deliver(refund(10_000));
+
+    await deliver(fail("re_1"));
+
+    const alert = failed_alert();
+    expect(alert).toContain(`$90.00 reversed from transfer ${tr}`);
+    expect(alert).not.toMatch(/hand adjustment|balances or pending payout/);
+  });
+
+  it("credits back the shortfall recorded for a refused cut, which a later refund doesn't raise again", async () => {
+    charge_of = await seed_card_gift(db(), ROUTED);
+    const tr = paid_by_transfer(charge_of);
+    short.add(tr);
+    await deliver(refund(4_000));
+
+    await deliver(fail("re_1"));
+    const after_fail = await owed_of(charge_of.id);
+    await deliver(refund(2_000));
+
+    expect(after_fail).toMatchObject([{ outstanding_usd: 0 }]);
+    // the later refund's own cut is refused too: only it is owed
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: 18 },
+    ]);
+    expect(failed_alert()).toContain("$36.00 shortfall");
   });
 });
