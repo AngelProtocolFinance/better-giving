@@ -4,7 +4,7 @@ import { humanize } from "@/helpers/decimal";
 import { stripe } from "../kit/stripe";
 import { db } from "../pg/db";
 import { dists } from "../pg/schema/dist";
-import type { RoutedRefunds } from "../refund/reverse";
+import type { IRoutedRefundFailed, RoutedRefunds } from "../refund/reverse";
 import { credit_unreversed, owe_unreversed } from "../refund/takes";
 import { is_refusal } from "./refusal";
 
@@ -174,15 +174,17 @@ async function reverse_refunded_share(t: IRoutedTransfer, c: RoutedRefunds) {
 
 /**
  * what the gift's routed dists had taken back for a refund that failed after
- * it succeeded, for ops: a cut reversed from a transfer is ours again and
- * the npo's to be paid back by hand; a cut stripe refused, recorded owed, is
- * credited back here. one line per dist, as `refund_failed` words them
+ * it succeeded, for ops, one line per dist as `refund_failed` words them. a
+ * cut stripe refused, recorded owed, is credited back here: `credited`. a
+ * cut reversed from a transfer is ours again and the npo's to be paid back by
+ * hand: `by_hand`
  */
 export async function routed_refund_failed(
   donation_id: string,
   refund_id: string
-): Promise<string[]> {
-  const lines: string[] = [];
+): Promise<IRoutedRefundFailed> {
+  const credited: string[] = [];
+  const by_hand: string[] = [];
   for (const t of await transferred_of(donation_id)) {
     const tr = await stripe.transfers.retrieve(t.transfer_id);
     const { data: reversals } = await stripe.transfers.listReversals(
@@ -192,8 +194,8 @@ export async function routed_refund_failed(
     const at = `dist ${t.dist_id} to ${t.npo_name || "its npo"} (npo ${t.npo_id})`;
     const reversed = reversals.find((r) => r.metadata?.refund_id === refund_id);
     if (reversed) {
-      lines.push(
-        `${at}: $${humanize(reversed.amount / 100)} reversed from transfer ${t.transfer_id} for this refund; re-pay it to the nonprofit by hand`
+      by_hand.push(
+        `${at}: $${humanize(reversed.amount / 100)} reversed from transfer ${t.transfer_id} for this refund; re-pay it to the nonprofit by hand. if a later refund of this charge comes in, reverse that re-payment by hand too: its transfer isn't on record, so the refund won't reverse it`
       );
     }
     const cents = shortfalls(tr.metadata).get(refund_id);
@@ -204,10 +206,10 @@ export async function routed_refund_failed(
         usd: cents / 100,
         refund_id,
       });
-      lines.push(
+      credited.push(
         `${at}: its $${humanize(cents / 100)} shortfall, which stripe refused to reverse from transfer ${t.transfer_id} and was recorded owed, is credited back`
       );
     }
   }
-  return lines;
+  return { credited, by_hand };
 }

@@ -11,6 +11,7 @@ import { donations } from "../pg/schema/donation";
 import { loss_logs } from "../pg/schema/revenue";
 import { fee_processing_usd, referrer_of } from "./plan";
 import {
+  type IRoutedRefundFailed,
   load_reversible,
   type Rail,
   routed_refund_failed,
@@ -55,12 +56,12 @@ export type RefundFailedResult =
   /** the gift has none of the refund on record (it failed before an event
    * recorded it, or a run before this one credited it back): nothing
    * credited, and the refund kept on record as failed, so no later event
-   * adds it. `by_hand`, when present: what a routed dist's transfer had
-   * given back for it all the same */
+   * adds it. `routed`, when present: what a routed dist's transfer had
+   * taken for it all the same, credited back or left to ops */
   | {
       status: "not_recorded";
       donation_status: IDonation["status"];
-      by_hand?: string[];
+      routed?: IRoutedRefundFailed;
     }
   | Extract<Unreversible, { status: "failed" }>;
 
@@ -84,10 +85,18 @@ export async function refund_failed(
   // it, and a redelivery finds the refund undone and lands here again
   const routed = await routed_refund_failed(r.rail, don.id, r.refund_id);
   if (res.status === "not_recorded") {
-    return routed.length > 0 ? { ...res, by_hand: routed } : res;
+    return routed.credited.length + routed.by_hand.length > 0
+      ? { ...res, routed }
+      : res;
   }
-  const by_hand = [...(res.status === "by_hand" ? res.by_hand : []), ...routed];
-  return by_hand.length > 0 ? { ...res, status: "by_hand", by_hand } : res;
+  const credited = [...res.credited, ...routed.credited];
+  const by_hand = [
+    ...(res.status === "by_hand" ? res.by_hand : []),
+    ...routed.by_hand,
+  ];
+  return by_hand.length > 0
+    ? { ...res, status: "by_hand", credited, by_hand }
+    : { ...res, status: "credited", credited };
 }
 
 async function credit_failed(
@@ -95,7 +104,7 @@ async function credit_failed(
   don: IDonation
 ): Promise<
   | Exclude<RefundFailedResult, { status: "not_recorded" | "failed" }>
-  | Omit<Extract<RefundFailedResult, { status: "not_recorded" }>, "by_hand">
+  | Omit<Extract<RefundFailedResult, { status: "not_recorded" }>, "routed">
 > {
   const now = new Date().toISOString();
 

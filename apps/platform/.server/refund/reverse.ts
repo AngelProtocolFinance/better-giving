@@ -40,9 +40,9 @@ interface RailAdapter {
     | ((donation_id: string, c: RoutedRefunds) => Promise<void>)
     | null;
   /** what the gift's routed dists had taken back for a refund that failed,
-   * one line per dist for ops, or null when the rail routes none */
+   * for ops, or null when the rail routes none */
   routed_refund_failed:
-    | ((donation_id: string, refund_id: string) => Promise<string[]>)
+    | ((donation_id: string, refund_id: string) => Promise<IRoutedRefundFailed>)
     | null;
 }
 
@@ -92,9 +92,21 @@ export const routed_refund_failed = async (
   rail: Rail,
   donation_id: string,
   refund_id: string
-) =>
-  (await rail_adapters[rail].routed_refund_failed?.(donation_id, refund_id)) ??
-  [];
+): Promise<IRoutedRefundFailed> =>
+  (await rail_adapters[rail].routed_refund_failed?.(
+    donation_id,
+    refund_id
+  )) ?? {
+    credited: [],
+    by_hand: [],
+  };
+
+/** one line per routed dist: what was credited back on its own, and what
+ * ops is to do by hand */
+export interface IRoutedRefundFailed {
+  credited: string[];
+  by_hand: string[];
+}
 
 export interface ChargeReversal {
   donation_id: string;

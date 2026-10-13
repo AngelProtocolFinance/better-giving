@@ -638,6 +638,10 @@ describe("a refund that fails after a routed gift's cut was reversed", () => {
       `dist dist-${charge_of.id}-0 to NPO ${charge_of.id.slice(4)}-0 (npo ${charge_of.npo_ids[0]}): $36.00 reversed from transfer ${tr} for this refund; re-pay it to the nonprofit by hand`
     );
     expect(alert).not.toMatch(/hand adjustment|balances or pending payout/);
+    // ours is not on record, so a later refund's reversal can't find it
+    expect(alert).toMatch(
+      /undo by hand:\n.*re-pay it to the nonprofit by hand\. if a later refund of this charge comes in, reverse that re-payment by hand too: its transfer isn't on record, so the refund won't reverse it/
+    );
   });
 
   it("names the reversal of a full refund that failed, not the npo's balances", async () => {
@@ -668,5 +672,21 @@ describe("a refund that fails after a routed gift's cut was reversed", () => {
       { outstanding_usd: 18 },
     ]);
     expect(failed_alert()).toContain("$36.00 shortfall");
+  });
+
+  // the credit is made automatically: ops reads it with what was changed,
+  // not as a task
+  it("prints a refused cut's credit with what was credited back, never as a hand task", async () => {
+    charge_of = await seed_card_gift(db(), ROUTED);
+    short.add(paid_by_transfer(charge_of));
+    await deliver(refund(4_000));
+
+    await deliver(fail("re_1"));
+
+    const alert = failed_alert();
+    expect(alert).toMatch(
+      /what the refund had taken back is credited back:\n(.*\n)*.*its \$36\.00 shortfall, which stripe refused to reverse from transfer .* is credited back/
+    );
+    expect(alert).not.toMatch(/undo by hand|nothing was changed automatically/);
   });
 });
