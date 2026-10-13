@@ -45,6 +45,7 @@ export const CHROME_BY_SEGMENT: Record<string, Chrome> = {
   "security-policy": "marketing",
   "terms-of-use": "marketing",
   "terms-of-use-npo": "marketing",
+  "terms-of-use-npo-2024": "marketing",
   "terms-of-use-referrals": "marketing",
   "terms-of-use-sms": "marketing",
   "donation-forms": "marketing",

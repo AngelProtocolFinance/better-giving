@@ -3,6 +3,8 @@
  * (`TERMS_ZONE`); `terms_effective_at` turns it into that instant */
 export const TERMS_EFFECTIVE = "2026-10-18";
 
+/** the nonprofit and referral terms print it beside "Eastern Time" as the
+ * cut-off's zone, so a zone outside that one needs their wording changed too */
 export const TERMS_ZONE = "America/New_York";
 
 const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;

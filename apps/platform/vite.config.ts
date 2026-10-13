@@ -233,6 +233,7 @@ export default defineConfig((config) => {
           "src/routes/_app.security-policy/**",
           "src/routes/_app.terms-of-use/**",
           "src/routes/_app.terms-of-use-npo/**",
+          "src/routes/_app.terms-of-use-npo-2024/**",
           "src/routes/_app.terms-of-use-referrals/**",
           "src/routes/_app.terms-of-use-sms/**",
 
