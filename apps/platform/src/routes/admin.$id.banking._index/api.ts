@@ -34,7 +34,6 @@ export const loader = async (x: Route.LoaderArgs) => {
 };
 
 async function stripe_status(npo_id: number): Promise<TConnectStatus> {
-  // npo_get, not npo_stripe_get: only the full row carries the disconnect stamp
   const npo = await npo_get(npo_id);
   if (!npo?.stripe_account_id) return "not_connected";
   const deauthorized_at = npo.stripe_deauthorized_at;

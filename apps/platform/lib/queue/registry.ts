@@ -306,8 +306,10 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   "banking-default": { retries: 3 },
   "banking-new": { retries: 3 },
   "banking-rejected": { retries: 3 },
-  // a redelivery finds the stored transfer and returns, and one that lands
-  // before the store reaches stripe on the same idempotency key
+  // a redelivery never pays twice: one finding the transfer stored only
+  // reverses the refunds that came before it (which can throw and retry), and
+  // one before the store reaches stripe on the same idempotency key. the last
+  // attempt of a transfer stripe never answered tells ops
   "connect-transfer": { retries: 3 },
   // the lease in `handle-don-receipt` is what makes this safe past the first
   // mail: a redelivery that finds the claim taken returns without sending, and

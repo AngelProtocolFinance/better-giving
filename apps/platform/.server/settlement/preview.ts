@@ -1,26 +1,17 @@
-import { calc_settlement_plan } from "@/settlement/plan";
 import type { IInput } from "@/types/donation-dist";
 import { npo_get } from "$/pg/queries/npo";
+import { npo_plan } from "./npo-plan";
 
 // same computation as settle_npo, no db writes
 export async function preview_settlement(i: IInput) {
   const npo = await npo_get(+i.id);
   if (!npo) return null;
 
-  const plan = calc_settlement_plan(i, {
-    id: npo.id,
-    name: npo.name,
-    fiscal_sponsored: npo.fiscal_sponsored,
-    hide_bg_tip: npo.hide_bg_tip,
-    allocation: npo.allocation,
-    lock_units: npo.lock_units,
-    liq: npo.liq,
-    referrer_user: npo.referrer_user,
-    referrer_npo: npo.referrer_npo,
-    referrer_expiry: npo.referrer_expiry,
-  });
-
-  const { dist, revenue_logs, commission, balance_txs, payout } = plan;
+  const plan = npo_plan(i, npo);
+  const { dist, revenue_logs, commission } = plan;
+  // a routed share books no balance or payout: its net leaves in one transfer
+  const { balance_txs, payout } =
+    plan.kind === "pooled" ? plan : { balance_txs: [], payout: null };
 
   const txs: unknown[] = [];
   txs.push({

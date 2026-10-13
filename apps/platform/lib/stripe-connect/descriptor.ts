@@ -30,16 +30,16 @@ const latin_upper = (name: string) =>
     .trim();
 
 /**
- * the `statement_descriptor_suffix` showing `name` beside `prefix`, or
+ * the `statement_descriptor_suffix` showing `name` beside a prefix, or
  * undefined when nothing printable is left — set no suffix then
- * @param prefix - the account's shortened descriptor
+ * @param prefix_len - the length the account's shortened descriptor may take
  */
 export const descriptor_suffix = (
   name: string,
-  prefix: string
+  prefix_len: number
 ): string | undefined => {
   // clamped: a negative end would make slice keep all but the tail
-  const room = Math.max(0, MAX_DESCRIPTOR - prefix.length - SEPARATOR.length);
+  const room = Math.max(0, MAX_DESCRIPTOR - prefix_len - SEPARATOR.length);
   const suffix = latin_upper(name).slice(0, room).trim();
   return /[A-Z]/.test(suffix) ? suffix : undefined;
 };

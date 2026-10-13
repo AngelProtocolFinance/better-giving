@@ -1,4 +1,10 @@
-import { connect_status } from "./readiness";
+import { country_code } from "../constants/countries";
+import {
+  connect_status,
+  type IAccountMirror,
+  type IMirrorRow,
+  mirror_of,
+} from "./readiness";
 
 /**
  * hq countries a US platform can transfer to a full-agreement connected account
@@ -11,7 +17,7 @@ import { connect_status } from "./readiness";
  * list also holds every recipient-agreement destination, so it is a superset
  * of this one and never a drop-in.
  */
-export const TRANSFER_COUNTRIES: ReadonlySet<string> = new Set([
+const TRANSFER_COUNTRIES: ReadonlySet<string> = new Set([
   "US",
   "CA",
   "GB",
@@ -47,35 +53,40 @@ export const TRANSFER_COUNTRIES: ReadonlySet<string> = new Set([
   "NO",
 ]);
 
-/** the `npos` columns routing decides on */
+/** what routing decides on */
 export interface IRoutingNpo {
   stripe_account_id: string | null;
-  stripe_charges_enabled: boolean;
-  stripe_payouts_enabled: boolean;
-  stripe_details_submitted: boolean;
-  stripe_requirements_due: string[];
-  fiscal_sponsored: boolean;
-  /** ISO 3166-1 alpha-2 of `npos.hq_country`, which stores the name;
-   * undefined when the name maps to no code */
-  hq_country_code: string | undefined;
+  mirror: IAccountMirror;
   /** set once the npo disconnected us from its stripe dashboard */
-  stripe_deauthorized_at: string | null;
+  deauthorized_at: string | null;
+  fiscal_sponsored: boolean;
+  /** as `npos.hq_country` stores it: a country name */
+  hq_country: string;
 }
+
+interface IRoutingRow extends IMirrorRow {
+  stripe_account_id: string | null;
+  stripe_deauthorized_at: string | null;
+  fiscal_sponsored: boolean;
+  hq_country: string;
+}
+
+export const routing_npo = (row: IRoutingRow): IRoutingNpo => ({
+  stripe_account_id: row.stripe_account_id,
+  mirror: mirror_of(row),
+  deauthorized_at: row.stripe_deauthorized_at,
+  fiscal_sponsored: row.fiscal_sponsored,
+  hq_country: row.hq_country,
+});
 
 const is_ready = (npo: IRoutingNpo) =>
   npo.stripe_account_id !== null &&
-  connect_status(
-    {
-      charges_enabled: npo.stripe_charges_enabled,
-      payouts_enabled: npo.stripe_payouts_enabled,
-      details_submitted: npo.stripe_details_submitted,
-      requirements_due: npo.stripe_requirements_due,
-    },
-    npo.stripe_deauthorized_at
-  ) === "ready";
+  connect_status(npo.mirror, npo.deauthorized_at) === "ready";
 
-const in_transfer_set = (code: string | undefined) =>
-  !!code && TRANSFER_COUNTRIES.has(code.toUpperCase());
+const in_transfer_set = (country: string) => {
+  const code = country_code(country);
+  return !!code && TRANSFER_COUNTRIES.has(code);
+};
 
 /** whether a card donation to `npo` routes to its connected account
  * @param routing_on - the `STRIPE_CONNECT_ROUTING` switch */
@@ -83,4 +94,4 @@ export const is_routable = (npo: IRoutingNpo, routing_on: boolean) =>
   routing_on &&
   !npo.fiscal_sponsored &&
   is_ready(npo) &&
-  in_transfer_set(npo.hq_country_code);
+  in_transfer_set(npo.hq_country);

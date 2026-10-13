@@ -9,11 +9,11 @@ import {
 } from "@better-giving/ui";
 import type { SubmitHandler } from "react-hook-form";
 import { NavLink, useFetcher, useNavigate } from "react-router";
-import { country_names as cnames } from "#/constants/countries";
 import { TERMS_OF_USE_NPO } from "#/constants/urls";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import { after_org, steps } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
+import { country_names as cnames } from "@/constants/countries";
 import type { TRegUpdate } from "@/reg";
 import { Progress } from "@/reg/progress";
 import { type OrgDesignation, org_designations } from "@/schemas";

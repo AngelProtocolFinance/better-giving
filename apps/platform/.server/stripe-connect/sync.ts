@@ -5,12 +5,14 @@ import {
   account_mirror,
   connect_status,
   type IAccountMirror,
+  mirror_of,
   type TConnectStatus,
 } from "@/stripe-connect/readiness";
 import { stripe } from "../kit/stripe";
 import { db } from "../pg/db";
 import { npos } from "../pg/schema/npo";
 
+/** the mirror as `npos` stores it; `mirror_of` reads it back */
 export const mirror_columns = (m: IAccountMirror) => ({
   stripe_charges_enabled: m.charges_enabled,
   stripe_payouts_enabled: m.payouts_enabled,
@@ -85,12 +87,7 @@ export async function sync_npo_account(
   // replaced while stripe was answering: these flags are the old account's
   if (now?.stripe_account_id !== npo.acct) return sync_npo_account(npo_id);
   // an account.updated landed meanwhile and is newer than this read
-  return {
-    charges_enabled: now.stripe_charges_enabled,
-    payouts_enabled: now.stripe_payouts_enabled,
-    details_submitted: now.stripe_details_submitted,
-    requirements_due: now.stripe_requirements_due,
-  };
+  return mirror_of(now);
 }
 
 /** a registration's status, read from stripe each time: registrations keep no mirror */

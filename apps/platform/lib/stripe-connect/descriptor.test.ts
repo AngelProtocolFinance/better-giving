@@ -3,17 +3,17 @@ import { descriptor_suffix } from "./descriptor";
 
 describe("descriptor_suffix", () => {
   test("uppercases a short latin name", () => {
-    expect(descriptor_suffix("Red Cross", "BG")).toBe("RED CROSS");
+    expect(descriptor_suffix("Red Cross", 2)).toBe("RED CROSS");
   });
 
   // prefix + "* " + suffix ≤ 22, so a 10-char prefix leaves 10
   test.each([
-    ["BETTERGIVE", "Save the Children Fund", "SAVE THE C"],
-    ["BETTERGIV", "Habitat for Humanity", "HABITAT FOR"],
+    [10, "Save the Children Fund", "SAVE THE C"],
+    [9, "Habitat for Humanity", "HABITAT FOR"],
     // 18 chars end on a space, which isn't left trailing
-    ["BG", "Save the Children Fund International", "SAVE THE CHILDREN"],
-  ])("with prefix %s, cuts %j to %j", (prefix, name, suffix) => {
-    expect(descriptor_suffix(name, prefix)).toBe(suffix);
+    [2, "Save the Children Fund International", "SAVE THE CHILDREN"],
+  ])("with a %i-char prefix, cuts %j to %j", (prefix_len, name, suffix) => {
+    expect(descriptor_suffix(name, prefix_len)).toBe(suffix);
   });
 
   test.each([
@@ -28,7 +28,7 @@ describe("descriptor_suffix", () => {
     ],
     ["an emoji", "🌱 Green Earth", "GREEN EARTH"],
   ])("%s: %j reads %j", (_case, name, suffix) => {
-    expect(descriptor_suffix(name, "BG")).toBe(suffix);
+    expect(descriptor_suffix(name, 2)).toBe(suffix);
   });
 
   // undefined means "set no suffix", which leaves the prefix alone
@@ -38,6 +38,6 @@ describe("descriptor_suffix", () => {
     ["no letter", "1234 - 5678"],
     ["blank", "   "],
   ])("%s yields no suffix", (_case, name) => {
-    expect(descriptor_suffix(name, "BG")).toBeUndefined();
+    expect(descriptor_suffix(name, 2)).toBeUndefined();
   });
 });

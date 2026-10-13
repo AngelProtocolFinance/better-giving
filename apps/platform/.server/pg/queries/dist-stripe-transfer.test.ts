@@ -22,6 +22,7 @@ import { create_test_db } from "../test-utils/pglite";
 import {
   dist_stripe_transfer_get,
   dist_stripe_transfer_set,
+  dist_unroute,
   dists_routed_untransferred,
 } from "./dist";
 
@@ -114,4 +115,21 @@ test("a donation settled only the pooled way has none waiting", async () => {
   await donation("don-3");
   await dist("dist-3", "don-3", null);
   expect(await dists_routed_untransferred("don-3")).toEqual([]);
+});
+
+test("unrouting a routed dist with no transfer rebooks it pooled", async () => {
+  expect(await dist_unroute("dist-1")).toBe(true);
+  expect(await dists_routed_untransferred("don-1")).toEqual([]);
+});
+
+test("a dist a transfer already paid stays routed", async () => {
+  await dist_stripe_transfer_set("dist-1", "tr_1");
+  expect(await dist_unroute("dist-1")).toBe(false);
+  expect(await dist_stripe_transfer_get("dist-1")).toBe("tr_1");
+});
+
+test("unrouting a pooled dist changes nothing", async () => {
+  await donation("don-3");
+  await dist("dist-3", "don-3", null);
+  expect(await dist_unroute("dist-3")).toBe(false);
 });

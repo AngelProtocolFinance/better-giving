@@ -49,8 +49,9 @@ const { seed_npo, seed_user } = await import("#/__tests__/fixtures/funds");
 const { npos } = await import("$/pg/schema/npo");
 const { user_npo_memberships } = await import("$/pg/schema/user");
 const { registrations } = await import("$/pg/schema/registration");
-const { is_routable } = await import("@/stripe-connect/eligibility");
-const { country_code } = await import("#/constants/countries");
+const { is_routable, routing_npo } = await import(
+  "@/stripe-connect/eligibility"
+);
 
 const db = () => test_db.current!.db;
 
@@ -716,9 +717,7 @@ describe("stripe connect callback", () => {
       const r = await npo_row(npo.id);
       expect(r.stripe_account_id).toBe(`acct_${tag}_${which}`);
       expect(r.stripe_deauthorized_at).toBeNull();
-      expect(
-        is_routable({ ...r, hq_country_code: country_code(r.hq_country) }, true)
-      ).toBe(true);
+      expect(is_routable(routing_npo(r), true)).toBe(true);
     });
   });
 

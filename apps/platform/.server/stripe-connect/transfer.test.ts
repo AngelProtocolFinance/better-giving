@@ -13,9 +13,11 @@ import { seed_npo } from "#/__tests__/fixtures/funds";
 import type { IConnectTransferPayload } from "@/queue";
 import type { IInput, IParts } from "@/types/donation-dist";
 import type { DbOrTx } from "../pg/queries/helpers";
+import { bal_txs } from "../pg/schema/bal-tx";
 import { dists } from "../pg/schema/dist";
 import { donations } from "../pg/schema/donation";
 import { npos } from "../pg/schema/npo";
+import { payouts } from "../pg/schema/payout";
 import type { TestDb } from "../pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -32,6 +34,7 @@ const stripe = vi.hoisted(() => ({
   },
 }));
 const report_error = vi.hoisted(() => vi.fn());
+const enqueue = vi.hoisted(() => vi.fn(async (..._msgs: unknown[]) => {}));
 
 vi.mock("../pg/db", () => ({
   db: new Proxy(
@@ -46,6 +49,7 @@ vi.mock("../pg/db", () => ({
   ),
 }));
 vi.mock("../kit/stripe", () => ({ stripe }));
+vi.mock("../kit/queue", () => ({ enqueue }));
 vi.mock("#/errors/report", () => ({ report_error }));
 vi.mock("../env", async (importOriginal) => {
   const real = await importOriginal<typeof import("../env")>();
@@ -65,6 +69,8 @@ const ACCT = "acct_transfer_1";
 const DON_ID = "don-transfer-1";
 const INTENT = "pi_transfer_1";
 const CHARGE = "ch_transfer_1";
+/** a delivery qstash retries if it throws */
+const RETRY = { last: false };
 
 const amt = (base: number, tip = 0, fee_allowance = 0) => ({
   base,
@@ -107,13 +113,17 @@ const make_input = (npo_id: number, net = 100): IInput => ({
   },
 });
 
-/** settles a routed share and returns the transfer msg the plan carried */
-async function settle_routed(net = 100) {
+/** settles a routed share and returns the transfer msg the plan carried
+ * @param allocation - the npo's stored split, which routing overrides */
+async function settle_routed(
+  net = 100,
+  allocation = { cash: 100, liq: 0, lock: 0 }
+) {
   const npo = await seed_npo(db(), {
     registration_number: "EIN-TRANSFER-1",
     name: "Routed NPO",
     hq_country: "United States",
-    allocation: { cash: 100, liq: 0, lock: 0 },
+    allocation,
     stripe_account_id: ACCT,
     stripe_charges_enabled: true,
     stripe_payouts_enabled: true,
@@ -174,6 +184,8 @@ beforeEach(async () => {
   });
   stripe.transfers.listReversals.mockResolvedValue({ data: [] });
   stripe.transfers.createReversal.mockResolvedValue({ id: "trr_1" });
+  await db().delete(payouts);
+  await db().delete(bal_txs);
   await db().delete(dists);
   await db().delete(donations);
   await db().delete(npos);
@@ -183,7 +195,7 @@ describe("transfer_routed_dist", () => {
   test("pays the routed net to the account from the donation's charge, and stores it", async () => {
     const { payload } = await settle_routed();
 
-    await transfer_routed_dist(payload);
+    await transfer_routed_dist(payload, RETRY);
 
     expect(stripe.paymentIntents.retrieve).toHaveBeenCalledWith(INTENT);
     expect(stripe.transfers.create).toHaveBeenCalledExactlyOnceWith(
@@ -201,9 +213,9 @@ describe("transfer_routed_dist", () => {
 
   test("a redelivery after the transfer is stored never transfers again", async () => {
     const { payload } = await settle_routed();
-    await transfer_routed_dist(payload);
+    await transfer_routed_dist(payload, RETRY);
 
-    await transfer_routed_dist(payload);
+    await transfer_routed_dist(payload, RETRY);
 
     expect(stripe.transfers.create).toHaveBeenCalledOnce();
     expect(await stored(payload.dist_id)).toBe("tr_1");
@@ -214,8 +226,8 @@ describe("transfer_routed_dist", () => {
     const { payload } = await settle_routed();
 
     await Promise.all([
-      transfer_routed_dist(payload),
-      transfer_routed_dist(payload),
+      transfer_routed_dist(payload, RETRY),
+      transfer_routed_dist(payload, RETRY),
     ]);
 
     const keys = stripe.transfers.create.mock.calls.map(
@@ -240,7 +252,7 @@ describe("transfer_routed_dist", () => {
       return { id: "tr_1" };
     });
 
-    await transfer_routed_dist(payload);
+    await transfer_routed_dist(payload, RETRY);
 
     expect(await stored(payload.dist_id)).toBe("tr_other");
     expect(report_error).toHaveBeenCalledOnce();
@@ -255,12 +267,16 @@ describe("transfer_routed_dist", () => {
   test("transfers what the pooled path would pay out for the same share", async () => {
     // a fund's two members splitting a 20.35 net each get a half cent
     const { npo, payload } = await settle_routed(10.175);
-    const pooled = calc_settlement_plan(make_input(npo.id, 10.175), {
-      ...npo,
-      allocation: { cash: 100, liq: 0, lock: 0 },
-    });
+    const pooled = calc_settlement_plan(
+      make_input(npo.id, 10.175),
+      {
+        ...npo,
+        allocation: { cash: 100, liq: 0, lock: 0 },
+      },
+      null
+    );
 
-    await transfer_routed_dist(payload);
+    await transfer_routed_dist(payload, RETRY);
 
     const [[params]] = stripe.transfers.create.mock.calls;
     // the grants run's figure for that payout, half down to 10.17
@@ -276,17 +292,19 @@ describe("transfer_routed_dist", () => {
       new Stripe.errors.StripeConnectionError({ message: "socket hang up" })
     );
 
-    const err = await transfer_routed_dist(payload).catch((e: Error) => e);
+    const err = await transfer_routed_dist(payload, RETRY).catch(
+      (e: Error) => e
+    );
 
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).toContain(payload.dist_id);
     expect((err as Error).message).toContain(DON_ID);
     expect(await stored(payload.dist_id)).toBeNull();
+    // a retry follows, so ops isn't told yet
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
-  // a retry is the same request under the same idempotency key, so it can
-  // only be refused again
-  test.each([
+  const refusals = [
     [
       "an account that revoked our access",
       new Stripe.errors.StripePermissionError({
@@ -300,26 +318,133 @@ describe("transfer_routed_dist", () => {
         code: "resource_missing",
       }),
     ],
-  ])("reports %s for manual handling and acks", async (_case, refusal) => {
+  ] as const;
+
+  const row = async (dist_id: string) => {
+    const [d] = await db().select().from(dists).where(eq(dists.id, dist_id));
+    return d!;
+  };
+  const notices = () =>
+    enqueue.mock.calls
+      .flat()
+      .filter((m) => (m as { id: string }).id === "fiat-notice") as {
+      dedupe: string;
+      payload: { alert: { body: string } };
+    }[];
+
+  // a retry is the same request under the same idempotency key, so it can
+  // only be refused again
+  test.each(refusals)(
+    "settles the share pooled when stripe refuses %s, and tells ops",
+    async (_case, refusal) => {
+      const { npo, payload } = await settle_routed(100, {
+        cash: 60,
+        liq: 40,
+        lock: 0,
+      });
+      stripe.transfers.create.mockRejectedValueOnce(refusal);
+
+      await expect(
+        transfer_routed_dist(payload, RETRY)
+      ).resolves.toBeUndefined();
+
+      // what a pooled settle of the same share books
+      const pooled = calc_settlement_plan(make_input(npo.id), npo, null);
+      const dist = await row(payload.dist_id);
+      expect(dist.stripe_routed_to).toBeNull();
+      expect(dist.alloc).toEqual({ cash: 60, liq: 40, lock: 0 });
+      const [payout] = await db().select().from(payouts);
+      expect(payout).toMatchObject({
+        source_id: payload.dist_id,
+        npo_id: npo.id,
+        amount: pooled.payout!.amount,
+        type: "pending",
+      });
+      expect(payout!.amount).toBe(60);
+      const txs = await db().select().from(bal_txs);
+      expect(txs.map((t) => [t.account, t.amount, t.account_other_id])).toEqual(
+        [["liq", 40, payload.dist_id]]
+      );
+      const [after] = await db().select().from(npos).where(eq(npos.id, npo.id));
+      expect({ cash: after!.cash, liq: after!.liq }).toEqual({
+        cash: 60,
+        liq: 40,
+      });
+
+      const [notice] = notices();
+      expect(notice!.dedupe).toBe(
+        `fiat.notice_connect-refused_${payload.dist_id}`
+      );
+      expect(notice!.payload.alert.body).toContain(DON_ID);
+      expect(notice!.payload.alert.body).toContain(payload.dist_id);
+      expect((report_error.mock.calls[0]![0] as Error).cause).toBe(refusal);
+    }
+  );
+
+  test("a redelivery after the pooled rebook books nothing more and tells ops again", async () => {
     const { payload } = await settle_routed();
-    stripe.transfers.create.mockRejectedValueOnce(refusal);
+    stripe.transfers.create.mockRejectedValueOnce(refusals[0][1]);
+    await transfer_routed_dist(payload, RETRY);
 
-    await expect(transfer_routed_dist(payload)).resolves.toBeUndefined();
+    await transfer_routed_dist(payload, RETRY);
 
+    expect(stripe.transfers.create).toHaveBeenCalledOnce();
+    expect(await db().select().from(payouts)).toHaveLength(1);
+    // a notice lost between the rebook's commit and its enqueue goes again
+    expect(notices().map((n) => n.dedupe)).toEqual([
+      `fiat.notice_connect-refused_${payload.dist_id}`,
+      `fiat.notice_connect-refused_${payload.dist_id}`,
+    ]);
+  });
+
+  // both read the dist routed before either rebooks it
+  test("two refused deliveries racing book the share pooled once", async () => {
+    const { payload } = await settle_routed();
+    stripe.transfers.create.mockRejectedValue(refusals[0][1]);
+
+    await Promise.all([
+      transfer_routed_dist(payload, RETRY),
+      transfer_routed_dist(payload, RETRY),
+    ]);
+
+    expect(stripe.transfers.create).toHaveBeenCalledTimes(2);
+    expect(await db().select().from(payouts)).toHaveLength(1);
+    const [after] = await db().select().from(npos);
+    expect(after!.cash).toBe(100);
+  });
+
+  // stripe may have made the transfer it never answered for
+  test("the last attempt at a transfer stripe never answered tells ops and leaves it routed", async () => {
+    const { payload } = await settle_routed();
+    stripe.transfers.create.mockRejectedValueOnce(
+      new Stripe.errors.StripeConnectionError({ message: "socket hang up" })
+    );
+
+    await expect(transfer_routed_dist(payload, { last: true })).rejects.toThrow(
+      payload.dist_id
+    );
+
+    const [notice] = notices();
+    expect(notice!.dedupe).toBe(
+      `fiat.notice_connect-unanswered_${payload.dist_id}`
+    );
+    expect(notice!.payload.alert.body).toContain(DON_ID);
+    expect((await row(payload.dist_id)).stripe_routed_to).toBe(ACCT);
+    expect(await db().select().from(payouts)).toEqual([]);
+  });
+
+  // the plan names the dist settle_npo writes; a mismatch must not pass quietly
+  test("reports a transfer for a dist that doesn't exist", async () => {
+    const { payload } = await settle_routed();
+
+    await transfer_routed_dist({ ...payload, dist_id: "no-such-dist" }, RETRY);
+
+    expect(stripe.transfers.create).not.toHaveBeenCalled();
     expect(report_error).toHaveBeenCalledOnce();
-    const [err, ctx] = report_error.mock.calls[0]!;
-    expect((err as Error).cause).toBe(refusal);
-    expect(ctx).toMatchObject({
+    expect(report_error.mock.calls[0]![1]).toMatchObject({
       donation_id: DON_ID,
-      dist_id: payload.dist_id,
+      dist_id: "no-such-dist",
     });
-    // the dist stays routed and unpaid, where the untransferred query finds it
-    expect(await stored(payload.dist_id)).toBeNull();
-    const [dist] = await db()
-      .select()
-      .from(dists)
-      .where(eq(dists.id, payload.dist_id));
-    expect(dist!.stripe_routed_to).toBe(ACCT);
   });
 
   test.each(reversed_statuses)(
@@ -331,7 +456,9 @@ describe("transfer_routed_dist", () => {
         .set({ status })
         .where(eq(donations.id, DON_ID));
 
-      await expect(transfer_routed_dist(payload)).resolves.toBeUndefined();
+      await expect(
+        transfer_routed_dist(payload, RETRY)
+      ).resolves.toBeUndefined();
 
       expect(stripe.transfers.create).not.toHaveBeenCalled();
       expect(report_error).toHaveBeenCalledOnce();
@@ -356,7 +483,7 @@ describe("a refund that landed before the transfer ran", () => {
     const { payload } = await settle_routed();
     refunded(4_000);
 
-    await transfer_routed_dist(payload);
+    await transfer_routed_dist(payload, RETRY);
 
     expect(stripe.transfers.create.mock.calls[0]![0]).toMatchObject({
       amount: 10_000,
@@ -381,7 +508,7 @@ describe("a refund that landed before the transfer ran", () => {
     const { payload } = await settle_routed();
     refunded(4_000, "pending");
 
-    await transfer_routed_dist(payload);
+    await transfer_routed_dist(payload, RETRY);
 
     expect(stripe.transfers.create).toHaveBeenCalledOnce();
     expect(stripe.transfers.createReversal).not.toHaveBeenCalled();
@@ -393,9 +520,9 @@ describe("a refund that landed before the transfer ran", () => {
     stripe.transfers.createReversal.mockRejectedValueOnce(
       new Stripe.errors.StripeConnectionError({ message: "socket hang up" })
     );
-    await expect(transfer_routed_dist(payload)).rejects.toThrow();
+    await expect(transfer_routed_dist(payload, RETRY)).rejects.toThrow();
 
-    await transfer_routed_dist(payload);
+    await transfer_routed_dist(payload, RETRY);
 
     expect(stripe.transfers.create).toHaveBeenCalledOnce();
     expect(stripe.transfers.createReversal).toHaveBeenCalledTimes(2);

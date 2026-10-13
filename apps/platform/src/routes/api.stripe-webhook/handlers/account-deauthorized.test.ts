@@ -35,8 +35,9 @@ const { npos } = await import("$/pg/schema/npo");
 const { registrations } = await import("$/pg/schema/registration");
 const { banking_apps } = await import("$/pg/schema/banking");
 const { npo_get } = await import("$/pg/queries/npo");
-const { is_routable } = await import("@/stripe-connect/eligibility");
-const { country_code } = await import("#/constants/countries");
+const { is_routable, routing_npo } = await import(
+  "@/stripe-connect/eligibility"
+);
 
 const db = () => test_db.current!.db;
 
@@ -59,10 +60,7 @@ const event = (account: string, created: number) =>
 // the input settle_npo decides routing on, read the way it reads it
 const routes = async (id: number) => {
   const npo = (await npo_get(id))!;
-  return is_routable(
-    { ...npo, hq_country_code: country_code(npo.hq_country) },
-    true
-  );
+  return is_routable(routing_npo(npo), true);
 };
 
 const row = async (id: number) => {

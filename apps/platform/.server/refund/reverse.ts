@@ -1,5 +1,6 @@
 import { report_error } from "#/errors/report";
 import { type IDonation, reversed_statuses } from "@/donations";
+import { type Rail, rail_of } from "@/donations/rail";
 import { humanize } from "@/helpers/decimal";
 import { msg } from "@/queue";
 import { stage } from "../env";
@@ -23,18 +24,8 @@ import {
   take_refund,
 } from "./takes";
 
+export type { Rail } from "@/donations/rail";
 export { type Share, WHOLE } from "./share";
-
-/** the provider family a gift was paid through, from its `via` */
-export type Rail = "stripe" | "paypal" | "crypto";
-
-/** the rail `via` names, or null for one nothing refunds (daf, stocks, ...) */
-export function rail_of(via: string): Rail | null {
-  if (via.startsWith("stripe")) return "stripe";
-  if (via.startsWith("paypal")) return "paypal";
-  if (via.startsWith("crypto")) return "crypto";
-  return null;
-}
 
 export type ReversalSource = "refund" | "dispute" | "admin";
 

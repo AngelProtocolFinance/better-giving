@@ -1,87 +1,100 @@
-import { country_code } from "#/constants/countries";
 import { report_error } from "#/errors/report";
 import { is_reversed } from "@/donations/settle";
 import { type IDonDistPayload, type IMsg, msg } from "@/queue";
 import {
-  calc_settlement_plan,
-  type NpoSettlementContext,
-  type PooledSettlementPlan,
+  type IPooledBooking,
+  pooled_allocation,
+  pooled_booking,
   transfer_msg,
 } from "@/settlement/plan";
-import { is_routable } from "@/stripe-connect/eligibility";
 import type { IInput } from "@/types/donation-dist";
-import { stripe as stripe_env } from "$/env";
 import { bal_tx_put } from "$/pg/queries/bal-tx";
 import {
   dist_of,
   dist_put,
+  dist_unroute,
+  dist_update,
   dists_routed_untransferred,
 } from "$/pg/queries/dist";
 import { donation_status_shared } from "$/pg/queries/donation";
 import { donation_message_put } from "$/pg/queries/donation-message";
 import { form_ltd_inc } from "$/pg/queries/form";
 import type { DbOrTx } from "$/pg/queries/helpers";
-import { nav_log_append } from "$/pg/queries/nav";
-import {
-  type INpo,
-  npo_balance_update,
-  npo_get,
-  npo_get_locked,
-} from "$/pg/queries/npo";
+import { nav_log_append, nav_ltd } from "$/pg/queries/nav";
+import { npo_balance_update, npo_get, npo_get_locked } from "$/pg/queries/npo";
 import { payout_put } from "$/pg/queries/payout";
 import { npo_prog_contrib } from "$/pg/queries/program";
 import { commission_put } from "$/pg/queries/referrer";
 import { rev_log_put } from "$/pg/queries/revenue";
 import { owe_takes } from "$/refund/takes";
-
-const plan_ctx = (npo: INpo): NpoSettlementContext => ({
-  id: npo.id,
-  name: npo.name,
-  fiscal_sponsored: npo.fiscal_sponsored,
-  hide_bg_tip: npo.hide_bg_tip,
-  allocation: npo.allocation,
-  lock_units: npo.lock_units,
-  liq: npo.liq,
-  referrer_user: npo.referrer_user,
-  referrer_npo: npo.referrer_npo,
-  referrer_expiry: npo.referrer_expiry,
-});
-
-/**
- * the connected account this share settles to, or null to settle it pooled:
- * money stripe took, for an npo that can receive it now. decided on the locked
- * row, so a disconnect that commits first is seen
- */
-const routed_to = (i: IInput, npo: INpo): string | null =>
-  // every rail but stripe settles money that never touched our stripe balance
-  i.tx.via.startsWith("stripe") &&
-  is_routable(
-    { ...npo, hq_country_code: country_code(npo.hq_country) },
-    stripe_env.connect_routing
-  )
-    ? npo.stripe_account_id
-    : null;
+import { npo_plan } from "./npo-plan";
 
 /** the npo's share lands in bg's books: its balances and a pending payout */
 async function book_pooled(
   db: DbOrTx,
   npo_id: number,
-  plan: PooledSettlementPlan,
+  booking: Omit<IPooledBooking, "msgs">,
   txs: unknown[]
 ) {
-  if (plan.nav_log_entry) await nav_log_append(db, plan.nav_log_entry);
+  if (booking.nav_log_entry) await nav_log_append(db, booking.nav_log_entry);
 
-  for (const tx of plan.balance_txs) {
+  for (const tx of booking.balance_txs) {
     txs.push(tx);
     await bal_tx_put(db, tx);
   }
 
-  if (plan.payout) {
-    txs.push(plan.payout);
-    await payout_put(db, plan.payout);
+  if (booking.payout) {
+    txs.push(booking.payout);
+    await payout_put(db, booking.payout);
   }
 
-  await npo_balance_update(db, npo_id, plan.balance_deltas, "inc");
+  await npo_balance_update(db, npo_id, booking.balance_deltas, "inc");
+}
+
+/** a routed dist no transfer paid, as `settle_unrouted` rebooks it */
+interface IUnroutedDist {
+  id: string;
+  to_id: number;
+  net: number;
+  date_created: string;
+}
+
+/**
+ * books a routed dist stripe refused to transfer as settlement books a pooled
+ * share of the npo today: it stops being routed, and its net lands in the
+ * npo's balances and payout by its current split. the lock-purchase notices
+ * the booking owes, or null when a transfer was stored or another delivery
+ * rebooked it first. run in the caller's transaction
+ */
+export async function settle_unrouted(
+  db: DbOrTx,
+  d: IUnroutedDist
+): Promise<IMsg[] | null> {
+  // npo before dist, as settle_npo takes them
+  const npo = await npo_get_locked(db, d.to_id);
+  if (!npo) throw new Error(`npo:${d.to_id} not found`);
+  if (!(await dist_unroute(d.id, db))) return null;
+
+  const { alloc, fell_back } = pooled_allocation(npo.allocation);
+  if (fell_back) {
+    report_error(
+      new Error(`npo:${npo.id} stored allocation invalid, settled to default`),
+      { npo_id: npo.id, allocation: npo.allocation, during: "settle_unrouted" }
+    );
+  }
+  // the price the nav log's own invariant holds a purchase to
+  const { price } = await nav_ltd(db);
+  const { msgs, ...booking } = pooled_booking({
+    net: d.net,
+    alloc,
+    nav_price: price,
+    npo,
+    dist_id: d.id,
+    date: d.date_created,
+  });
+  await dist_update(db, d.id, { alloc });
+  await book_pooled(db, npo.id, booking, []);
+  return msgs;
 }
 
 /**
@@ -104,7 +117,7 @@ export async function settled_npo_msgs(db: DbOrTx, i: IInput): Promise<IMsg[]> {
   if (!dist) throw new Error(`dist for npo:${i.id} vanished after settling`);
   const npo = await npo_get(+i.id, db);
   if (!npo) throw new Error(`npo:${i.id} not found`);
-  const plan = calc_settlement_plan(i, plan_ctx(npo));
+  const plan = npo_plan(i, npo);
   const notice = plan.msgs.flatMap((m) => {
     if (m.id !== "don-dist") return [];
     const p = m.payload as IDonDistPayload;
@@ -161,7 +174,8 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
     return { msgs: [], txs: [] };
   }
 
-  const plan = calc_settlement_plan(i, plan_ctx(npo), routed_to(i, npo));
+  // on the locked row, so a disconnect that commits first is seen
+  const plan = npo_plan(i, npo);
 
   if (plan.alloc_fell_back) {
     report_error(
@@ -176,7 +190,7 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
   // dist insert first — unique(donation_id, to_id) acts as idempotency guard.
   // on duplicate, PG throws 23505 → transaction rolls back → caller handles it.
   const dist_row = {
-    id: don.id,
+    id: plan.dist_id,
     donation_id: i.prnt.id,
     status: "settled" as const,
     date_created: don.created_at,
@@ -235,7 +249,7 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
   // a dispute or refund recorded before this dist existed owed nothing for it
   await owe_takes(db, i.prnt.id, new Date().toISOString());
 
-  console.info(`settled npo ${i.id}, dist ${don.id}`);
+  console.info(`settled npo ${i.id}, dist ${plan.dist_id}`);
 
   return { msgs: plan.msgs, txs };
 }

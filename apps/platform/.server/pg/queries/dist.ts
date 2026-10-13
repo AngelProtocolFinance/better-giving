@@ -398,6 +398,26 @@ export async function dists_routed_untransferred(
     );
 }
 
+/** rebook a routed dist as pooled, only while no transfer has paid it. false
+ * when it was already transferred, or never routed */
+export async function dist_unroute(
+  dist_id: string,
+  conn: DbOrTx = db
+): Promise<boolean> {
+  const unrouted = await conn
+    .update(dists)
+    .set({ stripe_routed_to: null })
+    .where(
+      and(
+        eq(dists.id, dist_id),
+        isNotNull(dists.stripe_routed_to),
+        isNull(dists.stripe_transfer_id)
+      )
+    )
+    .returning({ id: dists.id });
+  return unrouted.length > 0;
+}
+
 /** paginated donations received by npo */
 export async function npo_donations(
   npo_id: number,

@@ -1,14 +1,16 @@
 import type Stripe from "stripe";
 import { report_error } from "#/errors/report";
 import { is_reversed } from "@/donations/settle";
-import type { IConnectTransferPayload } from "@/queue";
+import { type IAttempt, type IConnectTransferPayload, msg } from "@/queue";
+import { stage } from "../env";
+import { enqueue } from "../kit/queue";
 import { stripe } from "../kit/stripe";
 import { payout_cents } from "../payouts/transfer";
 import { db } from "../pg/db";
 import {
   dist_stripe_transfer_get,
   dist_stripe_transfer_set,
-  dists_routed_untransferred,
+  npo_donation_get,
 } from "../pg/queries/dist";
 import { donation_status_shared } from "../pg/queries/donation";
 import {
@@ -16,20 +18,34 @@ import {
   refund_take,
   unsent_refunds,
 } from "../refund/unsent";
+import { settle_unrouted } from "../settlement/settle-npo";
 import { is_refusal } from "./refusal";
 import { reverse_routed_refunds } from "./reverse";
 
 /** pay a routed dist's net to the connected account settlement routed it to */
-export async function transfer_routed_dist(p: IConnectTransferPayload) {
-  // stored: a delivery retried after the reversal below threw, or a duplicate
-  if (await dist_stripe_transfer_get(p.dist_id)) {
-    return reverse_refunded_before(p, await charge_of(p));
+export async function transfer_routed_dist(
+  p: IConnectTransferPayload,
+  attempt: IAttempt
+) {
+  const stored = await dist_stripe_transfer_get(p.dist_id);
+  if (stored === undefined) {
+    report_error(new Error(`connect-transfer for missing dist ${p.dist_id}`), {
+      donation_id: p.donation_id,
+      dist_id: p.dist_id,
+    });
+    return;
   }
+  // stored: a delivery retried after the reversal below threw, or a duplicate
+  if (stored) return reverse_refunded_before(p, await charge_of(p));
 
-  const dists = await dists_routed_untransferred(p.donation_id);
-  const dist = dists.find((d) => d.id === p.dist_id);
+  const dist = await npo_donation_get(p.dist_id);
   // stored since the read above
-  if (!dist) return;
+  if (!dist || dist.stripe_transfer_id) return;
+  // a refusal rebooked it pooled; this delivery may be the retry of one whose
+  // notice never went
+  if (!dist.stripe_routed_to) return enqueue(refused_notice(p));
+  const npo_id = dist.to_id;
+  if (npo_id === null) throw new Error(`dist ${p.dist_id} has no npo`);
 
   // the donor has the money back; a refund that lands after this check meets
   // a transfer it has to reverse
@@ -43,16 +59,16 @@ export async function transfer_routed_dist(p: IConnectTransferPayload) {
   }
 
   const what = `stripe transfer for dist ${p.dist_id} of donation ${p.donation_id}`;
-  const charge = await charge_of(p);
+  const net = dist.net ?? 0;
+  let charge: string;
   let tr: Stripe.Transfer;
   try {
-    tr = await create_transfer(p, charge, dist.stripe_routed_to, dist.net ?? 0);
+    charge = await charge_of(p);
+    tr = await create_transfer(p, charge, dist.stripe_routed_to, net);
   } catch (e) {
     if (is_refusal(e)) {
-      // the npo is unpaid until someone decides where its share goes; its dist
-      // stays routed and untransferred, which `dists_routed_untransferred` lists
       report_error(
-        new Error(`${what} refused, needs manual handling`, { cause: e }),
+        new Error(`${what} refused, settling it pooled`, { cause: e }),
         {
           donation_id: p.donation_id,
           dist_id: p.dist_id,
@@ -60,8 +76,18 @@ export async function transfer_routed_dist(p: IConnectTransferPayload) {
           stripe_code: e.code,
         }
       );
-      return;
+      const lock_msgs = await db.transaction((tx) =>
+        settle_unrouted(tx, {
+          id: dist.id,
+          to_id: npo_id,
+          net,
+          date_created: dist.date_created,
+        })
+      );
+      return enqueue(refused_notice(p), ...(lock_msgs ?? []));
     }
+    // no rebook: the transfer stripe never answered for may have been made
+    if (attempt.last) await enqueue(unanswered_notice(p));
     // thrown, not reported: the queue route's error handler reports what
     // escapes it, and qstash retries the delivery
     throw new Error(`${what} failed`, { cause: e });
@@ -78,6 +104,34 @@ export async function transfer_routed_dist(p: IConnectTransferPayload) {
   }
   await reverse_refunded_before(p, charge);
 }
+
+const refused_notice = (p: IConnectTransferPayload) =>
+  msg("fiat-notice", {
+    id: `connect-refused_${p.dist_id}`,
+    alert: {
+      type: "NOTICE",
+      from: `connect-transfer-${stage}`,
+      title: "Routed Transfer Refused: Settled Pooled",
+      body: [
+        `donation ${p.donation_id}, dist ${p.dist_id}`,
+        "stripe refused the transfer to the nonprofit's connected account, so its share was settled the way a pooled one is: into its balances and a pending payout the grants run pays like any other. check the nonprofit's stripe connection; later card gifts keep routing to it until it reads disconnected or not ready.",
+      ].join("\n"),
+    },
+  });
+
+const unanswered_notice = (p: IConnectTransferPayload) =>
+  msg("fiat-notice", {
+    id: `connect-unanswered_${p.dist_id}`,
+    alert: {
+      type: "ERROR",
+      from: `connect-transfer-${stage}`,
+      title: "Routed Transfer Unanswered",
+      body: [
+        `donation ${p.donation_id}, dist ${p.dist_id}`,
+        `stripe never answered the transfer for this share, and nothing retries it. look in stripe for a transfer with metadata dist_id ${p.dist_id}: if there is one, the nonprofit was paid: store its id as the dist's stripe_transfer_id, or a refund won't reverse it. if not, the nonprofit is unpaid: the dist is still routed, with no payout row.`,
+      ].join("\n"),
+    },
+  });
 
 async function charge_of(p: IConnectTransferPayload) {
   const intent = await stripe.paymentIntents.retrieve(p.intent_id);

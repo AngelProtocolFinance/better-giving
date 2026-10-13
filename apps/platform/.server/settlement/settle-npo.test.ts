@@ -59,6 +59,7 @@ vi.mock("../env", async (importOriginal) => {
 });
 
 const { settle_npo } = await import("./settle-npo");
+const { preview_settlement } = await import("./preview");
 const { npo_donations } = await import("../pg/queries/dist");
 const { npo_donor_list } = await import("../pg/queries/donor");
 const { npo_program_get } = await import("../pg/queries/program");
@@ -342,5 +343,46 @@ describe("settle_npo on a card donation to a connected npo", () => {
       expect.objectContaining({ amount: 100, donor_email: "ada@test.com" }),
     ]);
     expect(routed_reads.program_total).toBe(100);
+  });
+});
+
+describe("preview_settlement", () => {
+  beforeEach(async () => {
+    flags.routing = true;
+    await db().delete(payouts);
+    await db().delete(bal_txs);
+    await db().delete(rev_logs);
+    await db().delete(dists);
+    await db().delete(donation_donors);
+    await db().delete(donations);
+    await db().delete(programs);
+    await db().delete(npos);
+  });
+
+  const records = async (via: string) => {
+    const npo = await seed_npo(db(), {
+      ...ROUTABLE,
+      registration_number: `EIN-PREVIEW-${via}`,
+    });
+    const preview = await preview_settlement(make_input(npo!.id, via));
+    return (preview!.txs as { _record: string }[]).map((t) => t._record);
+  };
+
+  // the admin sees what settle_npo will write
+  test("shows a routed card gift with no payout or balance", async () => {
+    expect(await records("stripe:card")).toEqual([
+      "distribution",
+      "revenue_log",
+    ]);
+  });
+
+  test("shows the same npo's daf gift with its payout and balances", async () => {
+    expect(await records("daf")).toEqual([
+      "distribution",
+      "revenue_log",
+      "balance_tx",
+      "balance_tx",
+      "payout",
+    ]);
   });
 });
