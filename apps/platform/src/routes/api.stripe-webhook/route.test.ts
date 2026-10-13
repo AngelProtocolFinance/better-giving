@@ -21,6 +21,7 @@ const refund_updated_mock = vi.hoisted(() => vi.fn());
 const dispute_opened_mock = vi.hoisted(() => vi.fn());
 const dispute_closed_mock = vi.hoisted(() => vi.fn());
 const account_updated_mock = vi.hoisted(() => vi.fn());
+const account_deauthorized_mock = vi.hoisted(() => vi.fn());
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
 vi.mock("$/kit/stripe", () => ({
@@ -54,6 +55,7 @@ vi.mock("./handlers", () => ({
   handle_dispute_opened: dispute_opened_mock,
   handle_dispute_closed: dispute_closed_mock,
   handle_account_updated: account_updated_mock,
+  handle_account_deauthorized: account_deauthorized_mock,
 }));
 vi.mock("./handlers/intent-suceeded", () => ({
   handle_intent_succeeded: intent_succeeded_mock,
@@ -308,6 +310,52 @@ describe("account.updated (stripe connect)", () => {
 
     expect(res.status).toBe(400);
     expect(account_updated_mock).not.toHaveBeenCalled();
+  });
+});
+
+describe("account.application.deauthorized (stripe connect)", () => {
+  const webhooks = new Stripe("sk_test_unused").webhooks;
+  const signed_with = (secret: string) => {
+    const payload = JSON.stringify({
+      id: "evt_deauth_1",
+      object: "event",
+      type: "account.application.deauthorized",
+      account: "acct_connected_1",
+      created: 1_791_806_400,
+      data: { object: { id: "ca_platform", object: "application" } },
+    });
+    return post(payload, {
+      "stripe-signature": webhooks.generateTestHeaderString({
+        payload,
+        secret,
+      }),
+    });
+  };
+
+  beforeEach(() => {
+    construct_event_mock.mockImplementation(
+      (body: string, sig: string, secret: string) =>
+        webhooks.constructEvent(body, sig, secret)
+    );
+  });
+
+  it("verifies an event the connect endpoint signed and hands it over", async () => {
+    const res = await invoke(signed_with(stripe_env.connect_webhook_secret!));
+
+    expect(res.status).toBe(200);
+    expect(account_deauthorized_mock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "evt_deauth_1",
+        account: "acct_connected_1",
+      })
+    );
+  });
+
+  it("refuses an event neither secret signed", async () => {
+    const res = await invoke(signed_with("whsec_someone_else"));
+
+    expect(res.status).toBe(400);
+    expect(account_deauthorized_mock).not.toHaveBeenCalled();
   });
 });
 

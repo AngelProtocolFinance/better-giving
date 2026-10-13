@@ -55,6 +55,49 @@ describe("StripeConnectCard", () => {
       .not.toBeInTheDocument();
   });
 
+  test("disconnected: reconnecting is a plain link to the start url, no confirm", async () => {
+    nav = capture_navigation();
+    const screen = await render_card({ status: "disconnected" });
+
+    await expect
+      .element(
+        screen.getByText(
+          "Disconnected — card donations settle to your bank details"
+        )
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByRole("button", { name: /connect a different account/i })
+      )
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("link", { name: "Connect with Stripe" }))
+      .not.toBeInTheDocument();
+
+    const reconnect = screen.getByRole("link", { name: "Reconnect Stripe" });
+    await expect.element(reconnect).toHaveAttribute("href", START);
+    await reconnect.click();
+    // one press leaves for Stripe — without replace=1, and nothing asked first
+    expect(nav.hrefs).toEqual([START]);
+    expect(screen.getByRole("dialog").query()).toBeNull();
+  });
+
+  test.each<IStripeConnectCard["status"]>(["incomplete", "pending", "ready"])(
+    "%s: offers switching accounts, never reconnecting",
+    async (status) => {
+      const screen = await render_card({ status });
+      await expect
+        .element(
+          screen.getByRole("button", { name: /connect a different account/i })
+        )
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("link", { name: "Reconnect Stripe" }))
+        .not.toBeInTheDocument();
+    }
+  );
+
   test("connected: switching accounts waits for a confirm, then goes with replace=1", async () => {
     nav = capture_navigation();
     const screen = await render_card({ status: "ready" });

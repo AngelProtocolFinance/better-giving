@@ -13,6 +13,7 @@ import {
 } from "$/pg/queries/subscription";
 import type { Route } from "./+types/route";
 import {
+  handle_account_deauthorized,
   handle_account_updated,
   handle_charge_refunded,
   handle_dispute_closed,
@@ -58,6 +59,13 @@ const record_end_reason = async (sub: Stripe.Subscription) => {
   if (reason) await sub_cancel_reason_default(db, sub.id, reason);
 };
 
+/** a connected account's own objects are not ours: of its events, only these
+ * — what concerns its connection to us — are handled */
+const CONNECT_EVENTS = new Set<Stripe.Event.Type>([
+  "account.updated",
+  "account.application.deauthorized",
+]);
+
 /** events from connected accounts reach a separate connect endpoint with its
  * own signing secret; both endpoints point here */
 function verify_event(body: string, signature: string): Stripe.Event {
@@ -95,8 +103,7 @@ export async function action({ request }: Route.ActionArgs) {
     // land in the catch below (reported + 4xx) instead of escaping as a 500.
     const stripe_event = verify_event(body, signature);
 
-    // a connected account's own objects, not ours: only its readiness is read
-    if (stripe_event.account && stripe_event.type !== "account.updated") {
+    if (stripe_event.account && !CONNECT_EVENTS.has(stripe_event.type)) {
       return new Response(
         `connected account event not handled: ${stripe_event.type}`,
         { status: 200 }
@@ -198,6 +205,13 @@ export async function action({ request }: Route.ActionArgs) {
       case "account.updated":
         if (!(await handle_account_updated(stripe_event))) {
           console.info(`account.updated ignored: ${stripe_event.id}`);
+        }
+        break;
+      case "account.application.deauthorized":
+        if (!(await handle_account_deauthorized(stripe_event))) {
+          console.info(
+            `account.application.deauthorized ignored: ${stripe_event.id}`
+          );
         }
         break;
       default:

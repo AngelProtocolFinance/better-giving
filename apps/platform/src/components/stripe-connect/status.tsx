@@ -33,6 +33,11 @@ const tones: Record<TConnectStatus, ITone> = {
     ink: "text-success-subtle-fg",
     dot: "bg-success",
   },
+  disconnected: {
+    label: "Disconnected — card donations settle to your bank details",
+    ink: "text-warning-subtle-fg",
+    dot: "bg-warning",
+  },
 };
 
 export interface IStripeConnectStatus {
@@ -48,6 +53,7 @@ export function StripeConnectStatus({
   classes = "",
 }: IStripeConnectStatus) {
   const tone = tones[status];
+  const has_dashboard = status !== "not_connected" && status !== "disconnected";
   return (
     <p
       className={`${classes} flex flex-wrap items-center gap-x-4 gap-y-1 text-sm`}
@@ -61,7 +67,7 @@ export function StripeConnectStatus({
         />
         {tone.label}
       </span>
-      {status !== "not_connected" && (
+      {has_dashboard && (
         <ExtLink
           href="https://dashboard.stripe.com/"
           className="inline-flex items-center gap-1 link"

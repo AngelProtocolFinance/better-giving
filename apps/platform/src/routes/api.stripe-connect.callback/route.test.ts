@@ -49,6 +49,8 @@ const { seed_npo, seed_user } = await import("#/__tests__/fixtures/funds");
 const { npos } = await import("$/pg/schema/npo");
 const { user_npo_memberships } = await import("$/pg/schema/user");
 const { registrations } = await import("$/pg/schema/registration");
+const { is_routable } = await import("@/stripe-connect/eligibility");
+const { country_code } = await import("#/constants/countries");
 
 const db = () => test_db.current!.db;
 
@@ -678,6 +680,46 @@ describe("stripe connect callback", () => {
     expect(r.stripe_charges_enabled).toBe(false);
     expect(r.stripe_payouts_enabled).toBe(false);
     expect(r.stripe_details_submitted).toBe(false);
+  });
+
+  describe("a nonprofit reconnecting after it disconnected us", () => {
+    const disconnected_npo = async (tag: string) => {
+      const m = await member_of_npo(tag, `acct_${tag}_old`);
+      await db()
+        .update(npos)
+        .set({
+          hq_country: "United States",
+          stripe_deauthorized_at: "2026-10-01T00:00:00.000Z",
+        })
+        .where(eq(npos.id, m.npo.id));
+      return m;
+    };
+
+    test.each([
+      ["a new account", "new"],
+      ["the account it disconnected", "old"],
+    ])("connects %s unasked and routes again", async (_case, which) => {
+      const tag = `cb-reconnect-${which}`;
+      const { user, npo } = await disconnected_npo(tag);
+      token.mockResolvedValue({ stripe_user_id: `acct_${tag}_${which}` });
+
+      const res = await call({
+        code: `ac_${tag}`,
+        state: sign_state({
+          t: { kind: "npo", npo_id: npo.id },
+          uid: user.id,
+          replace: false,
+        }),
+      });
+
+      expect(landed(res).result).toBe("connected");
+      const r = await npo_row(npo.id);
+      expect(r.stripe_account_id).toBe(`acct_${tag}_${which}`);
+      expect(r.stripe_deauthorized_at).toBeNull();
+      expect(
+        is_routable({ ...r, hq_country_code: country_code(r.hq_country) }, true)
+      ).toBe(true);
+    });
   });
 
   // its account was copied onto the npo at approval, and may have moved since

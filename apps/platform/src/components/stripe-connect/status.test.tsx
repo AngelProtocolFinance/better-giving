@@ -7,6 +7,7 @@ const labels: [TConnectStatus, string][] = [
   ["incomplete", "Finish setup on Stripe"],
   ["pending", "Pending review"],
   ["ready", "Ready to receive card donations"],
+  ["disconnected", "Disconnected — card donations settle to your bank details"],
 ];
 
 describe("StripeConnectStatus", () => {
@@ -17,8 +18,8 @@ describe("StripeConnectStatus", () => {
       .toBeVisible();
 
     const dashboard = screen.getByRole("link", { name: /stripe dashboard/i });
-    if (status === "not_connected") {
-      // nothing to look at on Stripe before an account exists
+    if (status === "not_connected" || status === "disconnected") {
+      // no account of ours to look at on Stripe: none yet, or access revoked
       await expect.element(dashboard).not.toBeInTheDocument();
       return;
     }

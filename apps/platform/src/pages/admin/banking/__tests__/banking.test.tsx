@@ -891,6 +891,33 @@ describe("stripe connect card", () => {
     expect(sync_npo_account).toHaveBeenCalledWith(npo.id);
   });
 
+  // read off the loader: the card's own wording for it is the ui's to land
+  const status_of = async (npo_id: number) => {
+    const data = await list_loader({
+      context: { get: () => npo_id },
+      request: new Request(`https://app.test/admin/${npo_id}/banking`),
+      params: { id: `${npo_id}` },
+    } as any);
+    return data.stripe.status;
+  };
+
+  it("an npo that disconnected us reads as disconnected, past its last mirror", async () => {
+    const npo = await seed_npo({
+      ...READY,
+      stripe_deauthorized_at: "2026-10-01T00:00:00.000Z",
+    });
+
+    expect(await status_of(npo.id)).toBe("disconnected");
+    expect(sync_npo_account).not.toHaveBeenCalled();
+  });
+
+  it("an unsynced account stripe refuses us reads as disconnected", async () => {
+    const npo = await seed_npo({ stripe_account_id: "acct_refused" });
+    sync_npo_account.mockResolvedValue("disconnected");
+
+    expect(await status_of(npo.id)).toBe("disconnected");
+  });
+
   it("keeps the page up when stripe can't be reached for an unsynced account", async () => {
     const npo = await seed_npo({ stripe_account_id: "acct_new" });
     await seed_bapp(npo.id, { bank_summary: "USD account ending in 1234" });

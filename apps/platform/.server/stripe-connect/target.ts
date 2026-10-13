@@ -22,7 +22,13 @@ export interface IConnectActor {
 }
 
 export type TTargetAccess =
-  | { ok: true; acct: string | null }
+  | {
+      ok: true;
+      acct: string | null;
+      /** a connect would replace a live account, so it needs confirming. an
+       * account the npo disconnected is held but no longer live */
+      replaces: boolean;
+    }
   | { ok: false; status: 403 | 404 };
 
 /** whether `actor` may connect an account to `t`, and the account it holds now.
@@ -42,15 +48,24 @@ export async function target_access(
     // in review or decided, the write is refused anyway — refused here, it is
     // refused before stripe links an account that would then be stored nowhere
     if (!EDITABLE.includes(reg.status)) return { ok: false, status: 403 };
-    return { ok: true, acct: reg.o_stripe_account_id ?? null };
+    const acct = reg.o_stripe_account_id ?? null;
+    return { ok: true, acct, replaces: acct !== null };
   }
 
   const [npo] = await db
-    .select({ acct: npos.stripe_account_id })
+    .select({
+      acct: npos.stripe_account_id,
+      deauthorized_at: npos.stripe_deauthorized_at,
+    })
     .from(npos)
     .where(eq(npos.id, t.npo_id));
   if (!npo) return { ok: false, status: 404 };
-  if (is_admin) return { ok: true, acct: npo.acct };
+  const granted = {
+    ok: true,
+    acct: npo.acct,
+    replaces: npo.acct !== null && npo.deauthorized_at === null,
+  } as const;
+  if (is_admin) return granted;
 
   const [member] = await db
     .select({ npo_id: user_npo_memberships.npo_id })
@@ -62,7 +77,7 @@ export async function target_access(
       )
     )
     .limit(1);
-  return member ? { ok: true, acct: npo.acct } : { ok: false, status: 403 };
+  return member ? granted : { ok: false, status: 403 };
 }
 
 /** whether `acct` already belongs to an npo or a registration other than `t`.

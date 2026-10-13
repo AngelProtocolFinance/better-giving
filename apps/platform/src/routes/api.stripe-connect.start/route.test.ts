@@ -50,6 +50,8 @@ const { read_state } = await import("$/stripe-connect/state");
 const { seed_npo, seed_user } = await import("#/__tests__/fixtures/funds");
 const { user_npo_memberships } = await import("$/pg/schema/user");
 const { registrations } = await import("$/pg/schema/registration");
+const { npos } = await import("$/pg/schema/npo");
+const { eq } = await import("drizzle-orm");
 
 const db = () => test_db.current!.db;
 
@@ -218,5 +220,25 @@ describe("stripe connect start", () => {
 
     const confirmed = await call(`kind=reg&reg_id=${reg_id}&replace=1`);
     expect(state_of(confirmed).replace).toBe(true);
+  });
+
+  // its old connection is dead: there is nothing live to replace
+  test("an npo that disconnected us goes to stripe unasked", async () => {
+    const { npo } = await member_of_npo("start-disconnected");
+    await db()
+      .update(npos)
+      .set({
+        stripe_account_id: "acct_start_disconnected",
+        stripe_deauthorized_at: "2026-10-01T00:00:00.000Z",
+      })
+      .where(eq(npos.id, npo.id));
+
+    const res = await call(`kind=npo&npo_id=${npo.id}`);
+
+    const to = new URL(res.headers.get("location")!);
+    expect(`${to.origin}${to.pathname}`).toBe(
+      "https://connect.stripe.com/oauth/authorize"
+    );
+    expect(state_of(res).replace).toBe(false);
   });
 });

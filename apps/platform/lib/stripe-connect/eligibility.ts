@@ -64,14 +64,15 @@ export interface IRoutingNpo {
 
 const is_ready = (npo: IRoutingNpo) =>
   npo.stripe_account_id !== null &&
-  // the readiness mirror can predate the disconnect, so it never vouches past one
-  npo.stripe_deauthorized_at === null &&
-  connect_status({
-    charges_enabled: npo.stripe_charges_enabled,
-    payouts_enabled: npo.stripe_payouts_enabled,
-    details_submitted: npo.stripe_details_submitted,
-    requirements_due: npo.stripe_requirements_due,
-  }) === "ready";
+  connect_status(
+    {
+      charges_enabled: npo.stripe_charges_enabled,
+      payouts_enabled: npo.stripe_payouts_enabled,
+      details_submitted: npo.stripe_details_submitted,
+      requirements_due: npo.stripe_requirements_due,
+    },
+    npo.stripe_deauthorized_at
+  ) === "ready";
 
 const in_transfer_set = (code: string | undefined) =>
   !!code && TRANSFER_COUNTRIES.has(code.toUpperCase());
