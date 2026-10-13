@@ -7,6 +7,7 @@ import { db } from "$/pg/db";
 import { donation_put } from "$/pg/queries/donation";
 import type { Provider } from "../types";
 import { customer_with_currency } from "./customer-with-currency";
+import { npo_descriptor_suffix } from "./descriptor-suffix";
 import { donor_refusal } from "./donor-refusal";
 import { payment_intent } from "./payment-intent";
 import { recurring_bank_methods, setup_intent } from "./setup-intent";
@@ -57,6 +58,13 @@ export const stripe_intent: Provider = async ({
   };
   const don = await donation_put(db, r);
 
+  // a suffix shows on card charges only, and a subscription's charges take
+  // none (they're stripe-created)
+  const descriptor_suffix =
+    intent.frequency === "one-time" && !bank_only
+      ? await npo_descriptor_suffix(to)
+      : undefined;
+
   let client_secret: string;
   try {
     client_secret =
@@ -67,6 +75,7 @@ export const stripe_intent: Provider = async ({
             customer_id,
             order_id: don.id,
             bank_only,
+            descriptor_suffix,
           })
         : await setup_intent(don.id, customer_id, don.currency, bank_only);
   } catch (err) {

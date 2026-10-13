@@ -11,6 +11,7 @@ export const SERVER_KEYS = [
   "STRIPE_SUBS_PRODUCT_ID",
   "STRIPE_CONNECT_CLIENT_ID",
   "STRIPE_CONNECT_WEBHOOK_SECRET",
+  "STRIPE_CONNECT_ROUTING",
   "PAYPAL_API_URL",
   "PAYPAL_CLIENT_ID",
   "PAYPAL_CLIENT_SECRET",
@@ -105,6 +106,8 @@ export const OPTIONAL_KEYS = [
   // 503; without the connect secret only platform-signed events verify
   "STRIPE_CONNECT_CLIENT_ID",
   "STRIPE_CONNECT_WEBHOOK_SECRET",
+  // the routing switch, off unless "on"
+  "STRIPE_CONNECT_ROUTING",
 ] as const satisfies readonly ServerKey[];
 
 export type OptionalKey = (typeof OPTIONAL_KEYS)[number];

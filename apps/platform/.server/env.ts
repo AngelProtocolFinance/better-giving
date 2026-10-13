@@ -171,6 +171,9 @@ export const stripe = {
   // optional: an environment without connect still boots
   connect_client_id: process.env.STRIPE_CONNECT_CLIENT_ID,
   connect_webhook_secret: process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
+  // whether card donations route to a ready connected account. exactly "on",
+  // as with owed_deductions
+  connect_routing: process.env.STRIPE_CONNECT_ROUTING === "on",
 } as const;
 
 export const wise = {
