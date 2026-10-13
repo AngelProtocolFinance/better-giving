@@ -104,7 +104,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       return written.length ? "connected" : "replace_unconfirmed";
     });
   } catch (err) {
-    // an npo connecting without the lock (approval) took it first
+    // a duplicate written before claims took the lock, now held by an npo
     if (is_unique_violation(err, "npos_stripe_account_id_unique")) {
       return fail("already_linked");
     }

@@ -306,6 +306,93 @@ describe("approve", () => {
     expect((await reg_get(RID))?.status).toBe("02");
   });
 
+  describe("a stripe account held elsewhere", () => {
+    const ACCT = "acct_dup";
+    const other_npo = () =>
+      test_db
+        .current!.db.insert(npos)
+        .values({
+          registration_number: "EIN-OTHER",
+          name: "Other",
+          endow_designation: "Charity",
+          overview_pt: "[]",
+          hq_country: "United States",
+          stripe_account_id: ACCT,
+        })
+        .returning();
+
+    /** refused whole: nothing of the approval is written or announced */
+    const refused = async (res: Response) => {
+      const db = test_db.current!.db;
+      expect(res.status).toBe(409);
+      expect(await res.text()).toMatch(
+        `stripe account ${ACCT} is already linked to another nonprofit`
+      );
+      expect((await reg_get(RID))?.status).toBe("02");
+      expect(await db.select().from(npos)).toHaveLength(1);
+      expect(await db.select().from(banking_apps)).toHaveLength(0);
+      expect(await db.select().from(user_npo_memberships)).toHaveLength(0);
+      expect(enqueued).toHaveLength(0);
+    };
+
+    beforeEach(async () => {
+      await test_db
+        .current!.db.update(registrations)
+        .set({ o_stripe_account_id: ACCT });
+    });
+
+    // a duplicate no claim's lock stopped: written before claims took it
+    test("by an npo refuses the approval with 409", async () => {
+      await other_npo();
+
+      await refused(await verdict("approved"));
+    });
+
+    // the npo commits between the route's read and the approval's transaction,
+    // here during the bank lookup that sits between them
+    test("by an npo that claimed it mid-approval refuses with 409", async () => {
+      vi.mocked(wise.v2_account).mockImplementationOnce(async () => {
+        await other_npo();
+        return {
+          longAccountSummary: "Test Bank ***1234",
+        } as Awaited<ReturnType<typeof wise.v2_account>>;
+      });
+
+      await refused(await verdict("approved"));
+    });
+
+    // the pending one would hit the npo's unique key at its own approval
+    test("by another pending registration refuses with 409", async () => {
+      const db = test_db.current!.db;
+      await db.insert(registrations).values({
+        ...IN_REVIEW,
+        id: crypto.randomUUID(),
+        status: "01",
+        o_stripe_account_id: ACCT,
+      });
+
+      const res = await verdict("approved");
+
+      expect(res.status).toBe(409);
+      expect((await reg_get(RID))?.status).toBe("02");
+      expect(await db.select().from(npos)).toHaveLength(0);
+    });
+
+    // the second finds the first's npo holding the account: a repeat, not a
+    // holder elsewhere
+    test("two approvals at once with an account create one npo", async () => {
+      const statuses = await Promise.all([
+        verdict("approved"),
+        verdict("approved"),
+      ]).then((rs) => rs.map((r) => r.status));
+
+      expect(statuses).toEqual([302, 302]);
+      const all = await test_db.current!.db.select().from(npos);
+      expect(all.map((n) => n.stripe_account_id)).toEqual([ACCT]);
+      expect(dedupe_keys("reg-updated").size).toBe(1);
+    });
+  });
+
   // both pass the route's read of "02"; the claim at the top of the transaction
   // stops the loser before its npo insert, so there is nothing to roll back.
   test("two approvals at once create one npo", async () => {
