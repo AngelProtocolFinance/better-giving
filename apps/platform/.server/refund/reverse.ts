@@ -9,6 +9,7 @@ import { dists_for_refund } from "../pg/queries/dist";
 import { donation_get } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { type ITake, takes_of } from "../pg/queries/take";
+import type { IChargeRefunds } from "../stripe-connect/reverse";
 import type { OwedSource } from "./apply";
 import { record_takes } from "./partial";
 import { dist_settled_usd, type PreviewLine } from "./plan";
@@ -43,6 +44,11 @@ interface RailAdapter {
   subscription_end(
     source: ReversalSource
   ): ((payment_id: string) => Promise<void>) | null;
+  /** takes back the refunds' share of what the gift's routed dists were
+   * transferred, or null when the rail routes none */
+  routed_refunds:
+    | ((donation_id: string, c: IChargeRefunds) => Promise<void>)
+    | null;
 }
 
 // loaded on use: `./subscription` builds a stripe client off env at import,
@@ -52,15 +58,24 @@ async function cancel_stripe_subscription(intent_id: string) {
   await cancel_refunded_subscription(intent_id);
 }
 
+async function reverse_stripe_transfers(
+  donation_id: string,
+  c: IChargeRefunds
+) {
+  const { reverse_routed_refunds } = await import("../stripe-connect/reverse");
+  await reverse_routed_refunds(donation_id, c);
+}
+
 const rail_adapters: Record<Rail, RailAdapter> = {
   stripe: {
     // a full refund of a subscription payment ends the recurring gift, from
     // whatever surface it was issued. a lost dispute doesn't
     subscription_end: (source) =>
       source === "dispute" ? null : cancel_stripe_subscription,
+    routed_refunds: reverse_stripe_transfers,
   },
-  paypal: { subscription_end: () => null },
-  crypto: { subscription_end: () => null },
+  paypal: { subscription_end: () => null, routed_refunds: null },
+  crypto: { subscription_end: () => null, routed_refunds: null },
 };
 
 export interface ChargeReversal {
@@ -271,6 +286,15 @@ export async function reverse_charge(
       `${r.alert_from}: reversal of ${don.id} held on ${r.unsent_refunds.join(", ")}`
     );
     return { status: "held" };
+  }
+
+  // ahead of the gift's reversal, whose redelivery stops at the guard above,
+  // so a transfer reversal that throws here is retried with the event. a
+  // dispute reverses no transfer: stripe debits it from us, and what the npo
+  // owes for it is on its row
+  const routed_refunds = rail_adapters[r.rail].routed_refunds;
+  if (routed_refunds && r.source !== "dispute" && r.refunds && r.share) {
+    await routed_refunds(don.id, { of: r.share.of, refunds: r.refunds });
   }
 
   const recorded = await record_takes({

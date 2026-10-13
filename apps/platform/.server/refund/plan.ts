@@ -24,6 +24,9 @@ export interface RefundDistInput {
   fee_processing: number;
   /** 0 or absent when the donor didn't cover fees */
   fee_allowance?: number;
+  /** settled to a connected account: its net left in a stripe transfer, so
+   * no balance, investment or payout of it is ours to take back */
+  routed?: boolean;
 }
 
 export type ReferrerParty = Exclude<OwedParty, { npo_id: number }>;
@@ -152,11 +155,13 @@ export function calc_refund_plan(
     cash: dist.alloc.cash ?? 0,
   };
   // derive balance deltas from allocation percentages
-  const bd = {
-    liq: (alloc.liq / 100) * dist.net,
-    lock: (alloc.lock / 100) * dist.net,
-    cash: (alloc.cash / 100) * dist.net,
-  };
+  const bd = dist.routed
+    ? { liq: 0, lock: 0, cash: 0 }
+    : {
+        liq: (alloc.liq / 100) * dist.net,
+        lock: (alloc.lock / 100) * dist.net,
+        cash: (alloc.cash / 100) * dist.net,
+      };
   const refund_lock_units = nav && bd.lock > 0 ? bd.lock / nav.price : 0;
 
   const preview: RefundPreview = {
@@ -243,6 +248,15 @@ export function calc_refund_plan(
     });
   }
 
+  if (dist.routed) {
+    preview.effects.push({
+      label: "Stripe transfer",
+      pass: true,
+      reason:
+        "the refunded share is reversed from the nonprofit's Stripe account",
+    });
+  }
+
   if (sub_id) {
     preview.effects.push({
       label: "Subscription",
@@ -297,7 +311,7 @@ export function calc_refund_plan(
   }
 
   // balance/NAV writes — only when fully reversible
-  if (!is_loss) {
+  if (!is_loss && !dist.routed) {
     const refund_deltas: IBalanceDeltas = {
       liq: bd.liq,
       lock: bd.lock,

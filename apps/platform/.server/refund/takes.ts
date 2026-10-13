@@ -117,6 +117,38 @@ export async function record_dispute_fees(
   }
 }
 
+/**
+ * the npo's row raised to what the gift's takes owe it plus `usd`, every cent
+ * of its routed dist's transfer stripe refused to reverse for the gift's
+ * refunds so far; its figures only grow, so a rerun records nothing more
+ */
+export async function owe_unreversed(u: {
+  donation_id: string;
+  npo_id: number;
+  usd: number;
+  /** the refund whose cut was refused */
+  source_ref: string;
+}) {
+  await db.transaction(async (tx) => {
+    const ds = await gift_dists_locked(tx, u.donation_id);
+    const takes = await takes_of(tx, u.donation_id);
+    const owes = [...owed_targets(ds, takes).values()].find(
+      (s) => "npo_id" in s.party && s.party.npo_id === u.npo_id
+    );
+    await record_owed(tx, {
+      donation_id: u.donation_id,
+      party: { npo_id: u.npo_id },
+      received_usd: (owes?.received_usd ?? 0) + u.usd,
+      // the zeros leave what is recorded
+      fee_processing_usd: 0,
+      fee_dispute_usd: 0,
+      source: "refund",
+      source_ref: u.source_ref,
+      now: new Date().toISOString(),
+    });
+  });
+}
+
 export interface OwedMove {
   party: OwedParty;
   /** the row before anything was credited back; none when the party owed

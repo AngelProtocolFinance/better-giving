@@ -73,6 +73,7 @@ async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
       fee_processing: dists.fee_processing,
       fee_allowance: dists.fee_allowance,
       alloc: dists.alloc,
+      routed_to: dists.stripe_routed_to,
       // a subquery, not a join: nothing keeps a dist to one payout row, and a
       // second would count the dist twice. any one, as `dists_for_refund` takes
       payout_type: sql<PayoutType | null>`(SELECT ${payouts.type} FROM ${payouts}
@@ -105,6 +106,9 @@ async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
     fee_processing: r.fee_processing ?? 0,
     fee_allowance: r.fee_allowance ?? 0,
     cash_pct: r.alloc?.cash ?? 0,
+    /** settled to a connected account: paid by a stripe transfer, which a
+     * refund reverses, so no grant of it is ours to settle by hand */
+    routed: r.routed_to !== null,
     payout_type: r.payout_type,
     commission: r.commission,
   }));

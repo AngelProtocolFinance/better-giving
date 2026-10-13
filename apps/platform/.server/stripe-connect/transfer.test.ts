@@ -21,7 +21,15 @@ import type { TestDb } from "../pg/test-utils/pglite";
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const stripe = vi.hoisted(() => ({
   paymentIntents: { retrieve: vi.fn() },
-  transfers: { create: vi.fn() },
+  charges: { retrieve: vi.fn() },
+  refunds: { list: vi.fn() },
+  transfers: {
+    create: vi.fn(),
+    retrieve: vi.fn(),
+    update: vi.fn(),
+    listReversals: vi.fn(),
+    createReversal: vi.fn(),
+  },
 }));
 const report_error = vi.hoisted(() => vi.fn());
 
@@ -152,6 +160,20 @@ beforeEach(async () => {
     latest_charge: CHARGE,
   });
   stripe.transfers.create.mockResolvedValue({ id: "tr_1" });
+  // no refund on the charge unless a test says so
+  stripe.refunds.list.mockResolvedValue({ data: [] });
+  stripe.charges.retrieve.mockResolvedValue({
+    id: CHARGE,
+    amount_captured: 10_000,
+  });
+  stripe.transfers.retrieve.mockResolvedValue({
+    id: "tr_1",
+    amount: 10_000,
+    amount_reversed: 0,
+    metadata: {},
+  });
+  stripe.transfers.listReversals.mockResolvedValue({ data: [] });
+  stripe.transfers.createReversal.mockResolvedValue({ id: "trr_1" });
   await db().delete(dists);
   await db().delete(donations);
   await db().delete(npos);
@@ -177,7 +199,7 @@ describe("transfer_routed_dist", () => {
     expect(await stored(payload.dist_id)).toBe("tr_1");
   });
 
-  test("a redelivery after the transfer is stored never reaches stripe", async () => {
+  test("a redelivery after the transfer is stored never transfers again", async () => {
     const { payload } = await settle_routed();
     await transfer_routed_dist(payload);
 
@@ -320,4 +342,65 @@ describe("transfer_routed_dist", () => {
       });
     }
   );
+});
+
+describe("a refund that landed before the transfer ran", () => {
+  const refunded = (amount: number, status = "succeeded") =>
+    stripe.refunds.list.mockResolvedValue({
+      data: [{ id: "re_1", amount, status, created: 1_790_000_000 }],
+    });
+
+  // no refund event after it will see the transfer, so the transfer reverses
+  // the refunded share itself; the transfer itself stays the one its key names
+  test("transfers the routed net, then reverses the refunded share from it", async () => {
+    const { payload } = await settle_routed();
+    refunded(4_000);
+
+    await transfer_routed_dist(payload);
+
+    expect(stripe.transfers.create.mock.calls[0]![0]).toMatchObject({
+      amount: 10_000,
+    });
+    expect(stripe.transfers.createReversal.mock.calls).toEqual([
+      [
+        "tr_1",
+        {
+          amount: 4_000,
+          metadata: {
+            refund_id: "re_1",
+            dist_id: payload.dist_id,
+            donation_id: DON_ID,
+          },
+        },
+        { idempotencyKey: `connect-reversal:re_1:${payload.dist_id}` },
+      ],
+    ]);
+  });
+
+  test("leaves a refund still unsent to the refund event that sees it sent", async () => {
+    const { payload } = await settle_routed();
+    refunded(4_000, "pending");
+
+    await transfer_routed_dist(payload);
+
+    expect(stripe.transfers.create).toHaveBeenCalledOnce();
+    expect(stripe.transfers.createReversal).not.toHaveBeenCalled();
+  });
+
+  test("a delivery retried after the reversal failed reverses it, transferring nothing more", async () => {
+    const { payload } = await settle_routed();
+    refunded(4_000);
+    stripe.transfers.createReversal.mockRejectedValueOnce(
+      new Stripe.errors.StripeConnectionError({ message: "socket hang up" })
+    );
+    await expect(transfer_routed_dist(payload)).rejects.toThrow();
+
+    await transfer_routed_dist(payload);
+
+    expect(stripe.transfers.create).toHaveBeenCalledOnce();
+    expect(stripe.transfers.createReversal).toHaveBeenCalledTimes(2);
+    expect(stripe.transfers.createReversal.mock.calls[1]![1]).toMatchObject({
+      amount: 4_000,
+    });
+  });
 });

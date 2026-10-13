@@ -644,4 +644,27 @@ describe("calc_refund_plan", () => {
     });
     expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 102 }]);
   });
+
+  // settlement booked a routed dist no balance, payout or investment: its net
+  // left in a stripe transfer, which the refund reverses on its own
+  test("a routed dist → no balance, investment or loss, its own accounting reversed as pooled", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: { ...make_inputs().dist, routed: true },
+        // what the npo holds from other gifts stays its own
+        bal: { liq: 500, lock_units: 0, cash: 500 },
+      }),
+      make_ctx({ form_id: "form-1", program_id: "prog-1" })
+    );
+    expect(plan.is_loss).toBe(false);
+    expect(plan.amount).toEqual([]);
+    expect(kinds(plan.effects)).toEqual([
+      "form_decrement",
+      "program_decrement",
+      "donation_message_del",
+    ]);
+    expect(plan.preview.effects.map((l) => l.label)).toEqual([
+      "Stripe transfer",
+    ]);
+  });
 });
