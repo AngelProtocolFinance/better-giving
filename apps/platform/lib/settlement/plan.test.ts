@@ -1,6 +1,7 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, expectTypeOf, test } from "vitest";
 import type { IAllocation } from "../donations";
 import type { IDonDistPayload } from "../queue";
+import type { IRevenueLog } from "../revenue";
 import type { IInput, IParts } from "../types/donation-dist";
 import {
   calc_settlement_plan,
@@ -294,6 +295,92 @@ describe("calc_settlement_plan", () => {
 
     const p = plan.msgs.at(-1)?.payload as IDonDistPayload;
     expect(p.form).toEqual({ id: "form-1", tag: "gala" });
+  });
+});
+
+describe("calc_settlement_plan routed to a connected account", () => {
+  const ACCT = "acct_routed";
+  // fees, a tip, a live referrer and a stored investment split: everything a
+  // routed plan keeps or drops is non-zero in the pooled one
+  const input = () =>
+    make_input({ ps: parts({ sttl: amt(100, 10) }), nav_price: 2 });
+  const ctx = () =>
+    make_ctx({
+      hide_bg_tip: true,
+      fiscal_sponsored: true,
+      referrer_user: "u-1",
+      referrer_expiry: "2099-01-01T00:00:00.000Z",
+      allocation: { lock: 50, liq: 30, cash: 20 },
+    });
+  // both are minted per plan
+  const no_ids = (xs: IRevenueLog[]) =>
+    xs.map(({ id: _, donation_id: __, ...x }) => x);
+
+  test("books the dist, fees, tip and referral exactly as pooled does", () => {
+    const pooled = calc_settlement_plan(input(), ctx());
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+
+    expect(routed.kind).toBe("routed");
+    expect(routed.dist.net).toBeCloseTo(100 - 1.5 - 2.9);
+    expect(routed.dist.fees).toEqual(pooled.dist.fees);
+    expect(routed.dist.referrer).toEqual(pooled.dist.referrer);
+    expect(no_ids(routed.revenue_logs)).toEqual(no_ids(pooled.revenue_logs));
+    expect(routed.commission?.amount).toBeCloseTo(pooled.commission!.amount);
+  });
+
+  test("lands the whole net as cash, whatever split the npo stored", () => {
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+    expect(routed.dist.to_settings.alloc).toEqual({
+      cash: 100,
+      liq: 0,
+      lock: 0,
+    });
+    expect(routed.alloc_fell_back).toBe(false);
+  });
+
+  test("carries no payout, balance movement or investment", () => {
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+    for (const k of [
+      "payout",
+      "balance_txs",
+      "nav_log_entry",
+      "balance_deltas",
+    ])
+      expect(routed).not.toHaveProperty(k);
+    expect(routed.msgs.map((m) => m.id)).not.toContain("lock-tx-created");
+  });
+
+  test("a pooled plan of the same donation does carry them", () => {
+    const pooled = calc_settlement_plan(input(), ctx(), null);
+    expect(pooled.kind).toBe("pooled");
+    if (pooled.kind !== "pooled") return;
+    expect(pooled.payout?.amount).toBeCloseTo(pooled.dist.net * 0.2);
+    expect(pooled.balance_txs.map((t) => t.account)).toEqual(["lock", "liq"]);
+  });
+
+  test("asks for the transfer of the dist it books", () => {
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+    expect(routed.msgs.map((m) => m.id)).toEqual([
+      "tip-received",
+      "don-dist",
+      "connect-transfer",
+    ]);
+    // the dist row's id is the plan's don id; sttl id is the payment intent
+    expect(routed.msgs.at(-1)?.payload).toEqual({
+      dist_id: routed.don.id,
+      donation_id: "parent-1",
+      intent_id: "sttl-1",
+    });
+  });
+
+  test("has no payout field at the type level", () => {
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+    expectTypeOf(routed).not.toHaveProperty("payout");
+    expectTypeOf(routed).not.toHaveProperty("balance_txs");
+    expectTypeOf(routed).not.toHaveProperty("nav_log_entry");
+    expectTypeOf(routed).not.toHaveProperty("balance_deltas");
+    // @ts-expect-error a routed plan cannot name a payout
+    routed.payout;
   });
 });
 

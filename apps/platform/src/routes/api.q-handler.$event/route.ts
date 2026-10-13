@@ -2,6 +2,7 @@ import type { ActionFunction } from "react-router";
 import { type Handlers, type Kind, retries_of } from "@/queue";
 import { verify_qstash } from "$/kit/queue";
 import { db } from "$/pg/db";
+import { transfer_routed_dist } from "$/stripe-connect/transfer";
 import { handle_lock_tx_created } from "./handle-bal-tx";
 import {
   handle_banking_approved,
@@ -34,6 +35,7 @@ const handlers: Handlers = {
   "banking-default": handle_banking_set_default,
   "banking-new": handle_banking_new_account,
   "banking-rejected": handle_banking_rejected,
+  "connect-transfer": transfer_routed_dist,
   "don-dist": (p) => handle_don_dist(db, p),
   "don-fund-receipt": handle_don_fund_receipt,
   "don-match": handle_don_match,

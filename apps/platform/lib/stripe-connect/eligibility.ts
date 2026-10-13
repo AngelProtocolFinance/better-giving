@@ -58,10 +58,14 @@ export interface IRoutingNpo {
   /** ISO 3166-1 alpha-2 of `npos.hq_country`, which stores the name;
    * undefined when the name maps to no code */
   hq_country_code: string | undefined;
+  /** set once the npo disconnected us from its stripe dashboard */
+  stripe_deauthorized_at: string | null;
 }
 
 const is_ready = (npo: IRoutingNpo) =>
   npo.stripe_account_id !== null &&
+  // the readiness mirror can predate the disconnect, so it never vouches past one
+  npo.stripe_deauthorized_at === null &&
   connect_status({
     charges_enabled: npo.stripe_charges_enabled,
     payouts_enabled: npo.stripe_payouts_enabled,

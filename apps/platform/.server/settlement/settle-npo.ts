@@ -1,13 +1,22 @@
+import { country_code } from "#/constants/countries";
 import { report_error } from "#/errors/report";
 import { is_reversed } from "@/donations/settle";
 import { type IDonDistPayload, type IMsg, msg } from "@/queue";
 import {
   calc_settlement_plan,
   type NpoSettlementContext,
+  type PooledSettlementPlan,
+  transfer_msg,
 } from "@/settlement/plan";
+import { is_routable } from "@/stripe-connect/eligibility";
 import type { IInput } from "@/types/donation-dist";
+import { stripe as stripe_env } from "$/env";
 import { bal_tx_put } from "$/pg/queries/bal-tx";
-import { dist_of, dist_put } from "$/pg/queries/dist";
+import {
+  dist_of,
+  dist_put,
+  dists_routed_untransferred,
+} from "$/pg/queries/dist";
 import { donation_status_shared } from "$/pg/queries/donation";
 import { donation_message_put } from "$/pg/queries/donation-message";
 import { form_ltd_inc } from "$/pg/queries/form";
@@ -39,12 +48,51 @@ const plan_ctx = (npo: INpo): NpoSettlementContext => ({
 });
 
 /**
+ * the connected account this share settles to, or null to settle it pooled:
+ * money stripe took, for an npo that can receive it now. decided on the locked
+ * row, so a disconnect that commits first is seen
+ */
+const routed_to = (i: IInput, npo: INpo): string | null =>
+  // every rail but stripe settles money that never touched our stripe balance
+  i.tx.via.startsWith("stripe") &&
+  is_routable(
+    { ...npo, hq_country_code: country_code(npo.hq_country) },
+    stripe_env.connect_routing
+  )
+    ? npo.stripe_account_id
+    : null;
+
+/** the npo's share lands in bg's books: its balances and a pending payout */
+async function book_pooled(
+  db: DbOrTx,
+  npo_id: number,
+  plan: PooledSettlementPlan,
+  txs: unknown[]
+) {
+  if (plan.nav_log_entry) await nav_log_append(db, plan.nav_log_entry);
+
+  for (const tx of plan.balance_txs) {
+    txs.push(tx);
+    await bal_tx_put(db, tx);
+  }
+
+  if (plan.payout) {
+    txs.push(plan.payout);
+    await payout_put(db, plan.payout);
+  }
+
+  await npo_balance_update(db, npo_id, plan.balance_deltas, "inc");
+}
+
+/**
  * the msgs of an npo share already settled, for a redelivery to resend when
  * the first delivery may have died between its commit and its enqueue. only
  * `don-dist` is resent — its handler's notice claim on the dist row runs each
  * step once. `tip-received` and `lock-tx-created` mail ops with no send-once
  * gate, and qstash's dedupe holds only inside its window, so a resend would
- * mail them twice.
+ * mail them twice. `connect-transfer` is resent for a routed dist no transfer
+ * has paid, read off the row: its handler's stored transfer and stripe
+ * idempotency key pay it once.
  *
  * the msgs come from a replan, read without a lock: its ids are minted afresh
  * and its figures follow the npo's terms now, not at settlement. so `id` is the
@@ -57,11 +105,16 @@ export async function settled_npo_msgs(db: DbOrTx, i: IInput): Promise<IMsg[]> {
   const npo = await npo_get(+i.id, db);
   if (!npo) throw new Error(`npo:${i.id} not found`);
   const plan = calc_settlement_plan(i, plan_ctx(npo));
-  return plan.msgs.flatMap((m) => {
+  const notice = plan.msgs.flatMap((m) => {
     if (m.id !== "don-dist") return [];
     const p = m.payload as IDonDistPayload;
     return [msg("don-dist", { ...p, id: dist.id, net: dist.net ?? p.net })];
   });
+  // a fund's other members resend their own
+  const unpaid = (await dists_routed_untransferred(i.prnt.id, db)).filter(
+    (d) => d.id === dist.id
+  );
+  return [...notice, ...unpaid.map((d) => transfer_msg(i, d.id))];
 }
 
 export async function settle_npo(db: DbOrTx, i: IInput) {
@@ -108,7 +161,7 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
     return { msgs: [], txs: [] };
   }
 
-  const plan = calc_settlement_plan(i, plan_ctx(npo));
+  const plan = calc_settlement_plan(i, plan_ctx(npo), routed_to(i, npo));
 
   if (plan.alloc_fell_back) {
     report_error(
@@ -141,6 +194,7 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
     fee_allowance_excess: dist.fee_allowance_excess,
     alloc: dist.to_settings.alloc,
     fund_id: i.prnt.type === "fund" ? i.prnt.to_id : null,
+    ...(plan.kind === "routed" && { stripe_routed_to: plan.routed_to }),
   };
   txs.push(dist_row);
   await dist_put(db, dist_row);
@@ -155,17 +209,9 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
     await commission_put(db, plan.commission);
   }
 
-  if (plan.nav_log_entry) await nav_log_append(db, plan.nav_log_entry);
-
-  for (const tx of plan.balance_txs) {
-    txs.push(tx);
-    await bal_tx_put(db, tx);
-  }
-
-  if (plan.payout) {
-    txs.push(plan.payout);
-    await payout_put(db, plan.payout);
-  }
+  // a routed plan carries none of what this books: the transfer that pays it
+  // runs after the commit, off the msg the plan carries
+  if (plan.kind === "pooled") await book_pooled(db, +i.id, plan, txs);
 
   if (i.tx.from_public) {
     // fa_added = net + bg/fsa fees (recovers credit_fa output from dist)
@@ -186,7 +232,6 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
   if (i.source) await form_ltd_inc(db, i.source.id, dist.net, 1);
   if (i.program) await npo_prog_contrib(db, i.program.id, dist.net);
 
-  await npo_balance_update(db, +i.id, plan.balance_deltas, "inc");
   // a dispute or refund recorded before this dist existed owed nothing for it
   await owe_takes(db, i.prnt.id, new Date().toISOString());
 

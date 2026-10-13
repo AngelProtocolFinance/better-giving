@@ -9,6 +9,7 @@ const npo: IRoutingNpo = {
   stripe_requirements_due: [],
   fiscal_sponsored: false,
   hq_country_code: "US",
+  stripe_deauthorized_at: null,
 };
 
 describe("is_routable", () => {
@@ -23,6 +24,16 @@ describe("is_routable", () => {
   // a sponsored org isn't the donee, so no stripe state can make it one
   test("a fiscally sponsored npo never routes, however ready its account", () => {
     expect(is_routable({ ...npo, fiscal_sponsored: true }, true)).toBe(false);
+  });
+
+  // stripe keeps billing a disconnected account's donors but can no longer pay it
+  test("an npo that disconnected us stays pooled, however ready its account last read", () => {
+    expect(
+      is_routable(
+        { ...npo, stripe_deauthorized_at: "2026-10-01T00:00:00.000Z" },
+        true
+      )
+    ).toBe(false);
   });
 
   test.each<[string, Partial<IRoutingNpo>]>([

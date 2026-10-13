@@ -25,6 +25,10 @@ vi.mock("#/errors/report", () => ({
   report_degraded: report_degraded_mock,
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
+vi.mock("$/env", async (importOriginal) => {
+  const real = await importOriginal<typeof import("$/env")>();
+  return { ...real, stripe: { ...real.stripe, connect_routing: true } };
+});
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
     {},
@@ -351,6 +355,55 @@ describe("handle_npo", () => {
     await expect(handle_npo(make_input(npo_id + 999))).rejects.toThrow(
       /not found/
     );
+  });
+});
+
+describe("handle_npo on a share routed to a connected account", () => {
+  const ACCT = "acct_resend_1";
+
+  beforeEach(async () => {
+    await db()
+      .update(npos)
+      .set({
+        stripe_account_id: ACCT,
+        stripe_charges_enabled: true,
+        stripe_payouts_enabled: true,
+        stripe_details_submitted: true,
+      })
+      .where(eq(npos.id, npo_id));
+  });
+
+  it("resends the transfer of a routed share whose first enqueue was lost", async () => {
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(/qstash down/);
+    const [dist] = await db().select().from(dists);
+    expect(dist!.stripe_routed_to).toBe(ACCT);
+
+    await handle_npo(make_input(npo_id));
+
+    const resent = enqueue_mock.mock.calls[1]!;
+    expect(resent.map((m) => (m as { id: string }).id)).toEqual([
+      "don-dist",
+      "connect-transfer",
+    ]);
+    expect(resent[1]).toMatchObject({
+      dedupe: `connect.transfer_${dist!.id}`,
+      payload: { dist_id: dist!.id, donation_id: DON_ID, intent_id: "sttl-1" },
+    });
+  });
+
+  it("resends no transfer for a share one already paid", async () => {
+    await handle_npo(make_input(npo_id));
+    const [dist] = await db().select().from(dists);
+    await db()
+      .update(dists)
+      .set({ stripe_transfer_id: "tr_paid" })
+      .where(eq(dists.id, dist!.id));
+
+    await handle_npo(make_input(npo_id));
+
+    const resent = enqueue_mock.mock.calls[1]!;
+    expect(resent.map((m) => (m as { id: string }).id)).toEqual(["don-dist"]);
   });
 });
 

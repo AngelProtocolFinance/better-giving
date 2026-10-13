@@ -2,6 +2,7 @@ export {
   type Handlers,
   type IAttempt,
   type IBankingPayload,
+  type IConnectTransferPayload,
   type IDonDistPayload,
   type IDonFundReceiptPayload,
   type IDonMatchChasePayload,

@@ -9,6 +9,8 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     ["banking-default", { npo_id: 42 }, "banking.default_42"],
     ["banking-new", { npo_id: 42 }, "banking.new_42"],
     ["banking-rejected", { npo_id: 42 }, "banking.rejected_42"],
+    // one transfer per routed dist, however often settlement resends it
+    ["connect-transfer", { dist_id: "dist-1" }, "connect.transfer_dist-1"],
     ["don-dist", { id: "d1", to_id: 7 }, "don.dist_d1_7"],
     ["don-fund-receipt", { id: "d5", attempt: 2 }, "don.fund-receipt_d5_2"],
     ["don-match", { id: "d4" }, "don.match_d4"],
@@ -184,6 +186,13 @@ describe("reg-updated dedupe", () => {
     expect(msg("reg-updated", submitted).dedupe).not.toBe(
       msg("reg-updated", row).dedupe
     );
+  });
+});
+
+describe("connect-transfer delivery", () => {
+  // a lost one leaves a routed npo unpaid with nothing else to retry it
+  test("retries", () => {
+    expect(retries_of("connect-transfer")).toBeGreaterThan(0);
   });
 });
 

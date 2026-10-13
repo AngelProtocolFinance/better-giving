@@ -226,6 +226,7 @@ describe("one-time card: statement descriptor suffix", () => {
     stripe_requirements_due: [],
     fiscal_sponsored: false,
     hq_country: "Spain",
+    stripe_deauthorized_at: null,
   };
 
   beforeEach(() => {
@@ -256,6 +257,14 @@ describe("one-time card: statement descriptor suffix", () => {
         npo_get_mock.mockResolvedValue({
           ...routable,
           hq_country: "Philippines",
+        }),
+    ],
+    [
+      "the npo disconnected us",
+      () =>
+        npo_get_mock.mockResolvedValue({
+          ...routable,
+          stripe_deauthorized_at: "2026-10-01T00:00:00.000Z",
         }),
     ],
     [
