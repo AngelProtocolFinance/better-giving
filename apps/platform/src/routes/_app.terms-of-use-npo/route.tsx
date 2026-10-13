@@ -472,9 +472,9 @@ export default function TermsNonprofits() {
               agree to pay it within thirty (30) days of the invoice. Better
               Giving may also collect it from you by any other lawful means.
               Better Giving may waive any Recovery Amount in whole or in part at
-              its discretion. Sections 4(g), 4(i) and 4(j), and the last two
-              sentences of Section 4(h), apply only to donations made on or
-              after 12:00 a.m. Eastern Time ({TERMS_ZONE}) on{" "}
+              its discretion. Sections 4(g) and 4(j), and the last two sentences
+              of Section 4(h), apply only to donations made on or after 12:00
+              a.m. Eastern Time ({TERMS_ZONE}) on{" "}
               {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
               {EFFECTIVE}.
             </li>

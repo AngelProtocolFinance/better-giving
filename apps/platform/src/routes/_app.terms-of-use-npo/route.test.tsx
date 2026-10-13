@@ -28,7 +28,7 @@ const clause = (root: HTMLElement, n: number, letter: string) =>
   ).trim();
 
 const CUT_OFF =
-  "Sections 4(g), 4(i) and 4(j), and the last two sentences of Section 4(h), apply only to donations made on or after 12:00 a.m. Eastern Time (America/New_York) on October 18, 2026.";
+  "Sections 4(g) and 4(j), and the last two sentences of Section 4(h), apply only to donations made on or after 12:00 a.m. Eastern Time (America/New_York) on October 18, 2026.";
 
 describe("nonprofit terms", () => {
   test("carry the recovery items in Receiving Grants, before Fees, under the effective date", async () => {
@@ -161,6 +161,18 @@ describe("nonprofit terms", () => {
     const j = clause(screen.container, 4, "j");
 
     expect(j).toContain(CUT_OFF);
+  });
+
+  test("4(i)'s return of amounts taken back under 4(h) is not limited by the cut-off", async () => {
+    const screen = await render_terms();
+    const root = screen.container;
+
+    expect(clause(root, 4, "i")).toContain(
+      "any part of the disputed amount the Donor does not keep that was taken back from your Savings or Investment balance or from a grant cancelled under Section 4(h), will be added to your next grant or, if no grant is payable to you or this Agreement has ended, paid to you."
+    );
+    const cut_off = clause(root, 4, "j").split("at its discretion. ")[1];
+    expect(cut_off).toBe(CUT_OFF);
+    expect(cut_off).not.toContain("4(i)");
   });
 
   test("4(k) claims no other fees, deducts processing fees before allocation, and hides nothing", async () => {
