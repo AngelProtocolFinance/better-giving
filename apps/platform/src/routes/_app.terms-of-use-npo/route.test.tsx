@@ -104,6 +104,10 @@ describe("nonprofit terms", () => {
 
     // 9(d) sends a rejecting NPO to Section 8, the termination section
     expect(clause(root, 9, "d")).toContain("as set forth in Section 8 of this");
+    // a posting may push its effective date later, never sooner than 7 days
+    expect(clause(root, 9, "d")).toContain(
+      "Unless such a posting expressly states a later effective date, all amended terms shall automatically be effective and legally binding upon you seven (7) days after having been posted."
+    );
     expect(sections_of(root)[7]?.querySelector("h3")?.textContent).toBe(
       "Term and Termination."
     );
@@ -132,7 +136,7 @@ describe("nonprofit terms", () => {
       "Better Giving may take that part back from the balance, or cancel that grant"
     );
     expect(h).toContain(
-      "Better Giving redeems units of the Fund equal in value to the amount allocated to Investment from that donation, at the Fund’s unit value on the day of the reversal."
+      "Better Giving redeems units of the Fund equal in value to the part of that donation’s Investment allocation that is reversed and not yet granted to you, at the Fund’s unit value on the day of the reversal."
     );
     // the cut-off names "the last two sentences of Section 4(h)"; these are them
     expect(h.split("on the day of the reversal. ")[1]).toBe(

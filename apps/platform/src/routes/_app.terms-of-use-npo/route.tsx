@@ -417,13 +417,13 @@ export default function TermsNonprofits() {
               been paid — Better Giving may take that part back from the
               balance, or cancel that grant, instead of treating it as a
               Recovery Amount. For Investment, Better Giving redeems units of
-              the Fund equal in value to the amount allocated to Investment from
-              that donation, at the Fund’s unit value on the day of the
-              reversal. If the balance is not enough to cover that part, for
-              example because of a Withdrawal, Better Giving may instead treat
-              the whole part, with its payment processing fees, as a Recovery
-              Amount. Any dispute fee on the donation is a Recovery Amount in
-              every case.
+              the Fund equal in value to the part of that donation’s Investment
+              allocation that is reversed and not yet granted to you, at the
+              Fund’s unit value on the day of the reversal. If the balance is
+              not enough to cover that part, for example because of a
+              Withdrawal, Better Giving may instead treat the whole part, with
+              its payment processing fees, as a Recovery Amount. Any dispute fee
+              on the donation is a Recovery Amount in every case.
             </li>
             <li>
               <b>Disputed Payments.</b> If a Donor disputes a payment with the
@@ -441,21 +441,25 @@ export default function TermsNonprofits() {
                 <li>
                   if it is resolved partly in Better Giving’s favor, the
                   Recovery Amount is reduced to the fraction of the donation the
-                  Donor keeps, calculated as in Section 4(g), and the rest is
-                  cancelled; and
+                  Donor keeps, calculated as in Section 4(g) (including the
+                  dispute fee in full), and the rest is cancelled; and
                 </li>
                 <li>
                   if the Donor keeps the whole disputed amount, the Recovery
                   Amount stands.
                 </li>
               </ol>
-              Any part of a cancelled Recovery Amount already deducted will be
-              added to your next grant or, if this Agreement has ended, paid to
-              you. If a dispute that closed in Better Giving’s favor is later
-              reopened, appealed or reversed and the Donor keeps all or part of
-              the payment, that part is again a Reversed Donation, and Better
-              Giving may recover its Recovery Amount under this Section 4. The
-              Donor Terms of Use treat disputed payments the same way.
+              Any part of a cancelled Recovery Amount already deducted or
+              collected from you under Section 4(j), and any part of the
+              disputed amount the Donor does not keep that was taken back from
+              your Savings or Investment balance or from a grant cancelled under
+              Section 4(h), will be added to your next grant or, if no grant is
+              payable to you or this Agreement has ended, paid to you. If a
+              dispute that closed in Better Giving’s favor is later reopened,
+              appealed or reversed and the Donor keeps all or part of the
+              payment, that part is again a Reversed Donation, and Better Giving
+              may recover its Recovery Amount under this Section 4. The Donor
+              Terms of Use treat disputed payments the same way.
             </li>
             <li>
               <b>Outstanding Recovery Amounts.</b> If the grants payable to you
@@ -747,7 +751,7 @@ export default function TermsNonprofits() {
             </li>
             <li>
               We may amend this Agreement at any time by posting amended terms.
-              Except as otherwise expressly stated in such a posting, all
+              Unless such a posting expressly states a later effective date, all
               amended terms shall automatically be effective and legally binding
               upon you seven (7) days after having been posted. Your
               continuation as a NPO will constitute your complete consent and
