@@ -328,6 +328,45 @@ export async function mark_dist_hooks_sent(
     .where(eq(dists.id, dist_id));
 }
 
+export type TDistTransferSet = { set: true } | { set: false; existing: string };
+
+/**
+ * store the stripe transfer that paid this dist, only while it has none: the
+ * double-transfer guard. `existing` is the transfer already stored, which may
+ * be `transfer_id` itself on a retry.
+ */
+export async function dist_stripe_transfer_set(
+  dist_id: string,
+  transfer_id: string,
+  conn: DbOrTx = db
+): Promise<TDistTransferSet> {
+  const [written] = await conn
+    .update(dists)
+    .set({ stripe_transfer_id: transfer_id })
+    .where(and(eq(dists.id, dist_id), isNull(dists.stripe_transfer_id)))
+    .returning({ id: dists.id });
+  if (written) return { set: true };
+
+  // read after the miss, not as a cte beside the update: that select runs on
+  // the statement's snapshot and misses a transfer committed while it waited.
+  // nothing clears a stored transfer, so this read can't find it gone
+  const existing = await dist_stripe_transfer_get(dist_id, conn);
+  if (!existing) throw new Error(`dist ${dist_id} not found`);
+  return { set: false, existing };
+}
+
+/** the stripe transfer that paid this dist; null when none, undefined when no such dist */
+export async function dist_stripe_transfer_get(
+  dist_id: string,
+  conn: DbOrTx = db
+): Promise<string | null | undefined> {
+  const [row] = await conn
+    .select({ tr: dists.stripe_transfer_id })
+    .from(dists)
+    .where(eq(dists.id, dist_id));
+  return row?.tr;
+}
+
 /** paginated donations received by npo */
 export async function npo_donations(
   npo_id: number,

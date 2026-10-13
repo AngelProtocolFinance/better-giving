@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { IAllocation } from "@/donations";
 import { numeric_as_number, timestamptz } from "./columns";
@@ -61,6 +62,8 @@ export const dists = pgTable(
     notice_sent_at: timestamptz("notice_sent_at"),
     metric_counted_at: timestamptz("metric_counted_at"),
     hooks_sent_at: timestamptz("hooks_sent_at"),
+    /** the stripe transfer that paid this dist to the npo's connected account */
+    stripe_transfer_id: text("stripe_transfer_id"),
   },
   (t) => [
     check(
@@ -75,5 +78,9 @@ export const dists = pgTable(
       .where(sql`${t.status} = 'settled'`),
     // idempotency: one dist per parent donation per npo
     unique(DISTS_DONATION_ID_TO_ID_UNIQ).on(t.donation_id, t.to_id),
+    // partial: a pooled dist has no transfer and never touches the index
+    uniqueIndex("dists_stripe_transfer_id_uniq")
+      .on(t.stripe_transfer_id)
+      .where(sql`${t.stripe_transfer_id} IS NOT NULL`),
   ]
 );

@@ -6,6 +6,7 @@ import {
   exists,
   getTableColumns,
   inArray,
+  isNull,
   or,
   type SQL,
   sql,
@@ -141,6 +142,68 @@ export async function npo_stripe_get(
   if (!row) return undefined;
   const { acct, synced_at, ...mirror } = row;
   return { acct, synced_at, mirror };
+}
+
+/** the readiness mirror a newly connected account starts from */
+export type TNpoStripeMirrorReset = Required<
+  Pick<
+    NpoInsert,
+    | "stripe_charges_enabled"
+    | "stripe_payouts_enabled"
+    | "stripe_details_submitted"
+    | "stripe_requirements_due"
+    | "stripe_synced_at"
+  >
+>;
+
+/**
+ * connect `acct` to the npo, only while it still holds `held` (the account the
+ * caller read, null for none), so a concurrent connect is not replaced
+ * unconfirmed. clears a disconnect, which re-enables routing. true when written
+ */
+export async function npo_stripe_connect(
+  tx: DbOrTx,
+  npo_id: number,
+  acct: string,
+  held: string | null,
+  mirror: TNpoStripeMirrorReset
+): Promise<boolean> {
+  const written = await tx
+    .update(npos)
+    .set({
+      stripe_account_id: acct,
+      stripe_deauthorized_at: null,
+      ...mirror,
+    })
+    .where(
+      and(
+        eq(npos.id, npo_id),
+        held === null
+          ? isNull(npos.stripe_account_id)
+          : eq(npos.stripe_account_id, held)
+      )
+    )
+    .returning({ id: npos.id });
+  return written.length > 0;
+}
+
+/** mark the npo holding `acct` as disconnected from it at `at`; its id, or
+ * null when no npo holds `acct`. the earliest stamp stays, so a redelivered or
+ * out-of-order event never moves it later */
+export async function npo_stripe_deauthorize(
+  acct: string,
+  at: string,
+  conn: DbOrTx = db
+): Promise<number | null> {
+  const [row] = await conn
+    .update(npos)
+    // least() skips a null, so the first mark lands as `at`
+    .set({
+      stripe_deauthorized_at: sql`least(${npos.stripe_deauthorized_at}, ${at}::timestamptz)`,
+    })
+    .where(eq(npos.stripe_account_id, acct))
+    .returning({ id: npos.id });
+  return row?.id ?? null;
 }
 
 /**
