@@ -2,16 +2,22 @@ import { EmptyState } from "@better-giving/ui";
 import { Plus } from "lucide-react";
 import { NavLink } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import { StripeConnectCard } from "#/components/stripe-connect/connect-card";
+import { use_strip_connect_params } from "#/hooks/use-strip-connect-params";
 import type { Route } from "./+types/route";
 import { Table } from "./table";
 
 export { loader } from "./api";
+// the return from stripe is a document load, and the default in-memory cache
+// starts empty on one, so the status it shows is the server's. a persistent
+// adapter (`configureGlobalCache`) would serve the previous return's instead.
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Page);
 function Page({ loaderData }: Route.ComponentProps) {
-  const { methods } = loaderData;
+  const { methods, stripe } = loaderData;
+  use_strip_connect_params(!!stripe.notice);
 
   return (
     <div className="px-6 py-4 md:px-10 md:py-8">
@@ -22,6 +28,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           <span>New</span>
         </NavLink>
       </div>
+      <StripeConnectCard {...stripe} classes="mb-8" />
 
       {methods.length === 0 ? (
         <EmptyState>No payout methods yet</EmptyState>

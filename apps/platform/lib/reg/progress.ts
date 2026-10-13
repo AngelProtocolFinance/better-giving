@@ -125,7 +125,12 @@ export class Progress {
     const $3 = $fsa || $ein;
     const { o_bank_id: bid, o_bank_statement: bos } = this.r;
     return $3 && bid && bos
-      ? { o_bank_id: bid, o_bank_statement: bos, ...$3 }
+      ? {
+          o_bank_id: bid,
+          o_bank_statement: bos,
+          o_stripe_account_id: this.r.o_stripe_account_id ?? null,
+          ...$3,
+        }
       : undefined;
   }
 

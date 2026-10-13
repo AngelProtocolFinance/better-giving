@@ -1,3 +1,4 @@
+export * from "./account-updated";
 export * from "./charge-dispute";
 export * from "./charge-refunded";
 export * from "./intent-failed";

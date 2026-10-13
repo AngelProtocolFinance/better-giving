@@ -192,6 +192,9 @@ import { reg_loader, step_loader } from "#/pages/registration/data/step-loader";
 import { new_application } from "#/pages/registration/new-application";
 import { after_org } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
+import Banking, {
+  loader as banking_loader,
+} from "#/routes/_app.register.$reg_id._steps.4/route";
 import type { IReg } from "@/reg";
 import { Progress } from "@/reg/progress";
 import { reg_put } from "$/pg/queries/registration";
@@ -210,7 +213,6 @@ import OrgDetails from "../routes/_app.register.$reg_id._steps.2/route";
 import Fsa, {
   loader as fsa_step_loader,
 } from "../routes/_app.register.$reg_id._steps.3/route";
-import Banking from "../routes/_app.register.$reg_id._steps.4/route";
 import Dashboard from "../routes/_app.register.$reg_id._steps.5/route";
 import { submit_action } from "../routes/_app.register.$reg_id._steps.5/submit-action";
 import {
@@ -412,7 +414,7 @@ function render_registration(id: string, initial_step = "1") {
             {
               path: "4",
               Component: Banking,
-              loader: step_loader(4),
+              loader: banking_loader as any,
               action: update_action("5"),
             },
             {

@@ -59,6 +59,8 @@ export const registrations = pgTable(
     // banking (step 5)
     o_bank_id: text("o_bank_id"),
     o_bank_statement: text("o_bank_statement"),
+    // stripe connected account; no npos row exists until approval copies it there
+    o_stripe_account_id: text("o_stripe_account_id"),
 
     // branding
     o_image: text("o_image"),

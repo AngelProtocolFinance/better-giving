@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { createRoutesStub, useFetcher } from "react-router";
+import Stripe from "stripe";
 import {
   afterAll,
   beforeAll,
@@ -76,6 +77,16 @@ vi.mock("#/.server/toast", async () => {
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: any) => Component,
   createClientLoaderCache: () => undefined,
+}));
+
+// the readiness mirror's refresh calls stripe
+const sync_npo_account = vi.hoisted(() => vi.fn());
+vi.mock("$/stripe-connect/sync", () => ({ sync_npo_account }));
+
+const report_degraded = vi.hoisted(() => vi.fn());
+vi.mock("#/errors/report", async (orig) => ({
+  ...(await orig<typeof import("#/errors/report")>()),
+  report_degraded,
 }));
 
 vi.mock("$/kit/wise", () => ({
@@ -236,9 +247,11 @@ beforeEach(async () => {
   await test_db.current!.db.delete(banking_apps);
   await test_db.current!.db.delete(npos);
   counter = 0;
+  sync_npo_account.mockReset();
+  report_degraded.mockReset();
 });
 
-async function render_list(npo_id: number) {
+async function render_list(npo_id: number, search = "") {
   const Stub = createRoutesStub([
     {
       path: "/admin/:id/banking",
@@ -256,7 +269,7 @@ async function render_list(npo_id: number) {
 
   return await render(
     <Stub
-      initialEntries={[`/admin/${npo_id}/banking`]}
+      initialEntries={[`/admin/${npo_id}/banking${search}`]}
       future={{ v8_middleware: true }}
     />
   );
@@ -807,5 +820,117 @@ describe("delete", () => {
       .element(screen.getByText("Approved", { exact: true }))
       .toBeVisible();
     await expect.element(screen.getByText("Jane Doe")).toBeInTheDocument();
+  });
+});
+
+describe("stripe connect card", () => {
+  const READY = {
+    stripe_account_id: "acct_ready",
+    stripe_charges_enabled: true,
+    stripe_payouts_enabled: true,
+    stripe_details_submitted: true,
+    stripe_requirements_due: [],
+    stripe_synced_at: new Date().toISOString(),
+  };
+
+  it("sits above the wise table, reading the status off the mirror", async () => {
+    const npo = await seed_npo(READY);
+    await seed_bapp(npo.id, {
+      status: "approved",
+      bank_summary: "USD account ending in 1234",
+    });
+
+    const screen = await render_list(npo.id);
+
+    const card = screen.getByRole("region", { name: "Stripe account" });
+    await expect
+      .element(card.getByText("Ready to receive card donations"))
+      .toBeVisible();
+    const row = screen.getByText("USD account ending in 1234");
+    await expect.element(row).toBeVisible();
+    expect(
+      card.element().compareDocumentPosition(row.element()) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    // a synced mirror is read as it stands
+    expect(sync_npo_account).not.toHaveBeenCalled();
+  });
+
+  it("offers the connect link for this nonprofit when none is linked", async () => {
+    const npo = await seed_npo();
+    const screen = await render_list(npo.id);
+
+    const card = screen.getByRole("region", { name: "Stripe account" });
+    await expect
+      .element(card.getByText("Not connected", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(card.getByRole("link", { name: "Connect with Stripe" }))
+      .toHaveAttribute(
+        "href",
+        `/api/stripe-connect/start?kind=npo&npo_id=${npo.id}`
+      );
+  });
+
+  it("asks stripe for a linked account it has never synced", async () => {
+    const npo = await seed_npo({ stripe_account_id: "acct_new" });
+    // the unsynced columns read as an account with nothing done
+    sync_npo_account.mockResolvedValue({
+      charges_enabled: true,
+      payouts_enabled: true,
+      details_submitted: true,
+      requirements_due: [],
+    });
+
+    const screen = await render_list(npo.id);
+
+    const card = screen.getByRole("region", { name: "Stripe account" });
+    await expect
+      .element(card.getByText("Ready to receive card donations"))
+      .toBeVisible();
+    expect(sync_npo_account).toHaveBeenCalledWith(npo.id);
+  });
+
+  it("keeps the page up when stripe can't be reached for an unsynced account", async () => {
+    const npo = await seed_npo({ stripe_account_id: "acct_new" });
+    await seed_bapp(npo.id, { bank_summary: "USD account ending in 1234" });
+    const down = new Stripe.errors.StripeConnectionError({ message: "down" });
+    sync_npo_account.mockRejectedValue(down);
+
+    const screen = await render_list(npo.id);
+
+    // linked but unread: never "ready", and not the nonprofit's move
+    const card = screen.getByRole("region", { name: "Stripe account" });
+    await expect
+      .element(card.getByText("Pending review", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("USD account ending in 1234"))
+      .toBeVisible();
+    expect(report_degraded).toHaveBeenCalledWith(down);
+  });
+
+  it("shows how the connect attempt ended on the way back from stripe", async () => {
+    const npo = await seed_npo();
+    const screen = await render_list(
+      npo.id,
+      "?stripe_connect=error&stripe_connect_reason=already_linked"
+    );
+
+    await expect
+      .element(screen.getByText(/already linked to another nonprofit/i))
+      .toBeVisible();
+  });
+
+  it("shows no notice for a result the callback never sends", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, { bank_summary: "USD account ending in 1234" });
+    const screen = await render_list(npo.id, "?stripe_connect=maybe");
+
+    const card = screen.getByRole("region", { name: "Stripe account" });
+    await expect
+      .element(screen.getByText("USD account ending in 1234"))
+      .toBeVisible();
+    expect(card.element().querySelector("[tabindex='-1']")).toBeNull();
   });
 });

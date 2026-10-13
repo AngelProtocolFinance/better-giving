@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { seed_npo } from "#/__tests__/fixtures/funds";
-import { create_test_db, type TestDb } from "../test-utils/pglite";
+import {
+  create_test_db,
+  seed_npo_sql,
+  type TestDb,
+} from "../test-utils/pglite";
 
 // 0048 lets loss_logs hold a write-off (of an npo or a referrer, by an admin)
 // and stops a grant run recovering what was written off. the losses and owed
@@ -11,7 +14,7 @@ const NOW = "2026-10-04T12:00:00.000Z";
 
 beforeAll(async () => {
   t = await create_test_db({ stop_before: "0048" });
-  npo = (await seed_npo(t.db, { registration_number: "EIN-A" }))!.id;
+  npo = await seed_npo_sql(t.client, "EIN-A");
   await t.client.query(
     `insert into loss_logs (id, date, donation_id, dist_id, npo_id, type, amount, npo_amount, fees_bg, fees_processing, reason)
      values ('loss-1', $1, 'don-1', 'dist-1', $2, 'payout', 93.2, 90, 0, 3.2, 'refund after payout')`,

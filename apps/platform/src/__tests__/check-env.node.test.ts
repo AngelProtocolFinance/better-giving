@@ -137,7 +137,8 @@ describe("check_env", () => {
     "a %s optional value is deleted from the view and process.env",
     (_s, v) => {
       const restore = snapshot_env();
-      local_layer.value = { SENTRY_AUTH_TOKEN: v, SENTRY_PROJECT: v };
+      // every key the loop below asserts on, since `.env.test` sets some
+      local_layer.value = Object.fromEntries(OPTIONAL_KEYS.map((k) => [k, v]));
       // seeded so the assertion proves the ambient delete rather than a merge
       // that simply never wrote the key.
       env.SENTRY_AUTH_TOKEN = "stale-token";
@@ -364,6 +365,8 @@ describe("missing_keys", () => {
       "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
       "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
       "OWED_DEDUCTIONS",
+      "STRIPE_CONNECT_CLIENT_ID",
+      "STRIPE_CONNECT_WEBHOOK_SECRET",
     ]);
   });
 

@@ -313,6 +313,8 @@ export interface IRegUpdateInternal {
   o_fsa_signing_url?: string;
   o_fsa_signed_doc_url?: string;
   o_fsa_doc_eid?: string;
+  /** stripe connected account; approval copies it to `npos.stripe_account_id` */
+  o_stripe_account_id?: string | null;
   status: TStatus;
   status_approved_npo_id?: number;
 }

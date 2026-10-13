@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { seed_npo } from "#/__tests__/fixtures/funds";
-import { create_test_db, type TestDb } from "../test-utils/pglite";
+import {
+  create_test_db,
+  seed_npo_sql,
+  type TestDb,
+} from "../test-utils/pglite";
 
 // 0045 adds subscriptions.cancel_requested_at — the subs already there come
 // through it untouched, with no cancel recorded
@@ -8,7 +11,7 @@ let t: TestDb;
 
 beforeAll(async () => {
   t = await create_test_db({ stop_before: "0045" });
-  const npo = (await seed_npo(t.db, { registration_number: "EIN-A" }))!.id;
+  const npo = await seed_npo_sql(t.client, "EIN-A");
   await t.client.query(
     `insert into subscriptions (id, interval, interval_count, next_billing, amount, amount_usd, currency,
        product_id, to_npo_id, to_name, platform, status, status_cancel_reason, from_id, created_at, updated_at)

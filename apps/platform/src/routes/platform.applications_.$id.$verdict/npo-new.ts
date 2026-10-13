@@ -8,11 +8,13 @@ import type { Progress, TStatus } from "@/reg";
 import { enqueue, in_dedupe_window } from "$/kit/queue";
 import { wise } from "$/kit/wise";
 import { db } from "$/pg/db";
+import { is_unique_violation } from "$/pg/errors";
 import { bapp_put } from "$/pg/queries/banking";
 import { reg_update, reg_update_from } from "$/pg/queries/registration";
 import { userxnpo_put } from "$/pg/queries/user";
 import { user } from "$/pg/schema/auth";
 import { npos } from "$/pg/schema/npo";
+import { held_elsewhere, lock_acct } from "$/stripe-connect/target";
 
 type NpoInsert = typeof npos.$inferInsert;
 
@@ -30,6 +32,7 @@ export type EndowContentFromReg = Pick<
   | "referrer_npo"
   | "referrer_expiry"
   | "referral_id"
+  | "stripe_account_id"
 >;
 
 /** what `reg-updated` carries, plus the npo the approval minted: met by the
@@ -70,6 +73,7 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
       r.o_type === "501c3" ? r.o_ein : r.o_registration_number,
     url: r.o_website,
     referral_id: rid,
+    stripe_account_id: r.o_stripe_account_id,
   };
 
   if (r.rm === "referral" && r.rm_referral_code) {
@@ -107,7 +111,19 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
     fund_opt_in: true,
   };
 
+  const acct = r.o_stripe_account_id;
+  const acct_taken = () =>
+    resp.status(
+      409,
+      `stripe account ${acct} is already linked to another nonprofit or application`
+    );
+
   const approved = await db.transaction(async (tx) => {
+    // copying the account onto the npo claims it, so it takes the connect
+    // callback's lock, and ahead of the row lock below as the callback does:
+    // the other order deadlocks against a callback on this registration
+    if (acct) await lock_acct(tx, acct);
+
     // the claim goes first: a second approval that read "02" before this one
     // committed waits on the row lock, then finds "03" and stops before its npo
     // insert, which would otherwise surface as a unique-key 500. the row it
@@ -115,7 +131,21 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
     const claimed = await reg_update_from(tx, r.id, ["02"], { status: "03" });
     if (!claimed.won) return claimed.row;
 
-    const [inserted] = await tx.insert(npos).values(new_endow).returning();
+    // after the claim, so a repeat approval announces rather than finding its
+    // own npo holding the account. any other holder approves nothing.
+    if (acct && (await held_elsewhere(acct, { kind: "reg", reg_id: r.id }, tx)))
+      throw acct_taken();
+
+    const [inserted] = await tx
+      .insert(npos)
+      .values(new_endow)
+      .returning()
+      .catch((err) => {
+        // a duplicate written before connect claims took the lock
+        if (is_unique_violation(err, "npos_stripe_account_id_unique"))
+          throw acct_taken();
+        throw err;
+      });
     const id = Number(inserted.id);
 
     const now = new Date().toISOString();

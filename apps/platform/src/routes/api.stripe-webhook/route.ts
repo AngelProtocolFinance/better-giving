@@ -13,6 +13,7 @@ import {
 } from "$/pg/queries/subscription";
 import type { Route } from "./+types/route";
 import {
+  handle_account_updated,
   handle_charge_refunded,
   handle_dispute_closed,
   handle_dispute_opened,
@@ -57,6 +58,27 @@ const record_end_reason = async (sub: Stripe.Subscription) => {
   if (reason) await sub_cancel_reason_default(db, sub.id, reason);
 };
 
+/** events from connected accounts reach a separate connect endpoint with its
+ * own signing secret; both endpoints point here */
+function verify_event(body: string, signature: string): Stripe.Event {
+  try {
+    return stripe.webhooks.constructEvent(
+      body,
+      signature,
+      stripe_env.webhook_secret
+    );
+  } catch (err) {
+    const connect_secret = stripe_env.connect_webhook_secret;
+    if (
+      !connect_secret ||
+      !(err instanceof Stripe.errors.StripeSignatureVerificationError)
+    ) {
+      throw err;
+    }
+    return stripe.webhooks.constructEvent(body, signature, connect_secret);
+  }
+}
+
 /**
  * webhook signing logic inspired by stripe-node,
  * @see {@link https://github.com/stripe/stripe-node/blob/master/examples/webhook-signing/nextjs/app/api/webhooks/route.ts}
@@ -71,11 +93,15 @@ export async function action({ request }: Route.ActionArgs) {
   try {
     // inside the try: constructEvent throws on a bad signature, and that must
     // land in the catch below (reported + 4xx) instead of escaping as a 500.
-    const stripe_event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      stripe_env.webhook_secret
-    );
+    const stripe_event = verify_event(body, signature);
+
+    // a connected account's own objects, not ours: only its readiness is read
+    if (stripe_event.account && stripe_event.type !== "account.updated") {
+      return new Response(
+        `connected account event not handled: ${stripe_event.type}`,
+        { status: 200 }
+      );
+    }
 
     switch (stripe_event.type) {
       case "payment_intent.succeeded":
@@ -169,6 +195,11 @@ export async function action({ request }: Route.ActionArgs) {
       case "charge.dispute.closed":
         await handle_dispute_closed(stripe_event);
         break;
+      case "account.updated":
+        if (!(await handle_account_updated(stripe_event))) {
+          console.info(`account.updated ignored: ${stripe_event.id}`);
+        }
+        break;
       default:
         return new Response(`Unhandled event type: ${stripe_event.type}`, {
           status: 201,
@@ -198,9 +229,10 @@ export async function action({ request }: Route.ActionArgs) {
       return new Response(err.message, { status: 503 });
     }
     // a signature that doesn't verify is a config problem (wrong
-    // STRIPE_WEBHOOK_SECRET, body mutated before it reached us), not a bad
-    // event. permanent, so 400 — retries can't fix it — but still reported so
-    // a mis-set secret is visible instead of looking like no traffic.
+    // STRIPE_WEBHOOK_SECRET or STRIPE_CONNECT_WEBHOOK_SECRET, body mutated
+    // before it reached us), not a bad event. permanent, so 400 — retries
+    // can't fix it — but still reported so a mis-set secret is visible instead
+    // of looking like no traffic.
     if (err instanceof Stripe.errors.StripeSignatureVerificationError) {
       report_error(err);
       return new Response(

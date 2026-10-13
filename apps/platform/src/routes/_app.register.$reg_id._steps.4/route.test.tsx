@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { createRoutesStub, Outlet } from "react-router";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -46,6 +47,10 @@ vi.mock("#/.server/auth", async () =>
   })
 );
 
+// stripe's live answer for a linked account
+const account_status_live = vi.hoisted(() => vi.fn());
+vi.mock("$/stripe-connect/sync", () => ({ account_status_live }));
+
 // the step hands `BankDetails` an `onSubmit` and owns no error surface of its
 // own — the wiring under test is what the step does with the result, so the
 // form itself stands in as a button that fires the callback.
@@ -73,11 +78,10 @@ vi.mock("#/components/bank-details", () => ({
 // --- imports (after mocks hoisted) ---
 
 import { get_session } from "#/.server/auth";
-import { step_loader } from "#/pages/registration/data/step-loader";
 import { update_action } from "#/pages/registration/update-action";
 import { reg_put } from "$/pg/queries/registration";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import Banking from "./route";
+import Banking, { loader } from "./route";
 
 const mock_get_session = vi.mocked(get_session);
 const TEST_EMAIL = "test@example.com";
@@ -96,6 +100,7 @@ beforeEach(async () => {
   await cleanup();
   await test_db.current!.db.delete(registrations);
   bank_statement.url = "https://example.com/bank.pdf";
+  account_status_live.mockReset();
   mock_get_session.mockReset();
   mock_get_session.mockResolvedValue({
     user: {
@@ -141,7 +146,7 @@ async function seed_step_4() {
   return id;
 }
 
-function render_step_4(id: string) {
+function render_step_4(id: string, search = "") {
   const Stub = createRoutesStub([
     {
       path: "/register/:reg_id",
@@ -159,7 +164,7 @@ function render_step_4(id: string) {
         {
           path: "4",
           Component: Banking,
-          loader: step_loader(4) as any,
+          loader: loader as any,
           action: update_action("5") as any,
         },
         { path: "5", Component: () => <p>summary</p> },
@@ -167,7 +172,7 @@ function render_step_4(id: string) {
       ],
     },
   ]);
-  return render(<Stub initialEntries={[`/register/${id}/4`]} />);
+  return render(<Stub initialEntries={[`/register/${id}/4${search}`]} />);
 }
 
 // --- tests ---
@@ -211,5 +216,100 @@ describe("registration step 4: banking", () => {
       .from(registrations)
       .where(eq(registrations.id, id));
     expect(row.o_bank_id).toBe("999");
+  }, 30_000);
+
+  it("offers stripe beside the bank form, without requiring it", async () => {
+    const id = await seed_step_4();
+    const screen = await render_step_4(id);
+
+    const card = screen.getByRole("region", { name: "Stripe account" });
+    await expect
+      .element(card.getByText("Not connected", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(card.getByRole("link", { name: "Connect with Stripe" }))
+      .toHaveAttribute(
+        "href",
+        `/api/stripe-connect/start?kind=reg&reg_id=${id}`
+      );
+
+    // bank details alone still complete the step
+    await screen.getByRole("button", { name: /submit bank details/i }).click();
+    await expect.element(screen.getByText(/summary/i)).toBeVisible();
+  }, 30_000);
+
+  it("shows how the connect attempt ended on the way back from stripe", async () => {
+    const id = await seed_step_4();
+    const screen = await render_step_4(id, "?stripe_connect=connected");
+
+    await expect
+      .element(screen.getByText("Your Stripe account is connected."))
+      .toBeVisible();
+  }, 30_000);
+
+  it("shows no notice for a result the callback never sends", async () => {
+    const id = await seed_step_4();
+    const screen = await render_step_4(
+      id,
+      "?stripe_connect=error&stripe_connect_reason=made_up"
+    );
+
+    const card = screen.getByRole("region", { name: "Stripe account" });
+    await expect
+      .element(card.getByText("Not connected", { exact: true }))
+      .toBeVisible();
+    expect(card.element().querySelector("[tabindex='-1']")).toBeNull();
+  }, 30_000);
+
+  describe("once the notice has shown", () => {
+    const page_url = location.href;
+    afterEach(() => history.replaceState(history.state, "", page_url));
+
+    it("leaves the address bar, and the rest of the url stays", async () => {
+      const returned = new URL(page_url);
+      returned.searchParams.set("keep", "1");
+      returned.searchParams.set("stripe_connect", "error");
+      returned.searchParams.set("stripe_connect_reason", "expired");
+      history.replaceState(history.state, "", returned);
+      const id = await seed_step_4();
+      const screen = await render_step_4(
+        id,
+        "?stripe_connect=error&stripe_connect_reason=expired"
+      );
+
+      const notice = screen.getByText("The link to Stripe timed out.");
+      await expect.element(notice).toBeVisible();
+      await vi.waitFor(() => {
+        const q = new URL(location.href).searchParams;
+        expect([...q.keys()]).not.toContain("stripe_connect");
+        expect([...q.keys()]).not.toContain("stripe_connect_reason");
+        expect(q.get("keep")).toBe("1");
+      });
+      // the router never navigated, so the band stays for the reader
+      await expect.element(notice).toBeVisible();
+    }, 30_000);
+  });
+
+  it("reads a linked account's status from stripe, beside saved bank details", async () => {
+    account_status_live.mockResolvedValue("pending");
+    const id = await seed_step_4();
+    await test_db
+      .current!.db.update(registrations)
+      .set({
+        o_bank_id: "999",
+        o_bank_statement: "https://example.com/bank.pdf",
+        o_stripe_account_id: "acct_123",
+      })
+      .where(eq(registrations.id, id));
+    const screen = await render_step_4(id);
+
+    const card = screen.getByRole("region", { name: "Stripe account" });
+    await expect
+      .element(card.getByText("Pending review", { exact: true }))
+      .toBeVisible();
+    expect(account_status_live).toHaveBeenCalledWith("acct_123");
+    await expect
+      .element(screen.getByRole("link", { name: "Continue" }))
+      .toBeVisible();
   }, 30_000);
 });

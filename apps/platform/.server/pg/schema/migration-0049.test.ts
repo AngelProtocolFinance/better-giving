@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { seed_npo } from "#/__tests__/fixtures/funds";
-import { create_test_db, type TestDb } from "../test-utils/pglite";
+import {
+  create_test_db,
+  seed_npo_sql,
+  type TestDb,
+} from "../test-utils/pglite";
 
 // 0049 lets an owed entry be a repay. the entries already there come through
 // it untouched
@@ -16,7 +19,7 @@ const entry = (id: string, kind: string) =>
 
 beforeAll(async () => {
   t = await create_test_db({ stop_before: "0049" });
-  const npo = (await seed_npo(t.db, { registration_number: "EIN-A" }))!.id;
+  const npo = await seed_npo_sql(t.client, "EIN-A");
   await t.client.query(
     `insert into donations (id, upusd, status, amount_base, amount_tip, amount_fee_allowance, currency, frequency, source, via)
      values ('don-1', 1, 'settled', 100, 0, 0, 'USD', 'one-time', 'bg-marketplace', 'stripe:card')`

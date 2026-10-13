@@ -54,3 +54,19 @@ export async function create_test_db(opts?: { stop_before?: string }) {
 }
 
 export type TestDb = Awaited<ReturnType<typeof create_test_db>>;
+
+/** an npo inserted by its oldest required columns only, for a db held back by
+ * `stop_before`: drizzle names every column today's schema has, which a table
+ * from before a later migration added one doesn't */
+export async function seed_npo_sql(
+  client: PGlite,
+  registration_number: string
+): Promise<number> {
+  const r = await client.query<{ id: number }>(
+    `insert into npos (registration_number, name, endow_designation, overview_pt, hq_country, published, active)
+       values ($1, 'Fund Test NPO', 'Charity', '[]', 'United States', false, true)
+     returning id`,
+    [registration_number]
+  );
+  return r.rows[0]!.id;
+}

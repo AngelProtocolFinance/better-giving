@@ -3,16 +3,36 @@ import { SquareArrowOutUpRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useFetcher } from "react-router";
 import { BankDetails, type OnSubmit } from "#/components/bank-details";
+import { StripeConnectCard } from "#/components/stripe-connect/connect-card";
 import { submit_error_prompt } from "#/helpers/error-prompt";
+import { use_strip_connect_params } from "#/hooks/use-strip-connect-params";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import { before_banking, next_step, steps } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
 import type { TRegUpdate } from "@/reg";
+import {
+  connect_notice,
+  connect_start_href,
+  type IConnectCardData,
+} from "@/stripe-connect/card-data";
+import { account_status_live } from "$/stripe-connect/sync";
 import type { Route } from "./+types/route";
 import { form_buttons } from "./form-buttons";
 
 export { ErrorBoundary } from "#/components/error";
-export const loader = step_loader(4);
+
+const reg_step = step_loader(4);
+export const loader = async (args: Route.LoaderArgs) => {
+  const reg = await reg_step(args);
+  if (reg instanceof Response) return reg;
+  const acct = reg.o_stripe_account_id;
+  const stripe: IConnectCardData = {
+    status: acct ? await account_status_live(acct) : "not_connected",
+    start_href: connect_start_href({ kind: "reg", reg_id: reg.id }),
+    notice: connect_notice(new URL(args.request.url)),
+  };
+  return { ...reg, stripe };
+};
 export const action = update_action(next_step[4]);
 
 export default function Page({ loaderData: reg }: Route.ComponentProps) {
@@ -22,6 +42,10 @@ export default function Page({ loaderData: reg }: Route.ComponentProps) {
   const back = before_banking(reg.o_type);
   // stable identity — BankDetails renders it as a component
   const FormButtons = useMemo(() => form_buttons(back), [back]);
+  use_strip_connect_params(!!reg.stripe.notice);
+  const stripe_card = (
+    <StripeConnectCard {...reg.stripe} classes="self-stretch mb-8" />
+  );
 
   const submit: OnSubmit = async (recipient, bank_statement) => {
     const update: TRegUpdate = {
@@ -51,6 +75,7 @@ export default function Page({ loaderData: reg }: Route.ComponentProps) {
   if (reg.o_bank_id && !is_changing) {
     return (
       <div className="flex flex-col items-start max-sm:items-center">
+        {stripe_card}
         <h2 className="text-center sm:text-left text-xl mb-2">
           Banking details
         </h2>
@@ -91,6 +116,7 @@ export default function Page({ loaderData: reg }: Route.ComponentProps) {
 
   return (
     <div className="flex flex-col items-start max-sm:items-center">
+      {stripe_card}
       {is_changing && (
         <button
           className="btn btn-sm btn-primary mt-2 mb-4"
