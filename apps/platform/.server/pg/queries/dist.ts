@@ -367,6 +367,37 @@ export async function dist_stripe_transfer_get(
   return row?.tr;
 }
 
+export interface IDistAwaitingTransfer {
+  id: string;
+  to_id: number | null;
+  net: number | null;
+  stripe_routed_to: string;
+}
+
+/** this donation's dists settlement routed to a connected account and no
+ * transfer has paid yet: what a redelivery still owes */
+export async function dists_routed_untransferred(
+  donation_id: string,
+  conn: DbOrTx = db
+): Promise<IDistAwaitingTransfer[]> {
+  return conn
+    .select({
+      id: dists.id,
+      to_id: dists.to_id,
+      net: dists.net,
+      // a text column needs no decoder, so the not-null filter can narrow it
+      stripe_routed_to: sql<string>`${dists.stripe_routed_to}`,
+    })
+    .from(dists)
+    .where(
+      and(
+        eq(dists.donation_id, donation_id),
+        isNotNull(dists.stripe_routed_to),
+        isNull(dists.stripe_transfer_id)
+      )
+    );
+}
+
 /** paginated donations received by npo */
 export async function npo_donations(
   npo_id: number,

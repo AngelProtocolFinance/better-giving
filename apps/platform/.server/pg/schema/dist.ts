@@ -62,6 +62,8 @@ export const dists = pgTable(
     notice_sent_at: timestamptz("notice_sent_at"),
     metric_counted_at: timestamptz("metric_counted_at"),
     hooks_sent_at: timestamptz("hooks_sent_at"),
+    /** the connected account (`acct_…`) settlement routed this dist to; null when pooled */
+    stripe_routed_to: text("stripe_routed_to"),
     /** the stripe transfer that paid this dist to the npo's connected account */
     stripe_transfer_id: text("stripe_transfer_id"),
   },
@@ -69,6 +71,11 @@ export const dists = pgTable(
     check(
       "dists_status_check",
       sql`${t.status} IN ('settled','refunded','refunded_loss')`
+    ),
+    // a transfer pays a routed dist only; refunds trust routed_to to reverse it
+    check(
+      "dists_transfer_routed_check",
+      sql`${t.stripe_transfer_id} IS NULL OR ${t.stripe_routed_to} IS NOT NULL`
     ),
     index("dists_donation_id_idx").on(t.donation_id),
     index("dists_to_id_date_idx").on(t.to_id, t.date_created),

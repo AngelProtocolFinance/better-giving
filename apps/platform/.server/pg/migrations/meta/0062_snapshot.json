@@ -1,5 +1,5 @@
 {
-  "id": "81804fe4-456e-4663-b991-3dce3fe391f2",
+  "id": "d10bd57d-5bef-4465-b5ee-70dc4df780ed",
   "prevId": "4f5eaae6-33fa-4049-9064-ec95767f3984",
   "version": "7",
   "dialect": "postgresql",
@@ -1228,6 +1228,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "stripe_routed_to": {
+          "name": "stripe_routed_to",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "stripe_transfer_id": {
           "name": "stripe_transfer_id",
           "type": "text",
@@ -1355,6 +1361,10 @@
         "dists_status_check": {
           "name": "dists_status_check",
           "value": "\"dists\".\"status\" IN ('settled','refunded','refunded_loss')"
+        },
+        "dists_transfer_routed_check": {
+          "name": "dists_transfer_routed_check",
+          "value": "\"dists\".\"stripe_transfer_id\" IS NULL OR \"dists\".\"stripe_routed_to\" IS NOT NULL"
         }
       },
       "isRLSEnabled": false

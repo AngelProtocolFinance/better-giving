@@ -19,7 +19,11 @@ vi.mock("../db", () => ({
 import { dists } from "../schema/dist";
 import { donations } from "../schema/donation";
 import { create_test_db } from "../test-utils/pglite";
-import { dist_stripe_transfer_get, dist_stripe_transfer_set } from "./dist";
+import {
+  dist_stripe_transfer_get,
+  dist_stripe_transfer_set,
+  dists_routed_untransferred,
+} from "./dist";
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -29,30 +33,39 @@ afterAll(async () => {
   await test_db.current?.client.close();
 });
 
+const donation = (id: string) =>
+  test_db.current!.db.insert(donations).values({
+    id,
+    upusd: 1,
+    status: "settled",
+    amount_base: 50,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "stripe:card",
+  });
+
+/** settlement's write: `acct` is the connected account, null for pooled */
+const dist = (id: string, donation_id: string, acct: string | null) =>
+  test_db.current!.db.insert(dists).values({
+    id,
+    donation_id,
+    status: "settled",
+    date_created: new Date().toISOString(),
+    amount_denom: "USD",
+    net: 45,
+    stripe_routed_to: acct,
+  });
+
 beforeEach(async () => {
   const { db } = test_db.current!;
   await db.delete(dists);
   await db.delete(donations);
-  for (const id of ["don-1", "don-2"]) {
-    await db.insert(donations).values({
-      id,
-      upusd: 1,
-      status: "settled",
-      amount_base: 50,
-      amount_tip: 0,
-      amount_fee_allowance: 0,
-      currency: "USD",
-      frequency: "one-time",
-      source: "bg-marketplace",
-      via: "stripe:card",
-    });
-    await db.insert(dists).values({
-      id: `dist-${id.slice(4)}`,
-      donation_id: id,
-      status: "settled",
-      date_created: new Date().toISOString(),
-      amount_denom: "USD",
-    });
+  for (const n of ["1", "2"]) {
+    await donation(`don-${n}`);
+    await dist(`dist-${n}`, `don-${n}`, `acct_${n}`);
   }
 });
 
@@ -85,4 +98,20 @@ test("storing a transfer on no dist throws", async () => {
     "dist dist-x not found"
   );
   expect(await dist_stripe_transfer_get("dist-x")).toBeUndefined();
+});
+
+test("lists the donation's routed dists still waiting on a transfer", async () => {
+  await dist("dist-1-paid", "don-1", "acct_paid");
+  await dist_stripe_transfer_set("dist-1-paid", "tr_paid");
+  await dist("dist-1-pooled", "don-1", null);
+
+  expect(await dists_routed_untransferred("don-1")).toEqual([
+    { id: "dist-1", to_id: null, net: 45, stripe_routed_to: "acct_1" },
+  ]);
+});
+
+test("a donation settled only the pooled way has none waiting", async () => {
+  await donation("don-3");
+  await dist("dist-3", "don-3", null);
+  expect(await dists_routed_untransferred("don-3")).toEqual([]);
 });

@@ -5,8 +5,8 @@ import {
   type TestDb,
 } from "../test-utils/pglite";
 
-// 0062 gives a dist its stripe transfer and an npo its disconnect stamp. the
-// rows already there come through it with neither
+// 0062 gives a dist the account it was routed to and its stripe transfer, and
+// an npo its disconnect stamp. the rows already there come through it with none
 let t: TestDb;
 let npo: number;
 const NOW = "2026-10-13T12:00:00.000Z";
@@ -42,13 +42,13 @@ afterAll(async () => {
   await t?.client.close();
 });
 
-test("dists already there carry no transfer", async () => {
+test("dists already there stay pooled, with no transfer", async () => {
   const rows = await t.client.query(
-    "select id, stripe_transfer_id from dists order by id"
+    "select id, stripe_routed_to, stripe_transfer_id from dists order by id"
   );
   expect(rows.rows).toEqual([
-    { id: "dist-1", stripe_transfer_id: null },
-    { id: "dist-2", stripe_transfer_id: null },
+    { id: "dist-1", stripe_routed_to: null, stripe_transfer_id: null },
+    { id: "dist-2", stripe_routed_to: null, stripe_transfer_id: null },
   ]);
 });
 
@@ -62,21 +62,29 @@ test("an npo already connected is not marked disconnected", async () => {
   ]);
 });
 
-test("one transfer id belongs to one dist", async () => {
-  await t.client.query(
-    "update dists set stripe_transfer_id = 'tr_1' where id = 'dist-1'"
+const pay = (id: string, tr: string) =>
+  t.client.query(
+    "update dists set stripe_routed_to = 'acct_0062', stripe_transfer_id = $2 where id = $1",
+    [id, tr]
   );
+
+test("one transfer id belongs to one dist", async () => {
+  await pay("dist-1", "tr_1");
+  await expect(pay("dist-2", "tr_1")).rejects.toMatchObject({ code: "23505" });
+});
+
+test("a transfer on a dist routed nowhere is refused", async () => {
   await expect(
     t.client.query(
-      "update dists set stripe_transfer_id = 'tr_1' where id = 'dist-2'"
+      "update dists set stripe_transfer_id = 'tr_pooled' where id = 'dist-2'"
     )
-  ).rejects.toMatchObject({ code: "23505" });
+  ).rejects.toMatchObject({ code: "23514" });
 });
 
 test("dists without a transfer still go in side by side", async () => {
   await dist("dist-3", "don-3");
   const rows = await t.client.query(
-    "select count(*)::int as n from dists where stripe_transfer_id is null"
+    "select count(*)::int as n from dists where stripe_routed_to is null"
   );
   expect(rows.rows).toEqual([{ n: 2 }]);
 });
