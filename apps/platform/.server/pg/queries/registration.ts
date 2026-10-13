@@ -151,9 +151,11 @@ export function reg_update_from(
   db: DbOrTx,
   id: string,
   from: TStatus[],
-  attrs: TRegAttrs
+  attrs: TRegAttrs,
+  /** a further condition the row must meet, checked in the same statement */
+  also?: SQL
 ): Promise<TRegCas> {
-  return reg_cas(db, id, status_in(from), attrs);
+  return reg_cas(db, id, and(status_in(from), also), attrs);
 }
 
 /** paginated registrations with status/date/country filters */

@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { seed_npo, seed_user } from "#/__tests__/fixtures/funds";
-import { create_test_db, type TestDb } from "../test-utils/pglite";
+import { seed_user } from "#/__tests__/fixtures/funds";
+import {
+  create_test_db,
+  seed_npo_sql,
+  type TestDb,
+} from "../test-utils/pglite";
 
 // 0044 swaps user_invites' key from invitee alone to (invitee, npo_id) — the
 // invites already pending under the old key must come through it intact
@@ -10,8 +14,8 @@ let npo_b: number;
 
 beforeAll(async () => {
   t = await create_test_db({ stop_before: "0044" });
-  npo_a = (await seed_npo(t.db, { registration_number: "EIN-A" }))!.id;
-  npo_b = (await seed_npo(t.db, { registration_number: "EIN-B" }))!.id;
+  npo_a = await seed_npo_sql(t.client, "EIN-A");
+  npo_b = await seed_npo_sql(t.client, "EIN-B");
   const invitor = (await seed_user(t.db, "admin@test.com"))!.id;
   await t.client.query(
     `insert into user_invites (invitee, invitee_first, invitor_id, npo_name, npo_id, expire_at)

@@ -210,7 +210,9 @@ import OrgDetails from "../routes/_app.register.$reg_id._steps.2/route";
 import Fsa, {
   loader as fsa_step_loader,
 } from "../routes/_app.register.$reg_id._steps.3/route";
-import Banking from "../routes/_app.register.$reg_id._steps.4/route";
+import Banking, {
+  loader as banking_loader,
+} from "../routes/_app.register.$reg_id._steps.4/route";
 import Dashboard from "../routes/_app.register.$reg_id._steps.5/route";
 import { submit_action } from "../routes/_app.register.$reg_id._steps.5/submit-action";
 import {
@@ -412,7 +414,7 @@ function render_registration(id: string, initial_step = "1") {
             {
               path: "4",
               Component: Banking,
-              loader: step_loader(4),
+              loader: banking_loader as any,
               action: update_action("5"),
             },
             {

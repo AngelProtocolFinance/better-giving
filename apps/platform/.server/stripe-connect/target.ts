@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne, or } from "drizzle-orm";
+import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { steps } from "#/pages/registration/routes";
 import { EDITABLE } from "@/reg/schema";
 import {
@@ -8,6 +8,7 @@ import {
   type TConnectResult,
 } from "@/stripe-connect/return";
 import { db } from "../pg/db";
+import type { DbOrTx } from "../pg/queries/helpers";
 import { reg_get } from "../pg/queries/registration";
 import { npos } from "../pg/schema/npo";
 import { registrations } from "../pg/schema/registration";
@@ -69,9 +70,10 @@ export async function target_access(
  * was replaced there. a pending one would collide with this one at approval. */
 export async function held_elsewhere(
   acct: string,
-  t: TConnectTarget
+  t: TConnectTarget,
+  q: DbOrTx = db
 ): Promise<boolean> {
-  const [npo] = await db
+  const [npo] = await q
     .select({ id: npos.id })
     .from(npos)
     .where(
@@ -83,7 +85,7 @@ export async function held_elsewhere(
     .limit(1);
   if (npo) return true;
 
-  const [reg] = await db
+  const [reg] = await q
     .select({ id: registrations.id })
     .from(registrations)
     .where(
@@ -95,6 +97,15 @@ export async function held_elsewhere(
     )
     .limit(1);
   return !!reg;
+}
+
+/** one claim of `acct` at a time, until `tx` ends. registrations carry no
+ * unique index on their account, so `held_elsewhere` and the write after it
+ * hold across targets only while every claim takes this first */
+export async function lock_acct(tx: DbOrTx, acct: string) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`stripe-connect:${acct}`}, 0))`
+  );
 }
 
 /** the page a connect for `t` started from, carrying how it ended */

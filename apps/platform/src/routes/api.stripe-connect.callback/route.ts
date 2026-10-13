@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { type AnyColumn, and, eq, isNull } from "drizzle-orm";
 import { redirect } from "react-router";
 import Stripe from "stripe";
 import { consume, get_session } from "#/.server/auth";
@@ -11,10 +11,12 @@ import { db } from "$/pg/db";
 import { is_unique_violation } from "$/pg/errors";
 import { reg_update_from } from "$/pg/queries/registration";
 import { npos } from "$/pg/schema/npo";
+import { registrations } from "$/pg/schema/registration";
 import { read_state, STATE_TTL_S } from "$/stripe-connect/state";
 import { mirror_unset, sync_npo_account } from "$/stripe-connect/sync";
 import {
   held_elsewhere,
+  lock_acct,
   return_path,
   target_access,
 } from "$/stripe-connect/target";
@@ -67,29 +69,49 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
   if (!acct) return fail("failed");
 
-  if (await held_elsewhere(acct, t)) return fail("already_linked");
+  // the account read by `target_access` must still be the one there: a
+  // second tab connecting meanwhile would otherwise be replaced unconfirmed
+  const held_as_read = (col: AnyColumn) =>
+    access.acct ? eq(col, access.acct) : isNull(col);
 
-  if (t.kind === "reg") {
-    const { won } = await reg_update_from(db, t.reg_id, EDITABLE, {
-      o_stripe_account_id: acct,
-    });
-    // submitted between target_access above and this write
-    return won ? redirect(return_path(t, "connected")) : fail("forbidden");
-  }
-
+  let claim: "connected" | TConnectErrorReason;
   try {
-    // the old account's flags must not stand for this one if the sync fails
-    await db
-      .update(npos)
-      .set({ stripe_account_id: acct, ...mirror_unset })
-      .where(eq(npos.id, t.npo_id));
+    claim = await db.transaction(async (tx) => {
+      await lock_acct(tx, acct);
+      if (await held_elsewhere(acct, t, tx)) return "already_linked";
+
+      if (t.kind === "reg") {
+        const { won, row } = await reg_update_from(
+          tx,
+          t.reg_id,
+          EDITABLE,
+          { o_stripe_account_id: acct },
+          held_as_read(registrations.o_stripe_account_id)
+        );
+        if (won) return "connected";
+        // submitted between target_access above and this write
+        return row?.status && EDITABLE.includes(row.status)
+          ? "replace_unconfirmed"
+          : "forbidden";
+      }
+
+      // the old account's flags must not stand for this one if the sync fails
+      const written = await tx
+        .update(npos)
+        .set({ stripe_account_id: acct, ...mirror_unset })
+        .where(and(eq(npos.id, t.npo_id), held_as_read(npos.stripe_account_id)))
+        .returning({ id: npos.id });
+      return written.length ? "connected" : "replace_unconfirmed";
+    });
   } catch (err) {
-    // another npo took it between the check above and this write
+    // an npo connecting without the lock (approval) took it first
     if (is_unique_violation(err, "npos_stripe_account_id_unique")) {
       return fail("already_linked");
     }
     throw err;
   }
+  if (claim !== "connected") return fail(claim);
+  if (t.kind === "reg") return redirect(return_path(t, "connected"));
 
   try {
     await sync_npo_account(t.npo_id);

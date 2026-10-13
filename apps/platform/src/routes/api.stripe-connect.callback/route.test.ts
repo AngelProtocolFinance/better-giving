@@ -438,6 +438,188 @@ describe("stripe connect callback", () => {
     });
   });
 
+  // the account is read before the exchange and written after it, so a second
+  // tab can land between the two
+  describe("a connect landing between another's read and write", () => {
+    test("an npo whose account was set meanwhile keeps it", async () => {
+      const { user, npo } = await member_of_npo("cb-race-npo");
+      token.mockImplementation(async () => {
+        await db()
+          .update(npos)
+          .set({ stripe_account_id: "acct_race_npo_first" })
+          .where(eq(npos.id, npo.id));
+        return { stripe_user_id: "acct_race_npo_second" };
+      });
+
+      const res = await call({
+        code: "ac_race_npo",
+        state: sign_state({
+          t: { kind: "npo", npo_id: npo.id },
+          uid: user.id,
+          replace: false,
+        }),
+      });
+
+      expect(landed(res).reason).toBe("replace_unconfirmed");
+      expect((await npo_row(npo.id)).stripe_account_id).toBe(
+        "acct_race_npo_first"
+      );
+    });
+
+    test("a confirmed replace of an account changed meanwhile is refused", async () => {
+      const { user, npo } = await member_of_npo("cb-race-repl", "acct_rr_old");
+      token.mockImplementation(async () => {
+        await db()
+          .update(npos)
+          .set({ stripe_account_id: "acct_rr_other_tab" })
+          .where(eq(npos.id, npo.id));
+        return { stripe_user_id: "acct_rr_new" };
+      });
+
+      const res = await call({
+        code: "ac_race_repl",
+        state: sign_state({
+          t: { kind: "npo", npo_id: npo.id },
+          uid: user.id,
+          replace: true,
+        }),
+      });
+
+      expect(landed(res).reason).toBe("replace_unconfirmed");
+      expect((await npo_row(npo.id)).stripe_account_id).toBe(
+        "acct_rr_other_tab"
+      );
+    });
+
+    test("a registration whose account was set meanwhile keeps it", async () => {
+      const reg_id = await own_reg("cb-race-reg@reg.test");
+      token.mockImplementation(async () => {
+        await db()
+          .update(registrations)
+          .set({ o_stripe_account_id: "acct_race_reg_first" })
+          .where(eq(registrations.id, reg_id));
+        return { stripe_user_id: "acct_race_reg_second" };
+      });
+
+      const res = await call({
+        code: "ac_race_reg",
+        state: sign_state({
+          t: { kind: "reg", reg_id },
+          uid: session.user!.id,
+          replace: false,
+        }),
+      });
+
+      expect(landed(res).reason).toBe("replace_unconfirmed");
+      expect(await reg_acct(reg_id)).toBe("acct_race_reg_first");
+    });
+
+    test("a registration submitted during the exchange stores nothing", async () => {
+      const reg_id = await own_reg("cb-race-submit@reg.test");
+      token.mockImplementation(async () => {
+        await db()
+          .update(registrations)
+          .set({ status: "02" })
+          .where(eq(registrations.id, reg_id));
+        return { stripe_user_id: "acct_race_submit" };
+      });
+
+      const res = await call({
+        code: "ac_race_submit",
+        state: sign_state({
+          t: { kind: "reg", reg_id },
+          uid: session.user!.id,
+          replace: false,
+        }),
+      });
+
+      expect(landed(res).reason).toBe("forbidden");
+      expect(await reg_acct(reg_id)).toBeNull();
+    });
+  });
+
+  // registrations carry no unique index: only the claim's lock keeps two
+  // targets from both passing the held-elsewhere check
+  describe("one account connected to two targets at once", () => {
+    const as_admin = async (tag: string) => {
+      const u = await seed_user(db(), `${tag}@admin.test`);
+      session.user = { id: u!.id, email: u!.email, role: "admin" };
+      return u!.id;
+    };
+    const reg_of = async (email: string) => {
+      const id = crypto.randomUUID();
+      await db()
+        .insert(registrations)
+        .values({ id, r_id: email, status: "01" });
+      return id;
+    };
+
+    test("two registrations: one gets it", async () => {
+      const a = await reg_of("cb-dup-a@reg.test");
+      const b = await reg_of("cb-dup-b@reg.test");
+      const uid = await as_admin("cb-dup-regs");
+      token.mockResolvedValue({ stripe_user_id: "acct_dup_regs" });
+
+      const results = await Promise.all(
+        [a, b].map((reg_id, i) =>
+          call({
+            code: `ac_dup_regs_${i}`,
+            state: sign_state({
+              t: { kind: "reg", reg_id },
+              uid,
+              replace: false,
+            }),
+          })
+        )
+      );
+
+      expect(results.map((r) => landed(r).reason).sort()).toEqual([
+        "already_linked",
+        null,
+      ]);
+      const held = [await reg_acct(a), await reg_acct(b)];
+      expect(held.filter((x) => x === "acct_dup_regs")).toHaveLength(1);
+    });
+
+    test("a registration and an npo: one gets it", async () => {
+      const reg_id = await reg_of("cb-dup-mixed@reg.test");
+      const npo = await seed_npo(db(), {
+        registration_number: "EIN-cb-dup-mixed",
+      });
+      const uid = await as_admin("cb-dup-mixed");
+      token.mockResolvedValue({ stripe_user_id: "acct_dup_mixed" });
+
+      const results = await Promise.all([
+        call({
+          code: "ac_dup_mixed_reg",
+          state: sign_state({
+            t: { kind: "reg", reg_id },
+            uid,
+            replace: false,
+          }),
+        }),
+        call({
+          code: "ac_dup_mixed_npo",
+          state: sign_state({
+            t: { kind: "npo", npo_id: npo!.id },
+            uid,
+            replace: false,
+          }),
+        }),
+      ]);
+
+      expect(results.map((r) => landed(r).reason).sort()).toEqual([
+        "already_linked",
+        null,
+      ]);
+      const held = [
+        await reg_acct(reg_id),
+        (await npo_row(npo!.id)).stripe_account_id,
+      ];
+      expect(held.filter((x) => x === "acct_dup_mixed")).toHaveLength(1);
+    });
+  });
+
   test("a confirmed replace swaps the account and re-reads readiness", async () => {
     const { user, npo } = await member_of_npo("cb-replace", "acct_replace_old");
     token.mockResolvedValue({ stripe_user_id: "acct_replace_new" });
