@@ -21,6 +21,16 @@ const OUTCOME_CURRENCY = "usdcmatic";
 const is_positive = (x: unknown): x is number =>
   typeof x === "number" && Number.isFinite(x) && x > 0;
 
+/**
+ * a positive finite quote. nowpayments sends `estimated_amount` (and, the
+ * same way, a minimum) as a decimal string so a sub-cent figure keeps its
+ * digits; a JSON number is that same quote. anything else is not a price.
+ */
+const positive_number = (x: unknown): number | null => {
+  const n = typeof x === "string" ? Number(x) : x;
+  return is_positive(n) ? n : null;
+};
+
 // not `status`: `report_error` keeps anything with a 4xx `status` off sentry,
 // and a 4xx from nowpayments is our misconfiguration, not the donor's
 export class NowpaymentsError extends Error {
@@ -80,20 +90,26 @@ export class Nowpayments {
     // quoted from the fiat side, the direction nowpayments documents; the
     // crypto amount keeps its precision where a usd figure would round a
     // sub-cent token to 0
-    const { amount_from, estimated_amount } = await this.send<NP.Estimate>(
-      path,
-      {
-        params: {
-          amount: RATE_PROBE_USD.toString(),
-          currency_from: "usd",
-          currency_to: token_code,
-        } satisfies NP.Estimate.Params,
-      }
-    );
-    const usdpu = amount_from / estimated_amount;
-    if (!is_positive(estimated_amount) || !is_positive(usdpu)) {
+    const quote = await this.send<NP.Estimate>(path, {
+      params: {
+        amount: RATE_PROBE_USD.toString(),
+        currency_from: "usd",
+        currency_to: token_code,
+      } satisfies NP.Estimate.Params,
+    });
+    const amount_from = positive_number(quote.amount_from);
+    const estimated_amount = positive_number(quote.estimated_amount);
+    const usdpu =
+      amount_from !== null && estimated_amount !== null
+        ? amount_from / estimated_amount
+        : Number.NaN;
+    if (
+      amount_from === null ||
+      estimated_amount === null ||
+      !is_positive(usdpu)
+    ) {
       throw new NowpaymentsNotPayableError(
-        `nowpayments ${path} ${token_code}: amount_from:${amount_from} estimated_amount:${estimated_amount}`
+        `nowpayments ${path} ${token_code}: amount_from:${quote.amount_from} estimated_amount:${quote.estimated_amount}`
       );
     }
     return { usdpu };
@@ -102,17 +118,18 @@ export class Nowpayments {
   /** throws unless both figures are positive numbers: a NaN minimum passes every `<` check */
   async min_amount(token_code: string) {
     const path = "v1/min-amount";
-    const { min_amount: min, fiat_equivalent: min_usd } =
-      await this.send<NP.MinAmount>(path, {
-        params: {
-          currency_from: token_code,
-          currency_to: OUTCOME_CURRENCY,
-          fiat_equivalent: "usd",
-        } satisfies NP.MinAmount.Params,
-      });
-    if (!is_positive(min) || !is_positive(min_usd)) {
+    const quote = await this.send<NP.MinAmount>(path, {
+      params: {
+        currency_from: token_code,
+        currency_to: OUTCOME_CURRENCY,
+        fiat_equivalent: "usd",
+      } satisfies NP.MinAmount.Params,
+    });
+    const min = positive_number(quote.min_amount);
+    const min_usd = positive_number(quote.fiat_equivalent);
+    if (min === null || min_usd === null) {
       throw new NowpaymentsNotPayableError(
-        `nowpayments ${path} ${token_code}: min_amount:${min} fiat_equivalent:${min_usd}`
+        `nowpayments ${path} ${token_code}: min_amount:${quote.min_amount} fiat_equivalent:${quote.fiat_equivalent}`
       );
     }
     return { min, min_usd };
