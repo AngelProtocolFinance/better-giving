@@ -207,13 +207,19 @@ export async function action({ request }: Route.ActionArgs) {
           console.info(`account.updated ignored: ${stripe_event.id}`);
         }
         break;
-      case "account.application.deauthorized":
-        if (!(await handle_account_deauthorized(stripe_event))) {
+      case "account.application.deauthorized": {
+        const out = await handle_account_deauthorized(stripe_event);
+        if (out.status === "stale") {
+          console.info(
+            `account.application.deauthorized ignored, npo ${out.npo_id} reconnected since: ${stripe_event.id}`
+          );
+        } else if (out.status === "unknown") {
           console.info(
             `account.application.deauthorized ignored: ${stripe_event.id}`
           );
         }
         break;
+      }
       default:
         return new Response(`Unhandled event type: ${stripe_event.type}`, {
           status: 201,

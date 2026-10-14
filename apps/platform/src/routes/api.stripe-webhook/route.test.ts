@@ -340,6 +340,11 @@ describe("account.application.deauthorized (stripe connect)", () => {
   });
 
   it("verifies an event the connect endpoint signed and hands it over", async () => {
+    account_deauthorized_mock.mockResolvedValue({
+      status: "marked",
+      npo_id: 1,
+    });
+
     const res = await invoke(signed_with(stripe_env.connect_webhook_secret!));
 
     expect(res.status).toBe(200);
@@ -349,6 +354,15 @@ describe("account.application.deauthorized (stripe connect)", () => {
         account: "acct_connected_1",
       })
     );
+  });
+
+  // a 2xx, or stripe keeps redelivering a disconnect the npo has moved past
+  it("acknowledges a disconnect the npo reconnected after", async () => {
+    account_deauthorized_mock.mockResolvedValue({ status: "stale", npo_id: 1 });
+
+    const res = await invoke(signed_with(stripe_env.connect_webhook_secret!));
+
+    expect(res.status).toBe(200);
   });
 
   it("refuses an event neither secret signed", async () => {

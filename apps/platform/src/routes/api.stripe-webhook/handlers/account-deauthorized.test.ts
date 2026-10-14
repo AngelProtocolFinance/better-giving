@@ -34,7 +34,7 @@ const { seed_npo } = await import("#/__tests__/fixtures/funds");
 const { npos } = await import("$/pg/schema/npo");
 const { registrations } = await import("$/pg/schema/registration");
 const { banking_apps } = await import("$/pg/schema/banking");
-const { npo_get } = await import("$/pg/queries/npo");
+const { npo_get, npo_stripe_connect } = await import("$/pg/queries/npo");
 const { is_routable, routing_npo } = await import(
   "@/stripe-connect/eligibility"
 );
@@ -88,11 +88,9 @@ describe("account.application.deauthorized → npo disconnected", () => {
       stripe_account_id: "acct_deauth_1",
     });
 
-    const stamped = await handle_account_deauthorized(
-      event("acct_deauth_1", T)
-    );
+    const out = await handle_account_deauthorized(event("acct_deauth_1", T));
 
-    expect(stamped).toBe(true);
+    expect(out).toEqual({ status: "marked", npo_id: npo!.id });
     const r = await row(npo!.id);
     expect(r.stripe_deauthorized_at).toBe("2026-10-12T12:00:00.000Z");
     expect(r.stripe_account_id).toBe("acct_deauth_1");
@@ -130,20 +128,53 @@ describe("account.application.deauthorized → npo disconnected", () => {
     );
   });
 
+  // stripe redelivers for days: the disconnect it is retrying predates the
+  // npo connecting the account again, and must not take the new one down
+  it("a disconnect redelivered after a reconnect leaves the npo connected and routable", async () => {
+    const acct = "acct_deauth_reconnect";
+    const npo = await seed_npo(db(), {
+      registration_number: "EIN-DEAUTH-RECONNECT",
+      hq_country: "United States",
+      stripe_account_id: acct,
+      stripe_charges_enabled: true,
+      stripe_payouts_enabled: true,
+      stripe_details_submitted: true,
+    });
+    const disconnect = event(acct, T);
+    await handle_account_deauthorized(disconnect);
+    await npo_stripe_connect(db() as any, npo!.id, acct, acct, {
+      stripe_charges_enabled: true,
+      stripe_payouts_enabled: true,
+      stripe_details_submitted: true,
+      stripe_requirements_due: [],
+      stripe_synced_at: new Date().toISOString(),
+    });
+    enqueue.mockReset();
+
+    const out = await handle_account_deauthorized(disconnect);
+
+    expect(out).toEqual({ status: "stale", npo_id: npo!.id });
+    expect((await row(npo!.id)).stripe_deauthorized_at).toBeNull();
+    expect(await routes(npo!.id)).toBe(true);
+    // it has no bank details: a disconnect taken as live would flag ops
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
   it("an account no npo holds is acknowledged and stamps nothing", async () => {
     const npo = await seed_npo(db(), {
       registration_number: "EIN-DEAUTH-2",
       stripe_account_id: "acct_deauth_2",
     });
 
-    const stamped = await handle_account_deauthorized(event("acct_nobody", T));
+    const out = await handle_account_deauthorized(event("acct_nobody", T));
 
-    expect(stamped).toBe(false);
+    expect(out).toEqual({ status: "unknown" });
     expect((await row(npo!.id)).stripe_deauthorized_at).toBeNull();
   });
 
-  // registrations keep no readiness either: account.updated skips them too
-  it("an applicant's account is left on its registration", async () => {
+  // a registration keeps no disconnect stamp: holding a dead account would
+  // only make the applicant confirm replacing it before connecting again
+  it("an applicant who disconnects no longer holds the account on their registration", async () => {
     const reg_id = crypto.randomUUID();
     await db().insert(registrations).values({
       id: reg_id,
@@ -152,16 +183,14 @@ describe("account.application.deauthorized → npo disconnected", () => {
       o_stripe_account_id: "acct_deauth_reg",
     });
 
-    const stamped = await handle_account_deauthorized(
-      event("acct_deauth_reg", T)
-    );
+    const out = await handle_account_deauthorized(event("acct_deauth_reg", T));
 
-    expect(stamped).toBe(false);
+    expect(out).toEqual({ status: "reg_cleared", reg_id });
     const [r] = await db()
       .select({ acct: registrations.o_stripe_account_id })
       .from(registrations)
       .where(eq(registrations.id, reg_id));
-    expect(r!.acct).toBe("acct_deauth_reg");
+    expect(r!.acct).toBeNull();
   });
 
   // its share keeps settling pooled, and pooled pays out over wise to the
