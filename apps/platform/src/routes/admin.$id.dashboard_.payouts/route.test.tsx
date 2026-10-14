@@ -220,7 +220,7 @@ describe("the payouts page", () => {
       )
       .toBeVisible();
     await expect
-      .element(region.getByText("Nothing sent yet", { exact: true }))
+      .element(region.getByText("No transfers yet", { exact: true }))
       .toBeVisible();
     expect(
       screen.getByText("No payouts yet", { exact: true }).query()
@@ -284,7 +284,7 @@ describe("the payouts page", () => {
 
     await expect
       .element(
-        sent_region(screen).getByText("Nothing sent yet", { exact: true })
+        sent_region(screen).getByText("No transfers yet", { exact: true })
       )
       .toBeVisible();
     await expect.element(screen.getByText("$12.50")).toBeVisible();

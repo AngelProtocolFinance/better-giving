@@ -94,7 +94,7 @@ export function SentToStripe({ sent, classes = "" }: ISentToStripe) {
           </thead>
           <tbody>
             {sent.items.length === 0 ? (
-              <EmptyRow col_span={3}>Nothing sent yet</EmptyRow>
+              <EmptyRow col_span={3}>No transfers yet</EmptyRow>
             ) : (
               sent.items.map((t) => (
                 <tr key={t.id}>
