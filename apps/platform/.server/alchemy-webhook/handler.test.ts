@@ -1,5 +1,9 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  simple_price,
+  simple_token_price,
+} from "../kit/fixtures/coingecko-examples";
 
 const DEPOSIT = "0xdeposit";
 const ETH_KEY = "whsec_eth_env";
@@ -29,14 +33,18 @@ const keyless = await import("#/routes/api.alchemy-webhook.$chain_id/route");
 const sign = (body: string, key: string) =>
   createHmac("sha256", key).update(body, "utf8").digest("hex");
 
+/** the contract in the simple/token_price example */
+const WBTC = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599" as const;
+const WBTC_USD = simple_token_price[WBTC].usd;
+
 const activity = (i = 0) => ({
   fromAddress: "0xsender",
   toAddress: DEPOSIT,
   hash: `0xhash${i}`,
   value: 2,
-  asset: "USDC",
+  asset: "WBTC",
   category: "token",
-  rawContract: { address: "0xUSDC", decimals: "6" },
+  rawContract: { address: WBTC, decimals: "8" },
 });
 
 const payload = (n = 1) =>
@@ -67,9 +75,9 @@ const post = (
     params,
   });
 
-const price = (usd: number) =>
+const price = () =>
   coingecko_mock.mockImplementation(async () =>
-    Response.json({ "0xusdc": { usd } })
+    Response.json(simple_token_price)
   );
 
 const quiet_console = () =>
@@ -133,7 +141,7 @@ describe("alchemy webhook", () => {
   test("an uppercase-hex signature made with the env key is accepted", async () => {
     quiet_console();
     keys["eth-mainnet"] = ETH_KEY;
-    price(1);
+    price();
     const body = payload();
 
     const res = await post(
@@ -155,7 +163,7 @@ describe("alchemy webhook", () => {
     async (_, action, extra) => {
       quiet_console();
       keys["eth-mainnet"] = ETH_KEY;
-      price(1.5);
+      price();
       const body = payload();
 
       const res = await post(
@@ -172,7 +180,11 @@ describe("alchemy webhook", () => {
         expect.objectContaining({
           title: "New eth-mainnet donation",
           fields: expect.arrayContaining([
-            { name: "USD Value", value: "3.00", inline: true },
+            {
+              name: "USD Value",
+              value: (2 * WBTC_USD).toFixed(2),
+              inline: true,
+            },
           ]),
         })
       );
@@ -206,7 +218,7 @@ describe("alchemy webhook", () => {
   test("a bnb delivery to the deposit address raises an alert", async () => {
     quiet_console();
     keys["bnb-mainnet"] = ETH_KEY;
-    price(1.5);
+    price();
     const body = payload();
 
     const res = await post(
@@ -270,7 +282,7 @@ describe("alchemy webhook", () => {
   test("a delivery of more than 50 receives alerts for every one", async () => {
     quiet_console();
     keys["eth-mainnet"] = ETH_KEY;
-    price(1);
+    price();
     const body = payload(51);
 
     const res = await post(
@@ -293,13 +305,18 @@ describe("alchemy webhook", () => {
   test("activities sharing an asset fetch its price once per request", async () => {
     quiet_console();
     keys["eth-mainnet"] = ETH_KEY;
-    const usd: Record<string, number> = { "0xusdc": 1, "0xdai": 3 };
+    // the second contract is one of the two addresses in
+    // https://docs.coingecko.com/docs/portfolio-tracking ; its price object is
+    // the simple/price example, the other published usd figure
+    const DAI = "0x6b175474e89094c44da98b954eedeac495271d0f" as const;
     coingecko_mock.mockImplementation(async (edit: (u: URL) => URL) => {
       const href = edit(new URL("https://cg.test")).href;
-      const contract = Object.keys(usd).find((c) => href.includes(c)) ?? "";
-      return Response.json({ [contract]: { usd: usd[contract] } });
+      if (href.includes(DAI)) {
+        return Response.json({ [DAI]: simple_price.bitcoin });
+      }
+      return Response.json(simple_token_price);
     });
-    const dai = { ...activity(2), rawContract: { address: "0xDAI" } };
+    const dai = { ...activity(2), rawContract: { address: DAI } };
     const body = JSON.stringify({
       event: {
         activity: [activity(0), activity(1), dai, { ...dai, hash: "0xhash3" }],
@@ -319,13 +336,18 @@ describe("alchemy webhook", () => {
     const usd_values = send_alert_mock.mock.calls.map(
       ([a]: any) => a.fields.find((f: any) => f.name === "USD Value").value
     );
-    expect(usd_values).toEqual(["2.00", "2.00", "6.00", "6.00"]);
+    expect(usd_values).toEqual([
+      (2 * WBTC_USD).toFixed(2),
+      (2 * WBTC_USD).toFixed(2),
+      (2 * simple_price.bitcoin.usd).toFixed(2),
+      (2 * simple_price.bitcoin.usd).toFixed(2),
+    ]);
   });
   test("a checksum-cased deposit address matches a lowercase receive", async () => {
     quiet_console();
     keys["eth-mainnet"] = ETH_KEY;
     vi.stubEnv("CRYPTO_DEPOSIT_ADDR_EVM", "0xDePoSiT");
-    price(1);
+    price();
     const body = JSON.stringify({
       event: { activity: [{ ...activity(), toAddress: "0xdeposit" }] },
     });
@@ -391,7 +413,7 @@ describe("alchemy webhook", () => {
     async (_, failing_send) => {
       quiet_console();
       keys["eth-mainnet"] = ETH_KEY;
-      price(1);
+      price();
       send_alert_mock.mockImplementationOnce(
         async () => new Response(null, { status: 204 })
       );

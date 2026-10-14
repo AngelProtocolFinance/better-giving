@@ -111,12 +111,13 @@ describe("api.nowpayments-webhook action", () => {
     expect(capture_exception_mock).not.toHaveBeenCalled();
   });
 
-  // `fee` in the key order of nowpayments' own webhook example; they sign the
-  // payload sorted at every depth
+  // `fee` in the key order of the published IPN example
+  // (https://documenter.getpostman.com/view/7907941/2s93JusNJt, Webhooks
+  // Examples → Payments); they sign the payload sorted at every depth
   const fee_body =
-    '{"payment_status":"waiting","order_id":"don-1","payment_id":42,"fee":{"currency":"btc","depositFee":1,"withdrawalFee":3,"serviceFee":2}}';
+    '{"payment_status":"waiting","order_id":"don-1","payment_id":42,"fee":{"currency":"btc","depositFee":0.09853637216235617,"withdrawalFee":0,"serviceFee":0}}';
   const fee_deep_sorted =
-    '{"fee":{"currency":"btc","depositFee":1,"serviceFee":2,"withdrawalFee":3},"order_id":"don-1","payment_id":42,"payment_status":"waiting"}';
+    '{"fee":{"currency":"btc","depositFee":0.09853637216235617,"serviceFee":0,"withdrawalFee":0},"order_id":"don-1","payment_id":42,"payment_status":"waiting"}';
 
   it("verifies a nested fee posted unsorted and signed deep-sorted", async () => {
     donation_get_mock.mockResolvedValue({ id: "don-1", status: "intent" });
@@ -132,7 +133,7 @@ describe("api.nowpayments-webhook action", () => {
 
   it("rejects a signature over a top-level-only sort", async () => {
     const sig = hmac(
-      '{"fee":{"currency":"btc","depositFee":1,"withdrawalFee":3,"serviceFee":2},"order_id":"don-1","payment_id":42,"payment_status":"waiting"}'
+      '{"fee":{"currency":"btc","depositFee":0.09853637216235617,"withdrawalFee":0,"serviceFee":0},"order_id":"don-1","payment_id":42,"payment_status":"waiting"}'
     );
 
     const res = await invoke(post(fee_body, { "x-nowpayments-sig": sig }));

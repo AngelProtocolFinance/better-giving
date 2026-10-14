@@ -1,9 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  create_invoice,
+  create_payment,
+  estimate_price,
+  ipn_payment,
+  min_amount,
+  payment_status,
+  with_decimal_strings,
+} from "./fixtures/examples";
+import {
   Nowpayments,
   NowpaymentsError,
   NowpaymentsNotPayableError,
 } from "./index";
+import type { NP } from "./types";
 
 const client = new Nowpayments({
   baseUrl: "https://api-sandbox.nowpayments.io",
@@ -16,6 +26,42 @@ const requested = (spy: ReturnType<typeof fetch_mock>, i = 0) =>
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("published examples", () => {
+  it("assign to the response types, amounts included", () => {
+    const estimate: NP.Estimate = estimate_price;
+    const minimum: NP.MinAmount = min_amount;
+    const invoice: NP.Invoice = create_invoice;
+    // json imports type every string as `string`, so the status literal is
+    // restated; the expect below keeps it the example's own value
+    const created: NP.NewPayment = {
+      ...create_payment,
+      payment_status: "waiting",
+    };
+    const status: NP.PaymentStatus = {
+      ...payment_status,
+      payment_status: "finished",
+    };
+    const ipn: NP.PaymentPayload = {
+      ...ipn_payment,
+      payment_status: "finished",
+    };
+    expect(create_payment.payment_status).toBe(created.payment_status);
+    expect(payment_status.payment_status).toBe(status.payment_status);
+    expect(ipn_payment.payment_status).toBe(ipn.payment_status);
+
+    expect(estimate.estimated_amount).toBe(0.17061637);
+    expect(minimum.min_amount).toBe(0.0078999);
+    expect(invoice.price_amount).toBe("1000");
+    expect(created.pay_amount).toBe(0.17070286);
+    expect(created.network_precision).toBe(8);
+    expect(status.purchase_id).toBe(5312822613);
+    expect(status.burning_percent).toBe("null");
+    expect(payment_status.payment_extra_ids).toEqual([5513339153]);
+    expect(ipn.purchase_id).toBe("123456789");
+    expect(ipn.fee.depositFee).toBe(0.09853637216235617);
+  });
 });
 
 describe("nowpayments client", () => {
@@ -57,34 +103,36 @@ describe("nowpayments client", () => {
     expect((err as NowpaymentsError).http_status).toBe(503);
   });
 
-  it("estimate reads usd per unit off /v1/estimate", async () => {
+  it("estimate reads usd per unit off the documented /v1/estimate example", async () => {
     const spy = fetch_mock().mockResolvedValueOnce(
-      Response.json({
-        currency_from: "usd",
-        amount_from: 100,
-        currency_to: "eth",
-        estimated_amount: 0.05,
-      })
+      Response.json(estimate_price)
     );
-    const { usdpu } = await client.estimate("ETH");
+    const { usdpu } = await client.estimate("btc");
 
-    expect(usdpu).toBe(2000);
+    expect(usdpu).toBe(
+      Number(estimate_price.amount_from) /
+        Number(estimate_price.estimated_amount)
+    );
     const url = new URL(requested(spy).url);
     expect(url.pathname).toBe("/v1/estimate");
     expect(url.searchParams.get("currency_from")).toBe("usd");
-    expect(url.searchParams.get("currency_to")).toBe("ETH");
+    expect(url.searchParams.get("currency_to")).toBe("btc");
   });
 
-  it("estimate reads the decimal strings nowpayments quotes", async () => {
+  it("estimate reads the documented quote when the amounts are decimal strings", async () => {
     fetch_mock().mockResolvedValueOnce(
-      Response.json({
-        currency_from: "usd",
-        amount_from: "100",
-        currency_to: "eth",
-        estimated_amount: "0.05",
-      })
+      Response.json(
+        with_decimal_strings(estimate_price, [
+          "amount_from",
+          "estimated_amount",
+        ])
+      )
     );
-    expect(await client.estimate("ETH")).toEqual({ usdpu: 2000 });
+    expect(await client.estimate("btc")).toEqual({
+      usdpu:
+        Number(estimate_price.amount_from) /
+        Number(estimate_price.estimated_amount),
+    });
   });
 
   it.each([
@@ -120,11 +168,16 @@ describe("nowpayments client", () => {
     }
   );
 
-  it("min_amount reads the decimal strings nowpayments quotes", async () => {
+  it("min_amount reads the documented quote when the amounts are decimal strings", async () => {
     fetch_mock().mockResolvedValueOnce(
-      Response.json({ min_amount: "0.001", fiat_equivalent: "2" })
+      Response.json(
+        with_decimal_strings(min_amount, ["min_amount", "fiat_equivalent"])
+      )
     );
-    expect(await client.min_amount("ETH")).toEqual({ min: 0.001, min_usd: 2 });
+    expect(await client.min_amount("eth")).toEqual({
+      min: min_amount.min_amount,
+      min_usd: min_amount.fiat_equivalent,
+    });
   });
 
   it.each([
@@ -146,17 +199,16 @@ describe("nowpayments client", () => {
     }
   );
 
-  it("min_amount returns both figures when the quote is usable", async () => {
-    fetch_mock().mockResolvedValueOnce(
-      Response.json({ min_amount: 0.001, fiat_equivalent: 2 })
-    );
-    expect(await client.min_amount("ETH")).toEqual({ min: 0.001, min_usd: 2 });
+  it("min_amount returns both figures from the documented quote", async () => {
+    fetch_mock().mockResolvedValueOnce(Response.json(min_amount));
+    expect(await client.min_amount("eth")).toEqual({
+      min: min_amount.min_amount,
+      min_usd: min_amount.fiat_equivalent,
+    });
   });
 
   it("min_amount quotes the token against the account's polygon usdc outcome, not against itself", async () => {
-    const spy = fetch_mock().mockResolvedValueOnce(
-      Response.json({ min_amount: 0.001, fiat_equivalent: 2 })
-    );
+    const spy = fetch_mock().mockResolvedValueOnce(Response.json(min_amount));
     await client.min_amount("ETH");
 
     const url = new URL(requested(spy).url);
@@ -171,9 +223,7 @@ describe("nowpayments client", () => {
     const timeout = vi
       .spyOn(AbortSignal, "timeout")
       .mockReturnValue(ctl.signal);
-    const spy = fetch_mock().mockResolvedValueOnce(
-      Response.json({ min_amount: 1, fiat_equivalent: 1 })
-    );
+    const spy = fetch_mock().mockResolvedValueOnce(Response.json(min_amount));
     await client.min_amount("ETH");
 
     expect(timeout).toHaveBeenCalledWith(10_000);
