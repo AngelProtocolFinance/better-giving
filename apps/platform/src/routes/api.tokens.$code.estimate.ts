@@ -15,7 +15,11 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   if (is_custom(tkn.id)) {
     //get usd rate from coingecko
     const res = await coingecko((x) => {
-      x.pathname = `api/v3/simple/price?ids=${tkn.cg_id}&vs_currencies=usd`;
+      // `?` inside pathname is encoded into the path, so coingecko never sees
+      // the query and answers 404 for every custom token
+      x.pathname = "api/v3/simple/price";
+      x.searchParams.set("ids", tkn.cg_id);
+      x.searchParams.set("vs_currencies", "usd");
       return x;
     });
 

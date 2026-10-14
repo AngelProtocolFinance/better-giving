@@ -75,13 +75,39 @@ describe("nowpayments client", () => {
     expect(url.searchParams.get("currency_to")).toBe("ETH");
   });
 
+  it("estimate reads the decimal strings nowpayments quotes", async () => {
+    fetch_mock().mockResolvedValueOnce(
+      Response.json({
+        currency_from: "usd",
+        amount_from: "100",
+        currency_to: "eth",
+        estimated_amount: "0.05",
+      })
+    );
+    expect(await client.estimate("ETH")).toEqual({ usdpu: 2000 });
+  });
+
   it.each([
     ["a zero estimated_amount", { amount_from: 100, estimated_amount: 0 }],
     ["no estimated_amount", { amount_from: 100 }],
     ["a negative estimated_amount", { amount_from: 100, estimated_amount: -1 }],
     [
-      "a string estimated_amount",
-      { amount_from: 100, estimated_amount: "0.05" },
+      "a non-numeric estimated_amount",
+      { amount_from: 100, estimated_amount: "nope" },
+    ],
+    ["a hex estimated_amount", { amount_from: 100, estimated_amount: "0x10" }],
+    [
+      "an exponent estimated_amount",
+      { amount_from: 100, estimated_amount: "1e5" },
+    ],
+    ["an empty estimated_amount", { amount_from: 100, estimated_amount: "" }],
+    [
+      "a whitespace estimated_amount",
+      { amount_from: 100, estimated_amount: " " },
+    ],
+    [
+      "a padded estimated_amount",
+      { amount_from: 100, estimated_amount: " 0.05" },
     ],
   ])(
     "estimate throws on %s rather than return a usd rate of Infinity or NaN",
@@ -94,11 +120,18 @@ describe("nowpayments client", () => {
     }
   );
 
+  it("min_amount reads the decimal strings nowpayments quotes", async () => {
+    fetch_mock().mockResolvedValueOnce(
+      Response.json({ min_amount: "0.001", fiat_equivalent: "2" })
+    );
+    expect(await client.min_amount("ETH")).toEqual({ min: 0.001, min_usd: 2 });
+  });
+
   it.each([
     ["no fiat_equivalent", { min_amount: 0.001 }],
     ["a zero fiat_equivalent", { min_amount: 0.001, fiat_equivalent: 0 }],
     ["a zero min_amount", { min_amount: 0, fiat_equivalent: 2 }],
-    ["a string min_amount", { min_amount: "0.001", fiat_equivalent: 2 }],
+    ["a non-numeric min_amount", { min_amount: "nope", fiat_equivalent: 2 }],
   ])(
     "min_amount throws on %s rather than return a minimum that passes every check",
     async (_, body) => {

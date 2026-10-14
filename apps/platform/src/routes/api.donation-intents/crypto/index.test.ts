@@ -352,6 +352,40 @@ describe("crypto_intent", () => {
     expect(await rows()).toHaveLength(0);
   });
 
+  it("a quote nowpayments sends as decimal strings still prices the token", async () => {
+    np_server({
+      "/v1/estimate": () =>
+        Response.json({
+          currency_from: "usd",
+          amount_from: "100",
+          currency_to: "eth",
+          estimated_amount: "0.05",
+        }),
+      "/v1/min-amount": () =>
+        Response.json({ min_amount: "0.001", fiat_equivalent: "2" }),
+    });
+    const quoted = await estimate_loader({ params: { code: "ETH" } } as any);
+    const { min, usdpu } = await (quoted as Response).json();
+    expect(usdpu).toBe(2000);
+    expect(min).toBeCloseTo(0.00103, 9);
+  });
+
+  it("a custom token's price request keeps the id in the query, not the path", async () => {
+    vi.mocked(coingecko).mockImplementationOnce(async (url_fn) => {
+      const url = url_fn(new URL("https://api.coingecko.com"), (p) => p);
+      expect(url).toBeInstanceOf(URL);
+      const built = url as URL;
+      expect(built.pathname).toBe("/api/v3/simple/price");
+      expect(built.searchParams.get("ids")).toBe("karate-combat");
+      expect(built.searchParams.get("vs_currencies")).toBe("usd");
+      return Response.json({ "karate-combat": { usd: 2 } });
+    });
+    const quoted = await estimate_loader({
+      params: { code: "KARATE-1" },
+    } as any);
+    expect(await (quoted as Response).json()).toEqual({ min: 0.5, usdpu: 2 });
+  });
+
   it("enforces the same minimum the estimate route shows the donor", async () => {
     // pair minimum 0.001 eth ($2) is over the $1 floor, +3% = 0.00103
     np_server();
@@ -375,9 +409,12 @@ describe("crypto_intent", () => {
   // a custom token is priced off coingecko, never nowpayments
   it("a custom token under a dollar's worth tells the donor the minimum and leaves no row", async () => {
     const spy = fetch_spy();
-    vi.mocked(coingecko).mockResolvedValueOnce(
-      Response.json({ "karate-combat": { usd: 0.5 } })
-    );
+    vi.mocked(coingecko).mockImplementationOnce(async (url_fn) => {
+      const url = url_fn(new URL("https://api.coingecko.com"), (p) => p);
+      expect((url as URL).searchParams.get("ids")).toBe("karate-combat");
+      expect((url as URL).pathname).toBe("/api/v3/simple/price");
+      return Response.json({ "karate-combat": { usd: 0.5 } });
+    });
     const res = await crypto_intent(
       ctx({
         currency: "KARATE-1",

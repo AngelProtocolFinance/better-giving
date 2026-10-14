@@ -81,7 +81,9 @@ const to_row = (
 async function custom_intent(c: Ctx, token: IToken) {
   if (!is_deposit_chain(token.network)) return unavailable();
   const res = await coingecko((x) => {
-    x.pathname = `api/v3/simple/price?ids=${token.cg_id}&vs_currencies=usd`;
+    x.pathname = "api/v3/simple/price";
+    x.searchParams.set("ids", token.cg_id);
+    x.searchParams.set("vs_currencies", "usd");
     return x;
   });
   if (!res.ok) throw res;
