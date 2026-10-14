@@ -56,8 +56,12 @@ interface IUnroutedDist {
   id: string;
   donation_id: string;
   to_id: number;
-  /** what lands in bg's books for the share */
+  /** what lands in bg's books for the share, and the dist's `net` from
+   * then on: a refund takes back from it, so it is never the routed net a
+   * refund's cut already came off */
   net: number;
+  /** the share of the charge that cut is; null when nothing was cut */
+  refunds_cut_share: number | null;
   date_created: string;
 }
 
@@ -78,14 +82,14 @@ export async function settle_unrouted(
   db: DbOrTx,
   d: IUnroutedDist
 ): Promise<TUnrouted> {
-  // donation, then npo, then dist: the order refunds and settle_npo take them.
-  // a refund holding the donation is waited out, and one after sees the dist
-  // pooled
+  // in `dists_locked`'s order (refund/share.ts). a refund that read the dist
+  // routed before this commits re-plans under the dist's lock
+  // (`process_refund`) and takes back the booking
   await donation_lock(db, d.donation_id);
   const status = await donation_status_shared(db, d.donation_id);
+  if (!(await dist_unroute(d.id, db))) return { status: "taken" };
   const npo = await npo_get_locked(db, d.to_id);
   if (!npo) throw new Error(`npo:${d.to_id} not found`);
-  if (!(await dist_unroute(d.id, db))) return { status: "taken" };
   // the refund took nothing back from a routed dist, so there is nothing to book
   if (status && is_reversed(status)) return { status: "reversed" };
 
@@ -106,7 +110,11 @@ export async function settle_unrouted(
     dist_id: d.id,
     date: d.date_created,
   });
-  await dist_update(db, d.id, { alloc });
+  await dist_update(db, d.id, {
+    alloc,
+    net: d.net,
+    refunds_cut_share: d.refunds_cut_share,
+  });
   await book_pooled(db, npo.id, booking, []);
   return { status: "booked", msgs };
 }

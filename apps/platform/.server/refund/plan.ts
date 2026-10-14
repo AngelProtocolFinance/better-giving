@@ -24,6 +24,9 @@ export interface RefundDistInput {
   fee_processing: number;
   /** 0 or absent when the donor didn't cover fees */
   fee_allowance?: number;
+  /** the share of the charge its refunds had taken off `net` when a refused
+   * transfer rebooked it pooled; null or absent when nothing was cut */
+  refunds_cut_share?: number | null;
   /** settled to a connected account: its net leaves in a stripe transfer,
    * once `transferred`, so no balance, investment or payout of it is ours to
    * take back */
@@ -133,6 +136,28 @@ export interface RefundPlan {
 export const fee_processing_usd = (
   d: Pick<RefundDistInput, "fee_processing" | "fee_allowance">
 ): number => (d.fee_allowance ? 0 : d.fee_processing);
+
+/** `usd` scaled by `f`, in whole cents rounded down so a share never passes
+ * the whole; the whole as it is. the epsilon keeps 0.3 * 90 from flooring to
+ * 26.99 */
+export const scaled = (usd: number, f: number) =>
+  f >= 1 ? usd : Math.floor(usd * f * 100 + 1e-6) / 100;
+
+/** `taken` of the charge, the refunds a pooled rebook cut off the dist
+ * included (`refunds_cut_share`), less that cut: what is left to take of it */
+export const past_cut = (cut: number | null | undefined, taken: number) =>
+  Math.max(taken - (cut ?? 0), 0);
+
+/** `taken` of the charge beyond the dist's cut, as its share of `net`: a
+ * rebook books `net` for the part of the charge its cut left. of the card
+ * fee, which is the whole charge's, it is `taken` itself */
+export const share_of_net = (
+  cut: number | null | undefined,
+  taken: number
+): number => {
+  if (!cut) return taken;
+  return cut >= 1 ? 0 : Math.min(taken / (1 - cut), 1);
+};
 
 /** a dist's gross in settled usd, counting the processing fee once */
 export const dist_settled_usd = (
@@ -289,7 +314,10 @@ export function calc_refund_plan(
     donation_id: dist.donation_id,
     party: { npo_id: dist.to_id },
     received_usd: dist.net - cash_recovered,
-    fee_processing_usd: fee_processing_usd(dist),
+    fee_processing_usd: scaled(
+      fee_processing_usd(dist),
+      past_cut(dist.refunds_cut_share, 1)
+    ),
     now,
   };
 

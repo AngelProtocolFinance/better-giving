@@ -284,6 +284,29 @@ describe("calc_refund_plan", () => {
     expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 62 }]);
   });
 
+  // the refunds its rebook cut took nothing from the npo when it was routed,
+  // so it owes no part of their card fee either
+  test("a rebooked dist's loss owes the card fee of the charge its cut left", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          ...make_inputs().dist,
+          net: 75,
+          fee_processing: 4,
+          refunds_cut_share: 0.25,
+        },
+        payout: { id: "po-1", type: "settled" },
+      }),
+      make_ctx()
+    );
+
+    expect(owed_of(plan)).toMatchObject({
+      received_usd: 75,
+      fee_processing_usd: 3,
+    });
+    expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 78 }]);
+  });
+
   // dists.amount_usd is the pledge at the donation-time rate; net is settled usd
   test("a gift that gained value before settling → the settled shortfall is owed", () => {
     const plan = calc_refund_plan(

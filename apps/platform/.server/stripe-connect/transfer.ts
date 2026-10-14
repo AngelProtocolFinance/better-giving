@@ -36,7 +36,7 @@ export async function transfer_routed_dist(
     return;
   }
   // stored: a delivery retried after the reversal below threw, or a duplicate
-  if (stored) return reverse_refunded_before(p, await charge_of(p));
+  if (stored) return reverse_refunded_before(p, (await charge_of(p)).id);
 
   const dist = await npo_donation_get(p.dist_id);
   // a racing delivery stored its transfer after the read above
@@ -46,56 +46,50 @@ export async function transfer_routed_dist(
   if (!dist.stripe_routed_to) return enqueue(refused_notice(p, "taken", 0));
   const npo_id = dist.to_id;
   if (npo_id === null) throw new Error(`dist ${p.dist_id} has no npo`);
+  const routed: IRefusedDist = {
+    id: dist.id,
+    to_id: npo_id,
+    net: dist.net ?? 0,
+    date_created: dist.date_created,
+    stripe_routed_to: dist.stripe_routed_to,
+  };
 
-  // the donor has the money back; a refund that lands after this check meets
-  // a transfer it has to reverse
-  const status = await donation_status_shared(db, p.donation_id);
-  if (status && is_reversed(status)) {
-    report_error(
-      new Error(`donation ${p.donation_id} ${status} before its transfer`),
-      { donation_id: p.donation_id, dist_id: p.dist_id, status }
-    );
-    return;
-  }
-
-  const what = `stripe transfer for dist ${p.dist_id} of donation ${p.donation_id}`;
-  const net = dist.net ?? 0;
-  let charge: string | undefined;
-  let tr: Stripe.Transfer;
-  try {
-    charge = await charge_of(p);
-    tr = await create_transfer(p, charge, dist.stripe_routed_to, net);
-  } catch (e) {
-    if (is_refusal(e)) {
-      report_error(
-        new Error(`${what} refused, settling it pooled`, { cause: e }),
-        {
-          donation_id: p.donation_id,
-          dist_id: p.dist_id,
-          destination: dist.stripe_routed_to,
-          stripe_code: e.code,
-        }
-      );
-      // refused reading the intent: there is no charge to have refunds
-      const cut = charge ? refunds_cut(net, await charge_refunds(charge)) : 0;
-      const r = await db.transaction((tx) =>
-        settle_unrouted(tx, {
-          id: dist.id,
-          donation_id: p.donation_id,
-          to_id: npo_id,
-          net: net - cut,
-          date_created: dist.date_created,
-        })
-      );
-      const msgs = r.status === "booked" ? r.msgs : [];
-      return enqueue(refused_notice(p, r.status, cut), ...msgs);
-    }
+  const failed = async (e: unknown, charge?: string) => {
+    if (is_refusal(e)) return settle_refused(p, routed, e, charge);
     // no rebook: the transfer stripe never answered for may have been made
     if (attempt.last) await enqueue(unanswered_notice(p));
     // thrown, not reported: the queue route's error handler reports what
     // escapes it, and qstash retries the delivery
-    throw new Error(`${what} failed`, { cause: e });
+    throw new Error(`${what(p)} failed`, { cause: e });
+  };
+
+  let ch: ICharge;
+  let tr: Stripe.Transfer | undefined;
+  try {
+    ch = await charge_of(p);
+    tr = await transfer_made(p, ch);
+  } catch (e) {
+    return failed(e);
   }
+
+  if (!tr) {
+    // the donor has the money back; a refund that lands after this check
+    // meets a transfer it has to reverse
+    const status = await donation_status_shared(db, p.donation_id);
+    if (status && is_reversed(status)) {
+      report_error(
+        new Error(`donation ${p.donation_id} ${status} before its transfer`),
+        { donation_id: p.donation_id, dist_id: p.dist_id, status }
+      );
+      return;
+    }
+    try {
+      tr = await create_transfer(p, ch.id, dist.stripe_routed_to, routed.net);
+    } catch (e) {
+      return failed(e, ch.id);
+    }
+  }
+
   const r = await dist_stripe_transfer_set(p.dist_id, tr.id);
   // the same id is a racing delivery that got stripe's idempotent reply
   if (!r.set && r.existing !== tr.id) {
@@ -106,25 +100,78 @@ export async function transfer_routed_dist(
       stored_transfer_id: r.existing,
     });
   }
-  await reverse_refunded_before(p, charge);
+  await reverse_refunded_before(p, ch.id);
 }
 
+const what = (p: IConnectTransferPayload) =>
+  `stripe transfer for dist ${p.dist_id} of donation ${p.donation_id}`;
+
+/** a routed dist as a refusal of its transfer rebooks it */
+interface IRefusedDist {
+  id: string;
+  to_id: number;
+  net: number;
+  date_created: string;
+  stripe_routed_to: string;
+}
+
+/** stripe refused the dist's transfer: it is booked pooled, less what the
+ * charge's sent refunds would have reversed from the transfer. `charge`
+ * absent: refused reading the intent, so no charge to have refunds */
+async function settle_refused(
+  p: IConnectTransferPayload,
+  dist: IRefusedDist,
+  e: Stripe.errors.StripeError,
+  charge: string | undefined
+) {
+  report_error(
+    new Error(`${what(p)} refused, settling it pooled`, { cause: e }),
+    {
+      donation_id: p.donation_id,
+      dist_id: p.dist_id,
+      destination: dist.stripe_routed_to,
+      stripe_code: e.code,
+    }
+  );
+  const cut = charge
+    ? refunds_cut(dist.net, await charge_refunds(charge))
+    : NO_CUT;
+  const r = await db.transaction((tx) =>
+    settle_unrouted(tx, {
+      id: dist.id,
+      donation_id: p.donation_id,
+      to_id: dist.to_id,
+      net: dist.net - cut.usd,
+      refunds_cut_share: cut.share,
+      date_created: dist.date_created,
+    })
+  );
+  const msgs = r.status === "booked" ? r.msgs : [];
+  return enqueue(refused_notice(p, r.status, cut.usd), ...msgs);
+}
+
+const NO_CUT = { usd: 0, share: null };
+
 /**
- * usd the charge's live refunds take off a routed `net`: the cents their cut
+ * what the charge's sent refunds take off a routed `net`: their share of the
+ * charge (null when none), and in usd the cents their cut
  * of its transfer would have been (`refund_cuts` in `./reverse` cuts the same
- * total), all of it once they take the whole charge
+ * total), all of it once they take the whole charge. not an unsent one: it
+ * can still fail, and a dist booked pooled has no transfer to give its cut
+ * back from, so it is taken back the way a pooled share's refund is
  */
 const refunds_cut = (
   net: number,
-  { of, live }: Pick<ChargeRefunds, "of" | "live">
-): number => {
+  { of, sent }: Pick<ChargeRefunds, "of" | "sent">
+): { usd: number; share: number | null } => {
   const taken = Math.min(
-    live.reduce((sum, r) => sum + r.amount, 0),
+    sent.reduce((sum, r) => sum + r.amount, 0),
     of
   );
-  if (taken === 0) return 0;
-  if (taken === of) return net;
-  return Math.round((payout_cents([net]) * taken) / of) / 100;
+  if (taken === 0) return NO_CUT;
+  const share = taken / of;
+  if (taken === of) return { usd: net, share };
+  return { usd: Math.round((payout_cents([net]) * taken) / of) / 100, share };
 };
 
 const refused_notice = (
@@ -173,11 +220,46 @@ const unanswered_notice = (p: IConnectTransferPayload) =>
     },
   });
 
-async function charge_of(p: IConnectTransferPayload) {
-  const intent = await stripe.paymentIntents.retrieve(p.intent_id);
+type ICharge = Pick<Stripe.Charge, "id" | "transfer_group">;
+
+async function charge_of(p: IConnectTransferPayload): Promise<ICharge> {
+  const intent = await stripe.paymentIntents.retrieve(p.intent_id, {
+    expand: ["latest_charge"],
+  });
   const charge = intent.latest_charge;
   if (!charge) throw new Error(`intent ${p.intent_id} has no charge`);
-  return typeof charge === "string" ? charge : charge.id;
+  return typeof charge === "string"
+    ? { id: charge, transfer_group: null }
+    : charge;
+}
+
+/**
+ * the transfer an earlier delivery made for the dist and never stored: a
+ * create under its idempotency key replays it only while stripe keeps the
+ * key (24h), and makes a second one after. stripe puts a transfer from a
+ * charge in the charge's `transfer_group`, which it sets to
+ * `group_<intent id>` when the charge has none (docs: connect/separate-
+ * charges-and-transfers, "transfer availability"), so the gift's transfers
+ * are that group's and the dist's is the one its metadata names
+ */
+async function transfer_made(
+  p: IConnectTransferPayload,
+  ch: ICharge
+): Promise<Stripe.Transfer | undefined> {
+  const transfer_group = ch.transfer_group ?? `group_${p.intent_id}`;
+  try {
+    for await (const t of stripe.transfers.list({
+      transfer_group,
+      limit: 100,
+    })) {
+      if (t.metadata?.dist_id === p.dist_id) return t;
+    }
+    return undefined;
+  } catch (e) {
+    // not stripe refusing the transfer, which would rebook the dist pooled
+    // with a transfer made: a lookup that fails is retried
+    throw new Error(`listing transfer group ${transfer_group}`, { cause: e });
+  }
 }
 
 /**

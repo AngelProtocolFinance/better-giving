@@ -10,6 +10,7 @@ import {
   vi,
 } from "vitest";
 import { seed_npo } from "#/__tests__/fixtures/funds";
+import { lock_order, logged_db } from "#/__tests__/fixtures/locks";
 import type { IInput, IParts } from "@/types/donation-dist";
 import type { DbOrTx } from "../pg/queries/helpers";
 import * as schema from "../pg/schema";
@@ -58,7 +59,7 @@ vi.mock("../env", async (importOriginal) => {
   };
 });
 
-const { settle_npo } = await import("./settle-npo");
+const { settle_npo, settle_unrouted } = await import("./settle-npo");
 const { preview_settlement } = await import("./preview");
 const { npo_donations } = await import("../pg/queries/dist");
 const { npo_donor_list } = await import("../pg/queries/donor");
@@ -260,6 +261,38 @@ describe("settle_npo on a card donation to a connected npo", () => {
     expect((await dist_of()).stripe_routed_to).toBeNull();
     const [payout] = await db().select().from(payouts);
     expect(payout?.amount).toBe(100);
+  });
+
+  // the order `dists_locked` in refund/share.ts documents: a refund-failed
+  // credit holds the donation while it waits on the dist
+  test("a refused transfer's rebook locks the donation, then the dist, then the npo", async () => {
+    const npo = await seed_npo(db(), {
+      ...ROUTABLE,
+      allocation: { cash: 100, liq: 0, lock: 0 },
+      registration_number: "EIN-ROUTED-LOCKS",
+    });
+    await seed_donation();
+    await settle(make_input(npo!.id));
+    const dist = await dist_of();
+    const { db: logged, queries } = logged_db(holder.current!);
+
+    const r = await logged.transaction((tx) =>
+      settle_unrouted(tx as unknown as DbOrTx, {
+        id: dist.id,
+        donation_id: DON_ID,
+        to_id: npo!.id,
+        net: 100,
+        refunds_cut_share: null,
+        date_created: dist.date_created,
+      })
+    );
+
+    expect(r.status).toBe("booked");
+    expect(lock_order(queries, ["donations", "dists", "npos"])).toEqual([
+      "donations",
+      "dists",
+      "npos",
+    ]);
   });
 
   test("a routed donation reads like a pooled one on every dist-keyed surface", async () => {

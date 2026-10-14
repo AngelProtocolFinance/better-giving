@@ -15,6 +15,7 @@ import {
   seed_paid_commission,
 } from "#/__tests__/fixtures/card-gift";
 import { seed_user } from "#/__tests__/fixtures/funds";
+import { lock_order, logged_db } from "#/__tests__/fixtures/locks";
 import { donations } from "../pg/schema/donation";
 import { owed_amounts } from "../pg/schema/owed";
 import type { TestDb } from "../pg/test-utils/pglite";
@@ -116,6 +117,30 @@ const taken = async (id: string) =>
 
 const outstanding = async (donation_id: string) =>
   (await owed_for_donation(donation_id)).map((o) => o.outstanding_usd);
+
+describe("refund_failed — row locks", () => {
+  // the order `dists_locked` in ./share documents: a refused transfer's
+  // rebook holds the donation while it waits on the dist
+  test("credits back under the donation's lock, then its dists'", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, 40, "re_1");
+    const real = test_db.current!;
+    const { db, queries } = logged_db(real);
+    test_db.current = { ...real, db };
+
+    try {
+      await fail(id, "re_1");
+    } finally {
+      test_db.current = real;
+    }
+
+    expect(await taken(id)).toBe(0);
+    expect(lock_order(queries, ["donations", "dists", "npos"])).toEqual([
+      "donations",
+      "dists",
+    ]);
+  });
+});
 
 describe("refund_failed — part of the charge", () => {
   test("a failed $40 of a gift since refunded in full credits back only its share", async () => {

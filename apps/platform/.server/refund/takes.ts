@@ -19,7 +19,7 @@ import {
 } from "../pg/queries/take";
 import { dists } from "../pg/schema/dist";
 import type { OwedSource } from "./apply";
-import { dist_settled_usd } from "./plan";
+import { dist_settled_usd, past_cut } from "./plan";
 import {
   type CreditPart,
   credit_parts,
@@ -49,7 +49,8 @@ const party_key = (p: OwedParty) => JSON.stringify(p);
 
 /**
  * what each party owes for the active takes. an npo whose grant has gone out
- * owes the share they all take of what it received and of its card fee; one
+ * owes the share they all take, less the refunds a pooled rebook cut off it,
+ * of what it received and of its card fee; one
  * whose grant hasn't owes the disputes' share only, a refund there being ops'
  * to settle by hand. each active dispute's fee is owed in full, split over
  * the dists by settled amount, and each referrer owes the whole share of its
@@ -71,7 +72,9 @@ export function owed_targets(
   return new Map(
     owed_shares(ds, {
       f: all,
-      f_of: (d) => (grant_went_out(d) ? all : disputes),
+      // a rebook's cut took refunds only, so a dispute owes its share whole
+      f_of: (d) =>
+        grant_went_out(d) ? past_cut(d.refunds_cut_share, all) : disputes,
       fee_usd: fees,
       owes: () => true,
     }).map((s) => [party_key(s.party), s])

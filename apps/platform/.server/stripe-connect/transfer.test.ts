@@ -17,7 +17,9 @@ import { bal_txs } from "../pg/schema/bal-tx";
 import { dists } from "../pg/schema/dist";
 import { donations } from "../pg/schema/donation";
 import { npos } from "../pg/schema/npo";
+import { owed_amounts } from "../pg/schema/owed";
 import { payouts } from "../pg/schema/payout";
+import { donation_takes } from "../pg/schema/take";
 import type { TestDb } from "../pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -27,6 +29,7 @@ const stripe = vi.hoisted(() => ({
   refunds: { list: vi.fn() },
   transfers: {
     create: vi.fn(),
+    list: vi.fn(),
     retrieve: vi.fn(),
     update: vi.fn(),
     listReversals: vi.fn(),
@@ -49,7 +52,22 @@ vi.mock("../pg/db", () => ({
   ),
 }));
 vi.mock("../kit/stripe", () => ({ stripe }));
+// passed through, so a test can run a delivery between a refund's unlocked
+// plan read and its apply
+vi.mock("../pg/queries/npo", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../pg/queries/npo")>();
+  return { ...real, npo_get: vi.fn(real.npo_get) };
+});
+// passed through, so a test can make storing the transfer fail
+vi.mock("../pg/queries/dist", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../pg/queries/dist")>();
+  return {
+    ...real,
+    dist_stripe_transfer_set: vi.fn(real.dist_stripe_transfer_set),
+  };
+});
 vi.mock("../kit/queue", () => ({ enqueue }));
+vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
 vi.mock("#/errors/report", () => ({ report_error }));
 vi.mock("../env", async (importOriginal) => {
   const real = await importOriginal<typeof import("../env")>();
@@ -62,6 +80,10 @@ const { transfer_routed_dist } = await import("./transfer");
 const { calc_settlement_plan } = await import("@/settlement/plan");
 const { payout_total } = await import("../payouts/transfer");
 const { reversed_statuses } = await import("@/donations/settle");
+const { reverse_charge } = await import("../refund/reverse");
+const { dist_stripe_transfer_set } = await import("../pg/queries/dist");
+const { refund_failed } = await import("../refund/failed");
+const { npo_get } = await import("../pg/queries/npo");
 
 const db = () => test_db.current!.db;
 
@@ -69,6 +91,10 @@ const ACCT = "acct_transfer_1";
 const DON_ID = "don-transfer-1";
 const INTENT = "pi_transfer_1";
 const CHARGE = "ch_transfer_1";
+/** the group stripe gives a transfer from a charge that has none */
+const GROUP = `group_${INTENT}`;
+/** the transfers stripe has made, as `transfers.list` finds them */
+let made: { id: string; transfer_group: string; metadata: object }[] = [];
 /** a delivery qstash retries if it throws */
 const RETRY = { last: false };
 
@@ -165,11 +191,25 @@ afterAll(async () => {
 
 beforeEach(async () => {
   vi.clearAllMocks();
-  stripe.paymentIntents.retrieve.mockResolvedValue({
+  made = [];
+  stripe.paymentIntents.retrieve.mockImplementation(async () => ({
     id: INTENT,
-    latest_charge: CHARGE,
+    latest_charge: {
+      id: CHARGE,
+      transfer_group: made.length > 0 ? GROUP : null,
+    },
+  }));
+  // one transfer, which a create under the same key replays
+  stripe.transfers.create.mockImplementation(async (params) => {
+    const t = { id: "tr_1", ...params, transfer_group: GROUP };
+    if (!made.some((x) => x.id === t.id)) made.push(t);
+    return t;
   });
-  stripe.transfers.create.mockResolvedValue({ id: "tr_1" });
+  stripe.transfers.list.mockImplementation(async function* (q: {
+    transfer_group?: string;
+  }) {
+    yield* made.filter((t) => t.transfer_group === q.transfer_group);
+  });
   // no refund on the charge unless a test says so
   stripe.refunds.list.mockResolvedValue({ data: [] });
   stripe.charges.retrieve.mockResolvedValue({
@@ -184,6 +224,8 @@ beforeEach(async () => {
   });
   stripe.transfers.listReversals.mockResolvedValue({ data: [] });
   stripe.transfers.createReversal.mockResolvedValue({ id: "trr_1" });
+  await db().delete(owed_amounts);
+  await db().delete(donation_takes);
   await db().delete(payouts);
   await db().delete(bal_txs);
   await db().delete(dists);
@@ -197,7 +239,7 @@ describe("transfer_routed_dist", () => {
 
     await transfer_routed_dist(payload, RETRY);
 
-    expect(stripe.paymentIntents.retrieve).toHaveBeenCalledWith(INTENT);
+    expect(stripe.paymentIntents.retrieve.mock.calls[0]![0]).toBe(INTENT);
     expect(stripe.transfers.create).toHaveBeenCalledExactlyOnceWith(
       {
         amount: 10000,
@@ -435,6 +477,55 @@ describe("transfer_routed_dist", () => {
     expect(notices()[0]!.payload.alert.body).toContain("refund");
   });
 
+  /** the charge.refunded event for stripe refund `id` of `cents` of the
+   * $100 charge, as the refund core takes it */
+  const refund_event = (id: string, cents: number) =>
+    reverse_charge({
+      donation_id: DON_ID,
+      rail: "stripe",
+      source: "refund",
+      share: { taken: cents, of: 10_000 },
+      refunds: [{ id, amount: cents }],
+      source_ref: id,
+      alert_from: "charge-refunded",
+      notice: { id: `evt_${id}`, lines: [] },
+    });
+
+  // the rebook booked $75 for the 75% left; refunding that takes back $75
+  test("refunding the rest after a refusal takes back what the rebook booked, no more", async () => {
+    const { npo, payload } = await settle_routed();
+    const re_1 = { id: "re_1", amount: 2_500, status: "succeeded", created: 1 };
+    stripe.refunds.list.mockResolvedValue({ data: [re_1] });
+    await refund_event("re_1", 2_500);
+    stripe.transfers.create.mockRejectedValueOnce(refusals[0][1]);
+    await transfer_routed_dist(payload, RETRY);
+
+    const res = await refund_event("re_2", 7_500);
+
+    expect(res).toMatchObject({ status: "reversed" });
+    const [after] = await db().select().from(npos).where(eq(npos.id, npo.id));
+    expect(after!.cash).toBe(0);
+    const [payout] = await db().select().from(payouts);
+    expect([payout!.amount, payout!.type]).toEqual([75, "refunded"]);
+  });
+
+  // it can still fail, and a refused dist has no transfer to give a cut back
+  // from: once sent, it is taken back as a pooled share's refund is
+  test("a refusal books the whole share while the charge's refund is still unsent", async () => {
+    const { payload } = await settle_routed();
+    stripe.refunds.list.mockResolvedValue({
+      data: [{ id: "re_1", amount: 2_500, status: "pending", created: 1 }],
+    });
+    stripe.transfers.create.mockRejectedValueOnce(refusals[0][1]);
+
+    await transfer_routed_dist(payload, RETRY);
+
+    const [payout] = await db().select().from(payouts);
+    expect(payout!.amount).toBe(100);
+    const [after] = await db().select().from(npos);
+    expect(after!.cash).toBe(100);
+  });
+
   // the refund core took nothing back: the dist was routed, so it had none
   test("a refusal racing a full refund unroutes the share and books nothing", async () => {
     const { payload } = await settle_routed();
@@ -471,6 +562,72 @@ describe("transfer_routed_dist", () => {
       `fiat.notice_connect-unanswered_${payload.dist_id}`
     );
     expect(notice!.payload.alert.body).toContain(DON_ID);
+    expect((await row(payload.dist_id)).stripe_routed_to).toBe(ACCT);
+    expect(await db().select().from(payouts)).toEqual([]);
+  });
+
+  const store_fails_once = () =>
+    vi
+      .mocked(dist_stripe_transfer_set)
+      .mockRejectedValueOnce(new Error("Connection terminated unexpectedly"));
+
+  // past stripe's 24h hold on the idempotency key, a create makes another
+  test("a retry after the transfer's store failed stores the one stripe made, and makes none", async () => {
+    const { payload } = await settle_routed();
+    store_fails_once();
+    await expect(transfer_routed_dist(payload, RETRY)).rejects.toThrow();
+    stripe.transfers.create.mockResolvedValue({ id: "tr_2" });
+
+    await transfer_routed_dist(payload, RETRY);
+
+    expect(stripe.transfers.create).toHaveBeenCalledOnce();
+    expect(await stored(payload.dist_id)).toBe("tr_1");
+  });
+
+  test("a retry after the transfer's store failed reverses it once the donation was refunded meanwhile", async () => {
+    const { payload } = await settle_routed();
+    store_fails_once();
+    await expect(transfer_routed_dist(payload, RETRY)).rejects.toThrow();
+    await db()
+      .update(donations)
+      .set({ status: "refunded" })
+      .where(eq(donations.id, DON_ID));
+    stripe.refunds.list.mockResolvedValue({
+      data: [{ id: "re_1", amount: 10_000, status: "succeeded", created: 1 }],
+    });
+
+    await transfer_routed_dist(payload, RETRY);
+
+    expect(stripe.transfers.create).toHaveBeenCalledOnce();
+    expect(await stored(payload.dist_id)).toBe("tr_1");
+    expect(stripe.transfers.createReversal.mock.calls).toEqual([
+      [
+        "tr_1",
+        {
+          amount: 10_000,
+          metadata: {
+            refund_id: "re_1",
+            dist_id: payload.dist_id,
+            donation_id: DON_ID,
+          },
+        },
+        { idempotencyKey: `connect-reversal:re_1:${payload.dist_id}` },
+      ],
+    ]);
+  });
+
+  // the transfer it looks for may exist: rebooking would pay the share twice
+  test("a refused lookup of an earlier transfer throws for a retry and rebooks nothing", async () => {
+    const { payload } = await settle_routed();
+    stripe.transfers.list.mockImplementationOnce(() => {
+      throw refusals[0][1];
+    });
+
+    await expect(transfer_routed_dist(payload, RETRY)).rejects.toThrow(
+      payload.dist_id
+    );
+
+    expect(stripe.transfers.create).not.toHaveBeenCalled();
     expect((await row(payload.dist_id)).stripe_routed_to).toBe(ACCT);
     expect(await db().select().from(payouts)).toEqual([]);
   });
@@ -571,5 +728,127 @@ describe("a refund that landed before the transfer ran", () => {
     expect(stripe.transfers.createReversal.mock.calls[1]![1]).toMatchObject({
       amount: 4_000,
     });
+  });
+});
+
+describe("a share rebooked pooled after its transfer was refused", () => {
+  const REFUSED = new Stripe.errors.StripePermissionError({
+    message: "The provided key does not have access to account",
+  });
+
+  const refund_event = (id: string, cents: number) =>
+    reverse_charge({
+      donation_id: DON_ID,
+      rail: "stripe",
+      source: "refund",
+      share: { taken: cents, of: 10_000 },
+      refunds: [{ id, amount: cents }],
+      source_ref: id,
+      alert_from: "charge-refunded",
+      notice: { id: `evt_${id}`, lines: [] },
+    });
+
+  /** a $100 routed share, $25 of its charge refunded, then its transfer
+   * refused: rebooked pooled at $75 */
+  async function rebooked_after_refund() {
+    const routed = await settle_routed();
+    stripe.refunds.list.mockResolvedValue({
+      data: [{ id: "re_1", amount: 2_500, status: "succeeded", created: 1 }],
+    });
+    await refund_event("re_1", 2_500);
+    stripe.transfers.create.mockRejectedValueOnce(REFUSED);
+    await transfer_routed_dist(routed.payload, RETRY);
+    return routed;
+  }
+
+  /** the grants run paid the rebooked share out */
+  const grant_paid = () => db().update(payouts).set({ type: "settled" });
+
+  const npo_owes = async () =>
+    (await db().select().from(owed_amounts)).map((o) => [
+      o.npo_id,
+      o.received_usd,
+    ]);
+
+  // 25% of the charge was cut off the booking; the next 50% owes $50 of the
+  // $100 net, not 75% of the $75 booked
+  test("a refund after the grant went out owes its own share of the routed net", async () => {
+    const { npo } = await rebooked_after_refund();
+    await grant_paid();
+
+    await refund_event("re_2", 5_000);
+
+    expect(await npo_owes()).toEqual([[npo.id, 50]]);
+  });
+
+  // the cut came off the booking for good: nothing on record gives it back
+  test("a cut refund that then fails tells ops the npo is short its cut", async () => {
+    const { payload } = await rebooked_after_refund();
+
+    const res = await refund_failed({
+      donation_id: DON_ID,
+      rail: "stripe",
+      refund_id: "re_1",
+    });
+
+    expect(res.status).toBe("by_hand");
+    const lines = res.status === "by_hand" ? res.by_hand : [];
+    const short = lines.filter((l) => l.includes("short"));
+    expect(short).toHaveLength(1);
+    expect(short[0]).toContain(`dist ${payload.dist_id}`);
+    expect(short[0]).toMatch(/short \$25\.00\b/);
+  });
+
+  test("a refund after the rebook that then fails leaves the cut standing, short nothing", async () => {
+    await rebooked_after_refund();
+    await refund_event("re_2", 5_000);
+
+    const res = await refund_failed({
+      donation_id: DON_ID,
+      rail: "stripe",
+      refund_id: "re_2",
+    });
+
+    const lines = res.status === "by_hand" ? res.by_hand : [];
+    expect(lines.filter((l) => l.includes("short"))).toEqual([]);
+  });
+
+  // what is left on record is the cut refund alone, which owes nothing
+  test("the refund that reversed a paid-out rebook failing credits back all it recorded", async () => {
+    await rebooked_after_refund();
+    await grant_paid();
+    // 3/4 of its card fee is the part of the charge the cut left
+    await db().update(dists).set({ fee_processing: 4 });
+    await refund_event("re_2", 7_500);
+    const [recorded] = await db().select().from(owed_amounts);
+    expect(recorded!.outstanding_usd).toBe(78);
+
+    await refund_failed({
+      donation_id: DON_ID,
+      rail: "stripe",
+      refund_id: "re_2",
+    });
+
+    const [after] = await db().select().from(owed_amounts);
+    expect(after!.outstanding_usd).toBe(0);
+  });
+
+  // the refund read the share routed; the rebook committed before it applied
+  test("a full refund racing the rebook takes back what the rebook booked", async () => {
+    const { npo, payload } = await settle_routed();
+    stripe.transfers.create.mockRejectedValueOnce(REFUSED);
+    const plan_read = vi.mocked(npo_get).getMockImplementation()!;
+    vi.mocked(npo_get).mockImplementationOnce(async (...args) => {
+      await transfer_routed_dist(payload, RETRY);
+      return plan_read(...args);
+    });
+
+    const res = await refund_event("re_1", 10_000);
+
+    expect(res).toMatchObject({ status: "reversed" });
+    const [after] = await db().select().from(npos).where(eq(npos.id, npo.id));
+    expect(after!.cash).toBe(0);
+    const [payout] = await db().select().from(payouts);
+    expect([payout!.amount, payout!.type]).toEqual([100, "refunded"]);
   });
 });
