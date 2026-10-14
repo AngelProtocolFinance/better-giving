@@ -192,6 +192,11 @@ describe("stripe connect callback", () => {
       reason: null,
     });
     expect(await reg_acct(reg_id)).toBe("acct_cb_reg_ok");
+    const [saved] = await db()
+      .select({ at: registrations.o_stripe_connected_at })
+      .from(registrations)
+      .where(eq(registrations.id, reg_id));
+    expect(saved!.at).not.toBeNull();
   });
 
   describe("refuses, storing nothing", () => {

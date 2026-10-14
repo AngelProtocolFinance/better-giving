@@ -7,6 +7,7 @@ import {
   type RefundInputs,
   type RefundPlan,
 } from "./plan";
+import { split_cents } from "./share";
 
 const make_inputs = (overrides: Partial<RefundInputs> = {}): RefundInputs => ({
   dist: {
@@ -648,6 +649,67 @@ describe("calc_refund_plan", () => {
     expect(plan.is_loss).toBe(true);
     expect(owed_of(plan)?.received_usd).toBe(320);
     expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 320 }]);
+  });
+
+  // two equal $100 shares. a 25% cut on one refused transfer books $75, and
+  // weighing that $75 would move a $15 dispute fee from $7.50 each to $6.43
+  // and $8.57. the settled net, fees included, is what the split weighs
+  test("a refused transfer's cut does not move a dispute fee onto the other nonprofit", () => {
+    const bare = {
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      fee_allowance: 0,
+    };
+    const cut = { net: 75, ...bare, refunds_cut_share: 0.25 };
+    const whole = { net: 100, ...bare };
+    expect(dist_settled_usd(cut)).toBe(100);
+    expect(
+      split_cents(15, [dist_settled_usd(cut), dist_settled_usd(whole)])
+    ).toEqual([7.5, 7.5]);
+
+    const fees = {
+      fee_base: 5,
+      fee_fsa: 3,
+      fee_processing: 2,
+      fee_allowance: 0,
+    };
+    expect(
+      dist_settled_usd({ net: 75, ...fees, refunds_cut_share: 0.25 })
+    ).toBe(110);
+    expect(dist_settled_usd({ net: 100, ...fees })).toBe(110);
+  });
+
+  test("a total cut keeps the settled net in the fee weight and a refund takes none of it back", () => {
+    const dist = {
+      ...make_inputs().dist,
+      net: 100,
+      refunds_cut_share: 1,
+    };
+    expect(
+      dist_settled_usd({
+        net: dist.net,
+        fee_base: dist.fee_base,
+        fee_fsa: dist.fee_fsa,
+        fee_processing: dist.fee_processing,
+        fee_allowance: dist.fee_allowance,
+        refunds_cut_share: 1,
+      })
+    ).toBe(110);
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist,
+        bal: { liq: 0, lock_units: 0, cash: 100 },
+      }),
+      make_ctx()
+    );
+    expect(plan.effects).toContainEqual(
+      expect.objectContaining({
+        kind: "balance_update",
+        deltas: { liq: 0, lock: 0, lock_units: 0, cash: 0 },
+      })
+    );
+    expect(plan.is_loss).toBe(false);
   });
 
   // credit_fa adds the processing fee into net when the donor covered it

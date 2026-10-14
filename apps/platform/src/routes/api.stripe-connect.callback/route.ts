@@ -85,7 +85,10 @@ export async function loader({ request }: Route.LoaderArgs) {
           tx,
           t.reg_id,
           EDITABLE,
-          { o_stripe_account_id: acct },
+          {
+            o_stripe_account_id: acct,
+            o_stripe_connected_at: new Date().toISOString(),
+          },
           held_as_read(registrations.o_stripe_account_id)
         );
         if (won) return "connected";

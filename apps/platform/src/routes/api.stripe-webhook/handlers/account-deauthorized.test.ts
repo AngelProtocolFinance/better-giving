@@ -13,6 +13,7 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const enqueue = vi.hoisted(() => vi.fn());
+const account_access_live = vi.hoisted(() => vi.fn());
 
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
@@ -28,6 +29,7 @@ vi.mock("$/pg/db", () => ({
 }));
 
 vi.mock("$/kit/queue", () => ({ enqueue }));
+vi.mock("$/stripe-connect/sync", () => ({ account_access_live }));
 
 const { handle_account_deauthorized } = await import("./account-deauthorized");
 const { seed_npo } = await import("#/__tests__/fixtures/funds");
@@ -79,6 +81,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   enqueue.mockReset();
+  account_access_live.mockReset();
 });
 
 describe("account.application.deauthorized → npo disconnected", () => {
@@ -160,6 +163,36 @@ describe("account.application.deauthorized → npo disconnected", () => {
     expect(enqueue).not.toHaveBeenCalled();
   });
 
+  it("a disconnect in the same second as the connect follows whether stripe still has the account", async () => {
+    const acct = "acct_deauth_tie";
+    const npo = await seed_npo(db(), {
+      registration_number: "EIN-DEAUTH-TIE",
+      hq_country: "United States",
+      stripe_account_id: acct,
+      stripe_charges_enabled: true,
+      stripe_payouts_enabled: true,
+      stripe_details_submitted: true,
+      stripe_connected_at: "2026-10-12T12:00:00.500Z",
+    });
+    account_access_live.mockResolvedValueOnce(true);
+
+    const kept = await handle_account_deauthorized(event(acct, T));
+
+    expect(kept).toEqual({ status: "stale", npo_id: npo!.id });
+    expect((await row(npo!.id)).stripe_deauthorized_at).toBeNull();
+    expect(await routes(npo!.id)).toBe(true);
+    expect(enqueue).not.toHaveBeenCalled();
+
+    account_access_live.mockResolvedValueOnce(false);
+    const dropped = await handle_account_deauthorized(event(acct, T));
+
+    expect(dropped).toEqual({ status: "marked", npo_id: npo!.id });
+    expect((await row(npo!.id)).stripe_deauthorized_at).toBe(
+      "2026-10-12T12:00:00.000Z"
+    );
+    expect(await routes(npo!.id)).toBe(false);
+  });
+
   it("an account no npo holds is acknowledged and stamps nothing", async () => {
     const npo = await seed_npo(db(), {
       registration_number: "EIN-DEAUTH-2",
@@ -191,6 +224,77 @@ describe("account.application.deauthorized → npo disconnected", () => {
       .from(registrations)
       .where(eq(registrations.id, reg_id));
     expect(r!.acct).toBeNull();
+  });
+
+  it("a disconnect redelivered after the applicant reconnected leaves the account", async () => {
+    const reg_id = crypto.randomUUID();
+    await db().insert(registrations).values({
+      id: reg_id,
+      r_id: "reconnected@reg.test",
+      status: "01",
+      o_stripe_account_id: "acct_deauth_reg_back",
+      o_stripe_connected_at: "2026-10-13T12:00:00.000Z",
+    });
+
+    const out = await handle_account_deauthorized(
+      event("acct_deauth_reg_back", T)
+    );
+
+    expect(out).toEqual({ status: "reg_stale", reg_id });
+    const [r] = await db()
+      .select({ acct: registrations.o_stripe_account_id })
+      .from(registrations)
+      .where(eq(registrations.id, reg_id));
+    expect(r!.acct).toBe("acct_deauth_reg_back");
+    expect(account_access_live).not.toHaveBeenCalled();
+  });
+
+  // the connect stamp has a fraction and the event does not, so the same
+  // second is not proof the disconnect is the older one
+  it("a same-second disconnect clears the registration when stripe no longer has the account", async () => {
+    const reg_id = crypto.randomUUID();
+    await db().insert(registrations).values({
+      id: reg_id,
+      r_id: "tied@reg.test",
+      status: "01",
+      o_stripe_account_id: "acct_deauth_reg_tie",
+      o_stripe_connected_at: "2026-10-12T12:00:00.500Z",
+    });
+    account_access_live.mockResolvedValue(false);
+
+    const out = await handle_account_deauthorized(
+      event("acct_deauth_reg_tie", T)
+    );
+
+    expect(out).toEqual({ status: "reg_cleared", reg_id });
+    const [r] = await db()
+      .select({ acct: registrations.o_stripe_account_id })
+      .from(registrations)
+      .where(eq(registrations.id, reg_id));
+    expect(r!.acct).toBeNull();
+  });
+
+  it("a same-second disconnect leaves the registration when stripe still has the account", async () => {
+    const reg_id = crypto.randomUUID();
+    await db().insert(registrations).values({
+      id: reg_id,
+      r_id: "tied-live@reg.test",
+      status: "01",
+      o_stripe_account_id: "acct_deauth_reg_live",
+      o_stripe_connected_at: "2026-10-12T12:00:00.500Z",
+    });
+    account_access_live.mockResolvedValue(true);
+
+    const out = await handle_account_deauthorized(
+      event("acct_deauth_reg_live", T)
+    );
+
+    expect(out).toEqual({ status: "reg_stale", reg_id });
+    const [r] = await db()
+      .select({ acct: registrations.o_stripe_account_id })
+      .from(registrations)
+      .where(eq(registrations.id, reg_id));
+    expect(r!.acct).toBe("acct_deauth_reg_live");
   });
 
   // its share keeps settling pooled, and pooled pays out over wise to the

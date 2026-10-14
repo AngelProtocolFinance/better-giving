@@ -266,7 +266,11 @@ describe("stripe connect start", () => {
     const reg_id = await seed_reg("cleared@reg.test", {
       o_stripe_account_id: "acct_reg_cleared",
     });
-    await reg_stripe_deauthorize("acct_reg_cleared", db() as any);
+    await reg_stripe_deauthorize(
+      "acct_reg_cleared",
+      "2026-10-12T12:00:00.000Z",
+      db() as any
+    );
     session.user = { id: "u-clr", email: "cleared@reg.test", role: "user" };
 
     const res = await call(`kind=reg&reg_id=${reg_id}`);

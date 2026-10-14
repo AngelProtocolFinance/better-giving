@@ -90,6 +90,20 @@ export async function sync_npo_account(
   return mirror_of(now);
 }
 
+/** whether stripe still lets us read `acct`. a permission error is the
+ * disconnect. anything else throws: a connect and a disconnect in the same
+ * second are told apart by this, and a guess would either drop a live
+ * connection or keep routing to one that is gone */
+export async function account_access_live(acct_id: string): Promise<boolean> {
+  try {
+    await stripe.accounts.retrieve(acct_id);
+    return true;
+  } catch (err) {
+    if (is_disconnected(err)) return false;
+    throw err;
+  }
+}
+
 /** a registration's status, read from stripe each time: registrations keep no mirror */
 export async function account_status_live(
   acct_id: string

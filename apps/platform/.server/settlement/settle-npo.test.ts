@@ -295,6 +295,61 @@ describe("settle_npo on a card donation to a connected npo", () => {
     ]);
   });
 
+  test("a partial cut books and stores the remainder", async () => {
+    const npo = await seed_npo(db(), {
+      ...ROUTABLE,
+      allocation: { cash: 100, liq: 0, lock: 0 },
+      registration_number: "EIN-ROUTED-CUT",
+    });
+    await seed_donation();
+    await settle(make_input(npo!.id));
+    const dist = await dist_of();
+
+    const r = await db().transaction((tx) =>
+      settle_unrouted(tx as unknown as DbOrTx, {
+        id: dist.id,
+        donation_id: DON_ID,
+        to_id: npo!.id,
+        net: 75,
+        refunds_cut_share: 0.25,
+        date_created: dist.date_created,
+      })
+    );
+
+    expect(r.status).toBe("booked");
+    expect(await dist_of()).toMatchObject({ net: 75, refunds_cut_share: 0.25 });
+    const [payout] = await db().select().from(payouts);
+    expect(payout?.amount).toBe(75);
+  });
+
+  test("a total cut books nothing and keeps the settled net", async () => {
+    const npo = await seed_npo(db(), {
+      ...ROUTABLE,
+      allocation: { cash: 100, liq: 0, lock: 0 },
+      registration_number: "EIN-ROUTED-CUT-ALL",
+    });
+    await seed_donation();
+    await settle(make_input(npo!.id));
+    const dist = await dist_of();
+
+    const r = await db().transaction((tx) =>
+      settle_unrouted(tx as unknown as DbOrTx, {
+        id: dist.id,
+        donation_id: DON_ID,
+        to_id: npo!.id,
+        net: 0,
+        refunds_cut_share: 1,
+        date_created: dist.date_created,
+      })
+    );
+
+    expect(r.status).toBe("booked");
+    expect(await dist_of()).toMatchObject({ net: 100, refunds_cut_share: 1 });
+    expect(await db().select().from(payouts)).toEqual([]);
+    const [after] = await db().select().from(npos).where(eq(npos.id, npo!.id));
+    expect(after!.cash).toBe(0);
+  });
+
   test("a routed donation reads like a pooled one on every dist-keyed surface", async () => {
     // one npo routes, its twin is not connected; each takes the same gift
     const routed = await seed_npo(db(), {

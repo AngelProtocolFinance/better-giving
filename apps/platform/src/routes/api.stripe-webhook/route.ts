@@ -213,6 +213,10 @@ export async function action({ request }: Route.ActionArgs) {
           console.info(
             `account.application.deauthorized ignored, npo ${out.npo_id} reconnected since: ${stripe_event.id}`
           );
+        } else if (out.status === "reg_stale") {
+          console.info(
+            `account.application.deauthorized ignored, registration ${out.reg_id} reconnected since: ${stripe_event.id}`
+          );
         } else if (out.status === "unknown") {
           console.info(
             `account.application.deauthorized ignored: ${stripe_event.id}`

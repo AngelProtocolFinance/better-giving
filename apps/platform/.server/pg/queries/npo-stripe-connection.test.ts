@@ -156,6 +156,38 @@ test("a disconnect from before the reconnect is ignored as stale", async () => {
   expect(await deauthorized_at()).toBeNull();
 });
 
+test("a disconnect in the same second as the connect is not treated as older", async () => {
+  await test_db
+    .current!.db.update(npos)
+    .set({ stripe_connected_at: "2026-10-13T12:00:00.500Z" });
+  expect(await npo_stripe_deauthorize("acct_deauth", T1)).toEqual({
+    status: "tied",
+    npo_id,
+  });
+  expect(await deauthorized_at()).toBeNull();
+});
+
+test("a same-second disconnect stripe still shows as gone is marked", async () => {
+  await test_db
+    .current!.db.update(npos)
+    .set({ stripe_connected_at: "2026-10-13T12:00:00.500Z" });
+  expect(
+    await npo_stripe_deauthorize("acct_deauth", T1, tx_of(), "mark")
+  ).toEqual({ status: "marked", npo_id });
+  expect(await deauthorized_at()).toBe(T1);
+});
+
+test("a same-second disconnect of an account stripe still has leaves it connected", async () => {
+  await test_db
+    .current!.db.update(npos)
+    .set({ stripe_connected_at: "2026-10-13T12:00:00.500Z" });
+  expect(
+    await npo_stripe_deauthorize("acct_deauth", T1, tx_of(), "stale")
+  ).toEqual({ status: "stale", npo_id });
+  expect(await deauthorized_at()).toBeNull();
+  expect((await npo_get(npo_id))?.stripe_account_id).toBe("acct_deauth");
+});
+
 test("a disconnect after the reconnect marks it again", async () => {
   await npo_stripe_deauthorize("acct_deauth", T1);
   await reconnect();

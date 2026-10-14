@@ -56,9 +56,9 @@ interface IUnroutedDist {
   id: string;
   donation_id: string;
   to_id: number;
-  /** what lands in bg's books for the share, and the dist's `net` from
-   * then on: a refund takes back from it, so it is never the routed net a
-   * refund's cut already came off */
+  /** what lands in bg's books for the share. a partial cut replaces the
+   * dist's `net`, which a refund takes back; a total cut books nothing and
+   * leaves the settled net, so a dispute fee still weighs this share */
   net: number;
   /** the share of the charge that cut is; null when nothing was cut */
   refunds_cut_share: number | null;
@@ -110,12 +110,21 @@ export async function settle_unrouted(
     dist_id: d.id,
     date: d.date_created,
   });
+  const total_cut = d.refunds_cut_share != null && d.refunds_cut_share >= 1;
   await dist_update(db, d.id, {
     alloc,
-    net: d.net,
+    // the booked remainder, so a later refund takes back only what landed.
+    // `dist_settled_usd` restores this to the settled net when it splits a
+    // dispute fee. a total cut booked nothing; keeping the settled net is
+    // what gives that split a weight for this share
+    ...(total_cut ? {} : { net: d.net }),
     refunds_cut_share: d.refunds_cut_share,
   });
-  await book_pooled(db, npo.id, booking, []);
+  // a zero delta is not a balance write: the update has no column to set
+  const { liq, lock, cash } = booking.balance_deltas;
+  if (liq || lock || cash || booking.payout || booking.balance_txs.length) {
+    await book_pooled(db, npo.id, booking, []);
+  }
   return { status: "booked", msgs };
 }
 

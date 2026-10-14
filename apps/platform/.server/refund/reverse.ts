@@ -582,6 +582,7 @@ export async function reversal_preview(
       fee_fsa: dist.fee_fsa ?? 0,
       fee_processing: dist.fee_processing ?? 0,
       fee_allowance: dist.fee_allowance ?? 0,
+      refunds_cut_share: dist.refunds_cut_share,
     });
     if (dist.refund_status === "completed" || dist.refund_status === "loss") {
       dists.push({

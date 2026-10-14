@@ -66,8 +66,10 @@ export const dists = pgTable(
     stripe_routed_to: text("stripe_routed_to"),
     /** the stripe transfer that paid this dist to the npo's connected account */
     stripe_transfer_id: text("stripe_transfer_id"),
-    /** the share of the charge its refunds had already taken off `net` when a
-     * refused transfer rebooked it pooled; null when nothing was cut */
+    /** the share of the charge its refunds had already taken when a refused
+     * transfer rebooked it pooled. a partial cut reduces `net` to what was
+     * booked; a total cut leaves the settled `net` and books nothing. null
+     * when nothing was cut */
     refunds_cut_share: numeric_as_number("refunds_cut_share", {
       precision: 38,
       scale: 18,

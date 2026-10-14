@@ -161,23 +161,40 @@ export async function npo_stripe_connect(
 }
 
 /** what a disconnect event did. `stale` when the npo holding `acct` connected
- * it after the event was created: a redelivery of an earlier disconnect */
+ * it after the event was created: a redelivery of an earlier disconnect.
+ * `tied` when the connect and the event fall in the same second — `at` is
+ * whole seconds and `stripe_connected_at` is not — so which came first is
+ * not in the timestamps */
 export type TNpoStripeDeauthorize =
   | { status: "marked"; npo_id: number }
   | { status: "stale"; npo_id: number }
+  | { status: "tied"; npo_id: number }
   | { status: "unknown" };
+
+/** how a same-second connect and disconnect are told apart. `ask` reports
+ * `tied` and writes nothing. `mark` takes the disconnect as the later one.
+ * `stale` takes the connect as the later one */
+export type TStripeDeauthorizeTie = "ask" | "mark" | "stale";
 
 /** mark the npo holding `acct` as disconnected from it at `at`, the event's
  * stripe-clock creation time. the earliest stamp since the last connect stays,
- * so a redelivered or out-of-order event never moves it later */
+ * so a redelivered or out-of-order event never moves it later. a connect in
+ * a later second wins; one in the event's own second is `tie` */
 export async function npo_stripe_deauthorize(
   acct: string,
   at: string,
-  conn: DbOrTx = db
+  conn: DbOrTx = db,
+  tie: TStripeDeauthorizeTie = "ask"
 ): Promise<TNpoStripeDeauthorize> {
   // compared in the update itself: a connect committing first is re-read
-  // under read committed, so the event can't stamp the account it reconnected
-  const fresh = sql<boolean>`(${npos.stripe_connected_at} is null or ${npos.stripe_connected_at} < ${at}::timestamptz)`;
+  // under read committed, so the event can't stamp the account it reconnected.
+  // `at` is the event's second. a connect later in that second is not older
+  // than the event — `stripe_connected_at` carries the fraction `now()` has
+  // and the event does not — so it is a tie unless `tie` has resolved it
+  const older = sql`${npos.stripe_connected_at} is null or ${npos.stripe_connected_at} < ${at}::timestamptz`;
+  const same_second = sql`${npos.stripe_connected_at} is not null and date_trunc('second', ${npos.stripe_connected_at}) = date_trunc('second', ${at}::timestamptz) and not (${older})`;
+  const fresh = sql<boolean>`(${older} or (${tie === "mark"} and ${same_second}))`;
+  const tied = sql<boolean>`(${tie === "ask"} and ${same_second})`;
   const [row] = await conn
     .update(npos)
     .set({
@@ -185,9 +202,11 @@ export async function npo_stripe_deauthorize(
       stripe_deauthorized_at: sql`case when ${fresh} then least(${npos.stripe_deauthorized_at}, ${at}::timestamptz) else ${npos.stripe_deauthorized_at} end`,
     })
     .where(eq(npos.stripe_account_id, acct))
-    .returning({ id: npos.id, fresh });
+    .returning({ id: npos.id, fresh, tied });
   if (!row) return { status: "unknown" };
-  return { status: row.fresh ? "marked" : "stale", npo_id: row.id };
+  if (row.fresh) return { status: "marked", npo_id: row.id };
+  if (row.tied) return { status: "tied", npo_id: row.id };
+  return { status: "stale", npo_id: row.id };
 }
 
 /**

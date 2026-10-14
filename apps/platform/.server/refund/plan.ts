@@ -159,13 +159,32 @@ export const share_of_net = (
   return cut >= 1 ? 0 : Math.min(taken / (1 - cut), 1);
 };
 
+/** the settled net a fee split weighs. a refused transfer's partial cut stores
+ * the booked remainder on `net`; the share puts back what settlement
+ * recorded, fees included separately because the cut never touched them. a
+ * total cut leaves that settled net on the row */
+export const settled_net = (
+  d: Pick<RefundDistInput, "net"> & { refunds_cut_share?: number | null }
+): number => {
+  const cut = d.refunds_cut_share;
+  if (cut == null || cut <= 0 || cut >= 1) return d.net;
+  return Math.round((d.net / (1 - cut)) * 100) / 100;
+};
+
+/** what a refund takes back from the books. a partial cut already stored that
+ * remainder on `net`. a total cut left the settled net and booked nothing */
+export const recoverable_net = (
+  d: Pick<RefundDistInput, "net"> & { refunds_cut_share?: number | null }
+): number =>
+  d.refunds_cut_share != null && d.refunds_cut_share >= 1 ? 0 : d.net;
+
 /** a dist's gross in settled usd, counting the processing fee once */
 export const dist_settled_usd = (
   d: Pick<
     RefundDistInput,
     "net" | "fee_base" | "fee_fsa" | "fee_processing" | "fee_allowance"
-  >
-): number => d.net + d.fee_base + d.fee_fsa + fee_processing_usd(d);
+  > & { refunds_cut_share?: number | null }
+): number => settled_net(d) + d.fee_base + d.fee_fsa + fee_processing_usd(d);
 
 export function calc_refund_plan(
   inputs: RefundInputs,
@@ -180,13 +199,16 @@ export function calc_refund_plan(
     lock: dist.alloc.lock ?? 0,
     cash: dist.alloc.cash ?? 0,
   };
+  // the booked remainder: a total cut left the settled net on the row and
+  // put nothing in the books, so there is nothing to take back
+  const net = recoverable_net(dist);
   // derive balance deltas from allocation percentages
   const bd = dist.routed
     ? { liq: 0, lock: 0, cash: 0 }
     : {
-        liq: (alloc.liq / 100) * dist.net,
-        lock: (alloc.lock / 100) * dist.net,
-        cash: (alloc.cash / 100) * dist.net,
+        liq: (alloc.liq / 100) * net,
+        lock: (alloc.lock / 100) * net,
+        cash: (alloc.cash / 100) * net,
       };
   const refund_lock_units = nav && bd.lock > 0 ? bd.lock / nav.price : 0;
 
@@ -313,7 +335,7 @@ export function calc_refund_plan(
   const owed: OwedFigure = {
     donation_id: dist.donation_id,
     party: { npo_id: dist.to_id },
-    received_usd: dist.net - cash_recovered,
+    received_usd: net - cash_recovered,
     fee_processing_usd: scaled(
       fee_processing_usd(dist),
       past_cut(dist.refunds_cut_share, 1)

@@ -442,6 +442,13 @@
       "when": 1791939452515,
       "tag": "0062_stripe_connect_routing",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1791945919530,
+      "tag": "0063_registration_stripe_connected_at",
+      "breakpoints": true
     }
   ]
 }
