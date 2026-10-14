@@ -92,7 +92,7 @@ describe("referral terms", () => {
     const { text } = await after_payment();
 
     expect(text).toContain(
-      "This section applies only to donations made on or after 12:00 a.m. Eastern Time (America/New_York) on October 18, 2026."
+      "This section applies only to donations made on or after the later of (i) 12:00 a.m. Eastern Time (America/New_York) on October 18, 2026 and (ii) the date these revised Program Terms take effect."
     );
   });
 });

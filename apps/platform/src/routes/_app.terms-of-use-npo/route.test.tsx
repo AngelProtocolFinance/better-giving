@@ -28,7 +28,7 @@ const clause = (root: HTMLElement, n: number, letter: string) =>
   ).trim();
 
 const CUT_OFF =
-  "Sections 4(g) and 4(j), and the last two sentences of Section 4(h), apply only to donations made on or after 12:00 a.m. Eastern Time (America/New_York) on October 18, 2026.";
+  "Sections 4(g), 4(h) and 4(j), and Section 4(i) as it applies to Recovery Amounts, apply only to donations made on or after the later of (i) 12:00 a.m. Eastern Time (America/New_York) on October 18, 2026 and (ii) the date these Terms take effect under Section 9(d). A donation is “made” when the Donor’s payment is authorized or, for securities, cryptocurrency or other digital assets, when Better Giving receives the asset. The terms “Reversed Donation” and “Recovery Amount” defined in Section 4(g) apply throughout Section 4.";
 
 describe("nonprofit terms", () => {
   test("carry the recovery items in Receiving Grants, before Fees, under the effective date", async () => {
@@ -138,7 +138,6 @@ describe("nonprofit terms", () => {
     expect(h).toContain(
       "Better Giving redeems units of the Fund equal in value to the part of that donation’s Investment allocation that is reversed and not yet granted to you, at the Fund’s unit value on the day of the reversal."
     );
-    // the cut-off names "the last two sentences of Section 4(h)"; these are them
     expect(h.split("on the day of the reversal. ")[1]).toBe(
       "If the balance is not enough to cover that part, for example because of a Withdrawal, Better Giving may instead treat the whole part, with its payment processing fees, as a Recovery Amount. Any dispute fee on the donation is a Recovery Amount in every case."
     );
@@ -163,7 +162,7 @@ describe("nonprofit terms", () => {
     expect(j).toContain(CUT_OFF);
   });
 
-  test("4(i)'s return of amounts taken back under 4(h) is not limited by the cut-off", async () => {
+  test("the cut-off limits 4(i) as it applies to Recovery Amounts, and a cancelled amount is still paid back", async () => {
     const screen = await render_terms();
     const root = screen.container;
 
@@ -172,7 +171,7 @@ describe("nonprofit terms", () => {
     );
     const cut_off = clause(root, 4, "j").split("at its discretion. ")[1];
     expect(cut_off).toBe(CUT_OFF);
-    expect(cut_off).not.toContain("4(i)");
+    expect(cut_off).toContain("Section 4(i) as it applies to Recovery Amounts");
   });
 
   test("4(k) claims no other fees, deducts processing fees before allocation, and hides nothing", async () => {
@@ -207,7 +206,7 @@ describe("nonprofit terms", () => {
     expect(clause(root, 8, "e")).toContain("as set forth in Section 8(f).");
     const survival = clause(root, 8, "f");
     expect(survival).toContain(
-      "The obligations of Sections 3(b), 3(d), 4(c), 4(e), 4(g) through 4(j), 5, 6, 7, 8 and 9 will survive the termination of this Agreement."
+      "The obligations of Sections 3(b), 3(d), 4(c), 4(e), 4(g) through 4(j) (in each case as limited by the effective-date provision of Sections 4(h) and 4(j)), 5, 6, 7, 8 and 9 will survive the termination of this Agreement."
     );
     expect(survival).not.toMatch(/Section 10|\b10\b/);
     expect(survival).toContain(
@@ -232,6 +231,22 @@ describe("nonprofit terms", () => {
         })
       )
       .toHaveAttribute("href", "/terms-of-use-npo-2024");
+  });
+
+  test("4(c) discloses donor information so the npo can thank donors", async () => {
+    const screen = await render_terms();
+
+    expect(clause(screen.container, 4, "c")).toContain(
+      "only for the purpose of enabling you to thank Donors for their support and to provide a reasonable amount of information about your charitable work"
+    );
+  });
+
+  test("5(b) warrants that donors have not received and will not receive goods or services", async () => {
+    const screen = await render_terms();
+
+    expect(clause(screen.container, 5, "b")).toContain(
+      "have not received and will not receive any goods or services of value in return of their Donation to Better Giving"
+    );
   });
 
   test("the liability cap spares what is owed to the npo", async () => {
