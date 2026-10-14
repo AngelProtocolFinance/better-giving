@@ -2,8 +2,6 @@ import create_invoice from "./create-invoice.json";
 import create_payment from "./create-payment.json";
 import estimate_price from "./get-estimated-price.json";
 import min_amount from "./get-min-amount.json";
-import payment_status from "./get-payment-status.json";
-import ipn_payment from "./ipn-payment.json";
 
 /**
  * Published NOWPayments response examples, copied verbatim into the JSON
@@ -17,20 +15,8 @@ import ipn_payment from "./ipn-payment.json";
  * - `create_invoice` — Payments → Create invoice, 201
  * - `create_payment` — Payments → Create payment, 201. The collection uses
  *   the same body for Create payment by invoice.
- * - `payment_status` — Payments → Get payment status, 200. The published
- *   body is printed without its wrapping braces; the file is that object.
- * - `ipn_payment` — collection intro, Webhooks Examples → Payments. The
- *   published body omits the comma before `fee`; the file is that object
- *   with the comma inserted so it parses.
  */
-export {
-  create_invoice,
-  create_payment,
-  estimate_price,
-  ipn_payment,
-  min_amount,
-  payment_status,
-};
+export { create_invoice, create_payment, estimate_price, min_amount };
 
 /**
  * the published examples quote these amounts as JSON numbers. the live API

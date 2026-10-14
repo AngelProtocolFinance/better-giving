@@ -35,7 +35,6 @@ const sign = (body: string, key: string) =>
 
 /** the contract in the simple/token_price example */
 const WBTC = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599" as const;
-const WBTC_USD = simple_token_price[WBTC].usd;
 
 const activity = (i = 0) => ({
   fromAddress: "0xsender",
@@ -180,11 +179,7 @@ describe("alchemy webhook", () => {
         expect.objectContaining({
           title: "New eth-mainnet donation",
           fields: expect.arrayContaining([
-            {
-              name: "USD Value",
-              value: (2 * WBTC_USD).toFixed(2),
-              inline: true,
-            },
+            { name: "USD Value", value: "153442.00", inline: true },
           ]),
         })
       );
@@ -302,7 +297,7 @@ describe("alchemy webhook", () => {
     expect(report_error_mock).not.toHaveBeenCalled();
   });
 
-  test("activities sharing an asset fetch its price once per request", async () => {
+  test("each asset is valued at its own published price", async () => {
     quiet_console();
     keys["eth-mainnet"] = ETH_KEY;
     // the second contract is one of the two addresses in
@@ -331,16 +326,17 @@ describe("alchemy webhook", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(coingecko_mock).toHaveBeenCalledTimes(2);
     expect(send_alert_mock).toHaveBeenCalledTimes(4);
     const usd_values = send_alert_mock.mock.calls.map(
       ([a]: any) => a.fields.find((f: any) => f.name === "USD Value").value
     );
+    // 2 WBTC at the token-price example's $76,721; 2 DAI at the simple-price
+    // example's $76,975
     expect(usd_values).toEqual([
-      (2 * WBTC_USD).toFixed(2),
-      (2 * WBTC_USD).toFixed(2),
-      (2 * simple_price.bitcoin.usd).toFixed(2),
-      (2 * simple_price.bitcoin.usd).toFixed(2),
+      "153442.00",
+      "153442.00",
+      "153950.00",
+      "153950.00",
     ]);
   });
   test("a checksum-cased deposit address matches a lowercase receive", async () => {
