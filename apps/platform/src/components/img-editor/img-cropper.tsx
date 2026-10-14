@@ -3,6 +3,7 @@ import { Portal } from "@ark-ui/react/portal";
 import type { AskProps } from "@better-giving/ui";
 import { Save } from "lucide-react";
 import { useMemo, useRef } from "react";
+import { file_from_crop } from "./crop-output";
 import { Cropper, type ICropperHandle } from "./cropper";
 
 export interface IImgCropperProps {
@@ -26,9 +27,9 @@ export function ImgCropper({
 
   async function handle_save() {
     const blob = await cropper_ref.current?.get_cropped_blob();
-    const cropped = blob
-      ? new File([blob], input.name, { type: input.type })
-      : input;
+    // the canvas bytes are whatever we encoded. the name and type have to
+    // say that too, or the upload sniff rejects the body.
+    const cropped = blob ? file_from_crop(blob, input.name) : input;
     return resolve(cropped);
   }
 
@@ -67,6 +68,7 @@ export function ImgCropper({
               <Cropper
                 src={src}
                 aspect={aspect}
+                mime={input.type}
                 rounded={rounded}
                 ref={cropper_ref}
               />

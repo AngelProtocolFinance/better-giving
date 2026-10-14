@@ -135,6 +135,18 @@ describe("file upload", () => {
     expect(res.status).toBe(415);
   });
 
+  test("refuses png bytes labeled jpeg, the mismatch a re-encoded crop makes", async () => {
+    const res: Response = await upload(
+      new Blob([bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)], {
+        type: "image/jpeg",
+      }),
+      "photo.jpg"
+    );
+    expect(res.status).toBe(415);
+    expect(await res.text()).toBe("file content does not match its type");
+    expect(put).not.toHaveBeenCalled();
+  });
+
   test("refuses html that only mentions an svg", async () => {
     const res: Response = await upload(
       new Blob(["<html><svg/></html>"], { type: "image/svg+xml" }),
