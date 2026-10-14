@@ -831,7 +831,8 @@ export async function donation_status_shared(
   return don?.status as IDonation["status"] | undefined;
 }
 
-/** row lock only: waits out a writer holding the row, blocks one arriving after */
+/** row lock only: waits out a writer holding the row, blocks one arriving after.
+ * lock order: `dists_locked` in `.server/refund/share.ts` */
 export async function donation_lock(tx: DbOrTx, id: string) {
   await tx
     .select({ id: donations.id })

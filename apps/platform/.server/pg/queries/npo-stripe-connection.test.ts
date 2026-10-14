@@ -54,8 +54,12 @@ beforeEach(async () => {
 const deauthorized_at = async () =>
   (await npo_get(npo_id))?.stripe_deauthorized_at;
 
-test("marks the npo holding the account, and keeps the account", async () => {
-  expect(await npo_stripe_deauthorize("acct_deauth", T1)).toBe(npo_id);
+test("an npo connected before connects were stamped is marked, and keeps the account", async () => {
+  expect((await npo_get(npo_id))?.stripe_connected_at).toBeNull();
+  expect(await npo_stripe_deauthorize("acct_deauth", T1)).toEqual({
+    status: "marked",
+    npo_id,
+  });
   const npo = await npo_get(npo_id);
   expect(npo?.stripe_deauthorized_at).toBe(T1);
   expect(npo?.stripe_account_id).toBe("acct_deauth");
@@ -63,7 +67,10 @@ test("marks the npo holding the account, and keeps the account", async () => {
 
 test("a redelivered or later event keeps the first stamp", async () => {
   await npo_stripe_deauthorize("acct_deauth", T1);
-  expect(await npo_stripe_deauthorize("acct_deauth", T2)).toBe(npo_id);
+  expect(await npo_stripe_deauthorize("acct_deauth", T2)).toEqual({
+    status: "marked",
+    npo_id,
+  });
   expect(await deauthorized_at()).toBe(T1);
 });
 
@@ -74,7 +81,9 @@ test("an earlier event arriving late moves the stamp back to it", async () => {
 });
 
 test("an account no npo holds marks nothing", async () => {
-  expect(await npo_stripe_deauthorize("acct_unknown", T1)).toBeNull();
+  expect(await npo_stripe_deauthorize("acct_unknown", T1)).toEqual({
+    status: "unknown",
+  });
   expect(await deauthorized_at()).toBeNull();
 });
 
@@ -131,4 +140,33 @@ test("the old account's readiness does not carry over", async () => {
     stripe_requirements_due: [],
     stripe_synced_at: null,
   });
+});
+
+const reconnect = () =>
+  npo_stripe_connect(tx_of(), npo_id, "acct_deauth", "acct_deauth", UNSET);
+
+test("a disconnect from before the reconnect is ignored as stale", async () => {
+  await npo_stripe_deauthorize("acct_deauth", T1);
+  await reconnect();
+  // stripe redelivers the earlier disconnect after the npo connected again
+  expect(await npo_stripe_deauthorize("acct_deauth", T1)).toEqual({
+    status: "stale",
+    npo_id,
+  });
+  expect(await deauthorized_at()).toBeNull();
+});
+
+test("a disconnect after the reconnect marks it again", async () => {
+  await npo_stripe_deauthorize("acct_deauth", T1);
+  await reconnect();
+  const connected_at = (await npo_get(npo_id))?.stripe_connected_at;
+  // stripe's `created` is whole seconds
+  const after = new Date(
+    Math.ceil((Date.parse(connected_at!) + 1) / 1000) * 1000
+  ).toISOString();
+  expect(await npo_stripe_deauthorize("acct_deauth", after)).toEqual({
+    status: "marked",
+    npo_id,
+  });
+  expect(await deauthorized_at()).toBe(after);
 });

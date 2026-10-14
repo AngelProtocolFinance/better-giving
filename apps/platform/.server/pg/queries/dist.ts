@@ -588,7 +588,12 @@ export async function donation_refund_started(
  */
 export async function dist_refund_state_locked(tx: DbOrTx, id: string) {
   const [row] = await tx
-    .select({ status: dists.status, refund_status: dists.refund_status })
+    .select({
+      status: dists.status,
+      refund_status: dists.refund_status,
+      stripe_routed_to: dists.stripe_routed_to,
+      refunds_cut_share: dists.refunds_cut_share,
+    })
     .from(dists)
     .where(eq(dists.id, id))
     .for("update");

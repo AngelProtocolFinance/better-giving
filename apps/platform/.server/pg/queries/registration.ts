@@ -9,6 +9,7 @@ import {
   isNull,
   like,
   lte,
+  ne,
   or,
   type SQL,
   sql,
@@ -156,6 +157,26 @@ export function reg_update_from(
   also?: SQL
 ): Promise<TRegCas> {
   return reg_cas(db, id, and(status_in(from), also), attrs);
+}
+
+/** the registration holding `acct` disconnected us from it: it no longer holds
+ * one, so the applicant can connect again. its id, or null when none holds it.
+ * an approved one's account is its npo's, as `held_elsewhere` reads it */
+export async function reg_stripe_deauthorize(
+  acct: string,
+  conn: DbOrTx = db
+): Promise<string | null> {
+  const [row] = await conn
+    .update(registrations)
+    .set({ o_stripe_account_id: null, updated_at: new Date().toISOString() })
+    .where(
+      and(
+        eq(registrations.o_stripe_account_id, acct),
+        or(isNull(registrations.status), ne(registrations.status, "03"))
+      )
+    )
+    .returning({ id: registrations.id });
+  return row?.id ?? null;
 }
 
 /** paginated registrations with status/date/country filters */

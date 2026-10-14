@@ -119,6 +119,9 @@ export const npos = pgTable(
       .notNull()
       .default([]),
     stripe_synced_at: timestamptz("stripe_synced_at"),
+    /** when the npo last connected `stripe_account_id`, by the db clock; null
+     * for an account connected before this was kept */
+    stripe_connected_at: timestamptz("stripe_connected_at"),
     /** when the npo disconnected us from its stripe dashboard; `stripe_account_id` stays */
     stripe_deauthorized_at: timestamptz("stripe_deauthorized_at"),
     created_at: timestamptz_now("created_at"),

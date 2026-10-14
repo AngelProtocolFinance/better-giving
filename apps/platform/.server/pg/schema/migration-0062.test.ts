@@ -5,8 +5,10 @@ import {
   type TestDb,
 } from "../test-utils/pglite";
 
-// 0062 gives a dist the account it was routed to and its stripe transfer, and
-// an npo its disconnect stamp. the rows already there come through it with none
+// 0062 gives a dist the account it was routed to, its stripe transfer and the
+// share its refunds cut when a refused transfer rebooked it pooled, and
+// an npo its connect and disconnect stamps. the rows already there come through
+// it with none
 let t: TestDb;
 let npo: number;
 const NOW = "2026-10-13T12:00:00.000Z";
@@ -42,23 +44,30 @@ afterAll(async () => {
   await t?.client.close();
 });
 
-test("dists already there stay pooled, with no transfer", async () => {
+test("dists already there stay pooled, with no transfer and no cut", async () => {
   const rows = await t.client.query(
-    "select id, stripe_routed_to, stripe_transfer_id from dists order by id"
+    "select id, stripe_routed_to, stripe_transfer_id, refunds_cut_share from dists order by id"
   );
+  const pooled = { stripe_routed_to: null, stripe_transfer_id: null };
   expect(rows.rows).toEqual([
-    { id: "dist-1", stripe_routed_to: null, stripe_transfer_id: null },
-    { id: "dist-2", stripe_routed_to: null, stripe_transfer_id: null },
+    { id: "dist-1", ...pooled, refunds_cut_share: null },
+    { id: "dist-2", ...pooled, refunds_cut_share: null },
   ]);
 });
 
-test("an npo already connected is not marked disconnected", async () => {
+// a null connect stamp is what lets a disconnect for an account connected
+// before 0062 land
+test("an npo already connected is not marked disconnected, nor stamped connected", async () => {
   const rows = await t.client.query(
-    "select stripe_account_id, stripe_deauthorized_at from npos where id = $1",
+    "select stripe_account_id, stripe_connected_at, stripe_deauthorized_at from npos where id = $1",
     [npo]
   );
   expect(rows.rows).toEqual([
-    { stripe_account_id: "acct_0062", stripe_deauthorized_at: null },
+    {
+      stripe_account_id: "acct_0062",
+      stripe_connected_at: null,
+      stripe_deauthorized_at: null,
+    },
   ]);
 });
 
@@ -87,4 +96,20 @@ test("dists without a transfer still go in side by side", async () => {
     "select count(*)::int as n from dists where stripe_routed_to is null"
   );
   expect(rows.rows).toEqual([{ n: 2 }]);
+});
+
+const cut = (share: number) =>
+  t.client.query(
+    "update dists set refunds_cut_share = $1 where id = 'dist-2'",
+    [share]
+  );
+
+test("a cut is a share of the charge, never none or more than all of it", async () => {
+  await cut(1);
+  await expect(cut(0)).rejects.toMatchObject({ code: "23514" });
+  await expect(cut(1.01)).rejects.toMatchObject({ code: "23514" });
+  const rows = await t.client.query(
+    "select refunds_cut_share::float8 as share from dists where id = 'dist-2'"
+  );
+  expect(rows.rows).toEqual([{ share: 1 }]);
 });

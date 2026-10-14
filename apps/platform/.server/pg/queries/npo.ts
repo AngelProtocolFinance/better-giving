@@ -144,6 +144,7 @@ export async function npo_stripe_connect(
     .update(npos)
     .set({
       stripe_account_id: acct,
+      stripe_connected_at: sql`now()`,
       stripe_deauthorized_at: null,
       ...mirror,
     })
@@ -159,28 +160,40 @@ export async function npo_stripe_connect(
   return written.length > 0;
 }
 
-/** mark the npo holding `acct` as disconnected from it at `at`; its id, or
- * null when no npo holds `acct`. the earliest stamp stays, so a redelivered or
- * out-of-order event never moves it later */
+/** what a disconnect event did. `stale` when the npo holding `acct` connected
+ * it after the event was created: a redelivery of an earlier disconnect */
+export type TNpoStripeDeauthorize =
+  | { status: "marked"; npo_id: number }
+  | { status: "stale"; npo_id: number }
+  | { status: "unknown" };
+
+/** mark the npo holding `acct` as disconnected from it at `at`, the event's
+ * stripe-clock creation time. the earliest stamp since the last connect stays,
+ * so a redelivered or out-of-order event never moves it later */
 export async function npo_stripe_deauthorize(
   acct: string,
   at: string,
   conn: DbOrTx = db
-): Promise<number | null> {
+): Promise<TNpoStripeDeauthorize> {
+  // compared in the update itself: a connect committing first is re-read
+  // under read committed, so the event can't stamp the account it reconnected
+  const fresh = sql<boolean>`(${npos.stripe_connected_at} is null or ${npos.stripe_connected_at} < ${at}::timestamptz)`;
   const [row] = await conn
     .update(npos)
-    // least() skips a null, so the first mark lands as `at`
     .set({
-      stripe_deauthorized_at: sql`least(${npos.stripe_deauthorized_at}, ${at}::timestamptz)`,
+      // least() skips a null, so the first mark lands as `at`
+      stripe_deauthorized_at: sql`case when ${fresh} then least(${npos.stripe_deauthorized_at}, ${at}::timestamptz) else ${npos.stripe_deauthorized_at} end`,
     })
     .where(eq(npos.stripe_account_id, acct))
-    .returning({ id: npos.id });
-  return row?.id ?? null;
+    .returning({ id: npos.id, fresh });
+  if (!row) return { status: "unknown" };
+  return { status: row.fresh ? "marked" : "stale", npo_id: row.id };
 }
 
 /**
  * `npo_get` holding the npo row until `tx` ends: a balance check made on it
  * stays true for the write, and a concurrent withdrawal waits its turn.
+ * lock order: `dists_locked` in `.server/refund/share.ts`
  */
 export async function npo_get_locked(
   tx: DbOrTx,

@@ -66,6 +66,12 @@ export const dists = pgTable(
     stripe_routed_to: text("stripe_routed_to"),
     /** the stripe transfer that paid this dist to the npo's connected account */
     stripe_transfer_id: text("stripe_transfer_id"),
+    /** the share of the charge its refunds had already taken off `net` when a
+     * refused transfer rebooked it pooled; null when nothing was cut */
+    refunds_cut_share: numeric_as_number("refunds_cut_share", {
+      precision: 38,
+      scale: 18,
+    }),
   },
   (t) => [
     check(
@@ -76,6 +82,10 @@ export const dists = pgTable(
     check(
       "dists_transfer_routed_check",
       sql`${t.stripe_transfer_id} IS NULL OR ${t.stripe_routed_to} IS NOT NULL`
+    ),
+    check(
+      "dists_refunds_cut_share_check",
+      sql`${t.refunds_cut_share} > 0 AND ${t.refunds_cut_share} <= 1`
     ),
     index("dists_donation_id_idx").on(t.donation_id),
     index("dists_to_id_date_idx").on(t.to_id, t.date_created),
