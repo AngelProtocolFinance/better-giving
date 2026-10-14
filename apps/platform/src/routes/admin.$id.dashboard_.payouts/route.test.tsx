@@ -105,12 +105,13 @@ async function transfer(
   id: string,
   net: number,
   date: string,
-  reversals: IRecord["reversals"]
+  reversals: IRecord["reversals"],
+  transferred_at = date
 ) {
   records.set(id, {
     amount: Math.round(net * 100),
     amount_reversed: 0,
-    created: unix(date),
+    created: unix(transferred_at),
     reversals,
   });
   await db()
@@ -139,6 +140,7 @@ async function transfer(
       net,
       stripe_routed_to: "acct_sent",
       stripe_transfer_id: id,
+      stripe_transfer_created_at: transferred_at,
     });
 }
 
@@ -291,6 +293,39 @@ describe("the payouts page", () => {
     await expect.element(screen.getByText("Pending")).toBeVisible();
     expect(
       screen.getByText("No payouts yet", { exact: true }).query()
+    ).toBeNull();
+  });
+
+  test("lists a later transfer above an earlier one", async () => {
+    await npo("acct_sent");
+    await transfer(
+      "tr_earlier",
+      10,
+      "2026-08-01T00:00:00.000Z",
+      listed([]),
+      "2026-07-01T00:00:00.000Z"
+    );
+    await transfer(
+      "tr_later",
+      20,
+      "2026-06-01T00:00:00.000Z",
+      listed([]),
+      "2026-07-15T00:00:00.000Z"
+    );
+
+    const screen = await render_page();
+    const region = sent_region(screen);
+    await expect.element(region.getByText("$20.00")).toBeVisible();
+    const text = region.element().textContent ?? "";
+    expect(text.indexOf("$20.00")).toBeLessThan(text.indexOf("$10.00"));
+    await expect
+      .element(region.getByText(format("2026-07-15T00:00:00.000Z", "PP")))
+      .toBeVisible();
+    expect(
+      region.getByText(format("2026-08-01T00:00:00.000Z", "PP")).query()
+    ).toBeNull();
+    expect(
+      region.getByText(format("2026-06-01T00:00:00.000Z", "PP")).query()
     ).toBeNull();
   });
 

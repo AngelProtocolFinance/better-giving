@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import Stripe from "stripe";
 import {
   afterAll,
@@ -47,6 +48,7 @@ import { donations } from "$/pg/schema/donation";
 import { npos } from "$/pg/schema/npo";
 import { payouts } from "$/pg/schema/payout";
 import { create_test_db } from "$/pg/test-utils/pglite";
+import { RETRIEVE_BATCH } from "$/stripe-connect/sent";
 import { loader } from "./route";
 
 const db = () => test_db.current!.db;
@@ -128,6 +130,7 @@ async function transfer(id: string, net: number, date: string, rec: IRecord) {
       net,
       stripe_routed_to: "acct_sent",
       stripe_transfer_id: id,
+      stripe_transfer_created_at: new Date(rec.created * 1000).toISOString(),
     });
 }
 
@@ -298,12 +301,12 @@ describe("payouts loader — routed transfer standing", () => {
     expect((await sent())?.items.map((t) => t.id)).toEqual(["tr_kept"]);
   });
 
-  test("a stripe miss does not call the transfer paid out", async () => {
+  test("a stripe miss shows the transfer's creation time", async () => {
     await npo({ acct: "acct_sent" });
-    await transfer("tr_down", 90, "2026-07-01T12:00:00.000Z", {
+    await transfer("tr_down", 90, "2026-06-01T00:00:00.000Z", {
       amount: 9_000,
       amount_reversed: 0,
-      created: unix("2026-07-01T00:00:00.000Z"),
+      created: unix("2026-07-01T12:00:00.000Z"),
       reversals: listed([]),
     });
     stripe.transfers.retrieve.mockRejectedValueOnce(
@@ -322,6 +325,25 @@ describe("payouts loader — routed transfer standing", () => {
       ],
     });
     expect(report_degraded).toHaveBeenCalledOnce();
+  });
+
+  test("a stripe miss with no stored transfer time keeps the donation date", async () => {
+    await npo({ acct: "acct_sent" });
+    await transfer("tr_legacy", 90, "2026-07-01T12:00:00.000Z", {
+      amount: 9_000,
+      amount_reversed: 0,
+      created: unix("2026-08-01T00:00:00.000Z"),
+      reversals: listed([]),
+    });
+    await db()
+      .update(dists)
+      .set({ stripe_transfer_created_at: null })
+      .where(eq(dists.id, "dist-tr_legacy"));
+    stripe.transfers.retrieve.mockRejectedValueOnce(
+      new Stripe.errors.StripeConnectionError({ message: "socket hang up" })
+    );
+
+    expect((await sent())?.items[0]?.date).toBe("2026-07-01T12:00:00.000Z");
   });
 
   test("anything other than stripe still fails the page", async () => {
@@ -374,5 +396,91 @@ describe("payouts loader — routed transfer standing", () => {
     expect(page?.items[0]?.id).toBe("tr-100");
     expect(ids).toHaveLength(100);
     expect(ids).not.toContain("tr-0");
+  });
+
+  test("orders by when the transfer was created, not the donation", async () => {
+    await npo({ acct: "acct_sent" });
+    await transfer("tr_donated_later", 10, "2026-08-01T00:00:00.000Z", {
+      amount: 1_000,
+      amount_reversed: 0,
+      created: unix("2026-07-01T00:00:00.000Z"),
+      reversals: listed([]),
+    });
+    await transfer("tr_sent_later", 20, "2026-06-01T00:00:00.000Z", {
+      amount: 2_000,
+      amount_reversed: 0,
+      created: unix("2026-07-15T00:00:00.000Z"),
+      reversals: listed([]),
+    });
+
+    const page = await sent();
+    expect(page?.items.map((t) => t.id)).toEqual([
+      "tr_sent_later",
+      "tr_donated_later",
+    ]);
+    expect(page?.items[0]?.date).toBe("2026-07-15T00:00:00.000Z");
+  });
+
+  test("keeps a later transfer of an older donation in the recent hundred", async () => {
+    await npo({ acct: "acct_sent" });
+    const start = Date.parse("2026-01-01T00:00:00.000Z");
+    for (let i = 0; i < 100; i++) {
+      const sent_at = new Date(start + i * 3_600_000).toISOString();
+      await transfer(`tr-${i}`, 10, "2026-08-01T00:00:00.000Z", {
+        amount: 1_000,
+        amount_reversed: 0,
+        created: unix(sent_at),
+        reversals: listed([]),
+      });
+    }
+    const newest = new Date(start + 100 * 3_600_000).toISOString();
+    await transfer("tr-late", 10, "2020-01-01T00:00:00.000Z", {
+      amount: 1_000,
+      amount_reversed: 0,
+      created: unix(newest),
+      reversals: listed([]),
+    });
+
+    const page = await sent();
+    expect(page?.truncated).toBe(true);
+    expect(page?.items).toHaveLength(100);
+    expect(page?.items[0]?.id).toBe("tr-late");
+    expect(page?.items[0]?.date).toBe(newest);
+    expect(page?.items.map((t) => t.id)).not.toContain("tr-0");
+  });
+
+  test("retrieves transfers a few at a time, in transfer order", async () => {
+    await npo({ acct: "acct_sent" });
+    const n = RETRIEVE_BATCH + 5;
+    const start = Date.parse("2026-07-01T00:00:00.000Z");
+    for (let i = 0; i < n; i++) {
+      const date = new Date(start + i * 60_000).toISOString();
+      await transfer(`tr-${i}`, 10, "2026-01-01T00:00:00.000Z", {
+        amount: 1_000,
+        amount_reversed: 0,
+        created: unix(date),
+        reversals: listed([]),
+      });
+    }
+
+    let in_flight = 0;
+    let max_in_flight = 0;
+    stripe.transfers.retrieve.mockImplementation(async (id: string) => {
+      in_flight += 1;
+      max_in_flight = Math.max(max_in_flight, in_flight);
+      await new Promise((r) => setTimeout(r, 0));
+      in_flight -= 1;
+      const t = records.get(id);
+      if (!t) throw new Error(`missing transfer ${id}`);
+      return { id, ...t };
+    });
+
+    const page = await sent();
+    expect(max_in_flight).toBe(RETRIEVE_BATCH);
+    expect(page?.items).toHaveLength(n);
+    expect(page?.items.map((t) => t.id)).toEqual(
+      Array.from({ length: n }, (_, i) => `tr-${n - 1 - i}`)
+    );
+    expect(stripe.transfers.retrieve).toHaveBeenCalledTimes(n);
   });
 });

@@ -90,7 +90,11 @@ export async function transfer_routed_dist(
     }
   }
 
-  const r = await dist_stripe_transfer_set(p.dist_id, tr.id);
+  const r = await dist_stripe_transfer_set(
+    p.dist_id,
+    tr.id,
+    new Date(tr.created * 1000).toISOString()
+  );
   // the same id is a racing delivery that got stripe's idempotent reply
   if (!r.set && r.existing !== tr.id) {
     report_error(new Error(`dist ${p.dist_id} paid by two transfers`), {

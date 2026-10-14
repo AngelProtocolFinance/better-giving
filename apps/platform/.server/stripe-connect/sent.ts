@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import Stripe from "stripe";
 import { report_degraded } from "#/errors/report";
 import { to_units } from "@/helpers/decimal";
@@ -14,6 +14,9 @@ import { npos } from "../pg/schema/npo";
 
 /** one retrieve per transfer; past this the page names that it stopped */
 const SENT_LIMIT = 100;
+
+/** stripe transfer reads in flight for one page. the rest wait */
+export const RETRIEVE_BATCH = 10;
 
 interface ITransferRow {
   id: string;
@@ -34,9 +37,9 @@ interface ITransferRecord {
 }
 
 /**
- * routed transfers paid to `npo_id`, newest first, each with what its
- * reversal records took back. null when the nonprofit is not on Connect and
- * has none: the payouts page stays as it is. an empty list is a connected
+ * routed transfers paid to `npo_id`, newest transfer first, each with what
+ * its reversal records took back. null when the nonprofit is not on Connect
+ * and has none: the payouts page stays as it is. an empty list is a connected
  * nonprofit nothing has been sent to yet
  */
 export async function npo_sent_transfers(
@@ -55,11 +58,19 @@ export async function npo_sent_transfers(
       .select({
         id: dists.stripe_transfer_id,
         net: dists.net,
-        date: dists.date_created,
+        transferred_at: dists.stripe_transfer_created_at,
+        donated_at: dists.date_created,
       })
       .from(dists)
       .where(and(eq(dists.to_id, npo_id), isNotNull(dists.stripe_transfer_id)))
-      .orderBy(desc(dists.date_created), desc(dists.id))
+      // the transfer is created later than the donation, and a retry later
+      // still. a row with no stored transfer time keeps the donation's date
+      .orderBy(
+        desc(
+          sql`coalesce(${dists.stripe_transfer_created_at}, ${dists.date_created})`
+        ),
+        desc(dists.id)
+      )
       .limit(SENT_LIMIT + 1),
   ]);
 
@@ -67,14 +78,34 @@ export async function npo_sent_transfers(
   if (!connected && rows.length === 0) return null;
 
   const truncated = rows.length > SENT_LIMIT;
-  const listed = rows
-    .slice(0, SENT_LIMIT)
-    .flatMap((row) =>
-      row.id === null ? [] : [{ id: row.id, net: row.net, date: row.date }]
-    );
-  const items = await Promise.all(listed.map((row) => sent_of(npo_id, row)));
+  const listed = rows.slice(0, SENT_LIMIT).flatMap((row) =>
+    row.id === null
+      ? []
+      : [
+          {
+            id: row.id,
+            net: row.net,
+            date: row.transferred_at ?? row.donated_at,
+          },
+        ]
+  );
+  const items = await in_batches(listed, (row) => sent_of(npo_id, row));
   items.sort((a, b) => b.date.localeCompare(a.date));
   return { items, truncated };
+}
+
+/** `run` over `items`, RETRIEVE_BATCH at a time, in that order. a rejection
+ * rejects the page and drops the rows already read */
+async function in_batches<T, R>(
+  items: T[],
+  run: (item: T) => Promise<R>
+): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += RETRIEVE_BATCH) {
+    const part = await Promise.all(items.slice(i, i + RETRIEVE_BATCH).map(run));
+    out.push(...part);
+  }
+  return out;
 }
 
 /** cents the transfer's reversal records add up to. an incomplete page of

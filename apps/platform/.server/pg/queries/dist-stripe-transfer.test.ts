@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import type { TestDb } from "../test-utils/pglite";
 
@@ -48,6 +49,17 @@ const donation = (id: string) =>
     via: "stripe:card",
   });
 
+const AT = "2026-07-01T00:00:00.000Z";
+const LATER = "2026-08-01T00:00:00.000Z";
+
+const created_at = async (id: string) => {
+  const [d] = await test_db
+    .current!.db.select({ at: dists.stripe_transfer_created_at })
+    .from(dists)
+    .where(eq(dists.id, id));
+  return d?.at;
+};
+
 /** settlement's write: `acct` is the connected account, null for pooled */
 const dist = (id: string, donation_id: string, acct: string | null) =>
   test_db.current!.db.insert(dists).values({
@@ -71,31 +83,33 @@ beforeEach(async () => {
 });
 
 test("stores the transfer on a dist that has none", async () => {
-  expect(await dist_stripe_transfer_set("dist-1", "tr_1")).toEqual({
+  expect(await dist_stripe_transfer_set("dist-1", "tr_1", AT)).toEqual({
     set: true,
   });
   expect(await dist_stripe_transfer_get("dist-1")).toBe("tr_1");
+  expect(await created_at("dist-1")).toBe(AT);
 });
 
-test("keeps the first transfer and reports it to a second", async () => {
-  await dist_stripe_transfer_set("dist-1", "tr_1");
-  expect(await dist_stripe_transfer_set("dist-1", "tr_2")).toEqual({
+test("keeps the first transfer and its creation time", async () => {
+  await dist_stripe_transfer_set("dist-1", "tr_1", AT);
+  expect(await dist_stripe_transfer_set("dist-1", "tr_2", LATER)).toEqual({
     set: false,
     existing: "tr_1",
   });
   expect(await dist_stripe_transfer_get("dist-1")).toBe("tr_1");
+  expect(await created_at("dist-1")).toBe(AT);
 });
 
 test("a transfer already paying one dist is refused on another", async () => {
-  await dist_stripe_transfer_set("dist-1", "tr_1");
+  await dist_stripe_transfer_set("dist-1", "tr_1", AT);
   await expect(
-    dist_stripe_transfer_set("dist-2", "tr_1")
+    dist_stripe_transfer_set("dist-2", "tr_1", AT)
   ).rejects.toMatchObject({ cause: { code: "23505" } });
   expect(await dist_stripe_transfer_get("dist-2")).toBeNull();
 });
 
 test("storing a transfer on no dist throws", async () => {
-  await expect(dist_stripe_transfer_set("dist-x", "tr_1")).rejects.toThrow(
+  await expect(dist_stripe_transfer_set("dist-x", "tr_1", AT)).rejects.toThrow(
     "dist dist-x not found"
   );
   expect(await dist_stripe_transfer_get("dist-x")).toBeUndefined();
@@ -103,7 +117,7 @@ test("storing a transfer on no dist throws", async () => {
 
 test("lists the donation's routed dists still waiting on a transfer", async () => {
   await dist("dist-1-paid", "don-1", "acct_paid");
-  await dist_stripe_transfer_set("dist-1-paid", "tr_paid");
+  await dist_stripe_transfer_set("dist-1-paid", "tr_paid", AT);
   await dist("dist-1-pooled", "don-1", null);
 
   expect(await dists_routed_untransferred("don-1")).toEqual([
@@ -123,7 +137,7 @@ test("unrouting a routed dist with no transfer rebooks it pooled", async () => {
 });
 
 test("a dist a transfer already paid stays routed", async () => {
-  await dist_stripe_transfer_set("dist-1", "tr_1");
+  await dist_stripe_transfer_set("dist-1", "tr_1", AT);
   expect(await dist_unroute("dist-1")).toBe(false);
   expect(await dist_stripe_transfer_get("dist-1")).toBe("tr_1");
 });
