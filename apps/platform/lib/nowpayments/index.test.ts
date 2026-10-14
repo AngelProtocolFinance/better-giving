@@ -95,6 +95,20 @@ describe("nowpayments client", () => {
       "a non-numeric estimated_amount",
       { amount_from: 100, estimated_amount: "nope" },
     ],
+    ["a hex estimated_amount", { amount_from: 100, estimated_amount: "0x10" }],
+    [
+      "an exponent estimated_amount",
+      { amount_from: 100, estimated_amount: "1e5" },
+    ],
+    ["an empty estimated_amount", { amount_from: 100, estimated_amount: "" }],
+    [
+      "a whitespace estimated_amount",
+      { amount_from: 100, estimated_amount: " " },
+    ],
+    [
+      "a padded estimated_amount",
+      { amount_from: 100, estimated_amount: " 0.05" },
+    ],
   ])(
     "estimate throws on %s rather than return a usd rate of Infinity or NaN",
     async (_, body) => {

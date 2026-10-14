@@ -23,11 +23,15 @@ const is_positive = (x: unknown): x is number =>
 
 /**
  * a positive finite quote. nowpayments sends `estimated_amount` (and, the
- * same way, a minimum) as a decimal string so a sub-cent figure keeps its
- * digits; a JSON number is that same quote. anything else is not a price.
+ * same way, a minimum) as a plain decimal string (`100`, `0.05`) so a
+ * sub-cent figure keeps its digits; a JSON number is that same quote.
+ * `Number` would also read hex (`0x10`), an exponent (`1e5`), and blank or
+ * padded strings, which are not a price.
  */
+const DECIMAL = /^[0-9]+(?:\.[0-9]+)?$/;
+
 const positive_number = (x: unknown): number | null => {
-  const n = typeof x === "string" ? Number(x) : x;
+  const n = typeof x === "string" ? (DECIMAL.test(x) ? Number(x) : null) : x;
   return is_positive(n) ? n : null;
 };
 
