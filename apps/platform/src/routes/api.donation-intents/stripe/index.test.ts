@@ -4,6 +4,8 @@ import type { Ctx } from "../types";
 
 const pi_create_mock = vi.hoisted(() => vi.fn());
 const si_create_mock = vi.hoisted(() => vi.fn());
+const npo_get_mock = vi.hoisted(() => vi.fn());
+const routing = vi.hoisted(() => ({ on: false }));
 
 vi.mock("$/kit/stripe", () => ({
   stripe: {
@@ -16,6 +18,19 @@ vi.mock("./customer-with-currency", () => ({
   customer_with_currency: async () => "cus_1",
 }));
 vi.mock("$/pg/db", () => ({ db: {} }));
+vi.mock("$/pg/queries/npo", () => ({ npo_get: npo_get_mock }));
+vi.mock("$/env", async (importOriginal) => {
+  const env = await importOriginal<typeof import("$/env")>();
+  return {
+    ...env,
+    stripe: {
+      ...env.stripe,
+      get connect_routing() {
+        return routing.on;
+      },
+    },
+  };
+});
 vi.mock("$/pg/queries/donation", () => ({
   donation_put: async (_db: unknown, r: unknown) => r,
 }));
@@ -48,6 +63,7 @@ const stripe_refusal = (code: string, message: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  routing.on = false;
 });
 
 describe("stripe_intent refusals", () => {
@@ -196,5 +212,93 @@ describe("recurring setup: acss mandate currency", () => {
     await stripe_intent(ctx({ frequency: "monthly", currency: "USD" }, "card"));
 
     expect(setup_params().excluded_payment_method_types).toBeUndefined();
+  });
+});
+
+describe("one-time card: statement descriptor suffix", () => {
+  /** the npo row fields routing reads, ready to route */
+  const routable = {
+    name: "Cáritas",
+    stripe_account_id: "acct_1",
+    stripe_charges_enabled: true,
+    stripe_payouts_enabled: true,
+    stripe_details_submitted: true,
+    stripe_requirements_due: [],
+    fiscal_sponsored: false,
+    hq_country: "Spain",
+    stripe_deauthorized_at: null,
+  };
+
+  beforeEach(() => {
+    routing.on = true;
+    npo_get_mock.mockResolvedValue(routable);
+    pi_create_mock.mockResolvedValue({ client_secret: "pi_secret" });
+  });
+
+  const pi_params = () => pi_create_mock.mock.calls[0]![0];
+
+  it("names a routable npo beside our prefix", async () => {
+    await stripe_intent(ctx({}, "card"));
+
+    expect(npo_get_mock).toHaveBeenCalledWith(1);
+    expect(pi_params().statement_descriptor_suffix).toBe("CARITAS");
+  });
+
+  it.each([
+    ["routing is switched off", () => (routing.on = false)],
+    [
+      "the npo is fiscally sponsored",
+      () =>
+        npo_get_mock.mockResolvedValue({ ...routable, fiscal_sponsored: true }),
+    ],
+    [
+      "the npo's country is outside the transfer set",
+      () =>
+        npo_get_mock.mockResolvedValue({
+          ...routable,
+          hq_country: "Philippines",
+        }),
+    ],
+    [
+      "the npo disconnected us",
+      () =>
+        npo_get_mock.mockResolvedValue({
+          ...routable,
+          stripe_deauthorized_at: "2026-10-01T00:00:00.000Z",
+        }),
+    ],
+    [
+      "the npo's name has nothing printable",
+      () => npo_get_mock.mockResolvedValue({ ...routable, name: "希望基金会" }),
+    ],
+  ])("leaves the intent as it was when %s", async (_case, arrange) => {
+    arrange();
+    await stripe_intent(ctx({}, "card"));
+
+    expect(pi_params()).not.toHaveProperty("statement_descriptor_suffix");
+  });
+
+  it("leaves a fund's intent as it was", async () => {
+    await stripe_intent({
+      ...ctx({}, "card"),
+      to: {
+        to_id: "4f3b2a10-9c8d-4e7f-a6b5-c4d3e2f1a0b9",
+        to_type: "fund",
+        to_name: "Relief Fund",
+        to_tip_allowed: true,
+        to_members: ["1"],
+      },
+    });
+
+    expect(npo_get_mock).not.toHaveBeenCalled();
+    expect(pi_params()).not.toHaveProperty("statement_descriptor_suffix");
+  });
+
+  // a bank debit takes the account's full descriptor, never a suffix
+  it("leaves a bank-tab intent as it was", async () => {
+    await stripe_intent(ctx({}, "bank"));
+
+    expect(npo_get_mock).not.toHaveBeenCalled();
+    expect(pi_params()).not.toHaveProperty("statement_descriptor_suffix");
   });
 });

@@ -19,7 +19,7 @@ import {
 } from "../pg/queries/take";
 import { dists } from "../pg/schema/dist";
 import type { OwedSource } from "./apply";
-import { dist_settled_usd } from "./plan";
+import { dist_settled_usd, past_cut } from "./plan";
 import {
   type CreditPart,
   credit_parts,
@@ -49,7 +49,8 @@ const party_key = (p: OwedParty) => JSON.stringify(p);
 
 /**
  * what each party owes for the active takes. an npo whose grant has gone out
- * owes the share they all take of what it received and of its card fee; one
+ * owes the share they all take, less the refunds a pooled rebook cut off it,
+ * of what it received and of its card fee; one
  * whose grant hasn't owes the disputes' share only, a refund there being ops'
  * to settle by hand. each active dispute's fee is owed in full, split over
  * the dists by settled amount, and each referrer owes the whole share of its
@@ -71,7 +72,9 @@ export function owed_targets(
   return new Map(
     owed_shares(ds, {
       f: all,
-      f_of: (d) => (grant_went_out(d) ? all : disputes),
+      // a rebook's cut took refunds only, so a dispute owes its share whole
+      f_of: (d) =>
+        grant_went_out(d) ? past_cut(d.refunds_cut_share, all) : disputes,
       fee_usd: fees,
       owes: () => true,
     }).map((s) => [party_key(s.party), s])
@@ -115,6 +118,64 @@ export async function record_dispute_fees(
       now: r.now,
     });
   }
+}
+
+/**
+ * the npo's row raised to what the gift's takes owe it plus `usd`, every cent
+ * of its routed dist's transfer stripe refused to reverse for the gift's
+ * refunds so far; its figures only grow, so a rerun records nothing more
+ */
+export async function owe_unreversed(u: {
+  donation_id: string;
+  npo_id: number;
+  usd: number;
+  /** the refund whose cut was refused */
+  source_ref: string;
+}) {
+  await db.transaction(async (tx) => {
+    const ds = await gift_dists_locked(tx, u.donation_id);
+    const takes = await takes_of(tx, u.donation_id);
+    const owes = [...owed_targets(ds, takes).values()].find(
+      (s) => "npo_id" in s.party && s.party.npo_id === u.npo_id
+    );
+    await record_owed(tx, {
+      donation_id: u.donation_id,
+      party: { npo_id: u.npo_id },
+      received_usd: (owes?.received_usd ?? 0) + u.usd,
+      // the zeros leave what is recorded
+      fee_processing_usd: 0,
+      fee_dispute_usd: 0,
+      source: "refund",
+      source_ref: u.source_ref,
+      now: new Date().toISOString(),
+    });
+  });
+}
+
+/**
+ * the npo's row credited back the cut of its routed dist's transfer stripe
+ * refused to reverse for a refund that then failed: the donor got nothing
+ * back, so nothing is owed for it. keyed on the refund, so a rerun credits
+ * nothing more, and counted as a failed refund, so a later record of the row
+ * adds it back on rather than owing it again
+ */
+export async function credit_unreversed(u: {
+  donation_id: string;
+  npo_id: number;
+  usd: number;
+  refund_id: string;
+}) {
+  await db.transaction(async (tx) => {
+    const party = { npo_id: u.npo_id };
+    const row = await owed_for_party(u.donation_id, party, tx);
+    if (!row) return;
+    await credit_parts(
+      tx,
+      row,
+      { donation_id: u.donation_id, party, now: new Date().toISOString() },
+      [["refund_failed", u.usd, refund_failed_ref(u.refund_id)]]
+    );
+  });
 }
 
 export interface OwedMove {

@@ -8,6 +8,7 @@ import {
   test,
   vi,
 } from "vitest";
+import { lock_order, logged_db } from "#/__tests__/fixtures/locks";
 import { user } from "../pg/schema/auth";
 import { bal_txs } from "../pg/schema/bal-tx";
 import { donation_disputes } from "../pg/schema/dispute";
@@ -2020,6 +2021,25 @@ describe("reverse_unfunded_payout_loss — a refund owed while its payout was in
     test_db.current!.db.transaction((tx) =>
       reverse_unfunded_payout_loss(as_db(tx), "payout-1")
     );
+
+  // the order `dists_locked` in ./share documents: a refund-failed credit
+  // holds the donation while it waits on the dist
+  test("locks the donation, then its dist, payout and npo", async () => {
+    await refund_in_flight({
+      alloc: { liq: 0, lock: 0, cash: 100 },
+      bal: { liq: 0 },
+    });
+    const { db, queries } = logged_db(test_db.current!);
+
+    const r = await db.transaction((tx) =>
+      reverse_unfunded_payout_loss(as_db(tx), "payout-1")
+    );
+
+    expect(r).toEqual({ status: "reversed" });
+    expect(
+      lock_order(queries, ["donations", "dists", "payouts", "npos"])
+    ).toEqual(["donations", "dists", "payouts", "npos"]);
+  });
 
   test("clears what the npo owed: credited back, outstanding $0, refunded as if the payout had been pending", async () => {
     const { id, npo_id } = await refund_in_flight({

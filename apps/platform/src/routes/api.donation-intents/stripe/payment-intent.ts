@@ -8,6 +8,8 @@ export interface IInput extends IAmount {
   currency: string;
   customer_id: string;
   bank_only?: boolean;
+  /** `statement_descriptor_suffix`; absent, the intent sets none */
+  descriptor_suffix?: string;
 }
 
 export async function payment_intent(i: IInput): Promise<string> {
@@ -35,6 +37,9 @@ export async function payment_intent(i: IInput): Promise<string> {
     ...(i.bank_only
       ? { payment_method_types: ["us_bank_account", "acss_debit"] }
       : { automatic_payment_methods: { enabled: true } }),
+    ...(i.descriptor_suffix && {
+      statement_descriptor_suffix: i.descriptor_suffix,
+    }),
   });
   return client_secret || "invalid client secret";
 }

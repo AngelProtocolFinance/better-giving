@@ -1,5 +1,5 @@
 import { Combo, type ComboProps, DrawerIcon } from "@better-giving/ui";
-import { countries, country_names } from "#/constants/countries";
+import { countries, country_names } from "@/constants/countries";
 
 /**
  * what a caller still varies. `options`, `render`, `adornment` and

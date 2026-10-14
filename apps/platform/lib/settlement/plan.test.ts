@@ -1,6 +1,7 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, expectTypeOf, test } from "vitest";
 import type { IAllocation } from "../donations";
 import type { IDonDistPayload } from "../queue";
+import type { IRevenueLog } from "../revenue";
 import type { IInput, IParts } from "../types/donation-dist";
 import {
   calc_settlement_plan,
@@ -69,7 +70,7 @@ const make_ctx = (
 
 describe("calc_settlement_plan", () => {
   test("baseline: no tip, no fees, all-cash alloc → payout = gross", () => {
-    const plan = calc_settlement_plan(make_input(), make_ctx());
+    const plan = calc_settlement_plan(make_input(), make_ctx(), null);
     expect(plan.dist.gross).toBe(100);
     expect(plan.dist.net).toBe(100);
     expect(plan.dist.fees).toEqual({ base: 0, fsa: 0, processing: 0 });
@@ -82,7 +83,8 @@ describe("calc_settlement_plan", () => {
   test("hide_bg_tip → base fee charged; fiscal_sponsored → fsa fee charged", () => {
     const plan = calc_settlement_plan(
       make_input(),
-      make_ctx({ hide_bg_tip: true, fiscal_sponsored: true })
+      make_ctx({ hide_bg_tip: true, fiscal_sponsored: true }),
+      null
     );
     // base 1.5%, fsa 2.9%
     expect(plan.dist.fees.base).toBeCloseTo(1.5);
@@ -97,7 +99,8 @@ describe("calc_settlement_plan", () => {
   test("invariant: gross == net + base + fsa - fa_excess_credit", () => {
     const plan = calc_settlement_plan(
       make_input(),
-      make_ctx({ hide_bg_tip: true, fiscal_sponsored: true })
+      make_ctx({ hide_bg_tip: true, fiscal_sponsored: true }),
+      null
     );
     expect(plan.dist.gross).toBeCloseTo(
       plan.dist.net + plan.dist.fees.base + plan.dist.fees.fsa
@@ -107,7 +110,8 @@ describe("calc_settlement_plan", () => {
   test("tip > 0 → tip revenue log + tip_received msg with shared id", () => {
     const plan = calc_settlement_plan(
       make_input({ ps: parts({ sttl: amt(100, 5) }) }),
-      make_ctx()
+      make_ctx(),
+      null
     );
     const tip_log = plan.revenue_logs.find((r) => r.type === "tip");
     expect(tip_log?.gross).toBe(5);
@@ -123,7 +127,8 @@ describe("calc_settlement_plan", () => {
         fiscal_sponsored: true,
         referrer_user: "u-1",
         referrer_expiry: "2099-01-01T00:00:00.000Z",
-      })
+      }),
+      null
     );
     const tip_gross = plan.revenue_logs.find((r) => r.type === "tip")!.gross;
     const expected_commission =
@@ -141,7 +146,8 @@ describe("calc_settlement_plan", () => {
         hide_bg_tip: true,
         referrer_user: "u-1",
         referrer_expiry: "2020-01-01T00:00:00.000Z",
-      })
+      }),
+      null
     );
     expect(plan.commission).toBeNull();
     expect(plan.dist.referrer).toBeUndefined();
@@ -150,7 +156,8 @@ describe("calc_settlement_plan", () => {
   test("alloc 50/30/20 (lock/liq/cash) → 2 balance txs + payout + nav_log_entry", () => {
     const plan = calc_settlement_plan(
       make_input({ nav_price: 2 }),
-      make_ctx({ allocation: { lock: 50, liq: 30, cash: 20 } })
+      make_ctx({ allocation: { lock: 50, liq: 30, cash: 20 } }),
+      null
     );
     expect(plan.balance_txs).toHaveLength(2);
     expect(plan.balance_txs[0].account).toBe("lock");
@@ -166,14 +173,15 @@ describe("calc_settlement_plan", () => {
   test("invariant: balance_deltas sums to net", () => {
     const plan = calc_settlement_plan(
       make_input(),
-      make_ctx({ allocation: { lock: 50, liq: 30, cash: 20 } })
+      make_ctx({ allocation: { lock: 50, liq: 30, cash: 20 } }),
+      null
     );
     const { liq, lock, cash } = plan.balance_deltas;
     expect(liq + lock + cash).toBeCloseTo(plan.dist.net);
   });
 
   test("alloc 0/0/100 → no balance txs, no nav log, payout only", () => {
-    const plan = calc_settlement_plan(make_input(), make_ctx());
+    const plan = calc_settlement_plan(make_input(), make_ctx(), null);
     expect(plan.balance_txs).toHaveLength(0);
     expect(plan.nav_log_entry).toBeNull();
     expect(plan.payout?.amount).toBe(100);
@@ -183,7 +191,8 @@ describe("calc_settlement_plan", () => {
     const plan = calc_settlement_plan(
       make_input(),
       // jsonb allocation written without a cash key
-      make_ctx({ allocation: { liq: 100, lock: 0 } as IAllocation })
+      make_ctx({ allocation: { liq: 100, lock: 0 } as IAllocation }),
+      null
     );
     expect(plan.balance_deltas).toEqual({
       liq: 100,
@@ -198,7 +207,8 @@ describe("calc_settlement_plan", () => {
   test("stored allocation with no shares → default all-cash, net still lands", () => {
     const plan = calc_settlement_plan(
       make_input(),
-      make_ctx({ allocation: {} as IAllocation })
+      make_ctx({ allocation: {} as IAllocation }),
+      null
     );
     expect(plan.dist.to_settings.alloc).toEqual({ liq: 0, lock: 0, cash: 100 });
     expect(plan.balance_deltas.cash).toBe(100);
@@ -209,7 +219,8 @@ describe("calc_settlement_plan", () => {
   test("stored allocation missing cash → cash is the remainder", () => {
     const plan = calc_settlement_plan(
       make_input(),
-      make_ctx({ allocation: { liq: 30, lock: 20 } as IAllocation })
+      make_ctx({ allocation: { liq: 30, lock: 20 } as IAllocation }),
+      null
     );
     expect(plan.dist.to_settings.alloc).toEqual({
       liq: 30,
@@ -224,7 +235,8 @@ describe("calc_settlement_plan", () => {
   test("stored allocation summing over 100 → default all-cash, flagged", () => {
     const plan = calc_settlement_plan(
       make_input(),
-      make_ctx({ allocation: { liq: 60, lock: 30, cash: 20 } })
+      make_ctx({ allocation: { liq: 60, lock: 30, cash: 20 } }),
+      null
     );
     expect(plan.dist.to_settings.alloc).toEqual({ liq: 0, lock: 0, cash: 100 });
     expect(plan.balance_deltas.cash).toBe(plan.dist.net);
@@ -234,7 +246,8 @@ describe("calc_settlement_plan", () => {
   test("stored allocation with cash but short of 100 → default all-cash, flagged", () => {
     const plan = calc_settlement_plan(
       make_input(),
-      make_ctx({ allocation: { liq: 30, lock: 20, cash: 0 } })
+      make_ctx({ allocation: { liq: 30, lock: 20, cash: 0 } }),
+      null
     );
     expect(plan.dist.to_settings.alloc).toEqual({ liq: 0, lock: 0, cash: 100 });
     expect(plan.alloc_fell_back).toBe(true);
@@ -249,7 +262,8 @@ describe("calc_settlement_plan", () => {
           sttl_fa: amt(3),
         }),
       }),
-      make_ctx()
+      make_ctx(),
+      null
     );
     expect(plan.dist.gross).toBe(100);
     expect(plan.dist.fee_allowance_excess).toBe(1); // 3 - 2
@@ -257,7 +271,7 @@ describe("calc_settlement_plan", () => {
   });
 
   test("don_dist msg is always emitted, last", () => {
-    const plan = calc_settlement_plan(make_input(), make_ctx());
+    const plan = calc_settlement_plan(make_input(), make_ctx(), null);
     expect(plan.msgs.at(-1)?.id).toBe("don-dist");
   });
 
@@ -272,7 +286,8 @@ describe("calc_settlement_plan", () => {
           from_addr_country: "GB",
         },
       }),
-      make_ctx()
+      make_ctx(),
+      null
     );
 
     // this is the only producer of the kind, so an address it drops is one the
@@ -289,11 +304,97 @@ describe("calc_settlement_plan", () => {
   test("don_dist carries the form the donation came through", () => {
     const plan = calc_settlement_plan(
       make_input({ source: { id: "form-1", tag: "gala" } }),
-      make_ctx()
+      make_ctx(),
+      null
     );
 
     const p = plan.msgs.at(-1)?.payload as IDonDistPayload;
     expect(p.form).toEqual({ id: "form-1", tag: "gala" });
+  });
+});
+
+describe("calc_settlement_plan routed to a connected account", () => {
+  const ACCT = "acct_routed";
+  // fees, a tip, a live referrer and a stored investment split: everything a
+  // routed plan keeps or drops is non-zero in the pooled one
+  const input = () =>
+    make_input({ ps: parts({ sttl: amt(100, 10) }), nav_price: 2 });
+  const ctx = () =>
+    make_ctx({
+      hide_bg_tip: true,
+      fiscal_sponsored: true,
+      referrer_user: "u-1",
+      referrer_expiry: "2099-01-01T00:00:00.000Z",
+      allocation: { lock: 50, liq: 30, cash: 20 },
+    });
+  // both are minted per plan
+  const no_ids = (xs: IRevenueLog[]) =>
+    xs.map(({ id: _, donation_id: __, ...x }) => x);
+
+  test("books the dist, fees, tip and referral exactly as pooled does", () => {
+    const pooled = calc_settlement_plan(input(), ctx(), null);
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+
+    expect(routed.kind).toBe("routed");
+    expect(routed.dist.net).toBeCloseTo(100 - 1.5 - 2.9);
+    expect(routed.dist.fees).toEqual(pooled.dist.fees);
+    expect(routed.dist.referrer).toEqual(pooled.dist.referrer);
+    expect(no_ids(routed.revenue_logs)).toEqual(no_ids(pooled.revenue_logs));
+    expect(routed.commission?.amount).toBeCloseTo(pooled.commission!.amount);
+  });
+
+  test("lands the whole net as cash, whatever split the npo stored", () => {
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+    expect(routed.dist.to_settings.alloc).toEqual({
+      cash: 100,
+      liq: 0,
+      lock: 0,
+    });
+    expect(routed.alloc_fell_back).toBe(false);
+  });
+
+  test("carries no payout, balance movement or investment", () => {
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+    for (const k of [
+      "payout",
+      "balance_txs",
+      "nav_log_entry",
+      "balance_deltas",
+    ])
+      expect(routed).not.toHaveProperty(k);
+    expect(routed.msgs.map((m) => m.id)).not.toContain("lock-tx-created");
+  });
+
+  test("a pooled plan of the same donation does carry them", () => {
+    const pooled = calc_settlement_plan(input(), ctx(), null);
+    expect(pooled.kind).toBe("pooled");
+    expect(pooled.payout?.amount).toBeCloseTo(pooled.dist.net * 0.2);
+    expect(pooled.balance_txs.map((t) => t.account)).toEqual(["lock", "liq"]);
+  });
+
+  test("asks for the transfer of the dist it books", () => {
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+    expect(routed.msgs.map((m) => m.id)).toEqual([
+      "tip-received",
+      "don-dist",
+      "connect-transfer",
+    ]);
+    // the dist row's id is the plan's don id; sttl id is the payment intent
+    expect(routed.msgs.at(-1)?.payload).toEqual({
+      dist_id: routed.don.id,
+      donation_id: "parent-1",
+      intent_id: "sttl-1",
+    });
+  });
+
+  test("has no payout field at the type level", () => {
+    const routed = calc_settlement_plan(input(), ctx(), ACCT);
+    expectTypeOf(routed).not.toHaveProperty("payout");
+    expectTypeOf(routed).not.toHaveProperty("balance_txs");
+    expectTypeOf(routed).not.toHaveProperty("nav_log_entry");
+    expectTypeOf(routed).not.toHaveProperty("balance_deltas");
+    // @ts-expect-error a routed plan cannot name a payout
+    routed.payout;
   });
 });
 

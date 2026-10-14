@@ -102,6 +102,35 @@ describe("sync_npo_account", () => {
     expect(retrieve).not.toHaveBeenCalled();
   });
 
+  test("a disconnected npo is disconnected and asks stripe nothing", async () => {
+    const npo = await seed_npo(db(), {
+      registration_number: "EIN-SYNC-6",
+      stripe_account_id: "acct_sync_6",
+      stripe_deauthorized_at: "2026-10-01T00:00:00.000Z",
+    });
+
+    await expect(sync_npo_account(npo!.id)).resolves.toBe("disconnected");
+    expect(retrieve).not.toHaveBeenCalled();
+  });
+
+  // stripe refuses a read of an account that revoked our access
+  test("an account stripe refuses us is disconnected, its mirror untouched", async () => {
+    const npo = await seed_npo(db(), {
+      registration_number: "EIN-SYNC-7",
+      stripe_account_id: "acct_sync_7",
+    });
+    retrieve.mockRejectedValue(
+      new Stripe.errors.StripePermissionError({
+        message: "The provided key does not have access to account",
+      })
+    );
+
+    await expect(sync_npo_account(npo!.id)).resolves.toBe("disconnected");
+    const r = await row(npo!.id);
+    expect(r.stripe_synced_at).toBeNull();
+    expect(r.stripe_deauthorized_at).toBeNull();
+  });
+
   // right after a connect stripe is still verifying, so an account.updated
   // can land while this read is in flight
   test("an event written while stripe was answering is kept", async () => {
@@ -201,7 +230,7 @@ describe("sync_npo_account", () => {
 
     expect(retrieve.mock.calls).toEqual([["acct_old"], ["acct_new"]]);
     const r = await row(npo!.id);
-    expect(m?.charges_enabled).toBe(false);
+    expect(m).toMatchObject({ charges_enabled: false });
     expect(r.stripe_charges_enabled).toBe(false);
     expect(r.stripe_payouts_enabled).toBe(false);
     expect(r.stripe_details_submitted).toBe(false);
@@ -219,12 +248,23 @@ describe("account_status_live", () => {
   });
 
   test("a stripe error is reported and reads as pending", async () => {
-    const err = new Stripe.errors.StripePermissionError({
-      message: "The provided key does not have access to account",
-    });
+    const err = new Stripe.errors.StripeAPIError({ message: "stripe is down" });
     retrieve.mockRejectedValue(err);
 
-    await expect(account_status_live("acct_gone")).resolves.toBe("pending");
+    await expect(account_status_live("acct_down")).resolves.toBe("pending");
     expect(report_error).toHaveBeenCalledWith(err);
+  });
+
+  test("an account stripe refuses us reads as disconnected", async () => {
+    retrieve.mockRejectedValue(
+      new Stripe.errors.StripePermissionError({
+        message: "The provided key does not have access to account",
+      })
+    );
+
+    await expect(account_status_live("acct_gone")).resolves.toBe(
+      "disconnected"
+    );
+    expect(report_error).not.toHaveBeenCalled();
   });
 });

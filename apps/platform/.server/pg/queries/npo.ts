@@ -6,13 +6,13 @@ import {
   exists,
   getTableColumns,
   inArray,
+  isNull,
   or,
   type SQL,
   sql,
 } from "drizzle-orm";
 import type { INposPage, INpoWithRegNum } from "@/npo/interfaces";
 import type { INposSearchObj } from "@/npo/schema";
-import type { IAccountMirror } from "@/stripe-connect/readiness";
 import type { IBalanceDeltas } from "@/types/donation";
 import { db } from "../db";
 import { finite } from "../schema/columns";
@@ -116,36 +116,103 @@ export async function npo_get(
   return row_to_npo(row);
 }
 
-export interface INpoStripe {
-  acct: string | null;
-  /** null until stripe has reported on `acct` */
-  synced_at: string | null;
-  mirror: IAccountMirror;
+/** the readiness mirror a newly connected account starts from */
+export type TNpoStripeMirrorReset = Required<
+  Pick<
+    NpoInsert,
+    | "stripe_charges_enabled"
+    | "stripe_payouts_enabled"
+    | "stripe_details_submitted"
+    | "stripe_requirements_due"
+    | "stripe_synced_at"
+  >
+>;
+
+/**
+ * connect `acct` to the npo, only while it still holds `held` (the account the
+ * caller read, null for none), so a concurrent connect is not replaced
+ * unconfirmed. clears a disconnect, which re-enables routing. true when written
+ */
+export async function npo_stripe_connect(
+  tx: DbOrTx,
+  npo_id: number,
+  acct: string,
+  held: string | null,
+  mirror: TNpoStripeMirrorReset
+): Promise<boolean> {
+  const written = await tx
+    .update(npos)
+    .set({
+      stripe_account_id: acct,
+      stripe_connected_at: sql`now()`,
+      stripe_deauthorized_at: null,
+      ...mirror,
+    })
+    .where(
+      and(
+        eq(npos.id, npo_id),
+        held === null
+          ? isNull(npos.stripe_account_id)
+          : eq(npos.stripe_account_id, held)
+      )
+    )
+    .returning({ id: npos.id });
+  return written.length > 0;
 }
 
-/** the npo's connected stripe account and its readiness mirror */
-export async function npo_stripe_get(
-  id: number
-): Promise<INpoStripe | undefined> {
-  const [row] = await db
-    .select({
-      acct: npos.stripe_account_id,
-      synced_at: npos.stripe_synced_at,
-      charges_enabled: npos.stripe_charges_enabled,
-      payouts_enabled: npos.stripe_payouts_enabled,
-      details_submitted: npos.stripe_details_submitted,
-      requirements_due: npos.stripe_requirements_due,
+/** what a disconnect event did. `stale` when the npo holding `acct` connected
+ * it after the event was created: a redelivery of an earlier disconnect.
+ * `tied` when the connect and the event fall in the same second — `at` is
+ * whole seconds and `stripe_connected_at` is not — so which came first is
+ * not in the timestamps */
+export type TNpoStripeDeauthorize =
+  | { status: "marked"; npo_id: number }
+  | { status: "stale"; npo_id: number }
+  | { status: "tied"; npo_id: number }
+  | { status: "unknown" };
+
+/** how a same-second connect and disconnect are told apart. `ask` reports
+ * `tied` and writes nothing. `mark` takes the disconnect as the later one.
+ * `stale` takes the connect as the later one */
+export type TStripeDeauthorizeTie = "ask" | "mark" | "stale";
+
+/** mark the npo holding `acct` as disconnected from it at `at`, the event's
+ * stripe-clock creation time. the earliest stamp since the last connect stays,
+ * so a redelivered or out-of-order event never moves it later. a connect in
+ * a later second wins; one in the event's own second is `tie` */
+export async function npo_stripe_deauthorize(
+  acct: string,
+  at: string,
+  conn: DbOrTx = db,
+  tie: TStripeDeauthorizeTie = "ask"
+): Promise<TNpoStripeDeauthorize> {
+  // compared in the update itself: a connect committing first is re-read
+  // under read committed, so the event can't stamp the account it reconnected.
+  // `at` is the event's second. a connect later in that second is not older
+  // than the event — `stripe_connected_at` carries the fraction `now()` has
+  // and the event does not — so it is a tie unless `tie` has resolved it
+  const older = sql`${npos.stripe_connected_at} is null or ${npos.stripe_connected_at} < ${at}::timestamptz`;
+  const same_second = sql`${npos.stripe_connected_at} is not null and date_trunc('second', ${npos.stripe_connected_at}) = date_trunc('second', ${at}::timestamptz) and not (${older})`;
+  const fresh = sql<boolean>`(${older} or (${tie === "mark"} and ${same_second}))`;
+  const tied = sql<boolean>`(${tie === "ask"} and ${same_second})`;
+  const [row] = await conn
+    .update(npos)
+    .set({
+      // least() skips a null, so the first mark lands as `at`
+      stripe_deauthorized_at: sql`case when ${fresh} then least(${npos.stripe_deauthorized_at}, ${at}::timestamptz) else ${npos.stripe_deauthorized_at} end`,
     })
-    .from(npos)
-    .where(eq(npos.id, id));
-  if (!row) return undefined;
-  const { acct, synced_at, ...mirror } = row;
-  return { acct, synced_at, mirror };
+    .where(eq(npos.stripe_account_id, acct))
+    .returning({ id: npos.id, fresh, tied });
+  if (!row) return { status: "unknown" };
+  if (row.fresh) return { status: "marked", npo_id: row.id };
+  if (row.tied) return { status: "tied", npo_id: row.id };
+  return { status: "stale", npo_id: row.id };
 }
 
 /**
  * `npo_get` holding the npo row until `tx` ends: a balance check made on it
  * stays true for the write, and a concurrent withdrawal waits its turn.
+ * lock order: `dists_locked` in `.server/refund/share.ts`
  */
 export async function npo_get_locked(
   tx: DbOrTx,

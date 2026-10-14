@@ -61,6 +61,10 @@ export const registrations = pgTable(
     o_bank_statement: text("o_bank_statement"),
     // stripe connected account; no npos row exists until approval copies it there
     o_stripe_account_id: text("o_stripe_account_id"),
+    /** when this registration last saved `o_stripe_account_id`. a disconnect
+     * event from before it is a redelivery and leaves the account. null: the
+     * account was saved before this was kept, so a disconnect still clears it */
+    o_stripe_connected_at: timestamptz("o_stripe_connected_at"),
 
     // branding
     o_image: text("o_image"),

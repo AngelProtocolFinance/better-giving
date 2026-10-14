@@ -257,3 +257,11 @@ export const countries: Record<string, Country> = {
 };
 
 export const country_names = Object.keys(countries);
+
+const code_by_name = new Map(
+  Object.entries(countries).map(([name, c]) => [name.toLowerCase(), c.code])
+);
+
+/** ISO 3166-1 alpha-2 for a name as `countries` spells it, any case */
+export const country_code = (name: string): string | undefined =>
+  code_by_name.get(name.trim().toLowerCase());

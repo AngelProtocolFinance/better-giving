@@ -1,4 +1,4 @@
-import { type AnyColumn, and, eq, isNull } from "drizzle-orm";
+import { type AnyColumn, eq, isNull } from "drizzle-orm";
 import { redirect } from "react-router";
 import Stripe from "stripe";
 import { consume, get_session } from "#/.server/auth";
@@ -9,8 +9,8 @@ import type { TConnectErrorReason } from "@/stripe-connect/return";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
 import { is_unique_violation } from "$/pg/errors";
+import { npo_stripe_connect } from "$/pg/queries/npo";
 import { reg_update_from } from "$/pg/queries/registration";
-import { npos } from "$/pg/schema/npo";
 import { registrations } from "$/pg/schema/registration";
 import { read_state, STATE_TTL_S } from "$/stripe-connect/state";
 import { mirror_unset, sync_npo_account } from "$/stripe-connect/sync";
@@ -43,7 +43,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (!user || user.id !== uid) return fail("forbidden");
   const access = await target_access(user, t);
   if (!access.ok) return fail("forbidden");
-  if (access.acct && !replace) return fail("replace_unconfirmed");
+  if (access.replaces && !replace) return fail("replace_unconfirmed");
 
   const code = url.searchParams.get("code");
   if (!code) return fail("failed");
@@ -85,7 +85,10 @@ export async function loader({ request }: Route.LoaderArgs) {
           tx,
           t.reg_id,
           EDITABLE,
-          { o_stripe_account_id: acct },
+          {
+            o_stripe_account_id: acct,
+            o_stripe_connected_at: new Date().toISOString(),
+          },
           held_as_read(registrations.o_stripe_account_id)
         );
         if (won) return "connected";
@@ -96,12 +99,14 @@ export async function loader({ request }: Route.LoaderArgs) {
       }
 
       // the old account's flags must not stand for this one if the sync fails
-      const written = await tx
-        .update(npos)
-        .set({ stripe_account_id: acct, ...mirror_unset })
-        .where(and(eq(npos.id, t.npo_id), held_as_read(npos.stripe_account_id)))
-        .returning({ id: npos.id });
-      return written.length ? "connected" : "replace_unconfirmed";
+      const written = await npo_stripe_connect(
+        tx,
+        t.npo_id,
+        acct,
+        access.acct,
+        mirror_unset
+      );
+      return written ? "connected" : "replace_unconfirmed";
     });
   } catch (err) {
     // a duplicate written before claims took the lock, now held by an npo

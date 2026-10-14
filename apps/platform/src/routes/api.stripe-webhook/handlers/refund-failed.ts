@@ -58,16 +58,31 @@ export async function handle_refund_failed(event: Stripe.RefundFailedEvent) {
 
   if (res.status === "not_recorded") {
     const credited = await refunds_credited_back(db, don.id, [refund.id]);
-    // a delivery that credited it and died before its alert landed
-    const text = credited.has(refund.id)
+    const routed_credited = res.routed?.credited ?? [];
+    const by_hand = res.routed?.by_hand.length
+      ? ["undo by hand:", ...res.routed.by_hand]
+      : [];
+    // a routed shortfall's credit is keyed on the refund too, so it is told
+    // before the check below would take it for an earlier delivery's
+    const text = routed_credited.length
       ? body([
-          `the donation stays ${res.donation_status}. an earlier delivery already credited back what the refund had taken back; each party's row now:`,
-          ...(await owed_for_donation(don.id)).map(row_line),
+          `the donation stays ${res.donation_status}. the refund had taken nothing back on the donation's record; what a routed transfer's refused reversal had recorded owed for it is credited back:`,
+          ...routed_credited,
+          ...by_hand,
         ])
-      : body([
-          `the refund had taken nothing back from the donation (status ${res.donation_status}): nothing was changed automatically.`,
-        ]);
-    // awaited: nothing was written, so a redelivery tells it the same
+      : // a delivery that credited it and died before its alert landed
+        credited.has(refund.id)
+        ? body([
+            `the donation stays ${res.donation_status}. an earlier delivery already credited back what the refund had taken back; each party's row now:`,
+            ...(await owed_for_donation(don.id)).map(row_line),
+            ...by_hand,
+          ])
+        : body([
+            `the refund had taken nothing back from the donation (status ${res.donation_status}): nothing was changed automatically.`,
+            ...by_hand,
+          ]);
+    // awaited: what was written, a routed credit at most, is keyed on the
+    // refund, so a redelivery tells it the same
     await send(text);
     return;
   }

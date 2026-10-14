@@ -84,3 +84,25 @@ describe("env: owed deductions", () => {
     }
   );
 });
+
+describe("env: stripe connect routing", () => {
+  it("is on only for the value on", async () => {
+    const env = await load({ STRIPE_CONNECT_ROUTING: "on" });
+    expect(env.stripe.connect_routing).toBe(true);
+  });
+
+  it.each(["", "off", "false", "0", "ON", "true", "on "])(
+    "%j leaves it off",
+    async (value) => {
+      const env = await load({ STRIPE_CONNECT_ROUTING: value });
+      expect(env.stripe.connect_routing).toBe(false);
+    }
+  );
+
+  it("is off when absent", async () => {
+    vi.stubEnv("STRIPE_CONNECT_ROUTING", undefined);
+    vi.resetModules();
+    const env = await import("./env");
+    expect(env.stripe.connect_routing).toBe(false);
+  });
+});

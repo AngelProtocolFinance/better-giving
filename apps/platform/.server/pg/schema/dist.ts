@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { IAllocation } from "@/donations";
 import { numeric_as_number, timestamptz } from "./columns";
@@ -61,11 +62,44 @@ export const dists = pgTable(
     notice_sent_at: timestamptz("notice_sent_at"),
     metric_counted_at: timestamptz("metric_counted_at"),
     hooks_sent_at: timestamptz("hooks_sent_at"),
+    /** the connected account (`acct_…`) settlement routed this dist to; null when pooled */
+    stripe_routed_to: text("stripe_routed_to"),
+    /** the stripe transfer that paid this dist to the npo's connected account */
+    stripe_transfer_id: text("stripe_transfer_id"),
+    /** the share of the charge its refunds had already taken when a refused
+     * transfer rebooked it pooled. a partial cut reduces `net` to what was
+     * booked; a total cut leaves the settled `net` and books nothing. the
+     * settled net that cut came off is `settled_net`. null when nothing was
+     * cut */
+    refunds_cut_share: numeric_as_number("refunds_cut_share", {
+      precision: 38,
+      scale: 18,
+    }),
+    /** the net settlement recorded for the share before a refused transfer's
+     * rebook cut its refunds off `net`; set with `refunds_cut_share`, null
+     * when nothing was cut and `net` is the settled net */
+    settled_net: numeric_as_number("settled_net", {
+      precision: 38,
+      scale: 18,
+    }),
   },
   (t) => [
     check(
       "dists_status_check",
       sql`${t.status} IN ('settled','refunded','refunded_loss')`
+    ),
+    // a transfer pays a routed dist only; refunds trust routed_to to reverse it
+    check(
+      "dists_transfer_routed_check",
+      sql`${t.stripe_transfer_id} IS NULL OR ${t.stripe_routed_to} IS NOT NULL`
+    ),
+    check(
+      "dists_refunds_cut_share_check",
+      sql`${t.refunds_cut_share} > 0 AND ${t.refunds_cut_share} <= 1`
+    ),
+    check(
+      "dists_settled_net_cut_check",
+      sql`${t.refunds_cut_share} IS NULL OR ${t.settled_net} IS NOT NULL`
     ),
     index("dists_donation_id_idx").on(t.donation_id),
     index("dists_to_id_date_idx").on(t.to_id, t.date_created),
@@ -75,5 +109,9 @@ export const dists = pgTable(
       .where(sql`${t.status} = 'settled'`),
     // idempotency: one dist per parent donation per npo
     unique(DISTS_DONATION_ID_TO_ID_UNIQ).on(t.donation_id, t.to_id),
+    // partial: a pooled dist has no transfer and never touches the index
+    uniqueIndex("dists_stripe_transfer_id_uniq")
+      .on(t.stripe_transfer_id)
+      .where(sql`${t.stripe_transfer_id} IS NOT NULL`),
   ]
 );

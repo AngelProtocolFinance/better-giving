@@ -1,5 +1,6 @@
 import { report_error } from "#/errors/report";
 import { type IDonation, reversed_statuses } from "@/donations";
+import { type Rail, rail_of } from "@/donations/rail";
 import { humanize } from "@/helpers/decimal";
 import { msg } from "@/queue";
 import { stage } from "../env";
@@ -22,18 +23,8 @@ import {
   take_refund,
 } from "./takes";
 
+export type { Rail } from "@/donations/rail";
 export { type Share, WHOLE } from "./share";
-
-/** the provider family a gift was paid through, from its `via` */
-export type Rail = "stripe" | "paypal" | "crypto";
-
-/** the rail `via` names, or null for one nothing refunds (daf, stocks, ...) */
-export function rail_of(via: string): Rail | null {
-  if (via.startsWith("stripe")) return "stripe";
-  if (via.startsWith("paypal")) return "paypal";
-  if (via.startsWith("crypto")) return "crypto";
-  return null;
-}
 
 export type ReversalSource = "refund" | "dispute" | "admin";
 
@@ -43,6 +34,16 @@ interface RailAdapter {
   subscription_end(
     source: ReversalSource
   ): ((payment_id: string) => Promise<void>) | null;
+  /** takes back the refunds' share of what the gift's routed dists were
+   * transferred, or null when the rail routes none */
+  routed_refunds:
+    | ((donation_id: string, c: RoutedRefunds) => Promise<void>)
+    | null;
+  /** what the gift's routed dists had taken back for a refund that failed,
+   * for ops, or null when the rail routes none */
+  routed_refund_failed:
+    | ((donation_id: string, refund_id: string) => Promise<IRoutedRefundFailed>)
+    | null;
 }
 
 // loaded on use: `./subscription` builds a stripe client off env at import,
@@ -52,16 +53,60 @@ async function cancel_stripe_subscription(intent_id: string) {
   await cancel_refunded_subscription(intent_id);
 }
 
+async function stripe_routed_refund_failed(
+  donation_id: string,
+  refund_id: string
+) {
+  const { routed_refund_failed } = await import("../stripe-connect/reverse");
+  return routed_refund_failed(donation_id, refund_id);
+}
+
+async function reverse_stripe_transfers(donation_id: string, c: RoutedRefunds) {
+  const { reverse_routed_refunds } = await import("../stripe-connect/reverse");
+  await reverse_routed_refunds(donation_id, c);
+}
+
 const rail_adapters: Record<Rail, RailAdapter> = {
   stripe: {
     // a full refund of a subscription payment ends the recurring gift, from
     // whatever surface it was issued. a lost dispute doesn't
     subscription_end: (source) =>
       source === "dispute" ? null : cancel_stripe_subscription,
+    routed_refunds: reverse_stripe_transfers,
+    routed_refund_failed: stripe_routed_refund_failed,
   },
-  paypal: { subscription_end: () => null },
-  crypto: { subscription_end: () => null },
+  paypal: {
+    subscription_end: () => null,
+    routed_refunds: null,
+    routed_refund_failed: null,
+  },
+  crypto: {
+    subscription_end: () => null,
+    routed_refunds: null,
+    routed_refund_failed: null,
+  },
 };
+
+/** `RailAdapter.routed_refund_failed` for `rail`: none when it routes none */
+export const routed_refund_failed = async (
+  rail: Rail,
+  donation_id: string,
+  refund_id: string
+): Promise<IRoutedRefundFailed> =>
+  (await rail_adapters[rail].routed_refund_failed?.(
+    donation_id,
+    refund_id
+  )) ?? {
+    credited: [],
+    by_hand: [],
+  };
+
+/** one line per routed dist: what was credited back on its own, and what
+ * ops is to do by hand */
+export interface IRoutedRefundFailed {
+  credited: string[];
+  by_hand: string[];
+}
 
 export interface ChargeReversal {
   donation_id: string;
@@ -103,6 +148,16 @@ export interface ChargeReversal {
   /** the event's own lines for an ops notice, and its dedupe id: a redelivery
    * of the same event reuses it */
   notice: { id: string; lines: string[] };
+}
+
+/** a charge's refunds, as a rail reverses its routed dists' transfers by */
+export interface RoutedRefunds {
+  /** the charge's captured amount, in the refunds' unit */
+  of: number;
+  /** its live refunds, sent or not */
+  refunds: NonNullable<ChargeReversal["refunds"]>;
+  /** of them, the ones not yet sent: while any is, nothing is reversed */
+  unsent: string[];
 }
 
 export type ReversalResult =
@@ -201,6 +256,14 @@ const SHARE_OWED: Record<ReversalSource, string> = {
   dispute: "Lost Dispute: Share Recorded as Owed",
 };
 
+/** part of the charge, and no party's row owes anything for it: a routed
+ * dist's share is reversed from its transfer instead */
+const NOTHING_OWED: Record<ReversalSource, string> = {
+  refund: "Partial Refund: Nothing Owed",
+  admin: "Partial Refund: Nothing Owed",
+  dispute: "Lost Dispute: Nothing Owed",
+};
+
 /** a refund's share, which owes nothing for a dist whose grant hasn't gone
  * out; a dispute's owes for every dist */
 const REFUND_PENDING = {
@@ -265,6 +328,18 @@ export async function reverse_charge(
     if (refunds_take_all(takes, refunds(takes))) {
       await end_subscription(payment_id);
     }
+  }
+  // ahead of the gift's reversal, whose redelivery stops at the guard above,
+  // so a transfer reversal that throws here is retried with the event. it
+  // holds on an unsent refund itself. a dispute reverses no transfer: stripe
+  // debits it from us, and what the npo owes for it is on its row
+  const routed_refunds = rail_adapters[r.rail].routed_refunds;
+  if (routed_refunds && r.source !== "dispute" && r.refunds && r.share) {
+    await routed_refunds(don.id, {
+      of: r.share.of,
+      refunds: r.refunds,
+      unsent: r.unsent_refunds ?? [],
+    });
   }
   if (r.unsent_refunds?.length) {
     console.info(
@@ -409,7 +484,12 @@ async function notify_share(
       alert: {
         type: "NOTICE",
         from: `${r.alert_from}-${stage}`,
-        title: pending.length > 0 ? REFUND_PENDING.title : SHARE_OWED[r.source],
+        title:
+          pending.length > 0
+            ? REFUND_PENDING.title
+            : owed_msgs.length > 0
+              ? SHARE_OWED[r.source]
+              : NOTHING_OWED[r.source],
         body: [
           ...r.notice.lines,
           `${humanize(res.taken * 100)}% of the charge taken back so far; the donation is not reversed.`,
@@ -502,6 +582,7 @@ export async function reversal_preview(
       fee_fsa: dist.fee_fsa ?? 0,
       fee_processing: dist.fee_processing ?? 0,
       fee_allowance: dist.fee_allowance ?? 0,
+      settled_net: dist.settled_net,
     });
     if (dist.refund_status === "completed" || dist.refund_status === "loss") {
       dists.push({

@@ -31,7 +31,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   // the ui asks before replacing, and says so with replace=1
   const replace = url.searchParams.get("replace") === "1";
-  if (access.acct && !replace) {
+  if (access.replaces && !replace) {
     return redirect(return_path(t, "error", "replace_unconfirmed"));
   }
 

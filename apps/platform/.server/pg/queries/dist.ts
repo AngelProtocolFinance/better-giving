@@ -328,6 +328,96 @@ export async function mark_dist_hooks_sent(
     .where(eq(dists.id, dist_id));
 }
 
+export type TDistTransferSet = { set: true } | { set: false; existing: string };
+
+/**
+ * store the stripe transfer that paid this dist, only while it has none: the
+ * double-transfer guard. `existing` is the transfer already stored, which may
+ * be `transfer_id` itself on a retry.
+ */
+export async function dist_stripe_transfer_set(
+  dist_id: string,
+  transfer_id: string,
+  conn: DbOrTx = db
+): Promise<TDistTransferSet> {
+  const [written] = await conn
+    .update(dists)
+    .set({ stripe_transfer_id: transfer_id })
+    .where(and(eq(dists.id, dist_id), isNull(dists.stripe_transfer_id)))
+    .returning({ id: dists.id });
+  if (written) return { set: true };
+
+  // read after the miss, not as a cte beside the update: that select runs on
+  // the statement's snapshot and misses a transfer committed while it waited.
+  // nothing clears a stored transfer, so this read can't find it gone
+  const existing = await dist_stripe_transfer_get(dist_id, conn);
+  if (!existing) throw new Error(`dist ${dist_id} not found`);
+  return { set: false, existing };
+}
+
+/** the stripe transfer that paid this dist; null when none, undefined when no such dist */
+export async function dist_stripe_transfer_get(
+  dist_id: string,
+  conn: DbOrTx = db
+): Promise<string | null | undefined> {
+  const [row] = await conn
+    .select({ tr: dists.stripe_transfer_id })
+    .from(dists)
+    .where(eq(dists.id, dist_id));
+  return row?.tr;
+}
+
+export interface IDistAwaitingTransfer {
+  id: string;
+  to_id: number | null;
+  net: number | null;
+  stripe_routed_to: string;
+}
+
+/** this donation's dists settlement routed to a connected account and no
+ * transfer has paid yet: what a redelivery still owes */
+export async function dists_routed_untransferred(
+  donation_id: string,
+  conn: DbOrTx = db
+): Promise<IDistAwaitingTransfer[]> {
+  return conn
+    .select({
+      id: dists.id,
+      to_id: dists.to_id,
+      net: dists.net,
+      // a text column needs no decoder, so the not-null filter can narrow it
+      stripe_routed_to: sql<string>`${dists.stripe_routed_to}`,
+    })
+    .from(dists)
+    .where(
+      and(
+        eq(dists.donation_id, donation_id),
+        isNotNull(dists.stripe_routed_to),
+        isNull(dists.stripe_transfer_id)
+      )
+    );
+}
+
+/** rebook a routed dist as pooled, only while no transfer has paid it. false
+ * when it was already transferred, or never routed */
+export async function dist_unroute(
+  dist_id: string,
+  conn: DbOrTx = db
+): Promise<boolean> {
+  const unrouted = await conn
+    .update(dists)
+    .set({ stripe_routed_to: null })
+    .where(
+      and(
+        eq(dists.id, dist_id),
+        isNotNull(dists.stripe_routed_to),
+        isNull(dists.stripe_transfer_id)
+      )
+    )
+    .returning({ id: dists.id });
+  return unrouted.length > 0;
+}
+
 /** paginated donations received by npo */
 export async function npo_donations(
   npo_id: number,
@@ -498,7 +588,12 @@ export async function donation_refund_started(
  */
 export async function dist_refund_state_locked(tx: DbOrTx, id: string) {
   const [row] = await tx
-    .select({ status: dists.status, refund_status: dists.refund_status })
+    .select({
+      status: dists.status,
+      refund_status: dists.refund_status,
+      stripe_routed_to: dists.stripe_routed_to,
+      refunds_cut_share: dists.refunds_cut_share,
+    })
     .from(dists)
     .where(eq(dists.id, id))
     .for("update");

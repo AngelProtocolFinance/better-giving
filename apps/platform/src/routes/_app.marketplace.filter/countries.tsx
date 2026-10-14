@@ -1,7 +1,7 @@
 import { MultiCombo } from "@better-giving/ui";
 import { useSearchParams } from "react-router";
-import { countries, country_names } from "#/constants/countries";
 import { toParsed, toRaw } from "#/pages/marketplace/helpers";
+import { countries, country_names } from "@/constants/countries";
 
 export default function Countries() {
   const [params, set_params] = useSearchParams();

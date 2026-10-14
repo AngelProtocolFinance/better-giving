@@ -9,10 +9,11 @@ import {
 } from "@/stripe-connect/card-data";
 import {
   connect_status,
+  mirror_of,
   type TConnectStatus,
 } from "@/stripe-connect/readiness";
 import { npo_bapps } from "$/pg/queries/banking";
-import { npo_stripe_get } from "$/pg/queries/npo";
+import { npo_get } from "$/pg/queries/npo";
 import { sync_npo_account } from "$/stripe-connect/sync";
 import type { Route } from "./+types/route";
 
@@ -34,11 +35,15 @@ export const loader = async (x: Route.LoaderArgs) => {
 };
 
 async function stripe_status(npo_id: number): Promise<TConnectStatus> {
-  const s = await npo_stripe_get(npo_id);
-  if (!s?.acct) return "not_connected";
-  if (s.synced_at) return connect_status(s.mirror);
+  const npo = await npo_get(npo_id);
+  if (!npo?.stripe_account_id) return "not_connected";
+  const deauthorized_at = npo.stripe_deauthorized_at;
+  if (npo.stripe_synced_at || deauthorized_at) {
+    return connect_status(mirror_of(npo), deauthorized_at);
+  }
   try {
-    return connect_status(await sync_npo_account(npo_id));
+    const m = await sync_npo_account(npo_id);
+    return m === "disconnected" ? m : connect_status(m, null);
   } catch (err) {
     if (!(err instanceof Stripe.errors.StripeError)) throw err;
     report_degraded(err);

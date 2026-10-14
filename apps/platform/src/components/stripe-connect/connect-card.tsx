@@ -91,9 +91,12 @@ export function StripeConnectCard({
         </p>
       </div>
 
-      {status === "not_connected" ? (
+      {status === "not_connected" || status === "disconnected" ? (
+        // a revoked account has nothing left to replace, so nothing to confirm
         <a href={start_href} className="btn btn-primary justify-self-start">
-          Connect with Stripe
+          {status === "disconnected"
+            ? "Reconnect Stripe"
+            : "Connect with Stripe"}
         </a>
       ) : (
         <button

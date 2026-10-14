@@ -16,8 +16,11 @@ import { referrer_commissions } from "../pg/schema/referrer";
 import {
   dist_settled_usd,
   fee_processing_usd,
+  past_cut,
   type RefundPlan,
   referrer_of,
+  scaled,
+  share_of_net,
 } from "./plan";
 
 /** a part of a charge, `taken` of `of`, in one unit */
@@ -37,12 +40,6 @@ export function fraction_of(s: Share): number | null {
   return Math.min(taken / of, 1);
 }
 
-/** `usd` scaled by `f`, in whole cents rounded down so a share never passes
- * the whole; the whole as it is. the epsilon keeps 0.3 * 90 from flooring to
- * 26.99 */
-export const scaled = (usd: number, f: number) =>
-  f >= 1 ? usd : Math.floor(usd * f * 100 + 1e-6) / 100;
-
 type PayoutType = (typeof payouts.$inferSelect)["type"];
 
 export type LockedDist = Awaited<ReturnType<typeof dists_locked>>[number];
@@ -59,6 +56,17 @@ export const settled_dists_locked = (tx: DbOrTx, donation_id: string) =>
 export const gift_dists_locked = (tx: DbOrTx, donation_id: string) =>
   dists_locked(tx, eq(dists.donation_id, donation_id));
 
+/**
+ * one lock order for a gift's rows, on every path that takes more than one:
+ * its donation (`donation_lock`), its dists, a dist's payout, then the npo
+ * (`npo_get_locked`), each path taking the ones it needs in that order. two
+ * take it out of order, neither able to deadlock: `settle_npo` locks its npo
+ * before `owe_takes` locks the gift's other dists, under a share lock on the
+ * donation that every path locking the donation waits out, and no path
+ * holding another npo's dist waits on this one's npo; a grant run's release
+ * holds its own claim's payouts before `reverse_unfunded_payout_loss` takes
+ * a donation, and no other path holding a donation waits on a claimed payout
+ */
 async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
   const rows = await tx
     .select({
@@ -73,6 +81,9 @@ async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
       fee_processing: dists.fee_processing,
       fee_allowance: dists.fee_allowance,
       alloc: dists.alloc,
+      routed_to: dists.stripe_routed_to,
+      refunds_cut_share: dists.refunds_cut_share,
+      settled_net: dists.settled_net,
       // a subquery, not a join: nothing keeps a dist to one payout row, and a
       // second would count the dist twice. any one, as `dists_for_refund` takes
       payout_type: sql<PayoutType | null>`(SELECT ${payouts.type} FROM ${payouts}
@@ -105,6 +116,11 @@ async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
     fee_processing: r.fee_processing ?? 0,
     fee_allowance: r.fee_allowance ?? 0,
     cash_pct: r.alloc?.cash ?? 0,
+    /** settled to a connected account: paid by a stripe transfer, which a
+     * refund reverses, so no grant of it is ours to settle by hand */
+    routed: r.routed_to !== null,
+    refunds_cut_share: r.refunds_cut_share,
+    settled_net: r.settled_net,
     payout_type: r.payout_type,
     commission: r.commission,
   }));
@@ -141,15 +157,17 @@ export type OwedShare = Pick<
 >;
 
 /** one figure per party: for each dist `owes` picks, its npo owes `f` of
- * what the dist received and of its card fee, plus its part of the dispute
- * fee by settled amount, in full; each referrer `f` of its commissions paid
+ * the charge past its refunds' cut (`past_cut`) of what the dist received
+ * and of its card fee, plus its part of the dispute fee by settled amount,
+ * in full; each referrer `f` of its commissions paid
  * or claimed for a transfer: one whose transfer goes unfunded goes back to
  * pending, and the run that pays it later nets what this recorded */
 export function owed_shares(
   ds: LockedDist[],
   o: {
     f: number;
-    /** the npo part's share for a dist, when not `f` */
+    /** the npo part's share of the charge past the dist's cut, when not
+     * `f` past it */
     f_of?: (d: LockedDist) => number;
     /** the dispute fee, split over the dists by settled amount; or each
      * dist's part of it already split */
@@ -178,10 +196,10 @@ export function owed_shares(
   };
   for (const [i, x] of ds.entries()) {
     if (o.owes(x)) {
-      const f = o.f_of?.(x) ?? o.f;
+      const f = o.f_of?.(x) ?? past_cut(x.refunds_cut_share, o.f);
       add(`npo:${x.to_id}`, {
         party: { npo_id: x.to_id },
-        received_usd: scaled(x.net, f),
+        received_usd: scaled(x.net, share_of_net(x.refunds_cut_share, f)),
         fee_processing_usd: scaled(fee_processing_usd(x), f),
         fee_dispute_usd: fee_shares[i]!,
       });

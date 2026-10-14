@@ -89,6 +89,14 @@ async function recorded_at_open(
   return row?.source === "dispute" ? row : null;
 }
 
+/** the dist's routing changed after its plan was read */
+class StaleDistError extends Error {
+  constructor(dist_id: string) {
+    super(`dist ${dist_id} was rebooked pooled after its refund plan was read`);
+    this.name = "StaleDistError";
+  }
+}
+
 /** project a rich DistRefundGraph + fetched npo/nav into the pure calc inputs */
 function project_inputs(
   g: DistRefundGraph,
@@ -111,6 +119,11 @@ function project_inputs(
       fee_fsa: dist.fee_fsa ?? 0,
       fee_processing: dist.fee_processing ?? 0,
       fee_allowance: dist.fee_allowance ?? 0,
+      refunds_cut_share: dist.refunds_cut_share,
+      settled_net: dist.settled_net,
+      ...(dist.stripe_routed_to !== null && {
+        routed: { transferred: dist.stripe_transfer_id !== null },
+      }),
     },
     payout: g.payout ? { id: g.payout.id, type: g.payout.type ?? null } : null,
     commission: g.commission
@@ -198,6 +211,13 @@ export async function process_refund(
     return db.transaction(async (tx) => {
       const cur = await dist_refund_state_locked(tx, g.dist.id);
       if (!cur || dist_is_reversed(cur)) return { skipped: true } as const;
+      // a refused transfer's rebook committed since `g` was read
+      if (
+        cur.stripe_routed_to !== g.dist.stripe_routed_to ||
+        cur.refunds_cut_share !== g.dist.refunds_cut_share
+      ) {
+        throw new StaleDistError(g.dist.id);
+      }
       const party = { npo_id: g.dist.to_id ?? 0 };
       // read before apply, whose loss path records a row of its own
       const opened = await recorded_at_open(tx, donation_id, party);
@@ -229,10 +249,15 @@ export async function process_refund(
       return;
     }
     try {
-      // the grants cron claimed or settled the payout after `g` was read: a
-      // plan drawn once more from a fresh graph sees it and takes the loss path
+      // the grants cron claimed or settled the payout after `g` was read, or
+      // a refused transfer rebooked the dist pooled: a plan drawn once more
+      // from a fresh graph sees it, and takes the loss path or the booking
       const res = await apply_dist(g).catch(async (err) => {
-        if (!(err instanceof StalePayoutError)) throw err;
+        if (
+          !(err instanceof StalePayoutError || err instanceof StaleDistError)
+        ) {
+          throw err;
+        }
         const fresh = (await dists_for_refund(donation_id)).find(
           (x) => x.dist.id === g.dist.id
         );

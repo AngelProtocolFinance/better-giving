@@ -3,13 +3,12 @@ import { from_stripe_amount, str_id } from "#/helpers/stripe";
 import { msg } from "@/queue";
 import { stage } from "$/env";
 import { enqueue } from "$/kit/queue";
-import { stripe } from "$/kit/stripe";
 import { money, refund_list } from "$/kit/stripe-money";
 import { db } from "$/pg/db";
 import { dispute_close, dispute_get, dispute_open } from "$/pg/queries/dispute";
 import { dispute_opened, dispute_won, owed_lines } from "$/refund/dispute";
 import { load_reversible, reverse_charge } from "$/refund/reverse";
-import { refund_take } from "$/refund/unsent";
+import { charge_refunds, refund_take } from "$/refund/unsent";
 import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
 import { settled_donation } from "../helpers/settled-donation";
 
@@ -51,17 +50,17 @@ const dispute_fee_usd = (d: Stripe.Dispute): { usd: number; line?: string } => {
  * charge has at most one dispute. only succeeded refunds count: stripe fails
  * one still pending when the charge is disputed */
 async function taken_from_charge(d: Stripe.Dispute) {
-  const charge = await stripe.charges.retrieve(str_id(d.charge));
-  const { data: refunds } = await stripe.refunds.list({
-    charge: charge.id,
-    limit: 100,
-  });
-  const counted = refunds
-    .filter((r) => r.status === "succeeded")
-    .map(refund_take);
+  const { charge, of, all, sent } = await charge_refunds(str_id(d.charge));
+  const counted = sent.map(refund_take);
   const refunded = counted.reduce((sum, r) => sum + r.amount, 0);
-  const share = { taken: d.amount + refunded, of: charge.amount_captured };
-  return { charge, refunds, counted, share, partial: share.taken < share.of };
+  const share = { taken: d.amount + refunded, of };
+  return {
+    charge,
+    refunds: all,
+    counted,
+    share,
+    partial: share.taken < share.of,
+  };
 }
 
 const CLOSED_STATUSES = new Set<Stripe.Dispute.Status>([

@@ -12,9 +12,9 @@ import {
 } from "$/refund/reverse";
 import { subscription_id_of } from "$/refund/subscription";
 import {
+  charge_refunds,
   is_failed_or_canceled,
   refund_take,
-  unsent_refunds,
 } from "$/refund/unsent";
 import type { Route } from "./+types/route";
 
@@ -146,31 +146,27 @@ async function finish_refund(
   intent_id: string,
   don: IDonation
 ) {
-  const [{ data }, intent] = await Promise.all([
-    stripe.refunds.list({ payment_intent: intent_id, limit: 100 }),
-    stripe.paymentIntents.retrieve(intent_id, { expand: ["latest_charge"] }),
-  ]);
-  // newest first, with `r` as just retrieved rather than as the list read it
-  const refunds = [r, ...data.filter((x) => x.id !== r.id)];
+  const intent = await stripe.paymentIntents.retrieve(intent_id, {
+    expand: ["latest_charge"],
+  });
   const charge = intent.latest_charge;
   if (!charge || typeof charge === "string") {
     throw new Error(`payment ${intent_id} has no charge`);
   }
+  // `r` as just retrieved rather than as the list read it
+  const { of, live, unsent } = await charge_refunds(charge, { fresh: r });
   // the charge's refunds to date, an earlier partial's and a pending one's
-  // included: this refund completes it, so the share is whole. summed off the
-  // list: stripe doesn't document whether `charge.amount_refunded` counts a
-  // pending refund or drops a failed one
-  const counted = refunds.filter((x) => !is_failed_or_canceled(x));
-  const taken = counted.reduce((sum, x) => sum + x.amount, 0);
+  // included: this refund completes it, so the share is whole
+  const taken = live.reduce((sum, x) => sum + x.amount, 0);
   const res = await reverse_charge({
     donation_id: don.id,
     rail: "stripe",
     source: "admin",
-    share: { taken, of: charge.amount_captured },
-    refunds: counted.map(refund_take),
+    share: { taken, of },
+    refunds: live.map(refund_take),
     // an unsent one (a pending bank refund) can still fail, so the entry
     // holds: refund.updated reverses once the last succeeds
-    unsent_refunds: unsent_refunds(refunds).map((x) => x.id),
+    unsent_refunds: unsent.map((x) => x.id),
     intent_id,
     source_ref: r.id,
     alert_from: ALERT_FROM,

@@ -61,50 +61,69 @@ describe("connect_status", () => {
     requirements_due: [],
   };
 
+  // the mirror is stripe's last word before the disconnect, so it is past
+  test("a disconnected account is disconnected, even with a ready mirror", () => {
+    expect(connect_status(mirror, "2026-10-01T00:00:00.000Z")).toBe(
+      "disconnected"
+    );
+  });
+
   test("no account is not_connected", () => {
-    expect(connect_status(null)).toBe("not_connected");
+    expect(connect_status(null, null)).toBe("not_connected");
   });
 
   test("all three flags with nothing due is ready", () => {
-    expect(connect_status(mirror)).toBe("ready");
+    expect(connect_status(mirror, null)).toBe("ready");
   });
 
   // ready keys on the flags alone: stripe can enable an account while a
   // future deadline is already listed as due
   test("all three flags is ready even with something due", () => {
     expect(
-      connect_status({ ...mirror, requirements_due: ["individual.dob.day"] })
+      connect_status(
+        { ...mirror, requirements_due: ["individual.dob.day"] },
+        null
+      )
     ).toBe("ready");
   });
 
   test("details not submitted is incomplete", () => {
     expect(
-      connect_status({
-        ...mirror,
-        charges_enabled: false,
-        payouts_enabled: false,
-        details_submitted: false,
-      })
+      connect_status(
+        {
+          ...mirror,
+          charges_enabled: false,
+          payouts_enabled: false,
+          details_submitted: false,
+        },
+        null
+      )
     ).toBe("incomplete");
   });
 
   test("submitted but something due is incomplete", () => {
     expect(
-      connect_status({
-        ...mirror,
-        payouts_enabled: false,
-        requirements_due: ["external_account"],
-      })
+      connect_status(
+        {
+          ...mirror,
+          payouts_enabled: false,
+          requirements_due: ["external_account"],
+        },
+        null
+      )
     ).toBe("incomplete");
   });
 
   test("submitted, nothing due, not yet enabled is pending", () => {
     expect(
-      connect_status({
-        ...mirror,
-        charges_enabled: false,
-        payouts_enabled: false,
-      })
+      connect_status(
+        {
+          ...mirror,
+          charges_enabled: false,
+          payouts_enabled: false,
+        },
+        null
+      )
     ).toBe("pending");
   });
 });

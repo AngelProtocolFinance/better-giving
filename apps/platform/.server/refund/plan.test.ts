@@ -7,6 +7,7 @@ import {
   type RefundInputs,
   type RefundPlan,
 } from "./plan";
+import { split_cents } from "./share";
 
 const make_inputs = (overrides: Partial<RefundInputs> = {}): RefundInputs => ({
   dist: {
@@ -282,6 +283,29 @@ describe("calc_refund_plan", () => {
       fee_processing_usd: 2,
     });
     expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 62 }]);
+  });
+
+  // the refunds its rebook cut took nothing from the npo when it was routed,
+  // so it owes no part of their card fee either
+  test("a rebooked dist's loss owes the card fee of the charge its cut left", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          ...make_inputs().dist,
+          net: 75,
+          fee_processing: 4,
+          refunds_cut_share: 0.25,
+        },
+        payout: { id: "po-1", type: "settled" },
+      }),
+      make_ctx()
+    );
+
+    expect(owed_of(plan)).toMatchObject({
+      received_usd: 75,
+      fee_processing_usd: 3,
+    });
+    expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 78 }]);
   });
 
   // dists.amount_usd is the pledge at the donation-time rate; net is settled usd
@@ -627,6 +651,100 @@ describe("calc_refund_plan", () => {
     expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 320 }]);
   });
 
+  // two equal $100 shares. a 25% cut on one refused transfer books $75, and
+  // weighing that $75 would move a $15 dispute fee from $7.50 each to $6.43
+  // and $8.57. the settled net, fees included, is what the split weighs
+  test("a refused transfer's cut does not move a dispute fee onto the other nonprofit", () => {
+    const bare = {
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      fee_allowance: 0,
+    };
+    const cut = { net: 75, ...bare, settled_net: 100 };
+    const whole = { net: 100, ...bare };
+    expect(dist_settled_usd(cut)).toBe(100);
+    expect(
+      split_cents(15, [dist_settled_usd(cut), dist_settled_usd(whole)])
+    ).toEqual([7.5, 7.5]);
+
+    const fees = {
+      fee_base: 5,
+      fee_fsa: 3,
+      fee_processing: 2,
+      fee_allowance: 0,
+    };
+    expect(dist_settled_usd({ net: 75, ...fees, settled_net: 100 })).toBe(110);
+    expect(dist_settled_usd({ net: 100, ...fees })).toBe(110);
+  });
+
+  // rebuilding 33.33 / (2/3) rounds to $49.99 and would move the fee
+  test("a one-third cut weighs the stored $50, not the rounded remainder", () => {
+    const bare = {
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      fee_allowance: 0,
+    };
+    const cut = {
+      net: 33.33,
+      ...bare,
+      refunds_cut_share: 1 / 3,
+      settled_net: 50,
+    };
+    const whole = { net: 50, ...bare };
+    expect(dist_settled_usd(cut)).toBe(50);
+    expect(
+      split_cents(15, [dist_settled_usd(cut), dist_settled_usd(whole)])
+    ).toEqual([7.5, 7.5]);
+  });
+
+  test("a null settled net weighs net as stored, with no rebuild from the cut", () => {
+    const d = {
+      net: 33.33,
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      fee_allowance: 0,
+      refunds_cut_share: 1 / 3,
+      settled_net: null,
+    };
+    expect(dist_settled_usd(d)).toBe(33.33);
+  });
+
+  test("a total cut keeps the settled net in the fee weight and a refund takes none of it back", () => {
+    const dist = {
+      ...make_inputs().dist,
+      net: 100,
+      refunds_cut_share: 1,
+      settled_net: 100,
+    };
+    expect(
+      dist_settled_usd({
+        net: dist.net,
+        fee_base: dist.fee_base,
+        fee_fsa: dist.fee_fsa,
+        fee_processing: dist.fee_processing,
+        fee_allowance: dist.fee_allowance,
+        settled_net: 100,
+      })
+    ).toBe(110);
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist,
+        bal: { liq: 0, lock_units: 0, cash: 100 },
+      }),
+      make_ctx()
+    );
+    expect(plan.effects).toContainEqual(
+      expect.objectContaining({
+        kind: "balance_update",
+        deltas: { liq: 0, lock: 0, lock_units: 0, cash: 0 },
+      })
+    );
+    expect(plan.is_loss).toBe(false);
+  });
+
   // credit_fa adds the processing fee into net when the donor covered it
   test("a row whose donor covered fees owes the processing fee once, inside net", () => {
     const dist = {
@@ -643,5 +761,51 @@ describe("calc_refund_plan", () => {
       fee_processing_usd: 0,
     });
     expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 102 }]);
+  });
+
+  // settlement booked a routed dist no balance, payout or investment: its net
+  // left in a stripe transfer, which the refund reverses on its own
+  test("a routed dist → no balance, investment or loss, its own accounting reversed as pooled", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: { ...make_inputs().dist, routed: { transferred: true } },
+        // what the npo holds from other gifts stays its own
+        bal: { liq: 500, lock_units: 0, cash: 500 },
+      }),
+      make_ctx({ form_id: "form-1", program_id: "prog-1" })
+    );
+    expect(plan.is_loss).toBe(false);
+    expect(plan.amount).toEqual([]);
+    expect(kinds(plan.effects)).toEqual([
+      "form_decrement",
+      "program_decrement",
+      "donation_message_del",
+    ]);
+    expect(plan.preview.effects).toEqual([
+      {
+        label: "Stripe transfer",
+        pass: true,
+        reason:
+          "the refunded share is reversed from the nonprofit's Stripe account",
+      },
+    ]);
+  });
+
+  test("a routed dist not yet transferred → previews that nothing reaches the nonprofit, none reversed", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: { ...make_inputs().dist, routed: { transferred: false } },
+      }),
+      make_ctx()
+    );
+    expect(kinds(plan.effects)).toEqual(["donation_message_del"]);
+    expect(plan.preview.effects).toEqual([
+      {
+        label: "Stripe transfer",
+        pass: true,
+        reason:
+          "not yet sent to the nonprofit's Stripe account, and once refunded it won't be",
+      },
+    ]);
   });
 });

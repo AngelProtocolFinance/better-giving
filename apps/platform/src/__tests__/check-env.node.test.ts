@@ -367,6 +367,7 @@ describe("missing_keys", () => {
       "OWED_DEDUCTIONS",
       "STRIPE_CONNECT_CLIENT_ID",
       "STRIPE_CONNECT_WEBHOOK_SECRET",
+      "STRIPE_CONNECT_ROUTING",
     ]);
   });
 

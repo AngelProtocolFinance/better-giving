@@ -72,7 +72,7 @@ export async function record_takes(s: TakesPut): Promise<TakesRecorded> {
     });
     const pending = s.refund
       ? ds
-          .filter((d) => !grant_went_out(d))
+          .filter((d) => !d.routed && !grant_went_out(d))
           .map(
             (d) =>
               `dist ${d.id} to ${d.to_name || "its npo"} (npo ${d.to_id}): ${d.payout_type === "pending" ? "its grant payout is still pending" : "its share is still in the npo's balances"}, so nothing of it is recorded as owed`

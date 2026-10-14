@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import {
   afterAll,
   beforeAll,
@@ -13,6 +14,9 @@ const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const cfg = vi.hoisted(() => ({
   client_id: "ca_TestOnly000000" as string | undefined,
 }));
+const retrieve = vi.hoisted(() => vi.fn());
+const token = vi.hoisted(() => vi.fn());
+const report_error = vi.hoisted(() => vi.fn());
 const session = vi.hoisted(() => ({
   user: undefined as
     | { id: string; email: string; role?: string | null }
@@ -43,13 +47,35 @@ vi.mock("$/env", async (orig) => {
 vi.mock("#/.server/auth", async () => ({
   get_session: vi.fn(async () => ({ user: session.user })),
   to_auth: (await import("#/.server/auth/to-auth")).to_auth,
+  consume: (await import("#/.server/auth/rate-limit")).consume,
 }));
+// the real client, so the authorize url is stripe's own; reads are faked
+vi.mock("$/kit/stripe", async (orig) => {
+  const { stripe } = await orig<typeof import("$/kit/stripe")>();
+  return {
+    stripe: new Proxy(stripe, {
+      get: (t, p) =>
+        p === "accounts"
+          ? { retrieve }
+          : p === "oauth"
+            ? { authorizeUrl: t.oauth.authorizeUrl.bind(t.oauth), token }
+            : (t as any)[p],
+    }),
+  };
+});
+vi.mock("#/errors/report", () => ({ report_error }));
 
 const { loader } = await import("./route");
+const { loader: callback } = await import(
+  "../api.stripe-connect.callback/route"
+);
 const { read_state } = await import("$/stripe-connect/state");
 const { seed_npo, seed_user } = await import("#/__tests__/fixtures/funds");
 const { user_npo_memberships } = await import("$/pg/schema/user");
 const { registrations } = await import("$/pg/schema/registration");
+const { npos } = await import("$/pg/schema/npo");
+const { eq } = await import("drizzle-orm");
+const { reg_stripe_deauthorize } = await import("$/pg/queries/registration");
 
 const db = () => test_db.current!.db;
 
@@ -94,7 +120,23 @@ afterAll(async () => {
 beforeEach(() => {
   session.user = undefined;
   cfg.client_id = "ca_TestOnly000000";
+  retrieve.mockReset();
+  retrieve.mockImplementation(async (id: string) => ({
+    id,
+    object: "account",
+    charges_enabled: true,
+    payouts_enabled: true,
+    details_submitted: true,
+    requirements: { currently_due: [] },
+  }));
+  report_error.mockReset();
+  token.mockReset();
 });
+
+const to_stripe = (res: Response) => {
+  const to = new URL(res.headers.get("location")!, "https://app.test");
+  return `${to.origin}${to.pathname}`;
+};
 
 const state_of = (res: Response) => {
   const to = new URL(res.headers.get("location")!);
@@ -218,5 +260,116 @@ describe("stripe connect start", () => {
 
     const confirmed = await call(`kind=reg&reg_id=${reg_id}&replace=1`);
     expect(state_of(confirmed).replace).toBe(true);
+  });
+
+  test("a registration its deauthorized event cleared goes to stripe unasked", async () => {
+    const reg_id = await seed_reg("cleared@reg.test", {
+      o_stripe_account_id: "acct_reg_cleared",
+    });
+    await reg_stripe_deauthorize(
+      "acct_reg_cleared",
+      "2026-10-12T12:00:00.000Z",
+      db() as any
+    );
+    session.user = { id: "u-clr", email: "cleared@reg.test", role: "user" };
+
+    const res = await call(`kind=reg&reg_id=${reg_id}`);
+
+    expect(to_stripe(res)).toBe("https://connect.stripe.com/oauth/authorize");
+    expect(state_of(res).replace).toBe(false);
+  });
+
+  // stripe refusing the read is the disconnect, whether or not its
+  // deauthorized event has reached us
+  test("a registration whose account stripe refuses us goes to stripe unasked", async () => {
+    const reg_id = await seed_reg("refused@reg.test", {
+      o_stripe_account_id: "acct_reg_refused",
+    });
+    session.user = { id: "u-ref", email: "refused@reg.test", role: "user" };
+    retrieve.mockRejectedValue(
+      new Stripe.errors.StripePermissionError({
+        message: "The provided key does not have access to account",
+      })
+    );
+
+    const res = await call(`kind=reg&reg_id=${reg_id}`);
+
+    expect(to_stripe(res)).toBe("https://connect.stripe.com/oauth/authorize");
+    expect(state_of(res).replace).toBe(false);
+  });
+
+  // the likeliest reconnect is the same account: by the callback stripe has
+  // granted it again, and it reads live
+  test("an applicant reconnecting the account stripe refused, its event lost, lands connected", async () => {
+    const reg_id = await seed_reg("back@reg.test", {
+      o_stripe_account_id: "acct_reg_back",
+    });
+    session.user = { id: "u-back", email: "back@reg.test", role: "user" };
+    retrieve.mockRejectedValueOnce(
+      new Stripe.errors.StripePermissionError({
+        message: "The provided key does not have access to account",
+      })
+    );
+    token.mockResolvedValue({ stripe_user_id: "acct_reg_back" });
+
+    const started = await call(`kind=reg&reg_id=${reg_id}`);
+    const state = new URL(started.headers.get("location")!).searchParams.get(
+      "state"
+    )!;
+    const res = (await (callback as any)({
+      request: new Request(
+        `https://app.test/api/stripe-connect/callback?${new URLSearchParams({ code: "ac_back", state })}`
+      ),
+      params: {},
+      context: {},
+    })) as Response;
+
+    const back = new URL(res.headers.get("location")!, "https://app.test");
+    expect(back.pathname).toBe(`/register/${reg_id}/4`);
+    expect(back.searchParams.get("stripe_connect")).toBe("connected");
+    const [r] = await db()
+      .select({ acct: registrations.o_stripe_account_id })
+      .from(registrations)
+      .where(eq(registrations.id, reg_id));
+    expect(r!.acct).toBe("acct_reg_back");
+  });
+
+  // unreadable is not refused: the account may well still be live
+  test("a registration whose account stripe can't read right now still needs replace confirmed", async () => {
+    const reg_id = await seed_reg("unreadable@reg.test", {
+      o_stripe_account_id: "acct_reg_unreadable",
+    });
+    session.user = { id: "u-unr", email: "unreadable@reg.test", role: "user" };
+    retrieve.mockRejectedValue(
+      new Stripe.errors.StripeAPIError({ message: "stripe is down" })
+    );
+
+    const res = await call(`kind=reg&reg_id=${reg_id}`);
+
+    const back = new URL(res.headers.get("location")!, "https://app.test");
+    expect(back.pathname).toBe(`/register/${reg_id}/4`);
+    expect(back.searchParams.get("stripe_connect_reason")).toBe(
+      "replace_unconfirmed"
+    );
+  });
+
+  // its old connection is dead: there is nothing live to replace
+  test("an npo that disconnected us goes to stripe unasked", async () => {
+    const { npo } = await member_of_npo("start-disconnected");
+    await db()
+      .update(npos)
+      .set({
+        stripe_account_id: "acct_start_disconnected",
+        stripe_deauthorized_at: "2026-10-01T00:00:00.000Z",
+      })
+      .where(eq(npos.id, npo.id));
+
+    const res = await call(`kind=npo&npo_id=${npo.id}`);
+
+    const to = new URL(res.headers.get("location")!);
+    expect(`${to.origin}${to.pathname}`).toBe(
+      "https://connect.stripe.com/oauth/authorize"
+    );
+    expect(state_of(res).replace).toBe(false);
   });
 });

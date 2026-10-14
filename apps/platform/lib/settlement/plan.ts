@@ -41,19 +41,47 @@ export interface NavLogEntry {
   holder_deltas: { npo_id: number; units_delta: number }[];
 }
 
-export interface SettlementPlan {
+/** what settlement books wherever the money lands */
+interface IBooked {
+  /** the dist row's id, which every record of the share points back to */
+  dist_id: string;
   dist: IDonationDist;
   don: IDonation;
   revenue_logs: IRevenueLog[];
   commission: ICommission | null;
-  balance_txs: IBalanceTx[];
-  payout: IPayout | null;
-  nav_log_entry: NavLogEntry | null;
-  balance_deltas: IBalanceDeltas;
   msgs: IMsg[];
   /** the stored allocation couldn't be split, so net went to default_allocation */
   alloc_fell_back: boolean;
 }
+
+/** what bg books for a share it keeps: the npo's balances and a payout */
+export interface IPooledBooking {
+  balance_txs: IBalanceTx[];
+  payout: IPayout | null;
+  nav_log_entry: NavLogEntry | null;
+  balance_deltas: IBalanceDeltas;
+  /** the npo's notice of a lock purchase */
+  msgs: IMsg[];
+}
+
+/** the money stays in bg's balance and reaches the npo as balances and a payout */
+export interface PooledSettlementPlan
+  extends IBooked,
+    Omit<IPooledBooking, "msgs"> {
+  kind: "pooled";
+}
+
+/** the money goes to the npo's connected stripe account in one transfer, so
+ * nothing lands in bg's books for the npo: no payout, balance or investment */
+export interface RoutedSettlementPlan extends IBooked {
+  kind: "routed";
+  /** the connected account (`acct_…`) the transfer pays */
+  routed_to: string;
+}
+
+export type SettlementPlan = PooledSettlementPlan | RoutedSettlementPlan;
+
+const ALL_CASH: IAllocation = { cash: 100, liq: 0, lock: 0 };
 
 /**
  * stored allocation is unvalidated jsonb, and settlement must put exactly net
@@ -68,6 +96,15 @@ const settlement_allocation = (a: Partial<IAllocation>): IAllocation | null => {
     cash: a.cash ?? 100 - liq - lock,
   });
   return r.success ? r.output : null;
+};
+
+/** the split a pooled share of an npo with `stored` lands in; `fell_back`
+ * when `stored` couldn't be split, so it is default_allocation */
+export const pooled_allocation = (
+  stored: IAllocation | null | undefined
+): { alloc: IAllocation; fell_back: boolean } => {
+  const a = stored ? settlement_allocation(stored) : default_allocation;
+  return { alloc: a ?? default_allocation, fell_back: a === null };
 };
 
 // [resulting balance, excess fa]
@@ -116,9 +153,27 @@ export const shared_parts = (obj: IParts, n: number): IParts => ({
   },
 });
 
+/** @param routed_to - the npo's connected account when this share routes to
+ * it, null to settle it pooled (`npo_plan` in `.server/settlement` decides) */
 export function calc_settlement_plan(
   i: IInput,
-  ctx: NpoSettlementContext
+  ctx: NpoSettlementContext,
+  routed_to: null
+): PooledSettlementPlan;
+export function calc_settlement_plan(
+  i: IInput,
+  ctx: NpoSettlementContext,
+  routed_to: string
+): RoutedSettlementPlan;
+export function calc_settlement_plan(
+  i: IInput,
+  ctx: NpoSettlementContext,
+  routed_to: string | null
+): SettlementPlan;
+export function calc_settlement_plan(
+  i: IInput,
+  ctx: NpoSettlementContext,
+  routed_to: string | null
 ): SettlementPlan {
   const [fa_added, fa_excess] = credit_fa(i.ps.sttl.base, {
     fa: i.ps.sttl_fa.base,
@@ -136,12 +191,11 @@ export function calc_settlement_plan(
     fsa: ctx.fiscal_sponsored ? fees.fiscal_sponsor : 0,
   });
 
-  const stored_alloc = ctx.allocation
-    ? settlement_allocation(ctx.allocation)
-    : default_allocation;
+  const pooled = pooled_allocation(ctx.allocation);
   const settings: IToSettings = {
     fiscal_sponsored: ctx.fiscal_sponsored,
-    alloc: stored_alloc ?? default_allocation,
+    // a routed net leaves in one transfer, so none of it can be invested
+    alloc: routed_to === null ? pooled.alloc : ALL_CASH,
   };
 
   const id = crypto.randomUUID();
@@ -274,65 +328,127 @@ export function calc_settlement_plan(
         }
       : null;
 
+  const tip_msgs: IMsg[] = tip_log
+    ? [
+        msg("tip-received", {
+          id: tip_log.id,
+          date: tip_log.date,
+          npo_name: ctx.name,
+          npo_id: ctx.id,
+          is_recurring: don.frequency !== "one-time",
+          type_tip: tip_log.type_tip!,
+        }),
+      ]
+    : [];
+
+  // the dist row takes the don's id
+  const dist_id = don.id;
+  if (routed_to !== null) {
+    return {
+      kind: "routed",
+      routed_to,
+      dist_id,
+      dist,
+      don,
+      revenue_logs,
+      commission,
+      msgs: [
+        ...tip_msgs,
+        don_dist_msg(i, ctx, don, dist),
+        transfer_msg(i, dist_id),
+      ],
+      alloc_fell_back: false,
+    };
+  }
+
+  const { msgs: lock_msgs, ...booking } = pooled_booking({
+    net,
+    alloc: settings.alloc,
+    nav_price: i.nav_price,
+    npo: ctx,
+    dist_id,
+    date: don.created_at,
+  });
+
+  return {
+    kind: "pooled",
+    dist_id,
+    dist,
+    don,
+    revenue_logs,
+    commission,
+    ...booking,
+    msgs: [...tip_msgs, ...lock_msgs, don_dist_msg(i, ctx, don, dist)],
+    alloc_fell_back: pooled.fell_back,
+  };
+}
+
+interface IPooledShare {
+  net: number;
+  /** a resolved split (`pooled_allocation`) */
+  alloc: IAllocation;
+  nav_price: number;
+  npo: Pick<NpoSettlementContext, "id" | "lock_units" | "liq">;
+  dist_id: string;
+  /** the share's settlement date */
+  date: string;
+}
+
+/** what bg books for `net` of a share it keeps, split by `alloc` */
+export function pooled_booking({
+  net,
+  alloc,
+  nav_price,
+  npo,
+  dist_id,
+  date,
+}: IPooledShare): IPooledBooking {
   const net_alloc: IAllocation = {
-    cash: (settings.alloc.cash / 100) * net,
-    liq: (settings.alloc.liq / 100) * net,
-    lock: (settings.alloc.lock / 100) * net,
+    cash: (alloc.cash / 100) * net,
+    liq: (alloc.liq / 100) * net,
+    lock: (alloc.lock / 100) * net,
   };
 
   const balance_deltas: IBalanceDeltas = {
     liq: net_alloc.liq,
     lock: net_alloc.lock,
-    lock_units: net_alloc.lock ? net_alloc.lock / i.nav_price : 0,
+    lock_units: net_alloc.lock ? net_alloc.lock / nav_price : 0,
     cash: net_alloc.cash,
   };
 
   const balance_txs: IBalanceTx[] = [];
   const msgs: IMsg[] = [];
 
-  if (tip_log) {
-    msgs.push(
-      msg("tip-received", {
-        id: tip_log.id,
-        date: tip_log.date,
-        npo_name: ctx.name,
-        npo_id: ctx.id,
-        is_recurring: don.frequency !== "one-time",
-        type_tip: tip_log.type_tip!,
-      })
-    );
-  }
-
   let nav_log_entry: NavLogEntry | null = null;
 
   if (net_alloc.lock || net_alloc.liq) {
-    const lock_units = ctx.lock_units ?? 0;
-    const liq = ctx.liq ?? 0;
+    const lock_units = npo.lock_units ?? 0;
+    const liq = npo.liq ?? 0;
 
     if (net_alloc.lock) {
-      const purchased_units = net_alloc.lock / i.nav_price;
+      const purchased_units = net_alloc.lock / nav_price;
 
       // new investments are allocated to cash portion and rebalanced later.
       // load-bearing: distinct per call so batch settlements get distinct ordering timestamps
       nav_log_entry = {
-        reason: `npo:${don.to_id} donation allocation to lock`,
+        reason: `npo:${npo.id} donation allocation to lock`,
         date: nav_log_date(),
         cash_delta: net_alloc.lock,
-        holder_deltas: [{ npo_id: ctx.id, units_delta: purchased_units }],
+        holder_deltas: [{ npo_id: npo.id, units_delta: purchased_units }],
       };
 
       const lock_tx: IBalanceTx = {
         id: crypto.randomUUID(),
-        date_created: don.created_at,
-        date_updated: don.created_at,
-        npo_id: ctx.id,
+        date_created: date,
+        date_updated: date,
+        npo_id: npo.id,
         account: "lock",
         bal_begin: lock_units,
         bal_end: lock_units + purchased_units,
         amount: net_alloc.lock,
         amount_units: purchased_units,
         status: "final",
-        account_other_id: don.id,
+        account_other_id: dist_id,
         account_other: "donation",
         account_other_bal_begin: net_alloc.lock,
         account_other_bal_end: 0,
@@ -354,16 +470,16 @@ export function calc_settlement_plan(
     if (net_alloc.liq) {
       balance_txs.push({
         id: crypto.randomUUID(),
-        date_created: don.created_at,
-        date_updated: don.created_at,
-        npo_id: ctx.id,
+        date_created: date,
+        date_updated: date,
+        npo_id: npo.id,
         account: "liq",
         bal_begin: liq,
         bal_end: liq + net_alloc.liq,
         amount: net_alloc.liq,
         amount_units: net_alloc.liq,
         status: "final",
-        account_other_id: don.id,
+        account_other_id: dist_id,
         account_other: "donation",
         account_other_bal_begin: net_alloc.liq,
         account_other_bal_end: 0,
@@ -375,59 +491,61 @@ export function calc_settlement_plan(
     net_alloc.cash > 0
       ? {
           id: crypto.randomUUID(),
-          source_id: don.id,
-          npo_id: ctx.id,
+          source_id: dist_id,
+          npo_id: npo.id,
           source: "donation",
-          date: don.created_at,
+          date,
           amount: net_alloc.cash,
           type: "pending",
         }
       : null;
 
-  msgs.push(
-    msg("don-dist", {
-      id: don.id,
-      date_created: don.created_at,
-      amount: don.amount.base,
-      amount_usd: don.amount.base / don.upusd,
-      amount_denom: don.currency,
-      frequency: don.frequency,
-      via: don.via,
-      source: don.source,
-      to_id: ctx.id,
-      to_name: ctx.name,
-      net: dist.net,
-      sttl_date: don.created_at,
-      from_email: don.from_email,
-      from: {
-        name: don.from_name,
-        company: don.from_company_name,
-        // the same fields the receipt prints. every part is optional and the
-        // consumer joins whatever is present, so a donor who gave no address
-        // renders as none rather than as a row of separators.
-        address: {
-          street: don.from_addr_street,
-          city: don.from_addr_city,
-          state: don.from_addr_state,
-          zip: don.from_addr_zip_code,
-          country: don.from_addr_country,
-        },
-      },
-      program: don.program,
-      form: i.source,
-    })
-  );
-
-  return {
-    dist,
-    don,
-    revenue_logs,
-    commission,
-    balance_txs,
-    payout,
-    nav_log_entry,
-    balance_deltas,
-    msgs,
-    alloc_fell_back: stored_alloc === null,
-  };
+  return { balance_txs, payout, nav_log_entry, balance_deltas, msgs };
 }
+
+const don_dist_msg = (
+  i: IInput,
+  ctx: NpoSettlementContext,
+  don: IDonation,
+  dist: IDonationDist
+): IMsg =>
+  msg("don-dist", {
+    id: don.id,
+    date_created: don.created_at,
+    amount: don.amount.base,
+    amount_usd: don.amount.base / don.upusd,
+    amount_denom: don.currency,
+    frequency: don.frequency,
+    via: don.via,
+    source: don.source,
+    to_id: ctx.id,
+    to_name: ctx.name,
+    net: dist.net,
+    sttl_date: don.created_at,
+    from_email: don.from_email,
+    from: {
+      name: don.from_name,
+      company: don.from_company_name,
+      // the same fields the receipt prints. every part is optional and the
+      // consumer joins whatever is present, so a donor who gave no address
+      // renders as none rather than as a row of separators.
+      address: {
+        street: don.from_addr_street,
+        city: don.from_addr_city,
+        state: don.from_addr_state,
+        zip: don.from_addr_zip_code,
+        country: don.from_addr_country,
+      },
+    },
+    program: don.program,
+    form: i.source,
+  });
+
+/** the transfer owed to the routed dist `dist_id` of `i`'s share */
+export const transfer_msg = (i: IInput, dist_id: string): IMsg =>
+  msg("connect-transfer", {
+    dist_id,
+    donation_id: i.prnt.id,
+    // the stripe rail's settlement id is the payment intent's
+    intent_id: i.sttl.id,
+  });

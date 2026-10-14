@@ -15,6 +15,8 @@ import {
   seed_paid_commission,
 } from "#/__tests__/fixtures/card-gift";
 import { seed_user } from "#/__tests__/fixtures/funds";
+import { lock_order, logged_db } from "#/__tests__/fixtures/locks";
+import { dists } from "../pg/schema/dist";
 import { donations } from "../pg/schema/donation";
 import { owed_amounts } from "../pg/schema/owed";
 import type { TestDb } from "../pg/test-utils/pglite";
@@ -116,6 +118,30 @@ const taken = async (id: string) =>
 
 const outstanding = async (donation_id: string) =>
   (await owed_for_donation(donation_id)).map((o) => o.outstanding_usd);
+
+describe("refund_failed — row locks", () => {
+  // the order `dists_locked` in ./share documents: a refused transfer's
+  // rebook holds the donation while it waits on the dist
+  test("credits back under the donation's lock, then its dists'", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, 40, "re_1");
+    const real = test_db.current!;
+    const { db, queries } = logged_db(real);
+    test_db.current = { ...real, db };
+
+    try {
+      await fail(id, "re_1");
+    } finally {
+      test_db.current = real;
+    }
+
+    expect(await taken(id)).toBe(0);
+    expect(lock_order(queries, ["donations", "dists", "npos"])).toEqual([
+      "donations",
+      "dists",
+    ]);
+  });
+});
 
 describe("refund_failed — part of the charge", () => {
   test("a failed $40 of a gift since refunded in full credits back only its share", async () => {
@@ -372,5 +398,29 @@ describe("refund_failed — a reversed paid-grant gift", () => {
       status: "not_recorded",
       donation_status: "refunded_loss",
     });
+  });
+});
+
+describe("refund_failed — a refused transfer's cut", () => {
+  // rebuilding 33.33 / (2/3) sizes the short at $16.66 or $16.68
+  test("a one-third cut reports the short from the stored settled net", async () => {
+    const { id } = await seed({
+      net: 50,
+      fee_processing: 0,
+      fee_base: 0,
+      payout: "pending",
+    });
+    await test_db
+      .current!.db.update(dists)
+      .set({ net: 33.33, refunds_cut_share: 1 / 3, settled_net: 50 })
+      .where(eq(dists.donation_id, id));
+    await refund(id, 34, "re_1");
+
+    const res = await fail(id, "re_1");
+
+    const lines = res.status === "by_hand" ? res.by_hand : [];
+    const short = lines.filter((l) => l.includes("short"));
+    expect(short).toHaveLength(1);
+    expect(short[0]).toMatch(/short \$16\.67\b/);
   });
 });

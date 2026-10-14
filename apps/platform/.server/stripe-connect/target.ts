@@ -9,11 +9,12 @@ import {
 } from "@/stripe-connect/return";
 import { db } from "../pg/db";
 import type { DbOrTx } from "../pg/queries/helpers";
-import { reg_get } from "../pg/queries/registration";
+import { reg_get, reg_update_from } from "../pg/queries/registration";
 import { npos } from "../pg/schema/npo";
 import { registrations } from "../pg/schema/registration";
 import { user_npo_memberships } from "../pg/schema/user";
 import type { TConnectTarget } from "./state";
+import { account_status_live } from "./sync";
 
 export interface IConnectActor {
   id: string;
@@ -22,11 +23,18 @@ export interface IConnectActor {
 }
 
 export type TTargetAccess =
-  | { ok: true; acct: string | null }
+  | {
+      ok: true;
+      acct: string | null;
+      /** a connect would replace a live account, so it needs confirming. an
+       * account that disconnected us is held but no longer live */
+      replaces: boolean;
+    }
   | { ok: false; status: 403 | 404 };
 
 /** whether `actor` may connect an account to `t`, and the account it holds now.
- * registration: its applicant or an admin, while it is still editable.
+ * registration: its applicant or an admin, while it is still editable; an
+ * account stripe refuses us is dropped from it here.
  * npo: a member or an admin. */
 export async function target_access(
   actor: IConnectActor,
@@ -42,15 +50,39 @@ export async function target_access(
     // in review or decided, the write is refused anyway — refused here, it is
     // refused before stripe links an account that would then be stored nowhere
     if (!EDITABLE.includes(reg.status)) return { ok: false, status: 403 };
-    return { ok: true, acct: reg.o_stripe_account_id ?? null };
+    const held = reg.o_stripe_account_id ?? null;
+    if (held === null) return { ok: true, acct: null, replaces: false };
+    if ((await account_status_live(held)) !== "disconnected") {
+      return { ok: true, acct: held, replaces: true };
+    }
+    // stripe refusing the read is the disconnect, its deauthorized event late
+    // or lost: dropped as that event drops it, since by the callback a
+    // reconnect of this same account reads live again
+    const { won } = await reg_update_from(
+      db,
+      reg.id,
+      EDITABLE,
+      { o_stripe_account_id: null },
+      eq(registrations.o_stripe_account_id, held)
+    );
+    // lost: the row moved meanwhile, and the callback's own read judges it
+    return { ok: true, acct: won ? null : held, replaces: false };
   }
 
   const [npo] = await db
-    .select({ acct: npos.stripe_account_id })
+    .select({
+      acct: npos.stripe_account_id,
+      deauthorized_at: npos.stripe_deauthorized_at,
+    })
     .from(npos)
     .where(eq(npos.id, t.npo_id));
   if (!npo) return { ok: false, status: 404 };
-  if (is_admin) return { ok: true, acct: npo.acct };
+  const granted = {
+    ok: true,
+    acct: npo.acct,
+    replaces: npo.acct !== null && npo.deauthorized_at === null,
+  } as const;
+  if (is_admin) return granted;
 
   const [member] = await db
     .select({ npo_id: user_npo_memberships.npo_id })
@@ -62,7 +94,7 @@ export async function target_access(
       )
     )
     .limit(1);
-  return member ? { ok: true, acct: npo.acct } : { ok: false, status: 403 };
+  return member ? granted : { ok: false, status: 403 };
 }
 
 /** whether `acct` already belongs to an npo or a registration other than `t`.

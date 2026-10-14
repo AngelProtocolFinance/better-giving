@@ -9,6 +9,7 @@ import {
   isNull,
   like,
   lte,
+  ne,
   or,
   type SQL,
   sql,
@@ -156,6 +157,55 @@ export function reg_update_from(
   also?: SQL
 ): Promise<TRegCas> {
   return reg_cas(db, id, and(status_in(from), also), attrs);
+}
+
+/** what a disconnect event did to the registration holding `acct`. `stale`
+ * when it connected the account after the event. `tied` when the connect
+ * and the event fall in the same second, so the timestamps do not say which
+ * was last. an approved one's account is its npo's, as `held_elsewhere`
+ * reads it, and this leaves it */
+export type TRegStripeDeauthorize =
+  | { status: "cleared"; reg_id: string }
+  | { status: "stale"; reg_id: string }
+  | { status: "tied"; reg_id: string }
+  | { status: "unknown" };
+
+/** the registration holding `acct` disconnected us from it at `at`, the
+ * event's stripe-clock creation time: it no longer holds one, so the
+ * applicant can connect again. a connect newer than `at` keeps the account.
+ * `tie` resolves a connect in the event's own second, as
+ * `npo_stripe_deauthorize` does */
+export async function reg_stripe_deauthorize(
+  acct: string,
+  at: string,
+  conn: DbOrTx = db,
+  tie: "ask" | "mark" | "stale" = "ask"
+): Promise<TRegStripeDeauthorize> {
+  // in the statement, so a connect committing first is re-read and kept.
+  // null `o_stripe_connected_at`: saved before the stamp existed
+  const older = sql`${registrations.o_stripe_connected_at} is null or ${registrations.o_stripe_connected_at} < ${at}::timestamptz`;
+  const same_second = sql`${registrations.o_stripe_connected_at} is not null and date_trunc('second', ${registrations.o_stripe_connected_at}) = date_trunc('second', ${at}::timestamptz) and not (${older})`;
+  const fresh = sql<boolean>`(${older} or (${tie === "mark"} and ${same_second}))`;
+  const tied = sql<boolean>`(${tie === "ask"} and ${same_second})`;
+  const [row] = await conn
+    .update(registrations)
+    .set({
+      o_stripe_account_id: sql`case when ${fresh} then null else ${registrations.o_stripe_account_id} end`,
+      o_stripe_connected_at: sql`case when ${fresh} then null else ${registrations.o_stripe_connected_at} end`,
+      // a redelivery must not move the row up the applications list
+      updated_at: sql`case when ${fresh} then now() else ${registrations.updated_at} end`,
+    })
+    .where(
+      and(
+        eq(registrations.o_stripe_account_id, acct),
+        or(isNull(registrations.status), ne(registrations.status, "03"))
+      )
+    )
+    .returning({ id: registrations.id, fresh, tied });
+  if (!row) return { status: "unknown" };
+  if (row.fresh) return { status: "cleared", reg_id: row.id };
+  if (row.tied) return { status: "tied", reg_id: row.id };
+  return { status: "stale", reg_id: row.id };
 }
 
 /** paginated registrations with status/date/country filters */

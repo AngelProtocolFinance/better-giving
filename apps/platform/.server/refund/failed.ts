@@ -9,14 +9,25 @@ import { refund_failed_ref } from "../pg/queries/owed-refund";
 import { type ITake, take_add, take_undo, takes_of } from "../pg/queries/take";
 import { donations } from "../pg/schema/donation";
 import { loss_logs } from "../pg/schema/revenue";
-import { fee_processing_usd, referrer_of } from "./plan";
-import { load_reversible, type Rail, type Unreversible } from "./reverse";
+import {
+  fee_processing_usd,
+  past_cut,
+  referrer_of,
+  scaled,
+  share_of_net,
+} from "./plan";
+import {
+  type IRoutedRefundFailed,
+  load_reversible,
+  type Rail,
+  routed_refund_failed,
+  type Unreversible,
+} from "./reverse";
 import {
   credit_parts,
   gift_dists_locked,
   grant_went_out,
   type LockedDist,
-  scaled,
 } from "./share";
 import { move_owed, type OwedMove, taken_of } from "./takes";
 
@@ -50,8 +61,13 @@ export type RefundFailedResult =
   /** the gift has none of the refund on record (it failed before an event
    * recorded it, or a run before this one credited it back): nothing
    * credited, and the refund kept on record as failed, so no later event
-   * adds it */
-  | { status: "not_recorded"; donation_status: IDonation["status"] }
+   * adds it. `routed`, when present: what a routed dist's transfer had
+   * taken for it all the same, credited back or left to ops */
+  | {
+      status: "not_recorded";
+      donation_status: IDonation["status"];
+      routed?: IRoutedRefundFailed;
+    }
   | Extract<Unreversible, { status: "failed" }>;
 
 /**
@@ -69,11 +85,37 @@ export async function refund_failed(
   const loaded = await load_reversible(r.donation_id, r.rail);
   if (loaded.status === "failed") return loaded;
   const { don } = loaded;
+  const res = await credit_failed(r, don);
+  // after the commit: a provider round-trip under the gift's lock would hold
+  // it, and a redelivery finds the refund undone and lands here again
+  const routed = await routed_refund_failed(r.rail, don.id, r.refund_id);
+  if (res.status === "not_recorded") {
+    return routed.credited.length + routed.by_hand.length > 0
+      ? { ...res, routed }
+      : res;
+  }
+  const credited = [...res.credited, ...routed.credited];
+  const by_hand = [
+    ...(res.status === "by_hand" ? res.by_hand : []),
+    ...routed.by_hand,
+  ];
+  return by_hand.length > 0
+    ? { ...res, status: "by_hand", credited, by_hand }
+    : { ...res, status: "credited", credited };
+}
+
+async function credit_failed(
+  r: RefundFailed,
+  don: IDonation
+): Promise<
+  | Exclude<RefundFailedResult, { status: "not_recorded" | "failed" }>
+  | Omit<Extract<RefundFailedResult, { status: "not_recorded" }>, "routed">
+> {
   const now = new Date().toISOString();
 
-  return db.transaction(async (tx): Promise<RefundFailedResult> => {
-    const ds = await gift_dists_locked(tx, don.id);
+  return db.transaction(async (tx) => {
     await donation_lock(tx, don.id);
+    const ds = await gift_dists_locked(tx, don.id);
     const [cur] = await tx
       .select({ status: donations.status })
       .from(donations)
@@ -117,10 +159,11 @@ export async function refund_failed(
           src: { source: "refund", source_ref: take.ref },
           now,
         });
-    const by_hand = ds.flatMap((d) => {
-      const hand = taken_by_hand(d);
-      return hand ? [`dist ${d.id} to ${dist_npo(d)}: ${hand}`] : [];
-    });
+    const by_hand = ds.flatMap((d) =>
+      [taken_by_hand(d), cut_short(d, after)].flatMap((hand) =>
+        hand ? [`dist ${d.id} to ${dist_npo(d)}: ${hand}`] : []
+      )
+    );
 
     const credited: string[] = [];
     for (const { party, was, row, credited: back, wanted } of moves) {
@@ -206,9 +249,10 @@ async function credit_reversed(
 /** on a reversed gift, what each party owes for the share `from` that its
  * reversal recorded, less what it owes for the share `to` left without the
  * failed refund: each dist the reversal left owed (a shortfall, less the cash
- * a cancelled payout took back), and each commission it found paid */
+ * a cancelled payout took back), and each commission it found paid. a
+ * dist's own figures fall by the shares past its rebook's cut (`past_cut`) */
 function reversed_parts(ds: LockedDist[], from: number, to: number): Part[] {
-  const fall = (x: number) => scaled(x, from) - scaled(x, to);
+  const fall = (x: number, f = from, t = to) => scaled(x, f) - scaled(x, t);
   const parts = new Map<string, Part>();
   const add = (p: Part) => {
     const key = JSON.stringify(p.party);
@@ -222,10 +266,16 @@ function reversed_parts(ds: LockedDist[], from: number, to: number): Part[] {
   };
   for (const d of ds) {
     if (d.refund_status === "loss") {
+      const cut = d.refunds_cut_share;
+      const [f, t] = [past_cut(cut, from), past_cut(cut, to)];
       add({
         party: { npo_id: d.to_id },
-        received: fall(d.net - cash_recovered(d)),
-        fee: fall(fee_processing_usd(d)),
+        received: fall(
+          d.net - cash_recovered(d),
+          share_of_net(cut, f),
+          share_of_net(cut, t)
+        ),
+        fee: fall(fee_processing_usd(d), f, t),
       });
     }
     const c = d.commission;
@@ -263,8 +313,32 @@ const cash_recovered = (d: LockedDist) =>
     ? (d.cash_pct / 100) * d.net
     : 0;
 
-/** what of the dist the refund moved outside the ledger, for ops to undo */
+/**
+ * what the npo of a dist rebooked pooled after a refused transfer is short
+ * once the gift's takes fall below the refunds that rebook cut off its net:
+ * the cut stays off the booking, and nothing on record gives it back. the
+ * takes counted are the ones `owed_targets` takes the cut off, all of them
+ * once its grant went out, else the refunds
+ */
+function cut_short(d: LockedDist, after: ITake[]): string | null {
+  const cut = d.refunds_cut_share;
+  if (!cut) return null;
+  const taken = grant_went_out(d) ? taken_of(after) : taken_of(after, "refund");
+  if (taken >= cut) return null;
+  const what = `its pooled rebook after stripe refused its transfer booked its net less ${humanize(cut * 100)}% of the charge, its refunds sent by then, and with this refund failed the gift's refunds take less than that`;
+  // a cut of the whole charge booked nothing, so no net is left to size it by
+  if (cut >= 1) {
+    return `${what}: the npo is short its whole routed share; pay it by hand`;
+  }
+  const short =
+    Math.round((d.settled_net ?? d.net) * (cut - taken) * 100) / 100;
+  return `${what}: the npo is short $${humanize(short)}; pay it by hand`;
+}
+
+/** what of the dist the refund moved outside the ledger, for ops to undo; a
+ * routed dist's is its transfer's, which `routed_refund_failed` words */
 function taken_by_hand(d: LockedDist): string | null {
+  if (d.routed) return null;
   if (d.status === "settled") {
     return grant_went_out(d)
       ? null

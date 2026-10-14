@@ -1,3 +1,4 @@
+export * from "./account-deauthorized";
 export * from "./account-updated";
 export * from "./charge-dispute";
 export * from "./charge-refunded";

@@ -52,20 +52,22 @@ export async function reverse_unfunded_payout_loss(
   tx: DbOrTx,
   payout_id: string
 ): Promise<UnfundedLossReversal> {
-  // dist, payout, npo: the order the refund locks them in
-  const [dist] = await tx
-    .select()
+  const of_payout = inArray(
+    dists.id,
+    tx
+      .select({ id: payouts.source_id })
+      .from(payouts)
+      .where(eq(payouts.id, payout_id))
+  );
+  // its donation first, in `dists_locked`'s order (./share): a dist's
+  // donation never changes, so the unlocked read names the one to lock
+  const [gift] = await tx
+    .select({ id: dists.donation_id })
     .from(dists)
-    .where(
-      inArray(
-        dists.id,
-        tx
-          .select({ id: payouts.source_id })
-          .from(payouts)
-          .where(eq(payouts.id, payout_id))
-      )
-    )
-    .for("update");
+    .where(of_payout);
+  if (gift) await donation_lock(tx, gift.id);
+  // dist, payout, npo: the order the refund locks them in
+  const [dist] = await tx.select().from(dists).where(of_payout).for("update");
   if (dist?.refund_status !== "loss") {
     return { status: "kept", reason: "its dist is not a loss refund" };
   }
@@ -194,6 +196,8 @@ async function uninvested_refund_plan(
         fee_fsa: dist.fee_fsa ?? 0,
         fee_processing: dist.fee_processing ?? 0,
         fee_allowance: dist.fee_allowance ?? 0,
+        refunds_cut_share: dist.refunds_cut_share,
+        settled_net: dist.settled_net,
       },
       payout: { id: payout_id, type: "pending" },
       commission: comm

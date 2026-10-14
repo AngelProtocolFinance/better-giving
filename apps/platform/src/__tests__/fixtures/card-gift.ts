@@ -24,9 +24,15 @@ export interface IDistSeed {
   fee_processing: number;
   fee_base: number;
   /** the grant run's payout of the dist's cash, or `savings` for a dist
-   * credited whole to the npo's savings balance, which has no payout */
-  payout: "pending" | "settled" | "savings";
+   * credited whole to the npo's savings balance, which has no payout, or
+   * `routed` for one settled to the npo's connected account and paid by the
+   * stripe transfer `transfer_of` names, which has neither */
+  payout: "pending" | "settled" | "savings" | "routed";
 }
+
+/** the stripe transfer that paid the routed dist `i` of `gift` */
+export const transfer_of = (gift: { id: string }, i = 0) =>
+  `tr_dist-${gift.id}-${i}`;
 
 /** a $100 card gift: $90 net, $3.20 card fee, its grant paid */
 export const PAID_GRANT: IDistSeed = {
@@ -35,6 +41,10 @@ export const PAID_GRANT: IDistSeed = {
   fee_base: 6.8,
   payout: "settled",
 };
+
+/** a $100 card gift routed to its npo's connected account: $90 net, $3.20
+ * card fee, paid by a $90 transfer */
+export const ROUTED: IDistSeed = { ...PAID_GRANT, payout: "routed" };
 
 /** the owed ledger's rows hold the gifts, so the caller clears them first */
 export async function clear_card_gifts(db: Db) {
@@ -91,6 +101,9 @@ export async function seed_card_gift(db: Db, ...ds: IDistSeed[]) {
       name: `NPO ${counter}-${i}`,
       cash: d.payout === "pending" ? d.net : 0,
       liq: d.payout === "savings" ? d.net : 0,
+      ...(d.payout === "routed" && {
+        stripe_account_id: `acct_${counter}_${i}`,
+      }),
     });
     npo_ids.push(npo!.id);
     const dist_id = `dist-${id}-${i}`;
@@ -112,8 +125,12 @@ export async function seed_card_gift(db: Db, ...ds: IDistSeed[]) {
         d.payout === "savings"
           ? { liq: 100, lock: 0, cash: 0 }
           : { liq: 0, lock: 0, cash: 100 },
+      ...(d.payout === "routed" && {
+        stripe_routed_to: `acct_${counter}_${i}`,
+        stripe_transfer_id: transfer_of({ id }, i),
+      }),
     });
-    if (d.payout === "savings") continue;
+    if (d.payout === "savings" || d.payout === "routed") continue;
     await db.insert(payouts).values({
       id: `payout-${dist_id}`,
       source_id: dist_id,

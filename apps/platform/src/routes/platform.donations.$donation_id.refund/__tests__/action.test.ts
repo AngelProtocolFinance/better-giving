@@ -20,6 +20,12 @@ const refunds_list = vi.hoisted(() => vi.fn());
 const refunds_retrieve = vi.hoisted(() => vi.fn());
 const intents_retrieve = vi.hoisted(() => vi.fn());
 const invoice_payments_list = vi.hoisted(() => vi.fn());
+const transfers = vi.hoisted(() => ({
+  retrieve: vi.fn(),
+  update: vi.fn(),
+  listReversals: vi.fn(),
+  createReversal: vi.fn(),
+}));
 const enqueue = vi.hoisted(() => vi.fn());
 const report_error = vi.hoisted(() => vi.fn());
 
@@ -50,6 +56,7 @@ vi.mock("$/kit/stripe", () => ({
     },
     paymentIntents: { retrieve: intents_retrieve },
     invoicePayments: { list: invoice_payments_list },
+    transfers,
   },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue }));
@@ -67,9 +74,14 @@ const { dists } = await import("$/pg/schema/dist");
 const { payouts } = await import("$/pg/schema/payout");
 const { owed_amounts } = await import("$/pg/schema/owed");
 const { subscriptions } = await import("$/pg/schema/subscription");
-const { PAID_GRANT, clear_card_gifts, seed_card_gift } = await import(
-  "#/__tests__/fixtures/card-gift"
-);
+const {
+  PAID_GRANT,
+  ROUTED,
+  balance_of,
+  clear_card_gifts,
+  seed_card_gift,
+  transfer_of,
+} = await import("#/__tests__/fixtures/card-gift");
 const { seed_npo } = await import("#/__tests__/fixtures/funds");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 
@@ -584,4 +596,52 @@ describe("a gift the action refuses", () => {
       expect(await gift_of(gift.id)).toEqual(untouched);
     }
   );
+});
+
+describe("a gift routed to the nonprofit's connected account", () => {
+  it("refunds the donor as for a pooled gift, then reverses the transfer once", async () => {
+    refunds_create.mockResolvedValue({
+      id: "re_1",
+      status: "succeeded",
+      amount: 10000,
+      created: 1_790_000_000,
+    });
+    transfers.retrieve.mockResolvedValue({
+      amount: 9000,
+      amount_reversed: 0,
+      metadata: {},
+    });
+    transfers.listReversals.mockResolvedValue({ data: [] });
+    transfers.createReversal.mockResolvedValue({ id: "trr_1" });
+    const gift = await seed_card_gift(db(), ROUTED);
+
+    const res: any = await action(args_of(gift.id));
+
+    expect(res).toMatchObject({ ok: true, reversal: "done" });
+    // reverse_transfer reverses a destination charge's transfer only, and
+    // this charge has none: the refund call is the pooled one
+    expect(refunds_create.mock.calls).toEqual([
+      [
+        { payment_intent: gift.sttl_id },
+        { idempotencyKey: `refund_${gift.id}_0` },
+      ],
+    ]);
+    expect(transfers.createReversal.mock.calls).toEqual([
+      [
+        transfer_of(gift),
+        {
+          amount: 9000,
+          metadata: {
+            refund_id: "re_1",
+            dist_id: `dist-${gift.id}-0`,
+            donation_id: gift.id,
+          },
+        },
+        { idempotencyKey: `connect-reversal:re_1:dist-${gift.id}-0` },
+      ],
+    ]);
+    expect((await gift_of(gift.id)).status).toBe("refunded");
+    expect(await balance_of(db(), gift.npo_ids[0]!)).toBe(0);
+    expect(await owed_for_donation(gift.id)).toEqual([]);
+  });
 });

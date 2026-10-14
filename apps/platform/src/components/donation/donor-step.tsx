@@ -7,8 +7,8 @@ import {
   useController,
   useForm,
 } from "react-hook-form";
-import { country_names } from "#/constants/countries";
 import { states } from "#/constants/us-states";
+import { country_names } from "@/constants/countries";
 import { donor_fv, type IDonorFv as FV } from "@/donations/schema";
 import { BackBtn } from "./common/back-btn";
 import { use_donation } from "./context";

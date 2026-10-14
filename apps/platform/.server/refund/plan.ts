@@ -24,6 +24,16 @@ export interface RefundDistInput {
   fee_processing: number;
   /** 0 or absent when the donor didn't cover fees */
   fee_allowance?: number;
+  /** the share of the charge its refunds had taken off `net` when a refused
+   * transfer rebooked it pooled; null or absent when nothing was cut */
+  refunds_cut_share?: number | null;
+  /** the settled net stored when that rebook cut refunds off `net`; null or
+   * absent when nothing was cut and `net` is that settled net */
+  settled_net?: number | null;
+  /** settled to a connected account: its net leaves in a stripe transfer,
+   * once `transferred`, so no balance, investment or payout of it is ours to
+   * take back */
+  routed?: { transferred: boolean };
 }
 
 export type ReferrerParty = Exclude<OwedParty, { npo_id: number }>;
@@ -130,13 +140,53 @@ export const fee_processing_usd = (
   d: Pick<RefundDistInput, "fee_processing" | "fee_allowance">
 ): number => (d.fee_allowance ? 0 : d.fee_processing);
 
+/** `usd` scaled by `f`, in whole cents rounded down so a share never passes
+ * the whole; the whole as it is. the epsilon keeps 0.3 * 90 from flooring to
+ * 26.99 */
+export const scaled = (usd: number, f: number) =>
+  f >= 1 ? usd : Math.floor(usd * f * 100 + 1e-6) / 100;
+
+/** `taken` of the charge, the refunds a pooled rebook cut off the dist
+ * included (`refunds_cut_share`), less that cut: what is left to take of it */
+export const past_cut = (cut: number | null | undefined, taken: number) =>
+  Math.max(taken - (cut ?? 0), 0);
+
+/** `taken` of the charge beyond the dist's cut, as its share of `net`: a
+ * rebook books `net` for the part of the charge its cut left. of the card
+ * fee, which is the whole charge's, it is `taken` itself */
+export const share_of_net = (
+  cut: number | null | undefined,
+  taken: number
+): number => {
+  if (!cut) return taken;
+  return cut >= 1 ? 0 : Math.min(taken / (1 - cut), 1);
+};
+
+/** the settled net a fee split weighs. a refused transfer's cut stores it
+ * beside the booked remainder on `net`; with nothing stored, `net` is it */
+export const settled_net = (
+  d: Pick<RefundDistInput, "net"> & { settled_net?: number | null }
+): number => d.settled_net ?? d.net;
+
+/** what a refund takes back from the books. a partial cut already stored that
+ * remainder on `net`. a total cut left the settled net and booked nothing */
+export const recoverable_net = (
+  d: Pick<RefundDistInput, "net"> & { refunds_cut_share?: number | null }
+): number =>
+  d.refunds_cut_share != null && d.refunds_cut_share >= 1 ? 0 : d.net;
+
 /** a dist's gross in settled usd, counting the processing fee once */
 export const dist_settled_usd = (
   d: Pick<
     RefundDistInput,
-    "net" | "fee_base" | "fee_fsa" | "fee_processing" | "fee_allowance"
+    | "net"
+    | "settled_net"
+    | "fee_base"
+    | "fee_fsa"
+    | "fee_processing"
+    | "fee_allowance"
   >
-): number => d.net + d.fee_base + d.fee_fsa + fee_processing_usd(d);
+): number => settled_net(d) + d.fee_base + d.fee_fsa + fee_processing_usd(d);
 
 export function calc_refund_plan(
   inputs: RefundInputs,
@@ -151,12 +201,17 @@ export function calc_refund_plan(
     lock: dist.alloc.lock ?? 0,
     cash: dist.alloc.cash ?? 0,
   };
+  // the booked remainder: a total cut left the settled net on the row and
+  // put nothing in the books, so there is nothing to take back
+  const net = recoverable_net(dist);
   // derive balance deltas from allocation percentages
-  const bd = {
-    liq: (alloc.liq / 100) * dist.net,
-    lock: (alloc.lock / 100) * dist.net,
-    cash: (alloc.cash / 100) * dist.net,
-  };
+  const bd = dist.routed
+    ? { liq: 0, lock: 0, cash: 0 }
+    : {
+        liq: (alloc.liq / 100) * net,
+        lock: (alloc.lock / 100) * net,
+        cash: (alloc.cash / 100) * net,
+      };
   const refund_lock_units = nav && bd.lock > 0 ? bd.lock / nav.price : 0;
 
   const preview: RefundPreview = {
@@ -243,6 +298,17 @@ export function calc_refund_plan(
     });
   }
 
+  if (dist.routed) {
+    preview.effects.push({
+      label: "Stripe transfer",
+      pass: true,
+      // a refunded gift's transfer is never sent (`transfer_routed_dist`)
+      reason: dist.routed.transferred
+        ? "the refunded share is reversed from the nonprofit's Stripe account"
+        : "not yet sent to the nonprofit's Stripe account, and once refunded it won't be",
+    });
+  }
+
   if (sub_id) {
     preview.effects.push({
       label: "Subscription",
@@ -271,8 +337,11 @@ export function calc_refund_plan(
   const owed: OwedFigure = {
     donation_id: dist.donation_id,
     party: { npo_id: dist.to_id },
-    received_usd: dist.net - cash_recovered,
-    fee_processing_usd: fee_processing_usd(dist),
+    received_usd: net - cash_recovered,
+    fee_processing_usd: scaled(
+      fee_processing_usd(dist),
+      past_cut(dist.refunds_cut_share, 1)
+    ),
     now,
   };
 
@@ -297,7 +366,7 @@ export function calc_refund_plan(
   }
 
   // balance/NAV writes — only when fully reversible
-  if (!is_loss) {
+  if (!is_loss && !dist.routed) {
     const refund_deltas: IBalanceDeltas = {
       liq: bd.liq,
       lock: bd.lock,

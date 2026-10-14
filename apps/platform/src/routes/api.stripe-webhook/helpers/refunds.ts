@@ -4,14 +4,9 @@ import { is_reversed } from "@/donations";
 import { msg } from "@/queue";
 import { stage } from "$/env";
 import { enqueue } from "$/kit/queue";
-import { stripe } from "$/kit/stripe";
 import { money, refund_list } from "$/kit/stripe-money";
 import { reverse_charge } from "$/refund/reverse";
-import {
-  is_failed_or_canceled,
-  refund_take,
-  unsent_refunds,
-} from "$/refund/unsent";
+import { charge_refunds, refund_take } from "$/refund/unsent";
 import { ReversalIncompleteError } from "./reversal-incomplete";
 import { settled_donation } from "./settled-donation";
 
@@ -25,6 +20,8 @@ export interface RefundedCharge {
   latest: Stripe.Refund;
   /** the refunds not failed or canceled, sent or not: what the share counts */
   live: Stripe.Refund[];
+  /** of them, the ones stripe hasn't sent */
+  unsent: Stripe.Refund[];
 }
 
 /** `charge`'s donation and refunds as stripe has them now, or null when
@@ -35,13 +32,7 @@ export interface RefundedCharge {
 export async function refunded_charge(
   charge: Stripe.Charge
 ): Promise<RefundedCharge | null> {
-  const { data: refunds } = await stripe.refunds.list({
-    charge: charge.id,
-    limit: 100,
-  });
-  // summed off the list: stripe doesn't document whether
-  // `charge.amount_refunded` counts a pending refund or drops a failed one
-  const live = refunds.filter((r) => !is_failed_or_canceled(r));
+  const { all: refunds, live, unsent } = await charge_refunds(charge);
   const [latest] = live;
   if (!latest) return null;
 
@@ -51,7 +42,7 @@ export async function refunded_charge(
     console.info(`already refunded: ${don.id}`);
     return null;
   }
-  return { charge, intent_id, don, refunds, latest, live };
+  return { charge, intent_id, don, refunds, latest, live, unsent };
 }
 
 /**
@@ -62,7 +53,7 @@ export async function refunded_charge(
  * until the refund.updated that sees the last one settle.
  */
 export async function reverse_refunds(
-  { charge, intent_id, don, refunds, latest, live }: RefundedCharge,
+  { charge, intent_id, don, refunds, latest, live, unsent }: RefundedCharge,
   o: {
     alert_from: string;
     /** where it was seen, e.g. `charge ch_1, event evt_1` */
@@ -74,7 +65,6 @@ export async function reverse_refunds(
   }
 ) {
   const don_id = don.id;
-  const unsent = unsent_refunds(refunds);
   const taken = live.reduce((sum, r) => sum + r.amount, 0);
   const result = await reverse_charge({
     donation_id: don_id,
