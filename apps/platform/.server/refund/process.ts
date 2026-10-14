@@ -120,6 +120,7 @@ function project_inputs(
       fee_processing: dist.fee_processing ?? 0,
       fee_allowance: dist.fee_allowance ?? 0,
       refunds_cut_share: dist.refunds_cut_share,
+      settled_net: dist.settled_net,
       ...(dist.stripe_routed_to !== null && {
         routed: { transferred: dist.stripe_transfer_id !== null },
       }),

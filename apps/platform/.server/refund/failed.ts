@@ -330,7 +330,8 @@ function cut_short(d: LockedDist, after: ITake[]): string | null {
   if (cut >= 1) {
     return `${what}: the npo is short its whole routed share; pay it by hand`;
   }
-  const short = Math.round(((d.net * (cut - taken)) / (1 - cut)) * 100) / 100;
+  const short =
+    Math.round((d.settled_net ?? d.net) * (cut - taken) * 100) / 100;
   return `${what}: the npo is short $${humanize(short)}; pay it by hand`;
 }
 

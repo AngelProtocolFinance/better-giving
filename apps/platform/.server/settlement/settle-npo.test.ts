@@ -282,12 +282,14 @@ describe("settle_npo on a card donation to a connected npo", () => {
         donation_id: DON_ID,
         to_id: npo!.id,
         net: 100,
+        settled_net: 100,
         refunds_cut_share: null,
         date_created: dist.date_created,
       })
     );
 
     expect(r.status).toBe("booked");
+    expect(await dist_of()).toMatchObject({ settled_net: null });
     expect(lock_order(queries, ["donations", "dists", "npos"])).toEqual([
       "donations",
       "dists",
@@ -311,13 +313,18 @@ describe("settle_npo on a card donation to a connected npo", () => {
         donation_id: DON_ID,
         to_id: npo!.id,
         net: 75,
+        settled_net: 100,
         refunds_cut_share: 0.25,
         date_created: dist.date_created,
       })
     );
 
     expect(r.status).toBe("booked");
-    expect(await dist_of()).toMatchObject({ net: 75, refunds_cut_share: 0.25 });
+    expect(await dist_of()).toMatchObject({
+      net: 75,
+      refunds_cut_share: 0.25,
+      settled_net: 100,
+    });
     const [payout] = await db().select().from(payouts);
     expect(payout?.amount).toBe(75);
   });
@@ -338,13 +345,18 @@ describe("settle_npo on a card donation to a connected npo", () => {
         donation_id: DON_ID,
         to_id: npo!.id,
         net: 0,
+        settled_net: 100,
         refunds_cut_share: 1,
         date_created: dist.date_created,
       })
     );
 
     expect(r.status).toBe("booked");
-    expect(await dist_of()).toMatchObject({ net: 100, refunds_cut_share: 1 });
+    expect(await dist_of()).toMatchObject({
+      net: 100,
+      refunds_cut_share: 1,
+      settled_net: 100,
+    });
     expect(await db().select().from(payouts)).toEqual([]);
     const [after] = await db().select().from(npos).where(eq(npos.id, npo!.id));
     expect(after!.cash).toBe(0);

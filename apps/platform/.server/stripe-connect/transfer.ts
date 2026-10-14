@@ -142,6 +142,7 @@ async function settle_refused(
       donation_id: p.donation_id,
       to_id: dist.to_id,
       net: dist.net - cut.usd,
+      settled_net: dist.net,
       refunds_cut_share: cut.share,
       date_created: dist.date_created,
     })

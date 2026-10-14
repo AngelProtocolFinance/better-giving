@@ -197,6 +197,7 @@ async function uninvested_refund_plan(
         fee_processing: dist.fee_processing ?? 0,
         fee_allowance: dist.fee_allowance ?? 0,
         refunds_cut_share: dist.refunds_cut_share,
+        settled_net: dist.settled_net,
       },
       payout: { id: payout_id, type: "pending" },
       commission: comm

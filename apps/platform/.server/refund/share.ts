@@ -83,6 +83,7 @@ async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
       alloc: dists.alloc,
       routed_to: dists.stripe_routed_to,
       refunds_cut_share: dists.refunds_cut_share,
+      settled_net: dists.settled_net,
       // a subquery, not a join: nothing keeps a dist to one payout row, and a
       // second would count the dist twice. any one, as `dists_for_refund` takes
       payout_type: sql<PayoutType | null>`(SELECT ${payouts.type} FROM ${payouts}
@@ -119,6 +120,7 @@ async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
      * refund reverses, so no grant of it is ours to settle by hand */
     routed: r.routed_to !== null,
     refunds_cut_share: r.refunds_cut_share,
+    settled_net: r.settled_net,
     payout_type: r.payout_type,
     commission: r.commission,
   }));

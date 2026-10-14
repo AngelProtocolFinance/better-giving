@@ -53,6 +53,7 @@ test("a refused transfer's rebook leaves the dist pooled with its cut", async ()
     net: 30,
     stripe_routed_to: null,
     refunds_cut_share: 0.25,
+    settled_net: 45,
   });
   expect(await state()).toEqual({
     status: "settled",

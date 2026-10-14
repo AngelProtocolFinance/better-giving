@@ -27,6 +27,9 @@ export interface RefundDistInput {
   /** the share of the charge its refunds had taken off `net` when a refused
    * transfer rebooked it pooled; null or absent when nothing was cut */
   refunds_cut_share?: number | null;
+  /** the settled net stored when that rebook cut refunds off `net`; null or
+   * absent when nothing was cut and `net` is that settled net */
+  settled_net?: number | null;
   /** settled to a connected account: its net leaves in a stripe transfer,
    * once `transferred`, so no balance, investment or payout of it is ours to
    * take back */
@@ -159,17 +162,11 @@ export const share_of_net = (
   return cut >= 1 ? 0 : Math.min(taken / (1 - cut), 1);
 };
 
-/** the settled net a fee split weighs. a refused transfer's partial cut stores
- * the booked remainder on `net`; the share puts back what settlement
- * recorded, fees included separately because the cut never touched them. a
- * total cut leaves that settled net on the row */
+/** the settled net a fee split weighs. a refused transfer's cut stores it
+ * beside the booked remainder on `net`; with nothing stored, `net` is it */
 export const settled_net = (
-  d: Pick<RefundDistInput, "net"> & { refunds_cut_share?: number | null }
-): number => {
-  const cut = d.refunds_cut_share;
-  if (cut == null || cut <= 0 || cut >= 1) return d.net;
-  return Math.round((d.net / (1 - cut)) * 100) / 100;
-};
+  d: Pick<RefundDistInput, "net"> & { settled_net?: number | null }
+): number => d.settled_net ?? d.net;
 
 /** what a refund takes back from the books. a partial cut already stored that
  * remainder on `net`. a total cut left the settled net and booked nothing */
@@ -182,8 +179,13 @@ export const recoverable_net = (
 export const dist_settled_usd = (
   d: Pick<
     RefundDistInput,
-    "net" | "fee_base" | "fee_fsa" | "fee_processing" | "fee_allowance"
-  > & { refunds_cut_share?: number | null }
+    | "net"
+    | "settled_net"
+    | "fee_base"
+    | "fee_fsa"
+    | "fee_processing"
+    | "fee_allowance"
+  >
 ): number => settled_net(d) + d.fee_base + d.fee_fsa + fee_processing_usd(d);
 
 export function calc_refund_plan(

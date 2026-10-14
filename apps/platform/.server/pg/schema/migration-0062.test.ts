@@ -100,7 +100,7 @@ test("dists without a transfer still go in side by side", async () => {
 
 const cut = (share: number) =>
   t.client.query(
-    "update dists set refunds_cut_share = $1 where id = 'dist-2'",
+    "update dists set refunds_cut_share = $1, settled_net = 100 where id = 'dist-2'",
     [share]
   );
 

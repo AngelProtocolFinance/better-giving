@@ -68,9 +68,17 @@ export const dists = pgTable(
     stripe_transfer_id: text("stripe_transfer_id"),
     /** the share of the charge its refunds had already taken when a refused
      * transfer rebooked it pooled. a partial cut reduces `net` to what was
-     * booked; a total cut leaves the settled `net` and books nothing. null
-     * when nothing was cut */
+     * booked; a total cut leaves the settled `net` and books nothing. the
+     * settled net that cut came off is `settled_net`. null when nothing was
+     * cut */
     refunds_cut_share: numeric_as_number("refunds_cut_share", {
+      precision: 38,
+      scale: 18,
+    }),
+    /** the net settlement recorded for the share before a refused transfer's
+     * rebook cut its refunds off `net`; set with `refunds_cut_share`, null
+     * when nothing was cut and `net` is the settled net */
+    settled_net: numeric_as_number("settled_net", {
       precision: 38,
       scale: 18,
     }),
@@ -88,6 +96,10 @@ export const dists = pgTable(
     check(
       "dists_refunds_cut_share_check",
       sql`${t.refunds_cut_share} > 0 AND ${t.refunds_cut_share} <= 1`
+    ),
+    check(
+      "dists_settled_net_cut_check",
+      sql`${t.refunds_cut_share} IS NULL OR ${t.settled_net} IS NOT NULL`
     ),
     index("dists_donation_id_idx").on(t.donation_id),
     index("dists_to_id_date_idx").on(t.to_id, t.date_created),

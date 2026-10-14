@@ -770,6 +770,16 @@ describe("a share rebooked pooled after its transfer was refused", () => {
       o.received_usd,
     ]);
 
+  test("the rebook stores the settled net beside the booked remainder", async () => {
+    await rebooked_after_refund();
+    const [dist] = await db().select().from(dists);
+    expect(dist).toMatchObject({
+      net: 75,
+      refunds_cut_share: 0.25,
+      settled_net: 100,
+    });
+  });
+
   // 25% of the charge was cut off the booking; the next 50% owes $50 of the
   // $100 net, not 75% of the $75 booked
   test("a refund after the grant went out owes its own share of the routed net", async () => {
