@@ -1,5 +1,11 @@
 import { ImageCropper, useImageCropper } from "@ark-ui/react/image-cropper";
-import { useImperativeHandle } from "react";
+import { useImperativeHandle, useRef } from "react";
+import {
+  encode_canvas,
+  get_output_size,
+  paint_crop,
+  raster_mime,
+} from "./crop-output";
 
 export interface ICropperHandle {
   get_cropped_blob(): Promise<Blob | null>;
@@ -8,27 +14,15 @@ export interface ICropperHandle {
 interface ICropperProps {
   src: string;
   aspect: [number, number];
+  /** source file mime; the raster is encoded as this when the canvas can */
+  mime: string;
   rounded?: boolean;
   ref?: React.Ref<ICropperHandle>;
 }
 
-const OUTPUT_SIZES: Record<string, [number, number]> = {
-  "1/1": [315, 315],
-  "2/1": [792, 396],
-  "4/1": [1584, 396],
-};
-
-function get_output_size(aspect: [number, number]): [number, number] {
-  return (
-    OUTPUT_SIZES[`${aspect[0]}/${aspect[1]}`] ?? [
-      aspect[0] * 396,
-      aspect[1] * 396,
-    ]
-  );
-}
-
-export function Cropper({ src, aspect, rounded, ref }: ICropperProps) {
+export function Cropper({ src, aspect, mime, rounded, ref }: ICropperProps) {
   const [ax, ay] = aspect;
+  const root_ref = useRef<HTMLDivElement>(null);
   const cropper = useImageCropper({
     aspectRatio: ax / ay,
     cropShape: rounded ? "circle" : "rectangle",
@@ -38,25 +32,55 @@ export function Cropper({ src, aspect, rounded, ref }: ICropperProps) {
     ref,
     () => ({
       async get_cropped_blob() {
-        const blob = await cropper.getCroppedImage({ output: "blob" });
-        if (!(blob instanceof Blob)) return null;
-        // canonical output size (resize via canvas to match prior contract)
+        const root = root_ref.current;
+        const image = root?.querySelector("img");
+        if (!image?.complete || !image.naturalWidth || !image.naturalHeight) {
+          return null;
+        }
+        const { crop, zoom, offset, rotation, flip, viewportRect } = cropper;
+        if (viewportRect.width <= 0 || viewportRect.height <= 0) return null;
+        if (crop.width <= 0 || crop.height <= 0) return null;
         const [out_w, out_h] = get_output_size(aspect);
-        const bitmap = await createImageBitmap(blob);
         const canvas = document.createElement("canvas");
         canvas.width = out_w;
         canvas.height = out_h;
         const ctx = canvas.getContext("2d");
         if (!ctx) return null;
-        ctx.drawImage(bitmap, 0, 0, out_w, out_h);
-        return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve));
+        const ground = root ? getComputedStyle(root).backgroundColor : "";
+        paint_crop(
+          ctx,
+          image,
+          { width: image.naturalWidth, height: image.naturalHeight },
+          {
+            viewport: {
+              width: viewportRect.width,
+              height: viewportRect.height,
+            },
+            crop,
+            zoom,
+            offset,
+            rotation,
+            flip_x: flip.horizontal,
+            flip_y: flip.vertical,
+            out_w,
+            out_h,
+            background:
+              !ground ||
+              ground === "transparent" ||
+              ground === "rgba(0, 0, 0, 0)"
+                ? "#000101"
+                : ground,
+          }
+        );
+        return encode_canvas(canvas, raster_mime(mime));
       },
     }),
-    [cropper, aspect]
+    [cropper, aspect, mime]
   );
 
   return (
     <ImageCropper.RootProvider
+      ref={root_ref}
       value={cropper}
       className="relative w-full h-full bg-black overflow-hidden touch-none select-none"
     >
