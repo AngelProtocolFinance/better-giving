@@ -1,0 +1,6 @@
+---
+description: Repository source of truth
+alwaysApply: true
+---
+
+Read and follow the repository root `AGENTS.md`. It is the source of truth for the stack, commands, architecture boundaries, and conventions. Do not copy those facts into this rule.
