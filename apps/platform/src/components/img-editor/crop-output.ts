@@ -88,6 +88,12 @@ export function paint_crop(
     out_h,
     background,
   } = geom;
+  // the ground is only the letterbox: crop area the photo does not cover.
+  // it is not a matte under the photo. a logo's clear pixels have to stay
+  // clear. the public profile paints the logo object-cover on bg-panel, so
+  // those pixels show the panel. filling and drawing over that fill would
+  // composite them onto the ground and bake the black in. the photo's own
+  // rectangle is punched out of this fill before the draw, below.
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, out_w, out_h);
 
@@ -126,6 +132,10 @@ export function paint_crop(
   ctx.rotate((rotation * Math.PI) / 180);
   ctx.scale(z * (flip_x ? -1 : 1), z * (flip_y ? -1 : 1));
   ctx.translate(-cx, -cy);
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.fillStyle = "#000";
+  ctx.fillRect(img_x, img_y, drawn_w, drawn_h);
+  ctx.globalCompositeOperation = "source-over";
   ctx.drawImage(image, img_x, img_y, drawn_w, drawn_h);
   ctx.restore();
 }

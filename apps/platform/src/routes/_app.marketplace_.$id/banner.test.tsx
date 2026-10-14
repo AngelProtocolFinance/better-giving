@@ -27,7 +27,8 @@ describe("public profile banner", () => {
             id: 7,
             name: "Acme Relief",
             image: "https://example.com/banner.png",
-            logo: "https://example.com/logo.png",
+            // a real pixel, so the logo img stays mounted and its fit is readable
+            logo: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
             tagline: "Food and shelter",
             hq_country: "United States",
             url: "https://acme.example",
@@ -52,5 +53,24 @@ describe("public profile banner", () => {
     expect(fit).toBe("cover");
     expect(banner!.className).toContain("bg-cover");
     expect(banner!.className).not.toContain("bg-[length:");
+
+    // the round logo is object-cover on the light panel. clear pixels in a
+    // cropped png have to stay clear, or this ground cannot show through.
+    await vi.waitFor(() => {
+      const img = document.querySelector(
+        "img.rounded-full"
+      ) as HTMLImageElement | null;
+      expect(img?.complete).toBe(true);
+    });
+    const logo = document.querySelector("img.rounded-full") as HTMLImageElement;
+    const logo_style = getComputedStyle(logo);
+    expect(logo_style.objectFit).toBe("cover");
+    // the panel token is a light oklch. a logo with baked-in black cannot
+    // show this ground through its clear pixels.
+    const panel = logo_style.backgroundColor;
+    expect(panel).toMatch(/^oklch\(/);
+    expect(Number.parseFloat(panel.slice("oklch(".length))).toBeGreaterThan(
+      0.9
+    );
   });
 });
