@@ -124,19 +124,19 @@ const click_after_reload = async (page, locate) => {
   return 3;
 };
 
-// each flow: ({page, log, shot, ctx}) → string[] of observed facts. throw = fail.
-// `entry` is what a pass verifies. A click absent from `entry.clicked`, or a
-// URL absent from `entry.loaded`, was not verified — including a listed
-// feature-file entry the recipe does not take.
+// each flow: ({page, log, shot, entry, ctx}) → string[] of observed facts.
+// throw = fail. `entry.clicked` and `entry.loaded` start empty. Append a
+// click or a direct load when that step runs. A step the flow never reaches
+// stays off the list, including a listed feature-file entry this recipe skips.
 const FLOWS = {
   home: {
-    entry: { clicked: [], loaded: ["GET /"] },
     desc: "landing page renders with header nav and a sign-in link",
-    async run({ page, shot }) {
+    async run({ page, shot, entry }) {
       const r = await page.goto(`${BASE}/`, {
         waitUntil: "load",
         timeout: 120_000,
       });
+      entry.loaded.push("GET /");
       expect_ok(r.status() === 200, `GET / → ${r.status()}`);
       const title = await page.title();
       expect_ok(
@@ -163,9 +163,8 @@ const FLOWS = {
     },
   },
   login: {
-    entry: { clicked: ["header Log In"], loaded: ["GET /login"] },
     desc: "header Log In opens sign-in; a wrong password is rejected; /login also loads directly",
-    async run({ page, shot }) {
+    async run({ page, shot, entry }) {
       const home = await page.goto(`${BASE}/`, {
         waitUntil: "load",
         timeout: 120_000,
@@ -176,6 +175,7 @@ const FLOWS = {
           .getByRole("banner")
           .getByRole("link", { name: "Log In", exact: true });
       const tries = await open_link(page, login_link, /\/login(?:\?|$)/);
+      entry.clicked.push("header Log In");
       await page
         .getByRole("button", { name: "Continue with Google" })
         .waitFor({ timeout: T });
@@ -197,6 +197,7 @@ const FLOWS = {
         waitUntil: "load",
         timeout: 120_000,
       });
+      entry.loaded.push("GET /login");
       expect_ok(direct.status() === 200, `GET /login → ${direct.status()}`);
       await page
         .getByRole("button", { name: "Continue with Google" })
@@ -211,9 +212,8 @@ const FLOWS = {
     },
   },
   marketplace: {
-    entry: { clicked: ["footer Marketplace"], loaded: ["GET /marketplace"] },
     desc: "footer Marketplace opens the list; /marketplace also loads directly; the seeded nonprofit is listed",
-    async run({ page, shot }) {
+    async run({ page, shot, entry }) {
       const home = await page.goto(`${BASE}/`, {
         waitUntil: "load",
         timeout: 120_000,
@@ -228,6 +228,7 @@ const FLOWS = {
         marketplace_link,
         /\/marketplace(?:\?|$)/
       );
+      entry.clicked.push("footer Marketplace");
       const card = page.getByText("Verify Test Nonprofit").first();
       await card.waitFor({ timeout: T });
       await shot();
@@ -235,6 +236,7 @@ const FLOWS = {
         waitUntil: "load",
         timeout: 120_000,
       });
+      entry.loaded.push("GET /marketplace");
       expect_ok(
         direct.status() === 200,
         `GET /marketplace → ${direct.status()}`
@@ -249,13 +251,13 @@ const FLOWS = {
     },
   },
   "donate-card": {
-    entry: { clicked: [], loaded: ["GET /donate/:id"] },
     desc: "donate form for the seeded npo, loaded directly: pick amount → card → donor info → payment step (stripe)",
-    async run({ page, shot, ctx }) {
+    async run({ page, shot, ctx, entry }) {
       const r = await page.goto(`${BASE}/donate/${NPO}`, {
         waitUntil: "load",
         timeout: 120_000,
       });
+      entry.loaded.push("GET /donate/:id");
       expect_ok(r.status() === 200, `GET /donate/${NPO} → ${r.status()}`);
       await page
         .getByText("Verify Test Nonprofit")
@@ -324,15 +326,12 @@ const FLOWS = {
     },
   },
   "smoke-paths": {
-    entry: {
-      clicked: [],
-      loaded: ["GET /", "GET /api/currencies", "GET /form-embed.js"],
-    },
     desc: "smoke.yml's paths answer 2xx/3xx locally: /, /api/currencies, /form-embed.js",
-    async run({ page }) {
+    async run({ page, entry }) {
       const facts = [];
       for (const p of ["/", "/api/currencies", "/form-embed.js"]) {
         const r = await page.request.get(`${BASE}${p}`, { timeout: 120_000 });
+        entry.loaded.push(`GET ${p}`);
         facts.push(`${p} → ${r.status()}`);
         expect_ok(r.status() < 400, `${p} → ${r.status()}`);
       }
@@ -410,11 +409,18 @@ for (const name of names) {
     aria.push(tree);
   };
   const t0 = Date.now();
+  const entry = { clicked: [], loaded: [] };
   let status,
     facts = [],
     error;
   try {
-    facts = await FLOWS[name].run({ page, log, shot, ctx: { net, pk } });
+    facts = await FLOWS[name].run({
+      page,
+      log,
+      shot,
+      entry,
+      ctx: { net, pk },
+    });
     status = "pass";
   } catch (e) {
     status = e instanceof Blocked ? "blocked" : "fail";
@@ -431,7 +437,7 @@ for (const name of names) {
   fs.writeFileSync(path.join(OUT, `${name}.log`), `${lines.join("\n")}\n`);
   const r = {
     flow: name,
-    entry: FLOWS[name].entry,
+    entry,
     status,
     ms: Date.now() - t0,
     facts,
