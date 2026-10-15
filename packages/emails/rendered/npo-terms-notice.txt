@@ -4,7 +4,7 @@ We've updated the Better Giving Terms for Nonprofits and Referral Program Terms.
 
 The highlights:
 
-1. Refunds and chargebacks: If a donation we already granted to you is later refunded or charged back, we may recover that amount and its related fees from future grants. We'll always tell you the amount before we deduct it, and if we win a dispute, we return it. If future grants don't cover it, the amount stays owed and we may invoice you, including after you leave the platform. This applies only to donations made on or after [EFFECTIVE DATE].
+1. Refunds and chargebacks: If a donation we already granted to you is later refunded or charged back, we may recover that amount and its related fees from future grants. We'll always tell you the amount before we deduct it, and if we win a dispute, we return it. This applies only to donations made on or after [EFFECTIVE DATE].
 2. Receipts and donor details: Better Giving receives each donation and issues the donor's tax receipt, so please don't issue your own. You're always welcome to thank your donors. Use donor details only to thank donors and share news about your work.
 3. Fees: The terms now list every fee in one place.
 4. Future changes: Future updates take effect 7 days after we post them, unless the update states a later date.
