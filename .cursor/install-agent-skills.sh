@@ -1,22 +1,32 @@
 #!/usr/bin/env bash
-# Install kru-cursor and pstack skills where Cursor loads user-level skills:
-# https://cursor.com/docs/skills — ~/.cursor/skills (walked recursively).
-# Subagent markdown from the same checkouts goes to ~/.cursor/agents:
-# https://cursor.com/docs/subagents
+# Install kru-cursor and pstack where Cursor discovers project skills and
+# subagents from the checkout:
+#   https://cursor.com/docs/skills — <repo>/.cursor/skills
+#   https://cursor.com/docs/subagents — <repo>/.cursor/agents
+# The same trees are also copied to ~/.cursor/skills and ~/.cursor/agents.
+# .cursor/skills and .cursor/agents are gitignored; nothing from the clones
+# is committed.
 #
-# Called from .cursor/environment.json `install` (so a build snapshot already
-# has the files when the agent process starts) and `start` (every boot, because
-# agents that boot from a snapshot skip `install`). Always tracks origin/main.
+# The saved cloud environment for this repo is db-backed and does not read
+# the branch's .cursor/environment.json (it is only `bash .cursor/install.sh`,
+# with no `start`). .cursor/hooks.json runs this script on beforeSubmitPrompt,
+# which Cursor calls before the backend request that builds the skill list.
+# environment.json `install` and `start` call it too, for a boot whose saved
+# config actually includes them. Always tracks origin/main.
 # A network or git failure logs a warning and exits 0. An existing checkout is
 # kept when a refresh fails, so a blip does not remove skills already on disk.
 set -u
 
 export GIT_TERMINAL_PROMPT=0
 
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cache="${HOME}/.cache/better-giving/agent-skills"
-skills_root="${HOME}/.cursor/skills"
-agents_root="${HOME}/.cursor/agents"
-manifest="${agents_root}/.better-giving-managed"
+# Project dirs are what a cloud agent loads from the checkout. Home dirs are
+# the user-level locations from the same docs.
+project_skills="${repo_root}/.cursor/skills"
+project_agents="${repo_root}/.cursor/agents"
+home_skills="${HOME}/.cursor/skills"
+home_agents="${HOME}/.cursor/agents"
 lock_file="${cache}/.lock"
 
 warn() {
@@ -42,12 +52,12 @@ sync_sparse() {
 
   if [[ ! -d "${dest}/.git" ]]; then
     rm -rf "$dest"
-    if ! timeout 90 git clone --depth 1 --filter=blob:none --sparse --branch main "$url" "$dest"; then
+    if ! timeout 40 git clone --depth 1 --filter=blob:none --sparse --branch main "$url" "$dest"; then
       warn "clone failed for ${url}"
       rm -rf "$dest"
       return 1
     fi
-  elif ! timeout 60 git -C "$dest" fetch --depth 1 origin main; then
+  elif ! timeout 20 git -C "$dest" fetch --depth 1 origin main; then
     warn "fetch failed for ${url}; keeping the previous checkout"
   elif ! git -C "$dest" reset --hard FETCH_HEAD; then
     warn "reset failed for ${url}; keeping the previous checkout"
@@ -97,20 +107,23 @@ replace_tree() {
   rm -rf "$backup"
 }
 
-# Install one source's *.md into ~/.cursor/agents. Only that group's previous
-# files are replaced, so a failed sync of the other source leaves its agents.
+# Install one source's *.md into $dest_root. Only that group's previous files
+# in that directory are replaced, so a failed sync of the other source leaves
+# its agents.
 install_agent_group() {
   local group="$1"
   local src="$2"
+  local dest_root="$3"
   local name group_file found=0
-  local staged="${agents_root}/.better-giving-staged-${group}"
+  local staged="${dest_root}/.better-giving-staged-${group}"
+  local manifest="${dest_root}/.better-giving-managed"
 
   if [[ ! -d "$src" ]]; then
     warn "missing ${src}; leaving ${group} agents unchanged"
     return 1
   fi
 
-  mkdir -p "$agents_root"
+  mkdir -p "$dest_root"
   rm -rf "$staged"
   mkdir -p "$staged"
   shopt -s nullglob
@@ -130,7 +143,7 @@ install_agent_group() {
   if [[ -f "$group_file" ]]; then
     while IFS= read -r name || [[ -n "${name:-}" ]]; do
       [[ -n "$name" ]] || continue
-      rm -f "${agents_root}/${name}"
+      rm -f "${dest_root}/${name}"
     done <"$group_file"
   fi
 
@@ -138,11 +151,11 @@ install_agent_group() {
   shopt -s nullglob
   for path in "$staged"/*.md; do
     name="$(basename "$path")"
-    if [[ -e "${agents_root}/${name}" ]]; then
-      warn "not replacing existing ${agents_root}/${name} (collision with ${group})"
+    if [[ -e "${dest_root}/${name}" ]]; then
+      warn "not replacing existing ${dest_root}/${name} (collision with ${group})"
       continue
     fi
-    cp -a "$path" "${agents_root}/${name}"
+    cp -a "$path" "${dest_root}/${name}"
     printf '%s\n' "$name" >>"${group_file}.next"
   done
   shopt -u nullglob
@@ -166,25 +179,34 @@ if sync_sparse "$plugins_url" "$plugins_dest" pstack; then
   log "cursor/plugins $(git -C "$plugins_dest" rev-parse --short HEAD)"
 fi
 
+install_skill_tree() {
+  local name="$1"
+  local src="$2"
+  replace_tree "$src" "${project_skills}/${name}" || warn "${name} project skills were not updated"
+  replace_tree "$src" "${home_skills}/${name}" || warn "${name} home skills were not updated"
+}
+
 if [[ "$kru_ok" -eq 1 ]]; then
-  replace_tree "${kru_dest}/skills" "${skills_root}/kru-cursor" || warn "kru-cursor skills were not updated"
+  install_skill_tree kru-cursor "${kru_dest}/skills"
 fi
 if [[ "$plugins_ok" -eq 1 ]]; then
-  replace_tree "${plugins_dest}/pstack/skills" "${skills_root}/pstack" || warn "pstack skills were not updated"
+  install_skill_tree pstack "${plugins_dest}/pstack/skills"
 fi
 
 if [[ "$kru_ok" -eq 1 ]]; then
-  install_agent_group kru "${kru_dest}/agents" || warn "kru-cursor agents were not updated"
+  install_agent_group kru "${kru_dest}/agents" "$project_agents" || warn "kru-cursor project agents were not updated"
+  install_agent_group kru "${kru_dest}/agents" "$home_agents" || warn "kru-cursor home agents were not updated"
 fi
 if [[ "$plugins_ok" -eq 1 ]]; then
-  install_agent_group pstack "${plugins_dest}/pstack/agents" || warn "pstack agents were not updated"
+  install_agent_group pstack "${plugins_dest}/pstack/agents" "$project_agents" || warn "pstack project agents were not updated"
+  install_agent_group pstack "${plugins_dest}/pstack/agents" "$home_agents" || warn "pstack home agents were not updated"
 fi
 
-if [[ -d "$skills_root" ]]; then
-  skill_count="$(find "$skills_root" -name SKILL.md -type f | wc -l | tr -d ' ')"
-  log "skills in ${skills_root}: ${skill_count}"
+if [[ -d "$project_skills" ]]; then
+  skill_count="$(find "$project_skills" -name SKILL.md -type f | wc -l | tr -d ' ')"
+  log "skills in ${project_skills}: ${skill_count}"
 else
-  warn "no skills installed under ${skills_root}"
+  warn "no skills installed under ${project_skills}"
 fi
 
 exit 0

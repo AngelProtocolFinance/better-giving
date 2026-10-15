@@ -56,4 +56,9 @@ ds-bundle/
 
 # kru seats, per-machine repo memory
 .claude/agent-memory-local/
+
+# Cloud-agent install of kru-cursor and pstack (.cursor/install-agent-skills.sh).
+# Project skills Cursor discovers; not source, so they stay uncommitted.
+.cursor/skills/
+.cursor/agents/
 apps/platform/.env.verify
