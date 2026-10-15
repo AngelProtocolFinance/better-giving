@@ -1,6 +1,6 @@
 ---
 name: verify-platform
-description: Drive apps/platform (the Better Giving web app) in a real headless browser the way a user does — home, sign-in, marketplace, the donate form through to the Stripe payment step — and return proof (pass/fail/blocked per flow, screenshots, logs). Use after any change to platform UI, routes, loaders, db queries or the donation flow, before reporting a build done. This is NOT the lint/typecheck `verify` skill; run that too.
+description: Drive apps/platform (the Better Giving web app) in a real headless browser the way a user does — home, sign-in, marketplace, the donate form through to the Stripe payment step — and return proof (pass/fail/blocked per flow, screenshots, ARIA snapshots, logs). Use after any change to platform UI, routes, loaders, db queries or the donation flow, before reporting a build done. This is NOT the lint/typecheck `verify` skill; run that too.
 ---
 
 # verify-platform
@@ -17,6 +17,7 @@ export PATH=~/.local/node24/bin:$PATH
 VERIFY_OUT=/tmp/verify-$(date +%s) .claude/skills/verify-platform/scripts/run.sh            # all flows
 VERIFY_OUT=... .claude/skills/verify-platform/scripts/run.sh home donate-card               # some flows
 node .claude/skills/verify-platform/scripts/drive.mjs --list                                # flow list
+node .claude/skills/verify-platform/scripts/drive.mjs --check-map                           # features/ ↔ README ↔ FLOWS
 ```
 
 Exit: `0` all pass · `1` a flow failed · `2` only blocked flows (need secrets) · `3` launch/doctor failed.
@@ -42,7 +43,7 @@ Env knobs: `VERIFY_PORT` (4200), `VERIFY_PG_PORT` (5433), `VERIFY_WS_PORT` (5488
 
 ## Doctor
 
-`scripts/doctor.sh` — read-only; exit 0 = worth driving. Checks: dev server pid from launch.sh alive, `GET /` 200, local Postgres reachable with migrations applied, `.env.verify` points at the local db. Run it first whenever anything looks off.
+`scripts/doctor.sh` — read-only; exit 0 = worth driving. Checks: dev server pid from launch.sh alive, `GET /` 200, local Postgres reachable with migrations applied, `.env.verify` points at the local db, and `drive.mjs --check-map` (every `features/*.md` except `README.md`, every README link to one of those files, and every `FLOWS` key are the same set). Run it first whenever anything looks off. A map mismatch fails the doctor even when the server is healthy, and `drive.mjs` refuses to start on the same mismatch.
 
 ## Isolation
 
@@ -50,23 +51,27 @@ One instance per box at a time on the default ports (4200 is the app's `strictPo
 
 ## Drive
 
-`scripts/drive.mjs [flow…]` — one fresh browser context per flow, 1280×900. Flows (details in `features/`):
+`scripts/drive.mjs [flow…]` — one fresh browser context per flow, 1280×900 (wide enough that the desktop header, shown from 75rem, is on screen). Flows (details in `features/`):
+
+A listed entry point the drive did not take is not verified. `results.json` records `entry.clicked` and `entry.loaded` for each flow. A pass verifies those and nothing else: a header or footer control counts only when this run clicked it, and a direct load counts only for the URL it requested. Reaching the same screen by the other path does not verify the one that was skipped. Report `entry` from `results.json`; do not promote a path that is absent from it.
 
 | flow | proves |
 |---|---|
-| `home` | `/` 200, title is "Fundraising Platform for Nonprofits - Better Giving", header login link resolves to `/login` |
-| `login` | `/login` renders Google + email/password; wrong password → "Invalid email or password", stays on /login (better-auth + db) |
-| `marketplace` | seeded npo card listed (db read path) |
-| `donate-card` | `/donate/:id` → +100 USD → Continue with Card → donor info → payment step with summary $100.00; with real test keys, types 4242… into the Stripe Payment Element (`donate-card-4-card.png`) |
-| `smoke-paths` | smoke.yml's `/`, `/api/currencies`, `/form-embed.js` < 400 locally |
+| `home` | direct `GET /` 200, title is "Fundraising Platform for Nonprofits - Better Giving", header `Log In` href is `/login`. This flow does not click `Log In`. |
+| `login` | from `/`, click header `Log In` → Google + email/password; wrong password → "Invalid email or password", stays on /login (better-auth + db). Then direct `GET /login` → 200. |
+| `marketplace` | from `/`, click footer `Marketplace` → seeded npo card (db read path). Then direct `GET /marketplace` → 200 and the same card. |
+| `donate-card` | direct `GET /donate/:id` → +100 USD → Continue with Card → donor info → payment step with summary $100.00; with real test keys, types 4242… into the Stripe Payment Element (`donate-card-4-card.png`). The marketplace-card Donate link is not clicked, so it is not verified. |
+| `smoke-paths` | smoke.yml's direct `GET /`, `GET /api/currencies`, `GET /form-embed.js` each < 400. No screenshot. |
 
-Selectors are ARIA/text/`name=` handles from the real UI (`getByRole("button", {name: "+100 USD"})`, `input[name="email"]`, …). Add a flow by adding an entry to `FLOWS` in drive.mjs **and** a file in `features/`.
+On a cold dev server, scrolling the footer into view prefetches `/donate/1`. Vite reloads and cancels the click. `open_link` retries that same click (header `Log In` and footer `Marketplace`). It does not switch to `goto`.
+
+Selectors are ARIA/text/`name=` handles from the real UI (`getByRole("link", {name: "Log In"})` inside the banner, footer `Marketplace` inside `contentinfo`, `getByRole("button", {name: "+100 USD"})`, `input[name="email"]`, …). Add a flow by adding an entry to `FLOWS` in drive.mjs, a file in `features/`, and a README link to that file. `doctor.sh` fails when those three disagree.
 
 ## Evidence
 
-`$VERIFY_OUT/`: `results.json` (per flow: status pass|fail|blocked, observed facts, error, screenshots, log), `<flow>[-step].png` full-page screenshots of each step (on failure `<flow>-final.png`), `<flow>.log` (browser console, page errors, every HTTP ≥400), `drive.txt`, `launch-doctor.log`, and every server log from the state dir (`dev.log`, `migrate.log`, `packages-build.log`, `stripe-stub.log` — what was faked). The logs are copied before cleanup deletes the state dir whenever run.sh exits normally or on SIGINT (^C) or SIGTERM — the signals its trap catches. A SIGKILL (`kill -9`) can't be trapped, so it leaves both the logs and the state dir in place; the next run's pre-launch cleanup removes them.
+`$VERIFY_OUT/`: `results.json` (per flow: `entry` with `clicked` and `loaded`, status pass|fail|blocked, observed facts, error, screenshots, ARIA snapshot paths, log), `<flow>[-step].png` full-page screenshots of each step (on failure `<flow>-final.png`) and a sibling `<flow>[-step].aria.txt` (Playwright's ARIA snapshot of `body` at that same moment), `<flow>.log` (browser console, page errors, every HTTP ≥400), `drive.txt`, `launch-doctor.log`, and every server log from the state dir (`dev.log`, `migrate.log`, `packages-build.log`, `stripe-stub.log` — what was faked). `smoke-paths` issues HTTP requests and writes no png or aria file. The logs are copied before cleanup deletes the state dir whenever run.sh exits normally or on SIGINT (^C) or SIGTERM — the signals its trap catches. A SIGKILL (`kill -9`) can't be trapped, so it leaves both the logs and the state dir in place; the next run's pre-launch cleanup removes them.
 
-Proof standards: the real user path only (clicks/typing, no test endpoints); capture each step, not just the end; check side effects (db-backed text on screen, stub log); a flow that can't run for want of secrets is `blocked` with the reason, never `pass`. Read the screenshots before claiming success.
+Proof standards: clicks and typing for the entry points the flow lists as clicks, and a direct `goto` or `request.get` only for the URLs it lists as loads. No test endpoints. Capture each step, not just the end, and save the ARIA snapshot beside each screenshot. Check side effects (db-backed text on screen, stub log). A flow that can't run for want of secrets is `blocked` with the reason, never `pass`. Read the screenshots and the ARIA snapshots before claiming success.
 
 ## Cleanup
 
@@ -79,6 +84,7 @@ For changes to these scripts: `tests/test-pg-pass-symlink.sh` (state-dir and `pg
 ## Gotchas
 
 - Don't wait for `networkidle`: Stripe.js/analytics keep retrying. Wait on a visible element.
+- A cold dev server reloads when the footer first scrolls into view (`/donate/1` prefetch). The Marketplace click retries; do not "fix" that by loading `/marketplace` directly and calling the footer entry verified. The direct load is a separate entry and still runs after the click.
 - With filler keys the browser shows "Express checkout failed to load" / "PayPal failed to load" and Stripe.js 401s — expected, logged, not a failure of these flows.
 - `COREPACK_HOME` defaults to an unwritable `/usr/local/share/corepack` on the box; launch.sh sets `$HOME/.cache/corepack`.
 - First run downloads nothing but needs `pnpm exec playwright install chromium` once (done on the box).

@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 // drive apps/platform in headless chromium the way a user does, one flow at a
-// time, and write proof: $VERIFY_OUT/results.json, <flow>.png, <flow>.log.
+// time, and write proof: $VERIFY_OUT/results.json, <flow>.png, <flow>.aria.txt,
+// <flow>.log.
 //   node drive.mjs                  # every flow
 //   node drive.mjs home donate-card # named flows
 //   node drive.mjs --list
-// exit 0 = every selected flow passed; 1 = a flow failed; 2 = a flow was
-// blocked (needs secrets) and nothing failed.
+//   node drive.mjs --check-map      # features/, README links, and FLOWS agree
+// exit 0 = every selected flow passed; 1 = a flow failed, or the feature map
+// disagrees; 2 = a flow was blocked (needs secrets) and nothing failed.
 // run from anywhere; resolves playwright from apps/platform.
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -13,9 +15,7 @@ import path from "node:path";
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const APP = path.resolve(HERE, "../../../../apps/platform");
-const { chromium } = createRequire(path.join(APP, "package.json"))(
-  "playwright"
-);
+const FEATURE_DIR = path.resolve(HERE, "../features");
 const STATE = process.env.VERIFY_STATE ?? "/tmp/bg-verify";
 const PORT =
   process.env.VERIFY_PORT ??
@@ -37,9 +37,83 @@ const expect_ok = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
 
+// A cold `react-router dev` full-reloads the first time the footer scrolls
+// into view, because that prefetches `/donate/1` and Vite optimizes new
+// dependencies. The reload cancels the click and leaves the browser on `/`.
+// Retry the same click. This is not a second entry point and not a direct load.
+const open_link = async (page, locate, pattern) => {
+  let last = page.url();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await locate().click();
+    try {
+      await page.waitForURL(pattern, {
+        timeout: attempt < 3 ? 20_000 : 120_000,
+      });
+      return attempt;
+    } catch (err) {
+      last = page.url();
+      if (pattern.test(new URL(last).pathname)) return attempt;
+      if (attempt === 3) {
+        throw new Error(`${err.message} (still at ${last})`);
+      }
+      await page.waitForLoadState("load", { timeout: 30_000 }).catch(() => {});
+    }
+  }
+  return 3;
+};
+
+const readme_ids = () => {
+  const readme = fs.readFileSync(path.join(FEATURE_DIR, "README.md"), "utf8");
+  return [
+    ...new Set(
+      [...readme.matchAll(/\]\((?:\.\/)?([a-z0-9-]+)\.md\)/g)].map((m) => m[1])
+    ),
+  ];
+};
+
+// features/<id>.md, a README link to that file, and a FLOWS key are one set.
+// a pass does not paper over a missing side of that set.
+const assert_map = (flows) => {
+  const files = fs
+    .readdirSync(FEATURE_DIR)
+    .filter((name) => name.endsWith(".md") && name !== "README.md")
+    .map((name) => name.slice(0, -3))
+    .sort();
+  const keys = Object.keys(flows).sort();
+  const linked = readme_ids().sort();
+  const problems = [];
+  const missing = (have, want) => have.filter((id) => !want.includes(id));
+  const no_drive = missing(files, keys);
+  const no_file = missing(keys, files);
+  const no_index = missing(keys, linked);
+  const link_without_drive = missing(linked, keys);
+  const link_without_file = missing(linked, files);
+  if (no_drive.length) problems.push(`no drive entry: ${no_drive.join(", ")}`);
+  if (no_file.length) problems.push(`no feature file: ${no_file.join(", ")}`);
+  if (no_index.length) problems.push(`README missing: ${no_index.join(", ")}`);
+  if (link_without_drive.length) {
+    problems.push(
+      `README link is not a flow: ${link_without_drive.join(", ")}`
+    );
+  }
+  if (link_without_file.length) {
+    problems.push(
+      `README link has no feature file: ${link_without_file.join(", ")}`
+    );
+  }
+  if (problems.length) throw new Error(problems.join("; "));
+};
+
+const click_fact = (label, tries) =>
+  tries > 1 ? `${label} (retried after a reload, attempt ${tries})` : label;
+
 // each flow: ({page, log, shot, ctx}) → string[] of observed facts. throw = fail.
+// `entry` is what a pass verifies. A click absent from `entry.clicked`, or a
+// URL absent from `entry.loaded`, was not verified — including a listed
+// feature-file entry the recipe does not take.
 const FLOWS = {
   home: {
+    entry: { clicked: [], loaded: ["GET /"] },
     desc: "landing page renders with header nav and a sign-in link",
     async run({ page, shot }) {
       const r = await page.goto(`${BASE}/`, {
@@ -52,9 +126,10 @@ const FLOWS = {
         title === HOME_TITLE,
         `title "${title}", expected "${HOME_TITLE}"`
       );
+      // href only. the login flow clicks this control.
       const login = page
-        .getByRole("link", { name: /log ?in|sign ?in/i })
-        .first();
+        .getByRole("banner")
+        .getByRole("link", { name: "Log In", exact: true });
       await login.waitFor({ timeout: T });
       const href = await login.getAttribute("href");
       const dest = new URL(href ?? "", page.url());
@@ -63,17 +138,27 @@ const FLOWS = {
         `login link → ${href}, expected /login`
       );
       await shot();
-      return [`GET / → 200`, `title "${title}"`, `login link → ${href}`];
+      return [
+        `GET / → 200`,
+        `title "${title}"`,
+        `header Log In href → ${href} (not clicked in this flow)`,
+      ];
     },
   },
   login: {
-    desc: "sign-in page renders; a wrong password is rejected with a visible error",
+    entry: { clicked: ["header Log In"], loaded: ["GET /login"] },
+    desc: "header Log In opens sign-in; a wrong password is rejected; /login also loads directly",
     async run({ page, shot }) {
-      const r = await page.goto(`${BASE}/login`, {
+      const home = await page.goto(`${BASE}/`, {
         waitUntil: "load",
         timeout: 120_000,
       });
-      expect_ok(r.status() === 200, `GET /login → ${r.status()}`);
+      expect_ok(home.status() === 200, `GET / → ${home.status()}`);
+      const login_link = () =>
+        page
+          .getByRole("banner")
+          .getByRole("link", { name: "Log In", exact: true });
+      const tries = await open_link(page, login_link, /\/login(?:\?|$)/);
       await page
         .getByRole("button", { name: "Continue with Google" })
         .waitFor({ timeout: T });
@@ -82,8 +167,7 @@ const FLOWS = {
         .fill("verify-nobody@example.com");
       await page.locator('input[name="password"]').fill("Wrong-password-123!");
       await shot("filled");
-      await page.getByRole("button", { name: "Log In" }).click();
-      // rejected = still on /login and some alert/error text appears
+      await page.getByRole("button", { name: "Log In", exact: true }).click();
       const err = page.getByText(/invalid email or password/i).first();
       await err.waitFor({ timeout: T });
       const msg = (await err.innerText()).trim().slice(0, 160);
@@ -92,32 +176,64 @@ const FLOWS = {
         new URL(page.url()).pathname.startsWith("/login"),
         `navigated away to ${page.url()}`
       );
+      const direct = await page.goto(`${BASE}/login`, {
+        waitUntil: "load",
+        timeout: 120_000,
+      });
+      expect_ok(direct.status() === 200, `GET /login → ${direct.status()}`);
+      await page
+        .getByRole("button", { name: "Continue with Google" })
+        .waitFor({ timeout: T });
+      await shot("direct");
       return [
-        "GET /login → 200",
+        click_fact("header Log In click → /login", tries),
         "google + email/password form present",
         `bad creds → stayed on /login, error "${msg}"`,
+        "direct GET /login → 200",
       ];
     },
   },
   marketplace: {
-    desc: "marketplace lists the seeded nonprofit from postgres",
+    entry: { clicked: ["footer Marketplace"], loaded: ["GET /marketplace"] },
+    desc: "footer Marketplace opens the list; /marketplace also loads directly; the seeded nonprofit is listed",
     async run({ page, shot }) {
-      const r = await page.goto(`${BASE}/marketplace`, {
+      const home = await page.goto(`${BASE}/`, {
         waitUntil: "load",
         timeout: 120_000,
       });
-      expect_ok(r.status() === 200, `GET /marketplace → ${r.status()}`);
+      expect_ok(home.status() === 200, `GET / → ${home.status()}`);
+      const marketplace_link = () =>
+        page
+          .getByRole("contentinfo")
+          .getByRole("link", { name: "Marketplace", exact: true });
+      const tries = await open_link(
+        page,
+        marketplace_link,
+        /\/marketplace(?:\?|$)/
+      );
       const card = page.getByText("Verify Test Nonprofit").first();
       await card.waitFor({ timeout: T });
       await shot();
+      const direct = await page.goto(`${BASE}/marketplace`, {
+        waitUntil: "load",
+        timeout: 120_000,
+      });
+      expect_ok(
+        direct.status() === 200,
+        `GET /marketplace → ${direct.status()}`
+      );
+      await card.waitFor({ timeout: T });
+      await shot("direct");
       return [
-        "GET /marketplace → 200",
+        click_fact("footer Marketplace click → /marketplace", tries),
+        "direct GET /marketplace → 200",
         "seeded 'Verify Test Nonprofit' card visible (db read path works)",
       ];
     },
   },
   "donate-card": {
-    desc: "donate form for the seeded npo: pick amount → card → donor info → payment step (stripe)",
+    entry: { clicked: [], loaded: ["GET /donate/:id"] },
+    desc: "donate form for the seeded npo, loaded directly: pick amount → card → donor info → payment step (stripe)",
     async run({ page, shot, ctx }) {
       const r = await page.goto(`${BASE}/donate/${NPO}`, {
         waitUntil: "load",
@@ -151,10 +267,11 @@ const FLOWS = {
         "summary doesn't show Total donation $100.00"
       );
       const facts = [
-        `GET /donate/${NPO} → 200`,
+        `direct GET /donate/${NPO} → 200`,
         `GET /api/currencies → ${cur.status()}`,
         "amount +100 USD → Continue with Card → donor info → Continue",
         "payment step: 'Your donation summary', Total donation $100.00",
+        "marketplace card Donate was not clicked",
       ];
       const pay_err = /couldn.t start the payment[^\n]*/i.exec(body)?.[0];
       const stub = fs.existsSync(`${STATE}/stripe-stub.log`)
@@ -187,6 +304,10 @@ const FLOWS = {
     },
   },
   "smoke-paths": {
+    entry: {
+      clicked: [],
+      loaded: ["GET /", "GET /api/currencies", "GET /form-embed.js"],
+    },
     desc: "smoke.yml's paths answer 2xx/3xx locally: /, /api/currencies, /form-embed.js",
     async run({ page }) {
       const facts = [];
@@ -201,6 +322,16 @@ const FLOWS = {
 };
 
 const args = process.argv.slice(2);
+try {
+  assert_map(FLOWS);
+} catch (err) {
+  console.error(err.message);
+  process.exit(1);
+}
+if (args.includes("--check-map")) {
+  console.log("ok   features/, README links, and drive.mjs agree");
+  process.exit(0);
+}
 if (args.includes("--list")) {
   for (const [k, f] of Object.entries(FLOWS))
     console.log(`${k.padEnd(14)} ${f.desc}`);
@@ -213,6 +344,9 @@ for (const n of names)
     process.exit(64);
   }
 
+const { chromium } = createRequire(path.join(APP, "package.json"))(
+  "playwright"
+);
 fs.mkdirSync(OUT, { recursive: true });
 const env_file = path.join(APP, ".env.verify");
 const pk = fs.existsSync(env_file)
@@ -241,10 +375,19 @@ for (const name of names) {
     }
   });
   const shots = [];
+  const aria = [];
   const shot = async (tag) => {
-    const f = path.join(OUT, `${name}${tag ? `-${tag}` : ""}.png`);
-    await page.screenshot({ path: f, fullPage: true });
-    shots.push(f);
+    const stem = `${name}${tag ? `-${tag}` : ""}`;
+    const png = path.join(OUT, `${stem}.png`);
+    const tree = path.join(OUT, `${stem}.aria.txt`);
+    await page.screenshot({ path: png, fullPage: true });
+    shots.push(png);
+    const snapshot = await page.locator("body").ariaSnapshot();
+    fs.writeFileSync(
+      tree,
+      snapshot.endsWith("\n") ? snapshot : `${snapshot}\n`
+    );
+    aria.push(tree);
   };
   const t0 = Date.now();
   let status,
@@ -268,11 +411,13 @@ for (const name of names) {
   fs.writeFileSync(path.join(OUT, `${name}.log`), `${lines.join("\n")}\n`);
   const r = {
     flow: name,
+    entry: FLOWS[name].entry,
     status,
     ms: Date.now() - t0,
     facts,
     error,
     screenshots: shots,
+    aria,
     log: path.join(OUT, `${name}.log`),
   };
   results.push(r);
