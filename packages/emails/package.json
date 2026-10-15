@@ -13,7 +13,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "format": "biome check --write ."
+    "format": "biome check --write .",
+    "render:npo-terms-notice": "pnpm --filter emails-preview render:npo-terms-notice"
   },
   "dependencies": {
     "@better-giving/brand": "workspace:*"
