@@ -13,8 +13,8 @@ export type OwedNoticeKind = "recorded" | "credited" | "waived";
  */
 export interface IOwedNotice {
   kind: OwedNoticeKind;
-  /** 0 the first time the row owes; each later round is the row owing again
-   * after it was settled */
+  /** 0 the first time the row owes; each later round is an increase, or
+   * the row owing again after it was settled */
   round: number;
   /** greeting name: the nonprofit, or the referrer's first name */
   to_name: string;
@@ -78,6 +78,14 @@ const owed_total = (n: IOwedNotice) =>
 
 /** a credit or write-off can leave a cent of float residue either side of 0 */
 const settled = (outstanding: number) => Math.abs(outstanding) < 0.01;
+
+/** an increase on a balance nothing has been taken off yet */
+const nothing_settled = (n: IOwedNotice) =>
+  n.recovered_usd < 0.01 &&
+  n.refund_failed_usd < 0.01 &&
+  n.dispute_won_usd < 0.01 &&
+  n.credited_back_usd < 0.01 &&
+  n.written_off_usd < 0.01;
 
 /** the breakdown runs on to what is still owed once anything came off */
 const part_settled = (n: IOwedNotice) =>
@@ -194,7 +202,14 @@ interface IBody {
 function Recorded({ n, party, gift }: IBody) {
   return (
     <>
-      {n.round > 0 ? (
+      {n.round > 0 && nothing_settled(n) ? (
+        // still unpaid, and a later refund or fee raised it. the row keeps
+        // the first event's date, so the increase is not dated on its own
+        <Text>
+          The amount owed on the {gift} has increased.{" "}
+          <strong>{usd(n.outstanding_usd)}</strong> is now owed on it.
+        </Text>
+      ) : n.round > 0 ? (
         // the row's date and source are its first event's, not the one that
         // made it owe again, so neither is named here
         <Text>

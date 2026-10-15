@@ -37,6 +37,7 @@ vi.mock("@/terms", async (io) => ({
   get TERMS_EFFECTIVE() {
     return terms.effective;
   },
+  TERMS_POSTED: "",
 }));
 vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert } }));
 // wise at its http boundary; `wise_pay` runs for real over it unless a test

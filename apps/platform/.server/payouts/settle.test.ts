@@ -44,6 +44,7 @@ vi.mock("../env", () => ({
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
   TERMS_EFFECTIVE: "2026-01-01",
+  TERMS_POSTED: "",
 }));
 vi.mock("../kit/discord", () => ({
   aws_monitor: { send_alert },

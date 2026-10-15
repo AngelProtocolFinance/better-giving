@@ -25,6 +25,7 @@ vi.mock("@/terms", async (io) => ({
   get TERMS_EFFECTIVE() {
     return terms.date;
   },
+  TERMS_POSTED: "",
 }));
 const enqueue = vi.hoisted(() => vi.fn(async (..._: IMsg[]) => {}));
 vi.mock("$/kit/queue", () => ({ verify_qstash: vi.fn(), enqueue }));

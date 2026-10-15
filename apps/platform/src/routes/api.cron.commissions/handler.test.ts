@@ -71,6 +71,7 @@ vi.mock("@/terms", async (io) => ({
   get TERMS_EFFECTIVE() {
     return terms.effective;
   },
+  TERMS_POSTED: "",
 }));
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert },

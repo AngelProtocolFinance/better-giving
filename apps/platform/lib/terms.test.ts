@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { TERMS_EFFECTIVE, terms_date_label, terms_effective_at } from "./terms";
+import {
+  TERMS_EFFECTIVE,
+  TERMS_POSTED,
+  terms_date_label,
+  terms_effective_at,
+  terms_recovery_at,
+} from "./terms";
 
 describe("terms_effective_at", () => {
   test("a date in daylight time is midnight four hours behind utc", () => {
@@ -29,6 +35,39 @@ describe("terms_effective_at", () => {
       expect(terms_effective_at(date)).toBeNull();
     }
   );
+});
+
+describe("terms_recovery_at", () => {
+  test("a posting whose seventh day is later than the fixed date uses that day", () => {
+    expect(terms_recovery_at("2026-10-18", "2026-10-15")).toBe(
+      "2026-10-22T04:00:00.000Z"
+    );
+  });
+
+  test("the fixed date wins when seven days after posting is sooner", () => {
+    expect(terms_recovery_at("2026-10-18", "2026-10-01")).toBe(
+      "2026-10-18T04:00:00.000Z"
+    );
+  });
+
+  test("a blank posting is the fixed date alone", () => {
+    expect(terms_recovery_at(TERMS_EFFECTIVE, "")).toBe(
+      terms_effective_at(TERMS_EFFECTIVE)
+    );
+    expect(terms_recovery_at(TERMS_EFFECTIVE, "   ")).toBe(
+      terms_effective_at(TERMS_EFFECTIVE)
+    );
+  });
+
+  test("the shipped posting is seven days that land after the fixed date", () => {
+    const at = terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
+
+    expect(at! > terms_effective_at(TERMS_EFFECTIVE)!).toBe(true);
+  });
+
+  test("an unparsable fixed date reaches nobody", () => {
+    expect(terms_recovery_at("soon", TERMS_POSTED)).toBeNull();
+  });
 });
 
 describe("terms_date_label", () => {

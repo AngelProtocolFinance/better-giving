@@ -21,6 +21,41 @@ function utc_midnight_of(date: string): number | null {
   return utc_midnight;
 }
 
+/** the calendar day this amended terms page is posted. section 9(d) makes an
+ * amendment effective seven days later unless the posting states a later
+ * date, and the page's October 18 date is not later than seven days after a
+ * posting on or after October 12. recovery uses the later of `TERMS_EFFECTIVE`
+ * and that seventh day. move this with the day the page actually goes up. */
+export const TERMS_POSTED = "2026-10-15";
+
+/** `date` plus `days` calendar days; null when `date` is not a calendar date */
+export function add_calendar_days(date: string, days: number): string | null {
+  const utc_midnight = utc_midnight_of(date);
+  if (utc_midnight == null) return null;
+  const next = new Date(utc_midnight + days * 86_400_000);
+  const y = next.getUTCFullYear();
+  const m = String(next.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(next.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** midnight in New York of the later of `effective` and, when `posted` is a
+ * calendar day, seven days after it. a blank `posted` is no second date.
+ * null when `effective` is not a calendar date — nothing reaches a party */
+export function terms_recovery_at(
+  effective: string,
+  posted: string
+): string | null {
+  const floor = terms_effective_at(effective);
+  if (!floor) return null;
+  const amended_day = posted.trim()
+    ? add_calendar_days(posted.trim(), 7)
+    : null;
+  const amended = amended_day ? terms_effective_at(amended_day) : null;
+  if (!amended) return floor;
+  return amended > floor ? amended : floor;
+}
+
 /** `date`'s midnight in `TERMS_ZONE`, as an ISO instant; null when `date` is
  * not a calendar date */
 export function terms_effective_at(date: string): string | null {

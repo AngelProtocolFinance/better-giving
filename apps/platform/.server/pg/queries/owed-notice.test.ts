@@ -31,11 +31,14 @@ import {
 } from "./owed-notice";
 
 // "" is no date: no row reaches its party
-const terms = vi.hoisted(() => ({ date: "" }));
+const terms = vi.hoisted(() => ({ date: "", posted: "" }));
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
   get TERMS_EFFECTIVE() {
     return terms.date;
+  },
+  get TERMS_POSTED() {
+    return terms.posted;
   },
 }));
 
@@ -62,6 +65,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   terms.date = TERMS_DATE;
+  terms.posted = "";
   await t.db.delete(loss_logs);
   await t.db.delete(owed_amounts);
   await t.db.delete(donations);
@@ -281,14 +285,26 @@ describe("the recorded notice, re-armed", () => {
     expect(await due()).toEqual(["credited"]);
   });
 
-  test("is not due again while the row still owes when it grows", async () => {
+  test("a growth while the row still owes is noticed again and held back until that notice is sent", async () => {
     await gift("don-1", EFFECTIVE);
     await record("re_1", 36, 1.28);
     await send_all();
 
     await record("re_2", 90, 3.2);
+    await record("re_2", 90, 3.2);
 
-    expect(await due()).toEqual([]);
+    const [again, ...more] = await owed_notices_due(50, as_db(t.db));
+    expect([again?.kind, more]).toEqual(["recorded", []]);
+    const claim = await claim_owed_notice(again!.id, as_db(t.db));
+    expect(claim).toMatchObject({ status: "claimed", round: 1 });
+    expect(
+      await t.db.transaction((tx) => outstanding_for_npo(as_db(tx), npo_a))
+    ).toEqual([]);
+
+    await mark_owed_notice_sent(again!.id, as_db(t.db));
+    expect(
+      await t.db.transaction((tx) => outstanding_for_npo(as_db(tx), npo_a))
+    ).toMatchObject([{ donation_id: "don-1", outstanding_usd: 93.2 }]);
   });
 });
 
@@ -315,6 +331,18 @@ describe("what a run nets (outstanding_for_npo)", () => {
     (await t.db.transaction((tx) => outstanding_for_npo(as_db(tx), npo_a))).map(
       (r) => [r.donation_id, r.outstanding_usd]
     );
+
+  test("a gift on the fixed date but before seven days after posting is never netted", async () => {
+    terms.date = "2026-09-01";
+    terms.posted = "2026-09-01";
+    await gift("don-floor", "2026-09-01T04:00:00.000Z");
+    await gift("don-later", "2026-09-08T04:00:00.000Z");
+    await owing("don-floor", 90, 3.2);
+    await owing("don-later", 50, 0);
+    await send_all();
+
+    expect(await nets()).toEqual([["don-later", 50]]);
+  });
 
   test("a gift the day before the effective date is never netted, one on it is", async () => {
     await gift("don-before", DAY_BEFORE);
