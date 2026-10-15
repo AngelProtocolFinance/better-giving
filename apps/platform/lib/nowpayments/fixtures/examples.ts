@@ -19,17 +19,22 @@ import min_amount from "./get-min-amount.json";
 export { create_invoice, create_payment, estimate_price, min_amount };
 
 /**
- * the published examples quote these amounts as JSON numbers. the live API
- * quotes the same fields as decimal strings (`"3999.5"`, `"0.17061637"`).
+ * listed keys come back as `string`. the published examples quote these
+ * amounts as JSON numbers; the live API quotes the same fields as decimal
+ * strings (`"3999.5"`, `"0.17061637"`).
  */
-export const with_decimal_strings = <T extends object>(
+type WithDecimalStrings<T, K extends keyof T> = {
+  [P in keyof T]: P extends K ? (T[P] extends number ? string : T[P]) : T[P];
+};
+
+export const with_decimal_strings = <T extends object, const K extends keyof T>(
   body: T,
-  keys: (keyof T)[]
-): T => {
-  const out: T = { ...body };
+  keys: readonly K[]
+): WithDecimalStrings<T, K> => {
+  const out: { [P in keyof T]: T[P] | string } = { ...body };
   for (const key of keys) {
-    const value = out[key];
-    if (typeof value === "number") out[key] = String(value) as T[keyof T];
+    const value = body[key];
+    if (typeof value === "number") Object.assign(out, { [key]: String(value) });
   }
-  return out;
+  return out as WithDecimalStrings<T, K>;
 };
