@@ -1,4 +1,9 @@
-/** NOWPayments API documentation @see https://nowpayments.io/api */
+/**
+ * NOWPayments API.
+ * Field types follow the published collection
+ * https://documenter.getpostman.com/view/7907941/2s93JusNJt
+ * and, where that collection and the live API disagree, both forms.
+ */
 export declare namespace NP {
   export namespace Payment {
     export type Status =
@@ -55,9 +60,9 @@ export declare namespace NP {
   export interface Payment {
     payment_id: number;
 
-    // order link to payment
-    order_id: string;
-    order_description: string;
+    // order link to payment. both are null in the get-payment-status and IPN examples
+    order_id: string | null;
+    order_description: string | null;
 
     // to pay amount in usd
     price_amount: number;
@@ -75,8 +80,13 @@ export declare namespace NP {
   }
 
   export interface PaymentStatus extends Payment {
-    invoice_id: number;
-    /** can add additional payments to this purchase_id */
+    /** null in the published get-payment-status example; a number on the list endpoint */
+    invoice_id: number | null;
+    /**
+     * a number in the get-payment-status example. create-payment's field table
+     * says String, and the create and IPN examples are strings — see `NewPayment`
+     * and `PaymentPayload`
+     */
     purchase_id: number;
 
     actually_paid: number;
@@ -94,10 +104,11 @@ export declare namespace NP {
 
     /**@ignore */
     type: string;
-    /**@ignore */
+    /**
+     * the get-payment-status example is the string `"null"`, not JSON null
+     * @ignore
+     */
     burning_percent: string;
-    /**@ignore */
-    actually_paid_fiat?: number;
   }
 
   export interface NewPayment extends Omit<Payment, "payment_id"> {
@@ -111,30 +122,42 @@ export declare namespace NP {
     updated_at: string;
 
     ipn_callback_url: string;
-    is_fee_paid_by_user: boolean;
-    is_fixed_rate: boolean;
+    /**
+     * create-payment's field table says String; the invoice field table says
+     * Boolean for the same flags. the invoice-payment example omits both
+     */
+    is_fee_paid_by_user?: string | boolean;
+    is_fixed_rate?: string | boolean;
 
     smart_contract: string | null;
-    network_precision: string | null;
+    /**
+     * create-payment's field table says String; the published example is `8`
+     */
+    network_precision: string | number | null;
     network: string;
 
     /** iso */
     expiration_estimate_date: string;
-    /** iso */
-    valid_until: string;
-    time_limit: number | null;
+    /** iso. in the field table, absent from the published example */
+    valid_until?: string;
+    /** the field table says String; the published example is null */
+    time_limit: string | null;
 
-    /**@ignore */
-    product: string;
-    /**@ignore   */
-    type: string;
-    /**@ignore */
+    /** the field table says Float; the published example is null */
+    amount_received: number | null;
+    /** in the field table, absent from the invoice-payment example */
+    type?: string;
+    /**@ignore the published example is JSON null */
     burning_percent: null;
   }
 
   export interface PaymentPayload extends Payment {
-    invoice_id: number;
-    /** can add additional payments to this purchase_id */
+    /** null in the IPN example; a number on the list endpoint */
+    invoice_id: number | null;
+    /**
+     * a string in the IPN example (`"123456789"`). the get-payment-status
+     * example is a number — see `PaymentStatus`
+     */
     purchase_id: string;
 
     actually_paid: number;
@@ -145,13 +168,32 @@ export declare namespace NP {
     fee: Payment.Fee;
 
     parent_payment_id: number | null;
-    /** if multiple payments that require extra_id in single payment_id  */
-    payment_extra_ids: string[] | null;
+    /**
+     * null in the IPN example. the get-payment-status example is an array of
+     * numbers (`[5513339153]`), the same shape as that endpoint's `payment_id`
+     */
+    payment_extra_ids: number[] | null;
   }
 
+  /** `POST /v1/invoice`. `price_amount` is a String in the field table and `"1000"` in the example */
   export interface Invoice {
     id: string;
-    // others: we don't interact with invoice directly
+    token_id?: string;
+    order_id: string;
+    order_description: string;
+    price_amount: string;
+    price_currency: string;
+    pay_currency: string | null;
+    ipn_callback_url: string;
+    invoice_url: string;
+    success_url: string;
+    cancel_url: string;
+    partially_paid_url?: string;
+    payout_currency?: string | null;
+    created_at: string;
+    updated_at: string;
+    is_fixed_rate?: boolean;
+    is_fee_paid_by_user?: boolean;
   }
 
   export namespace Invoice {
@@ -177,13 +219,16 @@ export declare namespace NP {
     }
   }
 
-  /** `GET /v1/estimate` */
+  /**
+   * `GET /v1/estimate`. no field table. the published example's amounts are
+   * JSON numbers; the live API quotes the same fields as decimal strings.
+   * denominated `estimated_amount` is in `currency_to`.
+   */
   export interface Estimate {
     currency_from: string;
-    amount_from: number;
+    amount_from: string | number;
     currency_to: string;
-    /** denominated in currency_to */
-    estimated_amount: number;
+    estimated_amount: string | number;
   }
 
   export namespace Estimate {
@@ -194,15 +239,17 @@ export declare namespace NP {
     }
   }
 
-  /** `GET /v1/min-amount` */
+  /**
+   * `GET /v1/min-amount`. the field table says Float and the example is a JSON
+   * number. the live API returns decimal strings, same as `Estimate`.
+   * `min_amount` is denominated in `currency_from`; `fiat_equivalent` in
+   * `params.fiat_equivalent`.
+   */
   export interface MinAmount {
     currency_from: string;
     currency_to: string;
-    /** denominated in currency_from */
-    min_amount: number;
-
-    /** denominated in params.fiat_equivalent */
-    fiat_equivalent?: number;
+    min_amount: string | number;
+    fiat_equivalent?: string | number;
   }
 
   export namespace MinAmount {

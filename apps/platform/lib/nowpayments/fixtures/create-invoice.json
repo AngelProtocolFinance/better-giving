@@ -1,0 +1,14 @@
+{
+  "id": "4522625843",
+  "order_id": "RGDBP-21314",
+  "order_description": "Apple Macbook Pro 2019 x 1",
+  "price_amount": "1000",
+  "price_currency": "usd",
+  "pay_currency": null,
+  "ipn_callback_url": "https://nowpayments.io",
+  "invoice_url": "https://nowpayments.io/payment/?iid=4522625843",
+  "success_url": "https://nowpayments.io",
+  "cancel_url": "https://nowpayments.io",
+  "created_at": "2020-12-22T15:05:58.290Z",
+  "updated_at": "2020-12-22T15:05:58.290Z"
+}

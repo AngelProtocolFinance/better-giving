@@ -62,7 +62,10 @@ const np_payment = async (
   may_read: (order_id: string) => Promise<boolean>
 ) => {
   const p = await np.find_payment(payment_id);
-  if (!p || !(await may_read(p.order_id))) return resp.status(404);
+  // the status example leaves order_id null on a payment we didn't create
+  if (!p || p.order_id == null || !(await may_read(p.order_id))) {
+    return resp.status(404);
+  }
   if (p.payment_status !== "waiting") throw resp.status(410);
 
   return {
@@ -72,7 +75,7 @@ const np_payment = async (
     amount: p.pay_amount,
     currency: p.pay_currency.toUpperCase(),
     usdpu: await usdpu_of(np, p.pay_currency),
-    description: p.order_description,
+    description: p.order_description ?? "",
     order_id: p.order_id,
   } satisfies Payment;
 };

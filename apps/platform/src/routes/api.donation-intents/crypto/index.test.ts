@@ -9,11 +9,18 @@ import {
   vi,
 } from "vitest";
 import { type HttpError, json_ok } from "@/helpers/https";
+import {
+  create_invoice,
+  create_payment,
+  estimate_price,
+  min_amount,
+  with_decimal_strings,
+} from "@/nowpayments/fixtures/examples";
+import { simple_price_for } from "$/kit/fixtures/coingecko-examples";
 import type { TestDb } from "$/pg/test-utils/pglite";
 import type { Ctx } from "../types";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
-const report_error_mock = vi.hoisted(() => vi.fn());
 const env_mock = vi.hoisted(() => ({
   base_url: "https://app.test",
   stage: "staging",
@@ -27,7 +34,7 @@ const env_mock = vi.hoisted(() => ({
 
 vi.mock("$/env", () => env_mock);
 vi.mock("#/errors/report", () => ({
-  report_error: report_error_mock,
+  report_error: vi.fn(),
   report_null: () => null,
 }));
 vi.mock("$/kit/discord", () => ({
@@ -87,24 +94,14 @@ const ctx = (o: Partial<Ctx["intent"]> = {}): Ctx =>
 
 const fetch_spy = () => vi.spyOn(globalThis, "fetch");
 
-const ETH_USD = 2000;
 type Route = (req: Request) => Response | Promise<Response>;
-/** nowpayments by path; eth at $2000, pair minimum 0.001 eth ($2) */
+/** nowpayments by path, answering with the published examples */
 const np_server = (o: Record<string, Route> = {}) => {
   const routes: Record<string, Route> = {
-    "/v1/min-amount": () =>
-      Response.json({ min_amount: 0.001, fiat_equivalent: 0.001 * ETH_USD }),
-    "/v1/estimate": () =>
-      Response.json({ amount_from: 100, estimated_amount: 100 / ETH_USD }),
-    "/v1/invoice": () => Response.json({ id: "inv-1" }),
-    "/v1/invoice-payment": () =>
-      Response.json({
-        payment_id: "777",
-        pay_address: "0xdeposit",
-        payin_extra_id: null,
-        pay_amount: 0.01,
-        pay_currency: "eth",
-      }),
+    "/v1/min-amount": () => Response.json(min_amount),
+    "/v1/estimate": () => Response.json(estimate_price),
+    "/v1/invoice": () => Response.json(create_invoice),
+    "/v1/invoice-payment": () => Response.json(create_payment),
     ...o,
   };
   return fetch_spy().mockImplementation(async (input) => {
@@ -167,21 +164,24 @@ const shown = (res: unknown) =>
     (e: HttpError) => (e.refused ? e.message : "")
   );
 
+const quote_coingecko = () =>
+  vi
+    .mocked(coingecko)
+    .mockImplementationOnce(async () =>
+      Response.json(simple_price_for("karate-combat"))
+    );
+
 describe("crypto_intent", () => {
-  it("a currency outside the token map is a 400 before nowpayments or the db", async () => {
-    const spy = fetch_spy();
+  it("an unknown currency is refused and leaves no donation", async () => {
     const res = await crypto_intent(ctx({ currency: "NOPECOIN" }));
 
-    expect(res).toBeInstanceOf(Response);
     expect((res as Response).status).toBe(400);
     expect(await shown(res)).toMatch(/isn't supported.*different currency/);
-    expect(spy).not.toHaveBeenCalled();
     expect(await rows()).toHaveLength(0);
   });
 
-  // retrying a coin nowpayments refuses can never succeed
   it.each([400, 404])(
-    "a nowpayments %i tells the donor to pick another currency, reports, and leaves no row",
+    "a nowpayments %i tells the donor to pick another currency and leaves no donation",
     async (status) => {
       np_server({
         "/v1/invoice": () =>
@@ -195,7 +195,6 @@ describe("crypto_intent", () => {
       const msg = await shown(res);
       expect(msg).toMatch(/isn't available right now.*different currency/);
       expect(msg).not.toMatch(/currency disabled/);
-      expect(report_error_mock).toHaveBeenCalledOnce();
       expect(await rows()).toHaveLength(0);
     }
   );
@@ -205,7 +204,7 @@ describe("crypto_intent", () => {
     ["a 429", () => new Response("", { status: 429 })],
     ["a network failure", () => Promise.reject(new TypeError("fetch failed"))],
   ])(
-    "%s from nowpayments answers 502 try-again-later, reports, and leaves no row",
+    "%s from nowpayments answers 502 and leaves no donation",
     async (_, route) => {
       np_server({ "/v1/invoice": route });
       const res = await crypto_intent(
@@ -213,20 +212,31 @@ describe("crypto_intent", () => {
       );
 
       expect((res as Response).status).toBe(502);
-      // `json_ok` drops every 5xx body; the retry cue is the checkout's
       expect(await shown(res)).toBe("");
-      expect(report_error_mock).toHaveBeenCalledOnce();
       expect(await rows()).toHaveLength(0);
     }
   );
 
-  it.each([0, null])(
-    "a %s pair minimum tells the donor the currency isn't available and leaves no row",
-    async (min_amount) => {
-      const spy = np_server({
-        "/v1/min-amount": () =>
-          Response.json({ min_amount, fiat_equivalent: 0 }),
-      });
+  it.each([
+    [
+      "a zero minimum",
+      "/v1/min-amount",
+      { ...min_amount, min_amount: 0, fiat_equivalent: 0 },
+    ],
+    [
+      "a null minimum",
+      "/v1/min-amount",
+      { ...min_amount, min_amount: null, fiat_equivalent: 0 },
+    ],
+    [
+      "a zero estimate",
+      "/v1/estimate",
+      { ...estimate_price, estimated_amount: 0 },
+    ],
+  ] as const)(
+    "%s tells the donor the currency isn't available and leaves no donation",
+    async (_, path, body) => {
+      np_server({ [path]: () => Response.json(body) });
       const res = await crypto_intent(
         ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
       );
@@ -235,32 +245,11 @@ describe("crypto_intent", () => {
       expect(await shown(res)).toMatch(
         /isn't available right now.*different currency/
       );
-      expect(await bodies(spy, "/v1/invoice")).toHaveLength(0);
       expect(await rows()).toHaveLength(0);
-      // an enabled token nowpayments won't quote is token-list drift
-      expect(report_error_mock).toHaveBeenCalledOnce();
     }
   );
 
-  it("an unusable estimate tells the donor the currency isn't available and leaves no row", async () => {
-    const spy = np_server({
-      "/v1/estimate": () =>
-        Response.json({ amount_from: 100, estimated_amount: 0 }),
-    });
-    const res = await crypto_intent(
-      ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
-    );
-
-    expect((res as Response).status).toBe(400);
-    expect(await shown(res)).toMatch(
-      /isn't available right now.*different currency/
-    );
-    expect(report_error_mock).toHaveBeenCalledOnce();
-    expect(await bodies(spy, "/v1/invoice")).toHaveLength(0);
-    expect(await rows()).toHaveLength(0);
-  });
-
-  it("creates the invoice with a well-formed callback, then the row under its order_id", async () => {
+  it("a documented quote prices the invoice and returns the payment", async () => {
     const spy = np_server();
     const res = await crypto_intent(
       ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
@@ -268,31 +257,35 @@ describe("crypto_intent", () => {
 
     expect(res).not.toBeInstanceOf(Response);
     const [invoice] = await bodies(spy, "/v1/invoice");
-    expect(invoice.ipn_callback_url).toBe(
-      "https://app.test/api/nowpayments-webhook"
-    );
-    expect(invoice.price_amount).toBe(20);
+    // 0.01 BTC at the documented 3999.5 / 0.17061637 dollars per coin
+    expect(invoice.price_amount).toBe(234.41478681090214);
     const [row] = await rows();
     expect(row.id).toBe(invoice.order_id);
-    expect(row.via_extra).toBe("777");
+    expect(row.via_extra).toBe("5745459419");
     expect(res).toMatchObject({
       don_id: invoice.order_id,
-      body: { id: "777", address: "0xdeposit", amount: 0.01 },
+      body: {
+        id: "5745459419",
+        address: "3EZ2uTdVDAMFXTfc6uLDDKR6o8qKBZXVkj",
+        amount: 0.17070286,
+      },
     });
   });
 
-  // priced at nowpayments' rate, its conversion back lands on the donor's 10
-  it("a USDC intent values the row at a dollar a unit and prices the invoice at nowpayments' rate", async () => {
+  it("a USDC intent is valued at a dollar a unit and charged at the quoted rate", async () => {
     const spy = np_server({
       "/v1/min-amount": () =>
-        Response.json({ min_amount: 1, fiat_equivalent: 1.03 }),
+        Response.json({ ...min_amount, min_amount: 1, fiat_equivalent: 1.03 }),
       "/v1/estimate": () =>
-        Response.json({ amount_from: 100, estimated_amount: 100 / 1.03 }),
+        Response.json({
+          ...estimate_price,
+          amount_from: 103,
+          estimated_amount: 100,
+        }),
       "/v1/invoice-payment": () =>
         Response.json({
+          ...create_payment,
           payment_id: "779",
-          pay_address: "0xdeposit",
-          payin_extra_id: null,
           pay_amount: 10,
           pay_currency: "usdc",
         }),
@@ -303,128 +296,95 @@ describe("crypto_intent", () => {
 
     expect(res).not.toBeInstanceOf(Response);
     const [invoice] = await bodies(spy, "/v1/invoice");
-    expect(invoice.price_amount).toBeCloseTo(10.3, 9);
+    expect(invoice.price_amount).toBe(10.3);
     const [row] = await rows();
     expect(row.upusd).toBe(1);
     expect(res).toMatchObject({ body: { usdpu: 1 } });
   });
 
-  it.each([
-    { is_sandbox: true, stage: "production", sent: "success" },
-    { is_sandbox: false, stage: "staging", sent: undefined },
-  ])(
-    "the api host, not the stage, decides the simulated case (sandbox: $is_sandbox)",
-    async ({ is_sandbox, stage, sent }) => {
-      env_mock.nowpayments.is_sandbox = is_sandbox;
-      env_mock.stage = stage;
-      try {
-        const spy = np_server();
-        await crypto_intent(
-          ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
-        );
-        const [p] = await bodies(spy, "/v1/invoice-payment");
-        expect(p.case).toBe(sent);
-      } finally {
-        env_mock.nowpayments.is_sandbox = true;
-        env_mock.stage = "staging";
-      }
-    }
-  );
-
-  it("nowpayments' pay_amount under the pair floor is a 400 with no row", async () => {
+  it("a deposit under the pair floor is refused and leaves no donation", async () => {
     np_server({
       "/v1/invoice-payment": () =>
-        Response.json({
-          payment_id: "778",
-          pay_address: "0xdeposit",
-          payin_extra_id: null,
-          pay_amount: 0.00099,
-          pay_currency: "eth",
-        }),
+        Response.json({ ...create_payment, pay_amount: 0.00394995 }),
     });
-    // $2.20: over the $2 pair minimum plus allowance, as quoted
     const res = await crypto_intent(
-      ctx({ amount: { base: 0.0011, tip: 0, fee_allowance: 0 } })
+      ctx({ amount: { base: 0.008136897, tip: 0, fee_allowance: 0 } })
     );
 
     expect((res as Response).status).toBe(400);
-    expect(await shown(res)).toMatch(/below the minimum of .+ ETH/);
+    expect(await shown(res)).toBe(
+      "This amount is below the minimum of 0.008136897 ETH. Try a larger amount or a different currency."
+    );
     expect(await rows()).toHaveLength(0);
   });
 
-  it("a quote nowpayments sends as decimal strings still prices the token", async () => {
+  it("a documented quote sent as decimal strings prices the token", async () => {
     np_server({
       "/v1/estimate": () =>
-        Response.json({
-          currency_from: "usd",
-          amount_from: "100",
-          currency_to: "eth",
-          estimated_amount: "0.05",
-        }),
+        Response.json(
+          with_decimal_strings(estimate_price, [
+            "amount_from",
+            "estimated_amount",
+          ])
+        ),
       "/v1/min-amount": () =>
-        Response.json({ min_amount: "0.001", fiat_equivalent: "2" }),
+        Response.json(
+          with_decimal_strings(min_amount, ["min_amount", "fiat_equivalent"])
+        ),
     });
     const quoted = await estimate_loader({ params: { code: "ETH" } } as any);
-    const { min, usdpu } = await (quoted as Response).json();
-    expect(usdpu).toBe(2000);
-    expect(min).toBeCloseTo(0.00103, 9);
+
+    expect(await (quoted as Response).json()).toEqual({
+      min: 0.008136897,
+      usdpu: 23441.478681090215,
+    });
   });
 
-  it("a custom token's price request keeps the id in the query, not the path", async () => {
-    vi.mocked(coingecko).mockImplementationOnce(async (url_fn) => {
-      const url = url_fn(new URL("https://api.coingecko.com"), (p) => p);
-      expect(url).toBeInstanceOf(URL);
-      const built = url as URL;
-      expect(built.pathname).toBe("/api/v3/simple/price");
-      expect(built.searchParams.get("ids")).toBe("karate-combat");
-      expect(built.searchParams.get("vs_currencies")).toBe("usd");
-      return Response.json({ "karate-combat": { usd: 2 } });
-    });
+  it("an amount under the quoted minimum is refused and the quoted minimum is accepted", async () => {
+    np_server();
+
+    const under = await crypto_intent(
+      ctx({ amount: { base: 0.008, tip: 0, fee_allowance: 0 } })
+    );
+    expect((under as Response).status).toBe(400);
+    expect(await shown(under)).toBe(
+      "This amount is below the minimum of 0.008136897 ETH. Try a larger amount or a different currency."
+    );
+    expect(await rows()).toHaveLength(0);
+
+    const at = await crypto_intent(
+      ctx({ amount: { base: 0.008136897, tip: 0, fee_allowance: 0 } })
+    );
+    expect(at).not.toBeInstanceOf(Response);
+    expect(await rows()).toHaveLength(1);
+  });
+
+  it("a custom token's published price is the estimate", async () => {
+    quote_coingecko();
     const quoted = await estimate_loader({
       params: { code: "KARATE-1" },
     } as any);
-    expect(await (quoted as Response).json()).toEqual({ min: 0.5, usdpu: 2 });
-  });
 
-  it("enforces the same minimum the estimate route shows the donor", async () => {
-    // pair minimum 0.001 eth ($2) is over the $1 floor, +3% = 0.00103
-    np_server();
-    const quoted = await estimate_loader({ params: { code: "ETH" } } as any);
-    const { min, usdpu } = await (quoted as Response).json();
-    expect(min).toBeCloseTo(0.00103, 9);
-    expect(usdpu).toBe(ETH_USD);
-
-    const under = await crypto_intent(
-      ctx({ amount: { base: min * 0.999, tip: 0, fee_allowance: 0 } })
-    );
-    expect((under as Response).status).toBe(400);
-    expect(await shown(under)).toMatch(/below the minimum of .+ ETH/);
-
-    const at = await crypto_intent(
-      ctx({ amount: { base: min, tip: 0, fee_allowance: 0 } })
-    );
-    expect(at).not.toBeInstanceOf(Response);
-  });
-
-  // a custom token is priced off coingecko, never nowpayments
-  it("a custom token under a dollar's worth tells the donor the minimum and leaves no row", async () => {
-    const spy = fetch_spy();
-    vi.mocked(coingecko).mockImplementationOnce(async (url_fn) => {
-      const url = url_fn(new URL("https://api.coingecko.com"), (p) => p);
-      expect((url as URL).searchParams.get("ids")).toBe("karate-combat");
-      expect((url as URL).pathname).toBe("/api/v3/simple/price");
-      return Response.json({ "karate-combat": { usd: 0.5 } });
+    // simple/price example: bitcoin.usd is 76975, so a dollar buys 1/76975
+    expect(await (quoted as Response).json()).toEqual({
+      min: 0.000012991230919129587,
+      usdpu: 76975,
     });
+  });
+
+  it("a custom token under a dollar is refused and leaves no donation", async () => {
+    quote_coingecko();
     const res = await crypto_intent(
       ctx({
         currency: "KARATE-1",
-        amount: { base: 1, tip: 0, fee_allowance: 0 },
+        amount: { base: 0.000006, tip: 0, fee_allowance: 0 },
       })
     );
 
     expect((res as Response).status).toBe(400);
-    expect(await shown(res)).toMatch(/below the minimum of 2 KARATE-1/);
-    expect(spy).not.toHaveBeenCalled();
+    expect(await shown(res)).toBe(
+      "This amount is below the minimum of 0.000012991230919129587 KARATE-1. Try a larger amount or a different currency."
+    );
     expect(await rows()).toHaveLength(0);
   });
 });

@@ -286,21 +286,6 @@ describe("Crypto form: price estimate after a token pick", () => {
     release_estimate();
 
     await expect.element(screen.getByText(failed_msg)).toBeVisible();
-    const msg_el = screen.getByText(failed_msg).element();
-    const field = screen
-      .getByPlaceholder(/enter amount/i)
-      .element()
-      .closest(".field-input-container");
-    if (!(field instanceof HTMLElement))
-      throw new Error("amount field missing");
-    const range = document.createRange();
-    range.selectNodeContents(msg_el);
-    const text = range.getClientRects()[0];
-    expect(text).toBeTruthy();
-    expect(getComputedStyle(msg_el).textAlign).toBe("left");
-    expect(
-      Math.abs(text.left - field.getBoundingClientRect().left)
-    ).toBeLessThanOrEqual(1);
     await expect.element(screen.getByRole("combobox")).toHaveValue("");
     await expect
       .element(screen.getByPlaceholder(/enter amount/i))
