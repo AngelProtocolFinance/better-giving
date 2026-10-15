@@ -10,6 +10,7 @@ import {
 import type { DbOrTx } from "../pg/queries/helpers";
 import { type IOwed, owed_for_donation, owed_total } from "../pg/queries/owed";
 import { take_undo, takes_of } from "../pg/queries/take";
+import { donation_disputes } from "../pg/schema/dispute";
 import { dists } from "../pg/schema/dist";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
 import {
@@ -344,6 +345,18 @@ async function older_loss_needs_hand(
         d.refund_status === "loss"
     );
   if (!reversed) return false;
+  // another dispute on this gift already stamped its own reversal. this
+  // unstamped loss only closed the row, and that other win credits the debt
+  const siblings = await db
+    .select({
+      id: donation_disputes.id,
+      loss_recorded_at: donation_disputes.loss_recorded_at,
+    })
+    .from(donation_disputes)
+    .where(eq(donation_disputes.donation_id, donation_id));
+  if (siblings.some((s) => s.id !== dispute_id && s.loss_recorded_at != null)) {
+    return false;
+  }
   const owed = await owed_for_donation(donation_id);
   return owed.some(
     (o) =>

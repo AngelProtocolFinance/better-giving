@@ -447,6 +447,48 @@ describe("a dispute on a gift already reversed", () => {
     expect(row).toEqual({ status: "won", loss_recorded_at: null });
   });
 
+  test("another dispute's stamped reversal is not restored on this one's win", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await dispute_opened(opened_on(id));
+    await dispute_opened({ ...opened_on(id), dispute_id: "du_2" });
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: "du_2",
+      donation_id: id,
+      status: "lost",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    expect(
+      (
+        await reverse_charge({
+          donation_id: id,
+          rail: "stripe",
+          source: "dispute",
+          share: { taken: 100, of: 100 },
+          dispute_fee_usd: 15,
+          source_ref: "du_2",
+          alert_from: "charge-dispute",
+          notice: { id: `evt_lost_${id}`, lines: [] },
+        })
+      ).status
+    ).toBe("reversed");
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: `du_${id}`,
+      donation_id: id,
+      status: "lost",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    const owed = await owed_of(id);
+
+    const other = await dispute_won(won_on(id));
+    const own = await dispute_won({ ...won_on(id), dispute_id: "du_2" });
+
+    expect(other).toMatchObject({ credited: false, hand: false });
+    expect(own).toMatchObject({ prior_status: "lost", credited: true });
+    expect(owed).not.toEqual(await owed_of(id));
+  });
+
   test("an older loss with no stamp is not credited, and is left for ops", async () => {
     const { id } = await seed(PAID_GRANT);
     await dispute_opened(opened_on(id));
