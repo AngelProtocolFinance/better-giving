@@ -107,6 +107,23 @@ const assert_map = (flows) => {
 const click_fact = (label, tries) =>
   tries > 1 ? `${label} (retried after a reload, attempt ${tries})` : label;
 
+// The footer prefetch of `/donate/1` makes Vite optimize new dependencies.
+// The next direct load of that route can 504 those files (`Outdated Optimize
+// Dep`). The document is still 200, and the amount buttons stay disabled
+// because the client never hydrates. Reload the same URL and click again.
+const click_after_reload = async (page, locate) => {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await locate().click({ timeout: attempt < 3 ? 20_000 : T });
+      return attempt;
+    } catch (err) {
+      if (attempt === 3) throw err;
+      await page.reload({ waitUntil: "load", timeout: 120_000 });
+    }
+  }
+  return 3;
+};
+
 // each flow: ({page, log, shot, ctx}) → string[] of observed facts. throw = fail.
 // `entry` is what a pass verifies. A click absent from `entry.clicked`, or a
 // URL absent from `entry.loaded`, was not verified — including a listed
@@ -245,9 +262,9 @@ const FLOWS = {
         .first()
         .waitFor({ timeout: T });
       const cur = await page.request.get(`${BASE}/api/currencies`);
-      await page
-        .getByRole("button", { name: "+100 USD" })
-        .click({ timeout: T });
+      const amount_tries = await click_after_reload(page, () =>
+        page.getByRole("button", { name: "+100 USD" })
+      );
       await shot("1-amount");
       await page.getByRole("button", { name: /Continue with Card/ }).click();
       await page.getByText("Payment information").waitFor({ timeout: T });
@@ -269,7 +286,10 @@ const FLOWS = {
       const facts = [
         `direct GET /donate/${NPO} → 200`,
         `GET /api/currencies → ${cur.status()}`,
-        "amount +100 USD → Continue with Card → donor info → Continue",
+        click_fact(
+          "amount +100 USD → Continue with Card → donor info → Continue",
+          amount_tries
+        ),
         "payment step: 'Your donation summary', Total donation $100.00",
         "marketplace card Donate was not clicked",
       ];

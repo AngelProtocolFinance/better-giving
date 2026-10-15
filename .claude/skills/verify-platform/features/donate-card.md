@@ -17,4 +17,5 @@
 
 ## Gotchas
 - Don't wait for networkidle; Stripe.js retries forever with filler keys.
+- The footer Marketplace click prefetches `/donate/1` and Vite optimizes that route. The next direct load can 504 those dependencies and leave **+100 USD** disabled. The drive reloads the same `/donate/<id>` and clicks again. It does not switch to the marketplace-card entry.
 - PayPal / express checkout "failed to load" banners are expected with filler keys.

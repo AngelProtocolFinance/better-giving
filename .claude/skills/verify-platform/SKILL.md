@@ -63,7 +63,7 @@ A listed entry point the drive did not take is not verified. `results.json` reco
 | `donate-card` | direct `GET /donate/:id` → +100 USD → Continue with Card → donor info → payment step with summary $100.00; with real test keys, types 4242… into the Stripe Payment Element (`donate-card-4-card.png`). The marketplace-card Donate link is not clicked, so it is not verified. |
 | `smoke-paths` | smoke.yml's direct `GET /`, `GET /api/currencies`, `GET /form-embed.js` each < 400. No screenshot. |
 
-On a cold dev server, scrolling the footer into view prefetches `/donate/1`. Vite reloads and cancels the click. `open_link` retries that same click (header `Log In` and footer `Marketplace`). It does not switch to `goto`.
+On a cold dev server, scrolling the footer into view prefetches `/donate/1`. Vite reloads and cancels the click. `open_link` retries that same click (header `Log In` and footer `Marketplace`). It does not switch to `goto`. That prefetch can also leave the next direct `/donate/:id` load with a 504 on optimized dependencies, so the amount buttons stay disabled. The donate flow reloads that same URL and clicks `+100 USD` again.
 
 Selectors are ARIA/text/`name=` handles from the real UI (`getByRole("link", {name: "Log In"})` inside the banner, footer `Marketplace` inside `contentinfo`, `getByRole("button", {name: "+100 USD"})`, `input[name="email"]`, …). Add a flow by adding an entry to `FLOWS` in drive.mjs, a file in `features/`, and a README link to that file. `doctor.sh` fails when those three disagree.
 
