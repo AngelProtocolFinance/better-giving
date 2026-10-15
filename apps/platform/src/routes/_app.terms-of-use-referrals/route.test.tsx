@@ -1,7 +1,10 @@
 import { createRoutesStub } from "react-router";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-react";
+import { TERMS_EFFECTIVE, TERMS_ZONE, terms_date_label } from "@/terms";
 import TermsReferrals from "./route";
+
+const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
 
 const Stub = createRoutesStub([
   { path: "/terms-of-use-referrals", Component: TermsReferrals },
@@ -35,7 +38,7 @@ describe("referral terms", () => {
 
     await expect
       .element(
-        screen.getByText("Effective Date: October 18, 2026", {
+        screen.getByText(`Effective Date: ${EFFECTIVE}`, {
           exact: true,
         })
       )
@@ -92,7 +95,7 @@ describe("referral terms", () => {
     const { text } = await after_payment();
 
     expect(text).toContain(
-      "This section applies only to donations made on or after the later of (i) 12:00 a.m. Eastern Time (America/New_York) on October 18, 2026 and (ii) the date these revised Program Terms take effect."
+      `This section applies only to donations made on or after the later of (i) 12:00 a.m. Eastern Time (${TERMS_ZONE}) on ${EFFECTIVE} and (ii) the date these revised Program Terms take effect.`
     );
   });
 });
