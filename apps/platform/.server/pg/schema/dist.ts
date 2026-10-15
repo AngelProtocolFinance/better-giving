@@ -66,6 +66,10 @@ export const dists = pgTable(
     stripe_routed_to: text("stripe_routed_to"),
     /** the stripe transfer that paid this dist to the npo's connected account */
     stripe_transfer_id: text("stripe_transfer_id"),
+    /** when stripe created that transfer (`Transfer.created`). null when none
+     * is stored. a writer that records only `stripe_transfer_id` leaves it
+     * null; the payouts list then uses `date_created` */
+    stripe_transfer_created_at: timestamptz("stripe_transfer_created_at"),
     /** the share of the charge its refunds had already taken when a refused
      * transfer rebooked it pooled. a partial cut reduces `net` to what was
      * booked; a total cut leaves the settled `net` and books nothing. the

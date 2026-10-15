@@ -5,17 +5,25 @@ import { admin_ctx } from "#/.server/auth";
 import { use_table } from "#/hooks/use-table";
 import { search } from "@/helpers/https";
 import { npo_payouts } from "$/pg/queries/payout";
+import { npo_sent_transfers } from "$/stripe-connect/sent";
 import type { Route } from "./+types/route";
 import { PayoutsTable } from "./common/payouts-table";
+import { SentToStripe } from "./sent";
 
 export const loader = async (x: Route.LoaderArgs) => {
   const { next } = search(x.request);
   const id = x.context.get(admin_ctx);
 
-  return npo_payouts(id, {
+  const page = await npo_payouts(id, {
     next,
     limit: 5,
   });
+  // one shape either way: a load-more reads only the next payout page, and a
+  // missing `sent` on that branch is what collapsed the list's type
+  return {
+    ...page,
+    sent: next ? null : await npo_sent_transfers(id),
+  };
 };
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
@@ -31,6 +39,10 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
       load(`?${p.toString()}`);
     },
   });
+  const { sent } = page1;
+  // the bank table's empty row is this page's only content off Connect. beside
+  // the stripe list it would still say nothing was paid after a transfer
+  const show_bank = sent === null || page1.items.length > 0;
 
   return (
     <div className="grid content-start px-6 py-4 md:px-10 md:py-8">
@@ -38,7 +50,9 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
         <ChevronLeft className="icon-lg" />
         <span>Back</span>
       </Link>
-      {node}
+      {sent && <SentToStripe sent={sent} classes={show_bank ? "mb-8" : ""} />}
+      {show_bank && sent && <h2 className="font-bold text-lg mb-3">Payouts</h2>}
+      {show_bank && node}
     </div>
   );
 }

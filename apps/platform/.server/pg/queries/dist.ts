@@ -332,17 +332,22 @@ export type TDistTransferSet = { set: true } | { set: false; existing: string };
 
 /**
  * store the stripe transfer that paid this dist, only while it has none: the
- * double-transfer guard. `existing` is the transfer already stored, which may
- * be `transfer_id` itself on a retry.
+ * double-transfer guard. `created_at` is that transfer's own creation time.
+ * `existing` is the transfer already stored, which may be `transfer_id`
+ * itself on a retry. a miss leaves the time already stored.
  */
 export async function dist_stripe_transfer_set(
   dist_id: string,
   transfer_id: string,
+  created_at: string,
   conn: DbOrTx = db
 ): Promise<TDistTransferSet> {
   const [written] = await conn
     .update(dists)
-    .set({ stripe_transfer_id: transfer_id })
+    .set({
+      stripe_transfer_id: transfer_id,
+      stripe_transfer_created_at: created_at,
+    })
     .where(and(eq(dists.id, dist_id), isNull(dists.stripe_transfer_id)))
     .returning({ id: dists.id });
   if (written) return { set: true };

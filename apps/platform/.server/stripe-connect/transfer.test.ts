@@ -93,6 +93,10 @@ const INTENT = "pi_transfer_1";
 const CHARGE = "ch_transfer_1";
 /** the group stripe gives a transfer from a charge that has none */
 const GROUP = `group_${INTENT}`;
+/** when stripe created the transfer these tests make */
+const TRANSFER_CREATED_AT = "2026-07-01T00:00:00.000Z";
+const TRANSFER_CREATED = Date.parse(TRANSFER_CREATED_AT) / 1000;
+
 /** the transfers stripe has made, as `transfers.list` finds them */
 let made: { id: string; transfer_group: string; metadata: object }[] = [];
 /** a delivery qstash retries if it throws */
@@ -201,7 +205,12 @@ beforeEach(async () => {
   }));
   // one transfer, which a create under the same key replays
   stripe.transfers.create.mockImplementation(async (params) => {
-    const t = { id: "tr_1", ...params, transfer_group: GROUP };
+    const t = {
+      id: "tr_1",
+      created: TRANSFER_CREATED,
+      ...params,
+      transfer_group: GROUP,
+    };
     if (!made.some((x) => x.id === t.id)) made.push(t);
     return t;
   });
@@ -251,6 +260,11 @@ describe("transfer_routed_dist", () => {
       { idempotencyKey: `connect-transfer:${payload.dist_id}` }
     );
     expect(await stored(payload.dist_id)).toBe("tr_1");
+    const [paid] = await db()
+      .select({ at: dists.stripe_transfer_created_at })
+      .from(dists)
+      .where(eq(dists.id, payload.dist_id));
+    expect(paid?.at).toBe(TRANSFER_CREATED_AT);
   });
 
   test("a redelivery after the transfer is stored never transfers again", async () => {
@@ -291,7 +305,7 @@ describe("transfer_routed_dist", () => {
         .update(dists)
         .set({ stripe_transfer_id: "tr_other" })
         .where(eq(dists.id, payload.dist_id));
-      return { id: "tr_1" };
+      return { id: "tr_1", created: TRANSFER_CREATED };
     });
 
     await transfer_routed_dist(payload, RETRY);
@@ -576,7 +590,10 @@ describe("transfer_routed_dist", () => {
     const { payload } = await settle_routed();
     store_fails_once();
     await expect(transfer_routed_dist(payload, RETRY)).rejects.toThrow();
-    stripe.transfers.create.mockResolvedValue({ id: "tr_2" });
+    stripe.transfers.create.mockResolvedValue({
+      id: "tr_2",
+      created: TRANSFER_CREATED,
+    });
 
     await transfer_routed_dist(payload, RETRY);
 
