@@ -407,8 +407,9 @@ export default function TermsNonprofits() {
               fraction of its payment processing fees, plus any dispute fee in
               full (split in proportion to the amounts allocated to each NPO
               where the donation supported more than one NPO). Better Giving
-              will notify you of each Recovery Amount, identifying the donation
-              and the date it was reversed, before deducting it.
+              will notify you of each Recovery Amount when it is created or
+              increases, identifying the donation and the date it was reversed,
+              before deducting it.
             </li>
             <li>
               <b>Savings and Investment Balances.</b> If any part of a Reversed

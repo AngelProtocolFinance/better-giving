@@ -126,6 +126,9 @@ describe("nonprofit terms", () => {
     expect(g).toContain(
       "plus any dispute fee in full (split in proportion to the amounts allocated to each NPO where the donation supported more than one NPO)"
     );
+    expect(g).toContain(
+      "Better Giving will notify you of each Recovery Amount when it is created or increases, identifying the donation and the date it was reversed, before deducting it."
+    );
   });
 
   test("4(h) takes Savings back, redeems Fund units at the day's value, and a shortfall makes the whole part and the dispute fee recoverable", async () => {
