@@ -17,12 +17,12 @@ export const EFFECTIVE_DATE = "[EFFECTIVE DATE]";
 export const TERMS_URL = "[TERMS URL]";
 export const SUPPORT_EMAIL = "[SUPPORT EMAIL]";
 
-const EARLIER_TERMS_URL = "https://better.giving/terms-of-use-npo-2024";
-
 /** the legal line under the service notice, from the brand identity */
 const FOOTER_IDENTITY = `${LEGAL_NAME} \u00B7 ${ADDRESS} \u00B7 EIN ${EIN}`;
 
 export interface IData {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   /** ZeptoMail merge field. default is the literal `{{npo_name}}` */
   npo_name?: string;
   /** default is the literal `[EFFECTIVE DATE]` */
@@ -38,6 +38,7 @@ interface IFields {
   effective_date: string;
   terms_url: string;
   support_email: string;
+  earlier_terms_url: string;
 }
 
 type TBlockKind = "body" | "label" | "signoff" | "footer";
@@ -47,11 +48,12 @@ interface IBlock {
   lines: string[];
 }
 
-const fields_of = (data: IData = {}): IFields => ({
+const fields_of = (data: IData): IFields => ({
   npo_name: data.npo_name ?? NPO_NAME,
   effective_date: data.effective_date ?? EFFECTIVE_DATE,
   terms_url: data.terms_url ?? TERMS_URL,
   support_email: data.support_email ?? SUPPORT_EMAIL,
+  earlier_terms_url: `${data.base_url}/terms-of-use-npo-2024`,
 });
 
 export const subject_line = (effective_date: string): string =>
@@ -84,7 +86,7 @@ const paragraphs = (f: IFields): IBlock[] => [
     kind: "body",
     lines: [
       `Read the full terms: ${f.terms_url}`,
-      `Earlier version (October 2024): ${EARLIER_TERMS_URL}`,
+      `Earlier version (October 2024): ${f.earlier_terms_url}`,
     ],
   },
   {
@@ -102,7 +104,7 @@ const paragraphs = (f: IFields): IBlock[] => [
 ];
 
 /** the plain-text body, same words the html renders */
-export const plain_body = (data: IData = {}): string =>
+export const plain_body = (data: IData): string =>
   paragraphs(fields_of(data))
     .map((block) => block.lines.join("\n"))
     .join("\n\n");
@@ -163,7 +165,10 @@ function LineText({ line, links }: ILineProps) {
 }
 
 function Jsx(f: IFields) {
-  const links = [f.terms_url, EARLIER_TERMS_URL].filter(is_http);
+  // longest first: a shorter url must not match as a prefix of a longer one
+  const links = [f.terms_url, f.earlier_terms_url]
+    .filter(is_http)
+    .sort((a, b) => b.length - a.length);
   return (
     <PlatformLayout title={subject_line(f.effective_date)}>
       {paragraphs(f).map((block) => (
@@ -180,7 +185,7 @@ function Jsx(f: IFields) {
   );
 }
 
-export const template = (data: IData = {}) => {
+export const template = (data: IData) => {
   const fields = fields_of(data);
   return {
     node: <Jsx {...fields} />,

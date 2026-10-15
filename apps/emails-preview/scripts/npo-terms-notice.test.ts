@@ -45,3 +45,12 @@ test("placeholders and the service footer survive rendering", async () => {
   assert.equal(readFileSync(html_path, "utf8"), html);
   assert.equal(readFileSync(text_path, "utf8"), text);
 });
+
+test("a filled-in terms url links the archived version to itself", async () => {
+  const base_url = "https://better.giving";
+  const terms_url = `${base_url}/terms-of-use-npo`;
+  const archived = `${base_url}/terms-of-use-npo-2024`;
+  const { html } = await render_notice({ base_url, terms_url });
+
+  assert.equal(count(html, `href="${archived}"`), 1);
+});

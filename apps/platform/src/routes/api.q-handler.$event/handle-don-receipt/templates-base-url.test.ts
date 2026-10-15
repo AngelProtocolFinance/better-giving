@@ -126,6 +126,7 @@ const fixtures: Record<string, [string, any][]> = {
       },
     ],
   ],
+  "npo-terms-notice": [["", {}]],
   "registration-approved": [
     [
       "",
