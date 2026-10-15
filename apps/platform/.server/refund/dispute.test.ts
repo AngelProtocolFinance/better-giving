@@ -22,6 +22,7 @@ import { donations } from "../pg/schema/donation";
 import { npos } from "../pg/schema/npo";
 import { owed_amounts } from "../pg/schema/owed";
 import { payouts } from "../pg/schema/payout";
+import { referrer_commissions } from "../pg/schema/referrer";
 import { loss_logs } from "../pg/schema/revenue";
 import type { TestDb } from "../pg/test-utils/pglite";
 
@@ -316,6 +317,7 @@ describe("a dispute on a gift already reversed", () => {
       status: "already_reversed",
       donation_status: "refunded",
       prior_status: null,
+      credited: false,
     });
     expect(await disputes_of(test_db.current!.db, id)).toMatchObject([
       { id: `du_${id}`, status: "won", closed_at: CLOSED },
@@ -341,6 +343,7 @@ describe("a dispute on a gift already reversed", () => {
       status: "already_reversed",
       donation_status: "refunded_loss",
       prior_status: "lost",
+      credited: true,
     });
     expect(again).toEqual(res);
     expect(await owed_of(id)).toMatchObject([
@@ -350,6 +353,103 @@ describe("a dispute on a gift already reversed", () => {
         fee_dispute_usd: 15,
         outstanding_usd: 0,
       },
+    ]);
+  });
+
+  test("a lost partial, then a refund that reverses the gift, credits nothing when won", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await dispute_opened(opened_on(id, 15, 30));
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: `du_${id}`,
+      donation_id: id,
+      status: "lost",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    expect((await lose(id, 30)).status).toBe("partial_owed");
+    expect((await refund(id, "refund", 70, "re_rest")).status).toBe("reversed");
+    const before = await owed_of(id);
+
+    const res = await dispute_won(won_on(id));
+
+    expect(res).toMatchObject({ prior_status: "lost", credited: false });
+    expect(await owed_of(id)).toEqual(before);
+  });
+
+  test("a $30 refund, then this dispute's $70 loss reverses the gift: the win credits only the dispute", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, "refund", 30, "re_1");
+    await dispute_opened({
+      ...opened_on(id, 15, 70),
+      disputed: { taken: 70, of: 100 },
+    });
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: `du_${id}`,
+      donation_id: id,
+      status: "lost",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    expect((await lose(id, 70)).status).toBe("reversed");
+
+    const res = await dispute_won(won_on(id));
+
+    expect(res).toMatchObject({ prior_status: "lost", credited: true });
+    // the refund's 30% of $90 + $3.20 stays owed; the dispute's share and fee do not
+    expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 27.96 }]);
+  });
+
+  test("a pending payout's full loss, then a win, leaves nothing outstanding", async () => {
+    const { id } = await seed({ ...PAID_GRANT, payout: "pending" });
+    await dispute_opened(opened_on(id));
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: `du_${id}`,
+      donation_id: id,
+      status: "lost",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    expect((await lose(id)).status).toBe("reversed");
+
+    const res = await dispute_won(won_on(id));
+
+    expect(res).toMatchObject({ credited: true });
+    expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 0 }]);
+  });
+
+  test("a pending commission is not owed by a late win after a refund and a smaller loss", async () => {
+    const gift = await seed({ ...PAID_GRANT, payout: "pending" });
+    const { id } = gift;
+    await seed_paid_commission(test_db.current!.db, gift, "REF-1", 5);
+    await test_db
+      .current!.db.update(referrer_commissions)
+      .set({ status: "pending" })
+      .where(eq(referrer_commissions.referrer_user, "REF-1"));
+    await refund(id, "refund", 70, "re_1");
+    await dispute_opened(opened_on(id, 15, 30));
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: `du_${id}`,
+      donation_id: id,
+      status: "lost",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    expect((await lose(id, 30)).status).toBe("reversed");
+    const outstanding = async () =>
+      (await owed_of(id)).reduce((sum, o) => sum + (o.outstanding_usd ?? 0), 0);
+    const before = await outstanding();
+
+    const res = await dispute_won(won_on(id));
+    const after = await outstanding();
+
+    expect(res).toMatchObject({ prior_status: "lost", credited: true });
+    expect(after).toBeLessThanOrEqual(before);
+    expect(await owed_of(id)).toEqual([
+      expect.objectContaining({
+        npo_id: gift.npo_ids[0],
+        referrer_user: null,
+        outstanding_usd: 0,
+      }),
     ]);
   });
 

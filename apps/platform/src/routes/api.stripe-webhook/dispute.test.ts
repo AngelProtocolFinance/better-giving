@@ -560,6 +560,28 @@ describe("a dispute on a gift already refunded", () => {
 });
 
 describe("a late win after the dispute was lost", () => {
+  it("does not credit a loss that only closed the row after a refund", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(event_of("charge.dispute.created", dispute_of(gift)));
+    await refund(gift);
+    const owed = await owed_of(gift.id);
+    enqueue_mock.mockClear();
+
+    await deliver(lost_of(gift));
+    const res = await deliver(won_of(gift));
+
+    expect(res.status).toBe(200);
+    expect(await owed_of(gift.id)).toEqual(owed);
+    const [notice] = notices();
+    expect(notice.payload.alert.title).toBe(
+      "Dispute Won on a Reversed Donation"
+    );
+    expect(notice.payload.alert.body).toMatch(
+      /reversed by its refund.*nothing is owed/
+    );
+    expect(notice.payload.alert.body).not.toMatch(/credited back/);
+  });
+
   it("credits what the loss recorded and tells ops that it did, a redelivery crediting nothing more", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
     await deliver(event_of("charge.dispute.created", dispute_of(gift)));
@@ -589,6 +611,34 @@ describe("a late win after the dispute was lost", () => {
       /after it was lost.*credited back, its dispute fee included/
     );
     expect(notice.payload.alert.body).not.toMatch(/by hand/);
+  });
+
+  it("says a non-usd dispute fee is still for ops when the loss is credited back", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    const eur = { fee: 1_500, fee_currency: "eur" };
+    await deliver(event_of("charge.dispute.created", dispute_of(gift, eur)));
+    await deliver(
+      event_of(
+        "charge.dispute.closed",
+        dispute_of(gift, { ...eur, status: "lost" }),
+        CLOSED_UNIX
+      )
+    );
+    enqueue_mock.mockClear();
+
+    await deliver(
+      event_of(
+        "charge.dispute.closed",
+        dispute_of(gift, { ...eur, status: "won" }),
+        CLOSED_UNIX + 60
+      )
+    );
+
+    const [notice] = notices();
+    expect(notice.payload.alert.body).toMatch(/credited back/);
+    expect(notice.payload.alert.body).not.toMatch(/dispute fee included/);
+    expect(notice.payload.alert.body).toMatch(/settled in EUR/);
+    expect(notice.payload.alert.body).toMatch(/by hand/);
   });
 });
 

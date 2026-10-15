@@ -23,7 +23,9 @@ const invoice_payments_list_mock = vi.hoisted(() => vi.fn());
 const transfer_create_mock = vi.hoisted(() => vi.fn());
 const transfer_reversal_mock = vi.hoisted(() => vi.fn());
 const enqueue_mock = vi.hoisted(() => vi.fn());
-const send_email_or_throw = vi.hoisted(() => vi.fn(async () => ({})));
+const send_email_or_throw = vi.hoisted(() =>
+  vi.fn(async (_mail: { subject: string; node: ReactElement }) => ({}))
+);
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
 vi.mock("$/kit/stripe", () => ({
@@ -173,7 +175,7 @@ const mail_text = (node: ReactElement) => render(node, { plainText: true });
 const sent = () =>
   Promise.all(
     send_email_or_throw.mock.calls.map(async ([m]) => ({
-      subject: m.subject as string,
+      subject: m.subject,
       text: await mail_text(m.node),
     }))
   );

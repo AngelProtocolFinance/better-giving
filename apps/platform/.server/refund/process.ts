@@ -7,6 +7,7 @@ import { nav_log_date } from "@/nav";
 import { base_url, stage } from "../env";
 import { fiat_monitor } from "../kit/discord";
 import { db } from "../pg/db";
+import { dispute_mark_loss_reversed } from "../pg/queries/dispute";
 import {
   type DistRefundGraph,
   dist_refund_state_locked,
@@ -339,6 +340,16 @@ export async function process_refund(
       }
       const status = await donation_refund_status(tx, donation_id);
       await donation_update(tx, donation_id, { status });
+      // same commit as the flip: a win credits this loss back only when the
+      // stamp is there, and a retry that finds the gift already reversed
+      // must not be the thing that learns whether this dispute reversed it
+      if (ctx.source === "dispute") {
+        await dispute_mark_loss_reversed(
+          tx,
+          ctx.source_ref,
+          new Date().toISOString()
+        );
+      }
       const voided = await void_match_event(tx, donation_id, status);
       return { flipped: true, status, voided } as const;
     });

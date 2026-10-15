@@ -171,12 +171,12 @@ export type DisputeWonResult =
   | { status: "credited"; owed: IOwed[] }
   /** the dispute is on record won, and this call credits nothing new.
    * `prior_status`: its record before this win, null when there was none.
-   * `lost` is a late win after this dispute's own loss reversed the gift:
-   * on stripe that loss's take is credited back here, a replay undoing
-   * nothing further; anything else, the gift was reversed some other way
-   * and nothing is credited */
+   * `credited`: this dispute's loss reversed the gift and its take is
+   * undone, this call's or a replay's. a loss that only closed the row,
+   * or a gift a refund or another dispute reversed, is not */
   | (Extract<Unreversible, { status: "already_reversed" }> & {
       prior_status: IDispute["status"] | null;
+      credited: boolean;
     })
   /** the dispute was closed otherwise first, `prior_status` (a win on appeal
    * of a loss that left the gift settled): the first close stands, so
@@ -210,13 +210,15 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
     await dispute_close(db, record);
     const { status, donation_status } = loaded;
     const prior_status = prior?.status ?? null;
-    // this dispute's own loss reversed the gift. stripe credits that loss
-    // back; a refund, or another dispute, left the other branch to ops.
-    // paypal's reversed win stays a hand restore
-    if (prior_status === "lost" && d.rail === "stripe") {
-      await credit_reversed_loss(don.id, d);
-    }
-    return { status, donation_status, prior_status };
+    // the stamp is this dispute's own reversal, written with the gift's
+    // flip. a lost row without it was closed on a gift a refund or another
+    // dispute reversed. paypal's reversed win stays a hand restore
+    const credited =
+      prior_status === "lost" &&
+      d.rail === "stripe" &&
+      prior?.loss_recorded_at != null &&
+      (await credit_reversed_loss(don.id, d));
+    return { status, donation_status, prior_status, credited };
   }
   const now = new Date().toISOString();
 
@@ -226,21 +228,21 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
       return { status: "conflict", prior_status: stands };
     }
     const ds = await settled_dists_locked(tx, don.id);
-    const owed = await credit_won_take(tx, don.id, d, ds, now);
+    const { owed } = await credit_won_take(tx, don.id, d, ds, now);
     return { status: "credited", owed };
   });
 }
 
 /** the win's credit: undo its take and move each party's row by what that
- * drops, the same reasons a settled win books. a take already undone, a
- * redelivery's, credits nothing */
+ * drops, the same reasons a settled win books. `settled` is the take
+ * undone, including a redelivery's, which credits nothing more */
 async function credit_won_take(
   tx: DbOrTx,
   donation_id: string,
   d: DisputeWon,
   ds: LockedDist[],
   now: string
-): Promise<IOwed[]> {
+): Promise<{ owed: IOwed[]; settled: boolean }> {
   const before = await takes_of(tx, donation_id);
   const take = await dispute_take(tx, {
     donation_id,
@@ -248,9 +250,13 @@ async function credit_won_take(
     share: d.disputed ? fraction_of(d.disputed) : null,
     claims: (d.status ?? "won") === "won",
   });
-  // none on record, or undone already: by a redelivery, or by the refund
-  // that paid an accepted claim
-  if (!take || !(await take_undo(tx, donation_id, take.ref))) return [];
+  // none on record. undone already: a redelivery, or the refund that paid
+  // an accepted claim. `settled` is the take undone, so a replay reports
+  // the same credit the first call booked
+  if (!take) return { owed: [], settled: false };
+  if (!(await take_undo(tx, donation_id, take.ref))) {
+    return { owed: [], settled: true };
+  }
   const after = await takes_of(tx, donation_id);
   const moves = await move_owed(tx, {
     donation_id,
@@ -260,41 +266,47 @@ async function credit_won_take(
     src: { source: "dispute", source_ref: d.dispute_id },
     now,
   });
-  return moves.flatMap((m) => (m.row ? [m.row] : []));
+  return {
+    owed: moves.flatMap((m) => (m.row ? [m.row] : [])),
+    settled: true,
+  };
 }
 
-/** a loss reversed the dists, so they are no longer settled, and it refunded
- * a commission it had recorded as owed. counted as still paid here, the
- * take's fall credits that commission back too */
+/** a loss reversed the dists, so they are no longer settled. two facts the
+ * reversal wrote would price a later credit off the wrong gift: a pending
+ * payout it cancelled is `refunded`, which reads as a grant that went out,
+ * and a commission it marked `refunded_loss` counts as paid only when a
+ * transfer had claimed it (`ref`). a pending commission was never owed */
 const still_owed = (ds: LockedDist[]): LockedDist[] =>
   ds.map((dist) => {
     const commission = dist.commission;
-    if (
-      !commission ||
-      (commission.status !== "refunded" &&
-        commission.status !== "refunded_loss")
-    ) {
-      return dist;
-    }
+    const payout_type =
+      dist.payout_type === "refunded" ? "pending" : dist.payout_type;
+    const claimed =
+      commission?.status === "refunded_loss" && commission.ref != null;
+    if (payout_type === dist.payout_type && !claimed) return dist;
     return {
       ...dist,
-      commission: {
-        amount: commission.amount,
-        referrer_user: commission.referrer_user,
-        referrer_npo: commission.referrer_npo,
-        status: "paid",
-      },
+      payout_type,
+      commission:
+        claimed && commission
+          ? { ...commission, status: "paid" as const }
+          : commission,
     };
   });
 
 /** the stripe credit for a win after this dispute's loss reversed the gift.
  * the loss's take is undone and each party is credited what it owed with
  * that take: received, card fee and dispute fee. a replay undoes nothing */
-async function credit_reversed_loss(donation_id: string, d: DisputeWon) {
+async function credit_reversed_loss(
+  donation_id: string,
+  d: DisputeWon
+): Promise<boolean> {
   const now = new Date().toISOString();
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const ds = still_owed(await gift_dists_locked(tx, donation_id));
-    await credit_won_take(tx, donation_id, d, ds, now);
+    const { settled } = await credit_won_take(tx, donation_id, d, ds, now);
+    return settled;
   });
 }
 

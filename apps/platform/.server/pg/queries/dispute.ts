@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { donation_disputes } from "../schema/dispute";
 import type { DbOrTx } from "./helpers";
@@ -81,6 +81,25 @@ export async function dispute_record_share(
   s: { share: number; cumulative_share: number; fee_usd: number }
 ): Promise<void> {
   await tx.update(donation_disputes).set(s).where(eq(donation_disputes.id, id));
+}
+
+/** this dispute's loss reversed the gift. a redelivery leaves the first
+ * stamp. the win reads it to tell that reversal from a loss that only
+ * closed the row */
+export async function dispute_mark_loss_reversed(
+  tx: DbOrTx,
+  id: string,
+  at: string
+): Promise<void> {
+  await tx
+    .update(donation_disputes)
+    .set({ loss_recorded_at: at })
+    .where(
+      and(
+        eq(donation_disputes.id, id),
+        isNull(donation_disputes.loss_recorded_at)
+      )
+    );
 }
 
 export async function dispute_get(
