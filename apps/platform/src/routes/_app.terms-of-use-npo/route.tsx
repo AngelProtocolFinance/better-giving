@@ -450,32 +450,27 @@ export default function TermsNonprofits() {
                   Amount stands.
                 </li>
               </ol>
-              Any part of a cancelled Recovery Amount already deducted or
-              collected from you under Section 4(j), and any part of the
-              disputed amount the Donor does not keep that was taken back from
-              your Savings or Investment balance or from a grant cancelled under
-              Section 4(h), will be added to your next grant or, if no grant is
-              payable to you or this Agreement has ended, paid to you. If a
-              dispute that closed in Better Giving’s favor is later reopened,
-              appealed or reversed and the Donor keeps all or part of the
-              payment, that part is again a Reversed Donation, and Better Giving
-              may recover its Recovery Amount under this Section 4. The Donor
-              Terms of Use treat disputed payments the same way.
+              Any part of a cancelled Recovery Amount already deducted from you
+              under Section 4(j), and any part of the disputed amount the Donor
+              does not keep that was taken back from your Savings or Investment
+              balance or from a grant cancelled under Section 4(h), will be
+              added to your next grant or, if no grant is payable to you or this
+              Agreement has ended, paid to you. If a dispute that closed in
+              Better Giving’s favor is later reopened, appealed or reversed and
+              the Donor keeps all or part of the payment, that part is again a
+              Reversed Donation, and Better Giving may recover its Recovery
+              Amount under this Section 4. The Donor Terms of Use treat disputed
+              payments the same way.
             </li>
             <li>
               <b>Outstanding Recovery Amounts.</b> If the grants payable to you
               are not enough to cover a Recovery Amount, the rest stays owed and
               Better Giving may deduct it from later grants until it is
-              recovered in full. If you stop using the Platform, this Agreement
-              is terminated, or no grant is payable to you within ninety (90)
-              days after Better Giving notifies you of a Recovery Amount, Better
-              Giving may instead invoice you for the amount still owed, and you
-              agree to pay it within thirty (30) days of the invoice. Better
-              Giving may also collect it from you by any other lawful means.
-              Better Giving may waive any Recovery Amount in whole or in part at
-              its discretion. Sections 4(g), 4(h) and 4(j), and Section 4(i) as
-              it applies to Recovery Amounts, apply only to donations made on or
-              after the later of (i) 12:00 a.m. Eastern Time ({TERMS_ZONE}) on{" "}
+              recovered in full. Better Giving may waive any Recovery Amount in
+              whole or in part at its discretion. Sections 4(g), 4(h) and 4(j),
+              and Section 4(i) as it applies to Recovery Amounts, apply only to
+              donations made on or after the later of (i) 12:00 a.m. Eastern
+              Time ({TERMS_ZONE}) on{" "}
               {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
               {EFFECTIVE} and (ii) the date these Terms take effect under
               Section 9(d). A donation is “made” when the Donor’s payment is
@@ -728,8 +723,7 @@ export default function TermsNonprofits() {
               Sections 4(h) and 4(j)), 5, 6, 7, 8 and 9 will survive the
               termination of this Agreement. Any Recovery Amount still owed at
               termination stays owed: Better Giving may deduct it from any grant
-              made after termination, and may invoice and collect it from you
-              directly under Section 4(j).
+              made after termination.
             </li>
           </ol>
         </li>

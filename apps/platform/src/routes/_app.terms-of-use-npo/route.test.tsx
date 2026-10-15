@@ -91,7 +91,6 @@ describe("nonprofit terms", () => {
       ["1d", "Section 3(d)", "3d", "Better Giving, as the recipient"],
       ["8e", "Section 8(f)", "8f", "The obligations of Sections"],
       ["*", "Section 9(d)", "9d", "We may amend this Agreement"],
-      ["8f", "Section 4(j)", "4j", "Outstanding Recovery Amounts."],
       ["4g", "Section 4(j)", "4j", "Outstanding Recovery Amounts."],
       ["4i", "Section 4(g)", "4g", "Refunds and Chargebacks."],
       ["*", "UNDER SECTION 4(i)", "4i", "Disputed Payments."],
@@ -146,16 +145,17 @@ describe("nonprofit terms", () => {
     );
   });
 
-  test("4(j) lets Better Giving invoice what is still owed, due in thirty days, and names the triggers", async () => {
+  test("4(j) deducts what grants do not cover from later grants, and may waive the rest", async () => {
     const screen = await render_terms();
     const j = clause(screen.container, 4, "j");
 
     expect(j).toContain(
-      "If you stop using the Platform, this Agreement is terminated, or no grant is payable to you within ninety (90) days after Better Giving notifies you of a Recovery Amount, Better Giving may instead invoice you for the amount still owed, and you agree to pay it within thirty (30) days of the invoice."
+      "If the grants payable to you are not enough to cover a Recovery Amount, the rest stays owed and Better Giving may deduct it from later grants until it is recovered in full."
     );
     expect(j).toContain(
-      "Better Giving may also collect it from you by any other lawful means."
+      "Better Giving may waive any Recovery Amount in whole or in part at its discretion."
     );
+    expect(j).not.toMatch(/invoice|collect|lawful means|ninety \(90\) days/);
   });
 
   test("the cut-off sentence names the clauses it limits and midnight in New York", async () => {
@@ -202,7 +202,7 @@ describe("nonprofit terms", () => {
     );
   });
 
-  test("the survival item lists the recovery right and names the right to invoice; the termination item points to it", async () => {
+  test("the survival item keeps the right to deduct a Recovery Amount from a later grant; the termination item points to it", async () => {
     const screen = await render_terms();
     const root = screen.container;
 
@@ -213,8 +213,9 @@ describe("nonprofit terms", () => {
     );
     expect(survival).not.toMatch(/Section 10|\b10\b/);
     expect(survival).toContain(
-      "may invoice and collect it from you directly under Section 4(j)."
+      "Any Recovery Amount still owed at termination stays owed: Better Giving may deduct it from any grant made after termination."
     );
+    expect(survival).not.toMatch(/invoice|collect/);
   });
 
   test("a change takes effect seven days after posting, in 9(d) as in the intro, and the prior version stays linked", async () => {
