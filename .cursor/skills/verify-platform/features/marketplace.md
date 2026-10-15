@@ -29,3 +29,4 @@ Preconditions:
 
 - An empty grid with status 200 means the list query failed and the loader degraded. Read `dev.log` in the state directory for `Failed query` before changing the drive.
 - The header nav does not link to Marketplace. The footer link is the entry on `/`.
+- On a cold dev server, scrolling the footer into view prefetches `/donate/1`. Vite then reloads and cancels the Marketplace click. The drive retries that same click. A reload is not a reason to open `/marketplace` with a direct load instead.

@@ -84,6 +84,8 @@ One fresh browser context per feature, 1280×900. Recipes and selectors live in 
 
 Selectors are accessible names from the UI (`getByRole("button", { name: "+100 USD" })`, placeholder `Email address` where the login fields have no label).
 
+A cold dev server full-reloads the first time the footer scrolls into view, because that prefetches `/donate/1` and Vite optimizes new dependencies. The reload cancels the Marketplace click. `drive.mjs` retries that same click. It does not switch to a direct `goto`.
+
 ## Evidence
 
 `$VERIFY_OUT` (default `/tmp/verify-platform-cursor-out`):

@@ -37,3 +37,5 @@ Preconditions:
 - Do not wait for network idle. Stripe.js and analytics keep connections open. Wait for `Your donation summary`.
 - `Express checkout failed to load` and `PayPal failed to load` are expected with filler keys. They do not by themselves fail the summary check.
 - The amount control is a button whose accessible name is `+100 USD`, not a data-testid.
+- The footer `Donate` link (`/donate/1`) is a different nonprofit (the platform's own) and is not this journey. This journey starts from the seeded card.
+- A cold dev server reloads when that footer link is prefetched. The drive retries the Marketplace click. It does not replace the click with a direct load.

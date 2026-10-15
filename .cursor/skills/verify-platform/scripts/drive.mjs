@@ -32,6 +32,30 @@ const expect_ok = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
 
+// A cold `react-router dev` full-reloads when it first optimizes a route that
+// the footer prefetches (the Marketplace click scrolls `/donate/1` into view).
+// That reload cancels the client navigation and leaves the browser on `/`.
+// Retry the same click. This is not a second entry point.
+const open_link = async (page, locate, pattern) => {
+  let last = page.url();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await locate().click();
+    try {
+      await page.waitForURL(pattern, {
+        timeout: attempt < 3 ? 20_000 : 120_000,
+      });
+      return;
+    } catch (err) {
+      last = page.url();
+      if (pattern.test(new URL(last).pathname)) return;
+      if (attempt === 3) {
+        throw new Error(`${err.message} (still at ${last})`);
+      }
+      await page.waitForLoadState("load", { timeout: 30_000 }).catch(() => {});
+    }
+  }
+};
+
 const readme_lists = (id) => {
   const readme = fs.readFileSync(path.join(FEATURE_DIR, "README.md"), "utf8");
   return readme.includes(`(./${id}.md)`);
@@ -125,11 +149,11 @@ const FEATURES = {
         timeout: 120_000,
       });
       expect_ok(home.status() === 200, `GET / → ${home.status()}`);
-      await page
-        .getByRole("contentinfo")
-        .getByRole("link", { name: "Marketplace", exact: true })
-        .click();
-      await page.waitForURL(/\/marketplace(?:\?|$)/, { timeout: T });
+      const marketplace_link = () =>
+        page
+          .getByRole("contentinfo")
+          .getByRole("link", { name: "Marketplace", exact: true });
+      await open_link(page, marketplace_link, /\/marketplace(?:\?|$)/);
       await page
         .getByRole("heading", { name: NPO_NAME, exact: true })
         .waitFor({ timeout: T });
@@ -149,22 +173,23 @@ const FEATURES = {
         timeout: 120_000,
       });
       expect_ok(home.status() === 200, `GET / → ${home.status()}`);
-      await page
-        .getByRole("contentinfo")
-        .getByRole("link", { name: "Marketplace", exact: true })
-        .click();
-      await page.waitForURL(/\/marketplace(?:\?|$)/, { timeout: T });
-      const card = page
-        .locator("div")
-        .filter({
-          has: page.getByRole("heading", { name: NPO_NAME, exact: true }),
-        })
-        .filter({
-          has: page.getByRole("link", { name: "Donate", exact: true }),
-        })
-        .last();
-      await card.getByRole("link", { name: "Donate", exact: true }).click();
-      await page.waitForURL(/\/donate\/\d+/, { timeout: T });
+      const marketplace_link = () =>
+        page
+          .getByRole("contentinfo")
+          .getByRole("link", { name: "Marketplace", exact: true });
+      await open_link(page, marketplace_link, /\/marketplace(?:\?|$)/);
+      const donate_link = () =>
+        page
+          .locator("div")
+          .filter({
+            has: page.getByRole("heading", { name: NPO_NAME, exact: true }),
+          })
+          .filter({
+            has: page.getByRole("link", { name: "Donate", exact: true }),
+          })
+          .last()
+          .getByRole("link", { name: "Donate", exact: true });
+      await open_link(page, donate_link, /\/donate\/\d+/);
       await page.getByText(NPO_NAME).first().waitFor({ timeout: T });
       await page
         .getByRole("button", { name: "+100 USD" })
