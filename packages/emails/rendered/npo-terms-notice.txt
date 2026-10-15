@@ -7,8 +7,8 @@ The highlights:
 1. Refunds and chargebacks: If a donation we already granted to you is later refunded or charged back, we may recover that amount and its related fees from future grants. We'll always tell you the amount before we deduct it, and if we win a dispute, we return it. If future grants don't cover it, the amount stays owed and we may invoice you, including after you leave the platform. This applies only to donations made on or after [EFFECTIVE DATE].
 2. Receipts and donor details: Better Giving receives each donation and issues the donor's tax receipt, so please don't issue your own. You're always welcome to thank your donors. Use donor details only to thank donors and share news about your work.
 3. Fees: The terms now list every fee in one place.
-4. Future changes: Future updates take effect 7 days after we post them.
-5. Referral partners: Referral rewards on donations that are later refunded or charged back may be deducted from future referral payments.
+4. Future changes: Future updates take effect 7 days after we post them, unless the update states a later date.
+5. Referral partners: If we've already paid a referral reward on a donation that's later refunded or charged back, we may deduct it from future referral payments. This applies to donations made on or after [EFFECTIVE DATE].
 
 Read the full terms: [TERMS URL]
 Earlier version (October 2024): https://better.giving/terms-of-use-npo-2024
