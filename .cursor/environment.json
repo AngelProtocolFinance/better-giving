@@ -1,4 +1,5 @@
 {
   "name": "better-giving",
-  "install": "bash .cursor/install.sh"
+  "install": "bash .cursor/install.sh && (curl -fsSL https://raw.githubusercontent.com/salasjustin/kru-cursor/main/scripts/cloud-skills.sh | bash -s -- /workspace || true)",
+  "start": "curl -fsSL https://raw.githubusercontent.com/salasjustin/kru-cursor/main/scripts/cloud-skills.sh | bash -s -- /workspace || true"
 }
