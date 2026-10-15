@@ -33,8 +33,12 @@ const keyless = await import("#/routes/api.alchemy-webhook.$chain_id/route");
 const sign = (body: string, key: string) =>
   createHmac("sha256", key).update(body, "utf8").digest("hex");
 
-/** the contract in the simple/token_price example */
-const WBTC = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599" as const;
+/**
+ * EIP-55 form of the WBTC contract in the simple/token_price example.
+ * Alchemy sends checksum-cased contracts; that example keys the address
+ * in lowercase.
+ */
+const WBTC = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599" as const;
 
 const activity = (i = 0) => ({
   fromAddress: "0xsender",
