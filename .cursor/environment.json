@@ -1,4 +1,5 @@
 {
   "name": "better-giving",
-  "install": "bash .cursor/install.sh"
+  "install": "bash .cursor/install.sh && bash .cursor/install-agent-skills.sh",
+  "start": "bash .cursor/install-agent-skills.sh"
 }
