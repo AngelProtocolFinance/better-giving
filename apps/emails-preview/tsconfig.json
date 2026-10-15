@@ -2,11 +2,12 @@
   // extends the repo baseline; only this app's env (dom lib) and jsx
   // (react-jsx — react-email's bundler compiles jsx, tsc type-checks) live here.
   // resolves the `emails` package through the workspace symlink -> src/index.ts.
+  // `scripts/` is the static render of the npo terms notice, not a preview entry.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "es2022"],
     "jsx": "react-jsx"
   },
-  "include": ["emails"],
+  "include": ["emails", "scripts"],
   "exclude": ["node_modules"]
 }

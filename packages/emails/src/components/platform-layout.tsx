@@ -3,13 +3,19 @@ import type { PropsWithChildren } from "react";
 import { Body, Container, Head, Html, Section } from "react-email";
 import { APP_NAME } from "../constants";
 
-export type PlatformLayoutProps = PropsWithChildren;
+export type PlatformLayoutProps = PropsWithChildren<{
+  /** document title. pass the inbox subject when the file should carry it */
+  title?: string;
+}>;
 
-export function PlatformLayout({ children }: PlatformLayoutProps) {
+export function PlatformLayout({
+  children,
+  title = `Email from ${APP_NAME}`,
+}: PlatformLayoutProps) {
   return (
     <Html lang="en">
       <Head>
-        <title>{`Email from ${APP_NAME}`}</title>
+        <title>{title}</title>
       </Head>
       <Body
         style={{

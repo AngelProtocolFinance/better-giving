@@ -359,6 +359,9 @@ importers:
       react-email:
         specifier: 6.9.5
         version: 6.9.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      tsx:
+        specifier: 4.23.1
+        version: 4.23.1
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

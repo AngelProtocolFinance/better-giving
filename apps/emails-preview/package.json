@@ -11,7 +11,9 @@
     "build": "email build --dir emails",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "format": "biome check --write ."
+    "format": "biome check --write .",
+    "test": "tsx --tsconfig ../../packages/emails/tsconfig.json --test scripts/npo-terms-notice.test.ts",
+    "render:npo-terms-notice": "tsx --tsconfig ../../packages/emails/tsconfig.json scripts/render-npo-terms-notice.ts"
   },
   "dependencies": {
     "emails": "workspace:*"
@@ -24,6 +26,7 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "react-email": "6.9.5",
+    "tsx": "4.23.1",
     "typescript": "catalog:"
   }
 }
