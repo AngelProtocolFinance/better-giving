@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { db } from "../pg/db";
 import {
   dispute_close,
@@ -9,6 +10,7 @@ import {
 import type { DbOrTx } from "../pg/queries/helpers";
 import { type IOwed, owed_for_donation, owed_total } from "../pg/queries/owed";
 import { take_undo, takes_of } from "../pg/queries/take";
+import { dists } from "../pg/schema/dist";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
 import {
   fraction_of,
@@ -173,10 +175,14 @@ export type DisputeWonResult =
    * `prior_status`: its record before this win, null when there was none.
    * `credited`: this dispute's loss reversed the gift and its take is
    * undone, this call's or a replay's. a loss that only closed the row,
-   * or a gift a refund or another dispute reversed, is not */
+   * or a gift a refund or another dispute reversed, is not.
+   * `hand`: an older loss reversed the gift before that was stamped, so
+   * nothing here credits it and ops restores it. false when the reversal
+   * source is a refund or another dispute */
   | (Extract<Unreversible, { status: "already_reversed" }> & {
       prior_status: IDispute["status"] | null;
       credited: boolean;
+      hand: boolean;
     })
   /** the dispute was closed otherwise first, `prior_status` (a win on appeal
    * of a loss that left the gift settled): the first close stands, so
@@ -212,13 +218,21 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
     const prior_status = prior?.status ?? null;
     // the stamp is this dispute's own reversal, written with the gift's
     // flip. a lost row without it was closed on a gift a refund or another
-    // dispute reversed. paypal's reversed win stays a hand restore
-    const credited =
+    // dispute reversed, unless the row is older than the stamp: that loss
+    // still reversed the gift, and ops restores it. paypal stays a hand
+    // restore of its own, outside this credit
+    const stamped =
       prior_status === "lost" &&
       d.rail === "stripe" &&
-      prior?.loss_recorded_at != null &&
-      (await credit_reversed_loss(don.id, d));
-    return { status, donation_status, prior_status, credited };
+      prior?.loss_recorded_at != null;
+    const credited = stamped && (await credit_reversed_loss(don.id, d));
+    const hand =
+      !credited &&
+      prior_status === "lost" &&
+      d.rail === "stripe" &&
+      prior != null &&
+      (await older_loss_needs_hand(don.id, d.dispute_id, prior));
+    return { status, donation_status, prior_status, credited, hand };
   }
   const now = new Date().toISOString();
 
@@ -294,6 +308,50 @@ const still_owed = (ds: LockedDist[]): LockedDist[] =>
           : commission,
     };
   });
+
+/** a full loss from before `loss_recorded_at` was written. its take is still
+ * active — a refund of the same part would have undone it — the gift is
+ * reversed, and this dispute still holds what it recorded as owed. a
+ * partial loss records a cumulative share under 1 and does not flip the
+ * gift, so a later refund's reversal is not this dispute's to restore */
+async function older_loss_needs_hand(
+  donation_id: string,
+  dispute_id: string,
+  prior: IDispute
+): Promise<boolean> {
+  const takes = await takes_of(db, donation_id);
+  const take = takes.find(
+    (t) =>
+      t.kind === "dispute" &&
+      (t.ref === dispute_id || t.dispute_id === dispute_id)
+  );
+  if (take?.status !== "active") return false;
+  const covered = prior.cumulative_share ?? take.share;
+  if (covered < 1) return false;
+  const rows = await db
+    .select({
+      status: dists.status,
+      refund_status: dists.refund_status,
+    })
+    .from(dists)
+    .where(eq(dists.donation_id, donation_id));
+  const reversed =
+    rows.length > 0 &&
+    rows.every(
+      (d) =>
+        d.status !== "settled" ||
+        d.refund_status === "completed" ||
+        d.refund_status === "loss"
+    );
+  if (!reversed) return false;
+  const owed = await owed_for_donation(donation_id);
+  return owed.some(
+    (o) =>
+      o.source === "dispute" &&
+      o.source_ref === dispute_id &&
+      (o.outstanding_usd ?? 0) > 0
+  );
+}
 
 /** the stripe credit for a win after this dispute's loss reversed the gift.
  * the loss's take is undone and each party is credited what it owed with

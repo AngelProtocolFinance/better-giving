@@ -17,6 +17,7 @@ import {
   seed_card_gift,
   seed_paid_commission,
 } from "#/__tests__/fixtures/card-gift";
+import { donation_disputes } from "../pg/schema/dispute";
 import { dists } from "../pg/schema/dist";
 import { donations } from "../pg/schema/donation";
 import { npos } from "../pg/schema/npo";
@@ -318,6 +319,7 @@ describe("a dispute on a gift already reversed", () => {
       donation_status: "refunded",
       prior_status: null,
       credited: false,
+      hand: false,
     });
     expect(await disputes_of(test_db.current!.db, id)).toMatchObject([
       { id: `du_${id}`, status: "won", closed_at: CLOSED },
@@ -344,6 +346,7 @@ describe("a dispute on a gift already reversed", () => {
       donation_status: "refunded_loss",
       prior_status: "lost",
       credited: true,
+      hand: false,
     });
     expect(again).toEqual(res);
     expect(await owed_of(id)).toMatchObject([
@@ -372,7 +375,11 @@ describe("a dispute on a gift already reversed", () => {
 
     const res = await dispute_won(won_on(id));
 
-    expect(res).toMatchObject({ prior_status: "lost", credited: false });
+    expect(res).toMatchObject({
+      prior_status: "lost",
+      credited: false,
+      hand: false,
+    });
     expect(await owed_of(id)).toEqual(before);
   });
 
@@ -415,6 +422,57 @@ describe("a dispute on a gift already reversed", () => {
 
     expect(res).toMatchObject({ credited: true });
     expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 0 }]);
+  });
+
+  test("a loss does not stamp a dispute already recorded won", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await dispute_opened(opened_on(id));
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: `du_${id}`,
+      donation_id: id,
+      status: "won",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+
+    expect((await lose(id)).status).toBe("reversed");
+
+    const [row] = await test_db
+      .current!.db.select({
+        status: donation_disputes.status,
+        loss_recorded_at: donation_disputes.loss_recorded_at,
+      })
+      .from(donation_disputes)
+      .where(eq(donation_disputes.id, `du_${id}`));
+    expect(row).toEqual({ status: "won", loss_recorded_at: null });
+  });
+
+  test("an older loss with no stamp is not credited, and is left for ops", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await dispute_opened(opened_on(id));
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: `du_${id}`,
+      donation_id: id,
+      status: "lost",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    await lose(id);
+    await test_db
+      .current!.db.update(donation_disputes)
+      .set({ loss_recorded_at: null })
+      .where(eq(donation_disputes.id, `du_${id}`));
+    const owed = await owed_of(id);
+
+    const res = await dispute_won(won_on(id));
+
+    expect(res).toMatchObject({
+      prior_status: "lost",
+      credited: false,
+      hand: true,
+    });
+    expect(owed).toMatchObject([{ outstanding_usd: 108.2 }]);
+    expect(await owed_of(id)).toEqual(owed);
   });
 
   test("a pending commission is not owed by a late win after a refund and a smaller loss", async () => {

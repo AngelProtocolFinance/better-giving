@@ -85,7 +85,8 @@ export async function dispute_record_share(
 
 /** this dispute's loss reversed the gift. a redelivery leaves the first
  * stamp. the win reads it to tell that reversal from a loss that only
- * closed the row */
+ * closed the row. a row already closed won is not stamped: a late loss
+ * must not mark a win as the reversal */
 export async function dispute_mark_loss_reversed(
   tx: DbOrTx,
   id: string,
@@ -97,6 +98,7 @@ export async function dispute_mark_loss_reversed(
     .where(
       and(
         eq(donation_disputes.id, id),
+        eq(donation_disputes.status, "lost"),
         isNull(donation_disputes.loss_recorded_at)
       )
     );
