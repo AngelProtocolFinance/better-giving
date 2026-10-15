@@ -451,14 +451,14 @@ export default function TermsNonprofits() {
                 </li>
               </ol>
               Any part of a cancelled Recovery Amount already deducted from you
-              under Section 4(j), and any part of the disputed amount the Donor
-              does not keep that was taken back from your Savings or Investment
-              balance or from a grant cancelled under Section 4(h), will be
-              added to your next grant or, if no grant is payable to you or this
-              Agreement has ended, paid to you. If a dispute that closed in
-              Better Giving’s favor is later reopened, appealed or reversed and
-              the Donor keeps all or part of the payment, that part is again a
-              Reversed Donation, and Better Giving may recover its Recovery
+              under Section 4(g) or 4(j), and any part of the disputed amount
+              the Donor does not keep that was taken back from your Savings or
+              Investment balance or from a grant cancelled under Section 4(h),
+              will be added to your next grant or, if no grant is payable to you
+              or this Agreement has ended, paid to you. If a dispute that closed
+              in Better Giving’s favor is later reopened, appealed or reversed
+              and the Donor keeps all or part of the payment, that part is again
+              a Reversed Donation, and Better Giving may recover its Recovery
               Amount under this Section 4. The Donor Terms of Use treat disputed
               payments the same way.
             </li>
@@ -719,11 +719,11 @@ export default function TermsNonprofits() {
             </li>
             <li>
               The obligations of Sections 3(b), 3(d), 4(c), 4(e), 4(g) through
-              4(j) (in each case as limited by the effective-date provision of
-              Sections 4(h) and 4(j)), 5, 6, 7, 8 and 9 will survive the
-              termination of this Agreement. Any Recovery Amount still owed at
-              termination stays owed: Better Giving may deduct it from any grant
-              made after termination.
+              4(j) (in each case as limited by the effective-date provision in
+              Section 4(j)), 5, 6, 7, 8 and 9 will survive the termination of
+              this Agreement. Any Recovery Amount still owed at termination
+              stays owed: Better Giving may deduct it from any grant made after
+              termination.
             </li>
           </ol>
         </li>

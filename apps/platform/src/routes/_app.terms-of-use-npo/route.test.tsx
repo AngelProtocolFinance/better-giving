@@ -209,7 +209,7 @@ describe("nonprofit terms", () => {
     expect(clause(root, 8, "e")).toContain("as set forth in Section 8(f).");
     const survival = clause(root, 8, "f");
     expect(survival).toContain(
-      "The obligations of Sections 3(b), 3(d), 4(c), 4(e), 4(g) through 4(j) (in each case as limited by the effective-date provision of Sections 4(h) and 4(j)), 5, 6, 7, 8 and 9 will survive the termination of this Agreement."
+      "The obligations of Sections 3(b), 3(d), 4(c), 4(e), 4(g) through 4(j) (in each case as limited by the effective-date provision in Section 4(j)), 5, 6, 7, 8 and 9 will survive the termination of this Agreement."
     );
     expect(survival).not.toMatch(/Section 10|\b10\b/);
     expect(survival).toContain(

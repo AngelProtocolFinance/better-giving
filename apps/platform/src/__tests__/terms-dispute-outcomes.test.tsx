@@ -35,7 +35,7 @@ const PAGES = [
       "if it is resolved in Better Giving’s favor, or the Donor withdraws it, or it closes without the payment being reversed, Better Giving will cancel that Recovery Amount, including the dispute fee;",
       "if it is resolved partly in Better Giving’s favor, the Recovery Amount is reduced to the fraction of the donation the Donor keeps, calculated as in Section 4(g) (including the dispute fee in full), and the rest is cancelled; and",
       "if the Donor keeps the whole disputed amount, the Recovery Amount stands.",
-      "Any part of a cancelled Recovery Amount already deducted from you under Section 4(j), and any part of the disputed amount the Donor does not keep that was taken back from your Savings or Investment balance or from a grant cancelled under Section 4(h), will be added to your next grant or, if no grant is payable to you or this Agreement has ended, paid to you.",
+      "Any part of a cancelled Recovery Amount already deducted from you under Section 4(g) or 4(j), and any part of the disputed amount the Donor does not keep that was taken back from your Savings or Investment balance or from a grant cancelled under Section 4(h), will be added to your next grant or, if no grant is payable to you or this Agreement has ended, paid to you.",
       "later reopened, appealed or reversed and the Donor keeps all or part of the payment, that part is again a Reversed Donation",
     ],
   },
