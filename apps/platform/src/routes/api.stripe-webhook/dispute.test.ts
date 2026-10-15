@@ -560,22 +560,35 @@ describe("a dispute on a gift already refunded", () => {
 });
 
 describe("a late win after the dispute was lost", () => {
-  it("asks ops to credit the nonprofit by hand what the loss took", async () => {
+  it("credits what the loss recorded and tells ops that it did, a redelivery crediting nothing more", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
     await deliver(event_of("charge.dispute.created", dispute_of(gift)));
     await deliver(lost_of(gift));
     enqueue_mock.mockClear();
+    const won = won_of(gift);
 
-    const res = await deliver(won_of(gift));
+    const res = await deliver(won);
+    const credited = await owed_of(gift.id);
+    await deliver(won);
 
     expect(res.status).toBe(200);
+    expect(credited).toMatchObject([
+      {
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 15,
+        outstanding_usd: 0,
+      },
+    ]);
+    expect(await owed_of(gift.id)).toEqual(credited);
     const [notice] = notices();
     expect(notice.payload.alert.title).toBe(
       "Dispute Won on a Reversed Donation"
     );
     expect(notice.payload.alert.body).toMatch(
-      /after it was lost.*credit the nonprofit by hand/
+      /after it was lost.*credited back, its dispute fee included/
     );
+    expect(notice.payload.alert.body).not.toMatch(/by hand/);
   });
 });
 

@@ -62,7 +62,7 @@ const { handle_owed_notice } = await import(
 const { owed_for_donation } = await import("$/pg/queries/owed");
 const { owed_notices_due } = await import("$/pg/queries/owed-notice");
 const { donations } = await import("$/pg/schema/donation");
-const { owed_amounts } = await import("$/pg/schema/owed");
+const { owed_amounts, owed_entries } = await import("$/pg/schema/owed");
 const { user_npo_memberships } = await import("$/pg/schema/user");
 const { PAID_GRANT, clear_card_gifts, seed_card_gift } = await import(
   "#/__tests__/fixtures/card-gift"
@@ -368,7 +368,7 @@ describe("owed-npo-notif from mocked stripe events", () => {
     expect(mail!.text).toMatch(/Total owed: \$108\.20/);
   });
 
-  it("does not re-transfer or credit a win after the loss reversed the gift, and sends no credited-back notice", async () => {
+  it("credits a win after the loss reversed the gift once, mails it once, and a replay credits nothing more", async () => {
     const gift = await prepare();
     await deliver(event_of("charge.dispute.created", dispute_of(gift)));
     await deliver(
@@ -381,30 +381,53 @@ describe("owed-npo-notif from mocked stripe events", () => {
     await deliver_due();
     send_email_or_throw.mockClear();
     enqueue_mock.mockClear();
-    const owed = await owed_row(gift.id);
-
-    const res = await deliver(
-      event_of(
-        "charge.dispute.closed",
-        dispute_of(gift, { status: "won" }),
-        CLOSED_UNIX + 60
-      )
+    const won = event_of(
+      "charge.dispute.closed",
+      dispute_of(gift, { status: "won" }),
+      CLOSED_UNIX + 60
     );
+
+    const res = await deliver(won);
+    await deliver_due();
+    const credits = await credit_rows(gift.id);
+    const [mail, ...rest] = await sent();
+    const [ops, ...more] = ops_notices();
+
+    await deliver(won);
     await deliver_due();
 
     expect(res.status).toBe(200);
-    expect(await owed_row(gift.id)).toMatchObject({
-      outstanding_usd: owed!.outstanding_usd,
-      credited_back_usd: owed!.credited_back_usd,
-    });
-    expect(await sent()).toEqual([]);
-    const [ops, ...more] = ops_notices();
+    expect((await owed_row(gift.id))?.outstanding_usd).toBe(0);
+    expect(credits.map((c) => [c.reason, c.usd])).toEqual([
+      ["dispute_won", 90],
+      ["dispute_won_fee", 3.2],
+      ["dispute_won_fee_dispute", 15],
+    ]);
+    expect(await credit_rows(gift.id)).toEqual(credits);
+    expect(rest).toEqual([]);
+    expect(mail!.subject).toBe(`Amount owed credited back: ${gift.id}`);
+    expect(mail!.text).toContain(`Gift date: ${GIFT_DAY}`);
+    expect(mail!.text).toMatch(
+      /We credited back \$108\.20 of what was owed on the .* because its dispute was settled\./
+    );
+    expect(await sent()).toEqual([
+      { subject: mail!.subject, text: mail!.text },
+    ]);
     expect(more).toEqual([]);
     expect(ops!.title).toBe("Dispute Won on a Reversed Donation");
-    expect(ops!.body).toMatch(
-      /after it was lost.*credit the nonprofit by hand/
-    );
+    expect(ops!.body).toMatch(/credited back, its dispute fee included/);
+    expect(ops!.body).not.toMatch(/by hand/);
     expect(transfer_create_mock).not.toHaveBeenCalled();
     expect(transfer_reversal_mock).not.toHaveBeenCalled();
   });
 });
+
+/** the win's credit entries, in reason order */
+const credit_rows = async (donation_id: string) => {
+  const row = await owed_row(donation_id);
+  return db()
+    .select({ reason: owed_entries.reason, usd: owed_entries.usd })
+    .from(owed_entries)
+    .where(eq(owed_entries.owed_id, row!.id))
+    .orderBy(owed_entries.reason);
+};

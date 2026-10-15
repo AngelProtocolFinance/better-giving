@@ -335,12 +335,22 @@ describe("a dispute on a gift already reversed", () => {
     await lose(id);
 
     const res = await dispute_won(won_on(id));
+    const again = await dispute_won(won_on(id));
 
     expect(res).toEqual({
       status: "already_reversed",
       donation_status: "refunded_loss",
       prior_status: "lost",
     });
+    expect(again).toEqual(res);
+    expect(await owed_of(id)).toMatchObject([
+      {
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 15,
+        outstanding_usd: 0,
+      },
+    ]);
   });
 
   test("won on a gift refunded while the dispute was open, says it was open", async () => {

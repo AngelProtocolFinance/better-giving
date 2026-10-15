@@ -6,10 +6,17 @@ import {
   dispute_record_share,
   type IDispute,
 } from "../pg/queries/dispute";
+import type { DbOrTx } from "../pg/queries/helpers";
 import { type IOwed, owed_for_donation, owed_total } from "../pg/queries/owed";
 import { take_undo, takes_of } from "../pg/queries/take";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
-import { fraction_of, type Share, settled_dists_locked } from "./share";
+import {
+  fraction_of,
+  gift_dists_locked,
+  type LockedDist,
+  type Share,
+  settled_dists_locked,
+} from "./share";
 import { dispute_take, move_owed, take_dispute, taken_of } from "./takes";
 
 export interface DisputeOpened {
@@ -162,16 +169,18 @@ export interface DisputeWon {
 export type DisputeWonResult =
   /** each row the dispute recorded, credited */
   | { status: "credited"; owed: IOwed[] }
-  /** the dispute is on record won, and nothing is credited. `prior_status`:
-   * its record before this win, null when there was none. `lost` is a late
-   * win after this dispute's own loss reversed the gift, so the npo was
-   * debited for it; anything else, the gift was reversed some other way */
+  /** the dispute is on record won, and this call credits nothing new.
+   * `prior_status`: its record before this win, null when there was none.
+   * `lost` is a late win after this dispute's own loss reversed the gift:
+   * on stripe that loss's take is credited back here, a replay undoing
+   * nothing further; anything else, the gift was reversed some other way
+   * and nothing is credited */
   | (Extract<Unreversible, { status: "already_reversed" }> & {
       prior_status: IDispute["status"] | null;
     })
   /** the dispute was closed otherwise first, `prior_status` (a win on appeal
-   * after its loss): the first close stands, so nothing is credited, and
-   * what it owes stays for ops to settle by hand */
+   * of a loss that left the gift settled): the first close stands, so
+   * nothing is credited, and what it owes stays for ops to settle by hand */
   | { status: "conflict"; prior_status: IDispute["status"] }
   | Extract<Unreversible, { status: "failed" }>;
 
@@ -200,7 +209,14 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
     const prior = await dispute_get(d.dispute_id);
     await dispute_close(db, record);
     const { status, donation_status } = loaded;
-    return { status, donation_status, prior_status: prior?.status ?? null };
+    const prior_status = prior?.status ?? null;
+    // this dispute's own loss reversed the gift. stripe credits that loss
+    // back; a refund, or another dispute, left the other branch to ops.
+    // paypal's reversed win stays a hand restore
+    if (prior_status === "lost" && d.rail === "stripe") {
+      await credit_reversed_loss(don.id, d);
+    }
+    return { status, donation_status, prior_status };
   }
   const now = new Date().toISOString();
 
@@ -210,31 +226,75 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
       return { status: "conflict", prior_status: stands };
     }
     const ds = await settled_dists_locked(tx, don.id);
-    const before = await takes_of(tx, don.id);
-    const take = await dispute_take(tx, {
-      donation_id: don.id,
-      dispute_id: d.dispute_id,
-      share: d.disputed ? fraction_of(d.disputed) : null,
-      claims: (d.status ?? "won") === "won",
-    });
-    // none on record, or undone already: by a redelivery, or by the refund
-    // that paid an accepted claim
-    if (!take || !(await take_undo(tx, don.id, take.ref))) {
-      return { status: "credited", owed: [] };
+    const owed = await credit_won_take(tx, don.id, d, ds, now);
+    return { status: "credited", owed };
+  });
+}
+
+/** the win's credit: undo its take and move each party's row by what that
+ * drops, the same reasons a settled win books. a take already undone, a
+ * redelivery's, credits nothing */
+async function credit_won_take(
+  tx: DbOrTx,
+  donation_id: string,
+  d: DisputeWon,
+  ds: LockedDist[],
+  now: string
+): Promise<IOwed[]> {
+  const before = await takes_of(tx, donation_id);
+  const take = await dispute_take(tx, {
+    donation_id,
+    dispute_id: d.dispute_id,
+    share: d.disputed ? fraction_of(d.disputed) : null,
+    claims: (d.status ?? "won") === "won",
+  });
+  // none on record, or undone already: by a redelivery, or by the refund
+  // that paid an accepted claim
+  if (!take || !(await take_undo(tx, donation_id, take.ref))) return [];
+  const after = await takes_of(tx, donation_id);
+  const moves = await move_owed(tx, {
+    donation_id,
+    ds,
+    before,
+    after,
+    src: { source: "dispute", source_ref: d.dispute_id },
+    now,
+  });
+  return moves.flatMap((m) => (m.row ? [m.row] : []));
+}
+
+/** a loss reversed the dists, so they are no longer settled, and it refunded
+ * a commission it had recorded as owed. counted as still paid here, the
+ * take's fall credits that commission back too */
+const still_owed = (ds: LockedDist[]): LockedDist[] =>
+  ds.map((dist) => {
+    const commission = dist.commission;
+    if (
+      !commission ||
+      (commission.status !== "refunded" &&
+        commission.status !== "refunded_loss")
+    ) {
+      return dist;
     }
-    const after = await takes_of(tx, don.id);
-    const moves = await move_owed(tx, {
-      donation_id: don.id,
-      ds,
-      before,
-      after,
-      src: { source: "dispute", source_ref: d.dispute_id },
-      now,
-    });
     return {
-      status: "credited",
-      owed: moves.flatMap((m) => (m.row ? [m.row] : [])),
+      ...dist,
+      commission: {
+        amount: commission.amount,
+        referrer_user: commission.referrer_user,
+        referrer_npo: commission.referrer_npo,
+        status: "paid",
+      },
     };
+  });
+
+/** the stripe credit for a win after this dispute's loss reversed the gift.
+ * the loss's take is undone and each party is credited what it owed with
+ * that take: received, card fee and dispute fee. a replay undoes nothing */
+async function credit_reversed_loss(donation_id: string, d: DisputeWon) {
+  const now = new Date().toISOString();
+  await db.transaction(async (tx) => {
+    const ds = still_owed(await gift_dists_locked(tx, donation_id));
+    await credit_won_take(tx, donation_id, d, ds, now);
   });
 }
 

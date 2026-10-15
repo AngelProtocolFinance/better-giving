@@ -131,7 +131,7 @@ export async function handle_dispute_closed(
           body: [
             dispute_line(dispute, don.id, event.id),
             won.prior_status === "lost"
-              ? `stripe returned the disputed ${money(dispute.amount, dispute.currency)} after it was lost, and that loss reversed the donation (${won.donation_status}): credit the nonprofit by hand what the reversal took.`
+              ? `stripe returned the disputed ${money(dispute.amount, dispute.currency)} after it was lost, and that loss reversed the donation (${won.donation_status}). what it recorded as owed is credited back, its dispute fee included.`
               : `stripe returned the disputed ${money(dispute.amount, dispute.currency)}, the platform's own withdrawal: the donation was already ${won.donation_status}, reversed by its refund or another dispute rather than this one, so nothing is owed to the nonprofit.`,
           ].join("\n"),
         },
