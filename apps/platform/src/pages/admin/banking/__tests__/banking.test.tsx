@@ -83,6 +83,20 @@ vi.mock("remix-client-cache", () => ({
 const sync_npo_account = vi.hoisted(() => vi.fn());
 vi.mock("$/stripe-connect/sync", () => ({ sync_npo_account }));
 
+const routing = vi.hoisted(() => ({ on: true }));
+vi.mock("$/env", async (importOriginal) => {
+  const env = await importOriginal<typeof import("$/env")>();
+  return {
+    ...env,
+    stripe: {
+      ...env.stripe,
+      get connect_routing() {
+        return routing.on;
+      },
+    },
+  };
+});
+
 const report_degraded = vi.hoisted(() => vi.fn());
 vi.mock("#/errors/report", async (orig) => ({
   ...(await orig<typeof import("#/errors/report")>()),
@@ -249,6 +263,7 @@ beforeEach(async () => {
   counter = 0;
   sync_npo_account.mockReset();
   report_degraded.mockReset();
+  routing.on = true;
 });
 
 async function render_list(npo_id: number, search = "") {
@@ -959,5 +974,39 @@ describe("stripe connect card", () => {
       .element(screen.getByText("USD account ending in 1234"))
       .toBeVisible();
     expect(card.element().querySelector("[tabindex='-1']")).toBeNull();
+  });
+
+  it("hides the card and any return notice while routing is off", async () => {
+    routing.on = false;
+    const npo = await seed_npo({ stripe_account_id: "acct_new" });
+    await seed_bapp(npo.id, { bank_summary: "USD account ending in 1234" });
+    sync_npo_account.mockResolvedValue({
+      charges_enabled: true,
+      payouts_enabled: true,
+      details_submitted: true,
+      requirements_due: [],
+    });
+
+    const screen = await render_list(
+      npo.id,
+      "?stripe_connect=error&stripe_connect_reason=already_linked"
+    );
+
+    await expect
+      .element(screen.getByText("USD account ending in 1234"))
+      .toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "Stripe account" }).query()
+    ).toBeNull();
+    expect(
+      screen.getByText("Not connected", { exact: true }).query()
+    ).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Connect with Stripe" }).query()
+    ).toBeNull();
+    expect(
+      screen.getByText(/already linked to another nonprofit/i).query()
+    ).toBeNull();
+    expect(sync_npo_account).not.toHaveBeenCalled();
   });
 });

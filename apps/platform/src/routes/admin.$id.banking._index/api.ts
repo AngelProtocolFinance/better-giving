@@ -12,6 +12,7 @@ import {
   mirror_of,
   type TConnectStatus,
 } from "@/stripe-connect/readiness";
+import { stripe as stripe_env } from "$/env";
 import { npo_bapps } from "$/pg/queries/banking";
 import { npo_get } from "$/pg/queries/npo";
 import { sync_npo_account } from "$/stripe-connect/sync";
@@ -20,18 +21,27 @@ import type { Route } from "./+types/route";
 export interface LoaderData {
   methods: IBapp[];
   stripe: IConnectCardData;
+  connect_routing: boolean;
 }
 
 export const loader = async (x: Route.LoaderArgs) => {
   const id = x.context.get(admin_ctx);
+  const connect_routing = stripe_env.connect_routing;
 
-  const [page, status] = await Promise.all([npo_bapps(id), stripe_status(id)]);
+  const [page, status] = await Promise.all([
+    npo_bapps(id),
+    connect_routing
+      ? stripe_status(id)
+      : Promise.resolve("not_connected" as const),
+  ]);
   const stripe: IConnectCardData = {
     status,
     start_href: connect_start_href({ kind: "npo", npo_id: id }),
-    notice: connect_notice(new URL(x.request.url)),
+    ...(connect_routing && {
+      notice: connect_notice(new URL(x.request.url)),
+    }),
   };
-  return { methods: page.items, stripe } satisfies LoaderData;
+  return { methods: page.items, stripe, connect_routing } satisfies LoaderData;
 };
 
 async function stripe_status(npo_id: number): Promise<TConnectStatus> {

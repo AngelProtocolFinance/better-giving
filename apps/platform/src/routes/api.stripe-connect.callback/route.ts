@@ -6,6 +6,7 @@ import { report_error } from "#/errors/report";
 import { resp } from "@/helpers/https";
 import { EDITABLE } from "@/reg/schema";
 import type { TConnectErrorReason } from "@/stripe-connect/return";
+import { stripe as stripe_env } from "$/env";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
 import { is_unique_violation } from "$/pg/errors";
@@ -25,6 +26,7 @@ import type { Route } from "./+types/route";
 /** stripe's oauth redirect. the code is never logged and the tokens it buys
  * are never kept: only the account id is. */
 export async function loader({ request }: Route.LoaderArgs) {
+  if (!stripe_env.connect_routing) return resp.status(404);
   const url = new URL(request.url);
   const read = read_state(url.searchParams.get("state"));
   // unsigned, so its target can't be trusted as a place to send anyone

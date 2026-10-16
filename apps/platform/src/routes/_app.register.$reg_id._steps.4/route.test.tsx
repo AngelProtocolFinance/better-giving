@@ -51,6 +51,20 @@ vi.mock("#/.server/auth", async () =>
 const account_status_live = vi.hoisted(() => vi.fn());
 vi.mock("$/stripe-connect/sync", () => ({ account_status_live }));
 
+const routing = vi.hoisted(() => ({ on: true }));
+vi.mock("$/env", async (importOriginal) => {
+  const env = await importOriginal<typeof import("$/env")>();
+  return {
+    ...env,
+    stripe: {
+      ...env.stripe,
+      get connect_routing() {
+        return routing.on;
+      },
+    },
+  };
+});
+
 // the step hands `BankDetails` an `onSubmit` and owns no error surface of its
 // own — the wiring under test is what the step does with the result, so the
 // form itself stands in as a button that fires the callback.
@@ -101,6 +115,7 @@ beforeEach(async () => {
   await test_db.current!.db.delete(registrations);
   bank_statement.url = "https://example.com/bank.pdf";
   account_status_live.mockReset();
+  routing.on = true;
   mock_get_session.mockReset();
   mock_get_session.mockResolvedValue({
     user: {
@@ -312,4 +327,67 @@ describe("registration step 4: banking", () => {
       .element(screen.getByRole("link", { name: "Continue" }))
       .toBeVisible();
   }, 30_000);
+
+  describe("while routing is off", () => {
+    beforeEach(() => {
+      routing.on = false;
+    });
+
+    it("hides stripe beside the bank form, including a return notice", async () => {
+      const id = await seed_step_4();
+      const screen = await render_step_4(id, "?stripe_connect=connected");
+
+      await expect
+        .element(screen.getByRole("button", { name: /submit bank details/i }))
+        .toBeVisible();
+      expect(
+        screen.getByRole("region", { name: "Stripe account" }).query()
+      ).toBeNull();
+      expect(
+        screen.getByText("Not connected", { exact: true }).query()
+      ).toBeNull();
+      expect(
+        screen.getByRole("link", { name: "Connect with Stripe" }).query()
+      ).toBeNull();
+      expect(
+        screen.getByRole("link", { name: "Stripe dashboard" }).query()
+      ).toBeNull();
+      expect(
+        screen.getByText("Your Stripe account is connected.").query()
+      ).toBeNull();
+
+      await screen
+        .getByRole("button", { name: /submit bank details/i })
+        .click();
+      await expect.element(screen.getByText(/summary/i)).toBeVisible();
+    }, 30_000);
+
+    it("hides stripe beside saved bank details and does not ask stripe", async () => {
+      account_status_live.mockResolvedValue("pending");
+      const id = await seed_step_4();
+      await test_db
+        .current!.db.update(registrations)
+        .set({
+          o_bank_id: "999",
+          o_bank_statement: "https://example.com/bank.pdf",
+          o_stripe_account_id: "acct_123",
+        })
+        .where(eq(registrations.id, id));
+      const screen = await render_step_4(id, "?stripe_connect=connected");
+
+      await expect
+        .element(screen.getByRole("link", { name: "Continue" }))
+        .toBeVisible();
+      expect(
+        screen.getByRole("region", { name: "Stripe account" }).query()
+      ).toBeNull();
+      expect(
+        screen.getByText("Pending review", { exact: true }).query()
+      ).toBeNull();
+      expect(
+        screen.getByText("Your Stripe account is connected.").query()
+      ).toBeNull();
+      expect(account_status_live).not.toHaveBeenCalled();
+    }, 30_000);
+  });
 });

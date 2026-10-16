@@ -13,6 +13,7 @@ import {
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
+const routing = vi.hoisted(() => ({ on: true }));
 const session = vi.hoisted(() => ({
   user: undefined as
     | { id: string; email: string; role?: string | null }
@@ -42,6 +43,18 @@ vi.mock("$/kit/stripe", () => ({
   stripe: { oauth: { token }, accounts: { retrieve } },
 }));
 vi.mock("#/errors/report", () => ({ report_error }));
+vi.mock("$/env", async (importOriginal) => {
+  const env = await importOriginal<typeof import("$/env")>();
+  return {
+    ...env,
+    stripe: {
+      ...env.stripe,
+      get connect_routing() {
+        return routing.on;
+      },
+    },
+  };
+});
 
 const { loader } = await import("./route");
 const { sign_state } = await import("$/stripe-connect/state");
@@ -131,6 +144,7 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  routing.on = true;
   session.user = undefined;
   token.mockReset();
   retrieve.mockReset();
@@ -143,6 +157,24 @@ afterEach(() => {
 });
 
 describe("stripe connect callback", () => {
+  test("refuses while routing is off, storing nothing", async () => {
+    routing.on = false;
+    const { user, npo } = await member_of_npo("cb-off");
+    token.mockResolvedValue({ stripe_user_id: "acct_should_not" });
+    const state = sign_state({
+      t: { kind: "npo", npo_id: npo.id },
+      uid: user.id,
+      replace: false,
+    });
+
+    const res = await call({ code: "ac_off", state });
+
+    expect(res.status).toBe(404);
+    expect(res.headers.get("location")).toBeNull();
+    expect(token).not.toHaveBeenCalled();
+    expect((await npo_row(npo.id)).stripe_account_id).toBeNull();
+  });
+
   test("an npo member's connect stores the account and fills its readiness", async () => {
     const { user, npo } = await member_of_npo("cb-npo-ok");
     token.mockResolvedValue({
