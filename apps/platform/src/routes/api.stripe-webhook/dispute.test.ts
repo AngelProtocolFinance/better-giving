@@ -45,6 +45,7 @@ vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 const { action } = await import("./route");
 const { owed_for_donation, recover_owed } = await import("$/pg/queries/owed");
 const { donations } = await import("$/pg/schema/donation");
+const { donation_disputes } = await import("$/pg/schema/dispute");
 const { dists } = await import("$/pg/schema/dist");
 const { payouts } = await import("$/pg/schema/payout");
 const { owed_amounts } = await import("$/pg/schema/owed");
@@ -560,15 +561,45 @@ describe("a dispute on a gift already refunded", () => {
 });
 
 describe("a late win after the dispute was lost", () => {
-  it("asks ops to credit the nonprofit by hand what the loss took", async () => {
+  it("does not credit a loss that only closed the row after a refund", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(event_of("charge.dispute.created", dispute_of(gift)));
+    await refund(gift);
+    const owed = await owed_of(gift.id);
+    enqueue_mock.mockClear();
+
+    await deliver(lost_of(gift));
+    const res = await deliver(won_of(gift));
+
+    expect(res.status).toBe(200);
+    expect(await owed_of(gift.id)).toEqual(owed);
+    const [notice] = notices();
+    expect(notice.payload.alert.title).toBe(
+      "Dispute Won on a Reversed Donation"
+    );
+    expect(notice.payload.alert.body).toMatch(
+      /reversed by its refund.*nothing is owed/
+    );
+    expect(notice.payload.alert.body).not.toMatch(/credited back/);
+    expect(notice.payload.alert.body).not.toMatch(/by hand/);
+  });
+
+  it("asks ops to restore an older loss that reversed the gift before it was stamped", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
     await deliver(event_of("charge.dispute.created", dispute_of(gift)));
     await deliver(lost_of(gift));
+    await db()
+      .update(donation_disputes)
+      .set({ loss_recorded_at: null })
+      .where(eq(donation_disputes.id, `du_${gift.id}`));
+    const owed = await owed_of(gift.id);
     enqueue_mock.mockClear();
 
     const res = await deliver(won_of(gift));
 
     expect(res.status).toBe(200);
+    expect(owed).toMatchObject([{ outstanding_usd: 108.2 }]);
+    expect(await owed_of(gift.id)).toEqual(owed);
     const [notice] = notices();
     expect(notice.payload.alert.title).toBe(
       "Dispute Won on a Reversed Donation"
@@ -576,6 +607,67 @@ describe("a late win after the dispute was lost", () => {
     expect(notice.payload.alert.body).toMatch(
       /after it was lost.*credit the nonprofit by hand/
     );
+    expect(notice.payload.alert.body).not.toMatch(/nothing is owed/);
+    expect(notice.payload.alert.body).not.toMatch(/credited back/);
+  });
+
+  it("credits what the loss recorded and tells ops that it did, a redelivery crediting nothing more", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(event_of("charge.dispute.created", dispute_of(gift)));
+    await deliver(lost_of(gift));
+    enqueue_mock.mockClear();
+    const won = won_of(gift);
+
+    const res = await deliver(won);
+    const credited = await owed_of(gift.id);
+    await deliver(won);
+
+    expect(res.status).toBe(200);
+    expect(credited).toMatchObject([
+      {
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 15,
+        outstanding_usd: 0,
+      },
+    ]);
+    expect(await owed_of(gift.id)).toEqual(credited);
+    const [notice] = notices();
+    expect(notice.payload.alert.title).toBe(
+      "Dispute Won on a Reversed Donation"
+    );
+    expect(notice.payload.alert.body).toMatch(
+      /after it was lost.*credited back, its dispute fee included/
+    );
+    expect(notice.payload.alert.body).not.toMatch(/by hand/);
+  });
+
+  it("says a non-usd dispute fee is still for ops when the loss is credited back", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    const eur = { fee: 1_500, fee_currency: "eur" };
+    await deliver(event_of("charge.dispute.created", dispute_of(gift, eur)));
+    await deliver(
+      event_of(
+        "charge.dispute.closed",
+        dispute_of(gift, { ...eur, status: "lost" }),
+        CLOSED_UNIX
+      )
+    );
+    enqueue_mock.mockClear();
+
+    await deliver(
+      event_of(
+        "charge.dispute.closed",
+        dispute_of(gift, { ...eur, status: "won" }),
+        CLOSED_UNIX + 60
+      )
+    );
+
+    const [notice] = notices();
+    expect(notice.payload.alert.body).toMatch(/credited back/);
+    expect(notice.payload.alert.body).not.toMatch(/dispute fee included/);
+    expect(notice.payload.alert.body).toMatch(/settled in EUR/);
+    expect(notice.payload.alert.body).toMatch(/by hand/);
   });
 });
 

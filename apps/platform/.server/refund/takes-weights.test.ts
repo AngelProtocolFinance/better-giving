@@ -23,6 +23,7 @@ const locked = (
     status: "refunded",
     referrer_user: null,
     referrer_npo: null,
+    ref: null,
   },
   ...over,
 });

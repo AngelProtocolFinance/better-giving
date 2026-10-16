@@ -119,6 +119,7 @@ export async function handle_dispute_closed(
       return;
     }
     if (won.status !== "already_reversed") return;
+    const fee = dispute_fee_usd(dispute);
     // keyed on the event: a redelivery collapses into it inside the queue's
     // dedupe window only
     await enqueue(
@@ -130,9 +131,17 @@ export async function handle_dispute_closed(
           title: "Dispute Won on a Reversed Donation",
           body: [
             dispute_line(dispute, don.id, event.id),
-            won.prior_status === "lost"
-              ? `stripe returned the disputed ${money(dispute.amount, dispute.currency)} after it was lost, and that loss reversed the donation (${won.donation_status}): credit the nonprofit by hand what the reversal took.`
-              : `stripe returned the disputed ${money(dispute.amount, dispute.currency)}, the platform's own withdrawal: the donation was already ${won.donation_status}, reversed by its refund or another dispute rather than this one, so nothing is owed to the nonprofit.`,
+            won.credited
+              ? [
+                  `stripe returned the disputed ${money(dispute.amount, dispute.currency)} after it was lost, and that loss reversed the donation (${won.donation_status}). what it recorded as owed is credited back${fee.line ? "" : ", its dispute fee included"}.`,
+                  ...(fee.line ? [fee.line] : []),
+                ].join(" ")
+              : won.hand
+                ? [
+                    `stripe returned the disputed ${money(dispute.amount, dispute.currency)} after it was lost, and that loss reversed the donation (${won.donation_status}): credit the nonprofit by hand what the reversal took.`,
+                    ...(fee.line ? [fee.line] : []),
+                  ].join(" ")
+                : `stripe returned the disputed ${money(dispute.amount, dispute.currency)}, the platform's own withdrawal: the donation was already ${won.donation_status}, reversed by its refund or another dispute rather than this one, so nothing is owed to the nonprofit.`,
           ].join("\n"),
         },
       })

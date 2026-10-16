@@ -94,6 +94,7 @@ async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
         status: referrer_commissions.status,
         referrer_user: referrer_commissions.referrer_user,
         referrer_npo: referrer_commissions.referrer_npo,
+        ref: referrer_commissions.ref,
       },
     })
     .from(dists)

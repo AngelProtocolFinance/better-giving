@@ -27,7 +27,9 @@ export const donation_disputes = pgTable(
       precision: 38,
       scale: 18,
     }),
-    /** no longer written: the ledger's take carries the chargeback's own ref */
+    /** set when this dispute's loss reversed the gift. a later win credits
+     * that loss back only with this stamp: a lost row on a gift a refund or
+     * another dispute reversed has none */
     loss_recorded_at: timestamptz("loss_recorded_at"),
   },
   (t) => [
