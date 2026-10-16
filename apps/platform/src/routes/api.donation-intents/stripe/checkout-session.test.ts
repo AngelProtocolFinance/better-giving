@@ -8,7 +8,7 @@ vi.mock("$/kit/stripe", () => ({
   stripe: { checkout: { sessions: { create, retrieve } } },
 }));
 
-const { checkout_session, checkout_session_url } = await import(
+const { checkout_session, checkout_session_state } = await import(
   "./checkout-session"
 );
 
@@ -30,6 +30,7 @@ describe("agent Checkout Session", () => {
       order_id: "6e2ee494-1cda-4b0b-9867-37a25b9c76c4",
       donor_email: "donor@example.com",
       recipient_name: "ACME",
+      cancel_path: "/donate/7",
       descriptor_suffix: "ACME",
     });
 
@@ -53,7 +54,8 @@ describe("agent Checkout Session", () => {
           receipt_email: "donor@example.com",
         }),
         success_url:
-          "https://staging.example/agents?donation_id=6e2ee494-1cda-4b0b-9867-37a25b9c76c4",
+          "https://staging.example/donations/6e2ee494-1cda-4b0b-9867-37a25b9c76c4",
+        cancel_url: "https://staging.example/donate/7",
       }),
       {
         idempotencyKey: "agent-checkout:6e2ee494-1cda-4b0b-9867-37a25b9c76c4",
@@ -64,13 +66,26 @@ describe("agent Checkout Session", () => {
     );
   });
 
-  test("recovers the hosted URL for an idempotent repeat", async () => {
+  test("recovers the hosted URL of an open session", async () => {
     retrieve.mockResolvedValue({
+      status: "open",
       url: "https://checkout.stripe.com/c/pay/cs_test_existing",
     });
 
-    await expect(checkout_session_url("cs_test_existing")).resolves.toBe(
-      "https://checkout.stripe.com/c/pay/cs_test_existing"
-    );
+    await expect(checkout_session_state("cs_test_existing")).resolves.toEqual({
+      status: "open",
+      url: "https://checkout.stripe.com/c/pay/cs_test_existing",
+    });
+  });
+
+  test.each([
+    ["expired", "expired"],
+    ["complete", "complete"],
+  ])("reports a %s session without a URL", async (status, expected) => {
+    retrieve.mockResolvedValue({ status, url: null });
+
+    await expect(checkout_session_state("cs_test_existing")).resolves.toEqual({
+      status: expected,
+    });
   });
 });

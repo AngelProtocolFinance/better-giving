@@ -6,6 +6,7 @@ import { stripe as stripe_env } from "$/env";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
+import { agent_donation_expire } from "$/pg/queries/donation";
 import {
   sub_cancel_reason_default,
   sub_reactivate_if,
@@ -184,6 +185,11 @@ export async function action({ request }: Route.ActionArgs) {
             status: 404,
           });
         }
+        break;
+      }
+      case "checkout.session.expired": {
+        const order_id = stripe_event.data.object.metadata?.order_id;
+        if (order_id) await agent_donation_expire(order_id);
         break;
       }
       case "charge.refunded":

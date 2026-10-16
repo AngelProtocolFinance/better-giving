@@ -9,14 +9,18 @@ const mocks = vi.hoisted(() => ({
   npo_by_regnum: vi.fn(),
   npo_program_get: vi.fn(),
   checkout_session: vi.fn(),
-  checkout_session_url: vi.fn(),
+  checkout_session_state: vi.fn(),
   descriptor: vi.fn(),
+  expire: vi.fn(),
 }));
+
+vi.mock("$/env", () => ({ app: { api_encryption_key: "test-quote-key" } }));
 
 vi.mock("#/.server/npos", () => ({ get_npos: mocks.get_npos }));
 vi.mock("#/.server/donation-recipient", () => ({ to_fn: mocks.to_fn }));
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/donation", () => ({
+  agent_donation_expire: mocks.expire,
   agent_donation_reserve: mocks.reserve,
   donation_get: mocks.donation_get,
   donation_update: mocks.donation_update,
@@ -29,7 +33,7 @@ vi.mock("$/pg/queries/program", () => ({
 }));
 vi.mock("#/routes/api.donation-intents/stripe/checkout-session", () => ({
   checkout_session: mocks.checkout_session,
-  checkout_session_url: mocks.checkout_session_url,
+  checkout_session_state: mocks.checkout_session_state,
 }));
 vi.mock("#/routes/api.donation-intents/stripe/descriptor-suffix", () => ({
   npo_descriptor_suffix: mocks.descriptor,
@@ -58,11 +62,26 @@ beforeEach(() => {
   mocks.donation_get.mockResolvedValue(undefined);
   mocks.donation_update.mockResolvedValue(undefined);
   mocks.descriptor.mockResolvedValue("ACME");
+  mocks.expire.mockResolvedValue(true);
   mocks.checkout_session.mockResolvedValue({
     id: "cs_test_1",
     url: "https://checkout.stripe.com/c/pay/cs_test_1",
   });
 });
+
+function saved(id: string, patch: Record<string, unknown> = {}) {
+  return {
+    id,
+    source: "bg-agent",
+    status: "created",
+    from_email: donor.email,
+    to_id: "7",
+    to_name: "ACME",
+    to_type: "npo",
+    amount: { base: 10, tip: 0, fee_allowance: 0 },
+    ...patch,
+  };
+}
 
 async function quote(
   patch: Partial<{
@@ -173,14 +192,13 @@ describe("agent donate", () => {
 
   test("same quote returns the existing session without another charge", async () => {
     const quoted = await quote();
-    mocks.donation_get.mockResolvedValue({
-      id: quoted.quote_id,
-      source: "bg-agent",
-      via_extra: "cs_test_existing",
-    });
-    mocks.checkout_session_url.mockResolvedValue(
-      "https://checkout.stripe.com/c/pay/cs_test_existing"
+    mocks.donation_get.mockResolvedValue(
+      saved(quoted.quote_id, { via_extra: "cs_test_existing" })
     );
+    mocks.checkout_session_state.mockResolvedValue({
+      status: "open",
+      url: "https://checkout.stripe.com/c/pay/cs_test_existing",
+    });
 
     const first = await donate(
       { quote_token: quoted.quote_token, donor },
@@ -194,6 +212,81 @@ describe("agent donate", () => {
     expect(first).toStrictEqual(second);
     expect(mocks.checkout_session).not.toHaveBeenCalled();
     expect(mocks.reserve).not.toHaveBeenCalled();
+  });
+
+  test("an edited quote token is refused before anything is written", async () => {
+    const quoted = await quote();
+    const [body, mac] = quoted.quote_token.split(".");
+    const edited = JSON.parse(Buffer.from(body!, "base64url").toString());
+    edited.amount = 1000;
+    const forged = `${Buffer.from(JSON.stringify(edited)).toString("base64url")}.${mac}`;
+
+    await expect(
+      donate(
+        { quote_token: forged, donor },
+        new Request("https://better.giving/agents")
+      )
+    ).rejects.toMatchObject({ code: "invalid_quote" });
+    expect(mocks.donation_get).not.toHaveBeenCalled();
+    expect(mocks.reserve).not.toHaveBeenCalled();
+  });
+
+  test("a retry after a failed Stripe call charges the saved row, not the token", async () => {
+    const quoted = await quote();
+    mocks.donation_get.mockResolvedValue(
+      saved(quoted.quote_id, {
+        amount: { base: 25, tip: 0, fee_allowance: 0 },
+      })
+    );
+
+    await donate(
+      { quote_token: quoted.quote_token, donor },
+      new Request("https://better.giving/agents")
+    );
+
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.checkout_session).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_id: quoted.quote_id,
+        base: 25,
+        tip: 0,
+        fee_allowance: 0,
+        cancel_path: "/donate/7",
+      })
+    );
+  });
+
+  test("a different donor cannot take over a reserved quote", async () => {
+    const quoted = await quote();
+    mocks.donation_get.mockResolvedValue(saved(quoted.quote_id));
+
+    await expect(
+      donate(
+        {
+          quote_token: quoted.quote_token,
+          donor: { ...donor, email: "other@example.com" },
+        },
+        new Request("https://better.giving/agents")
+      )
+    ).rejects.toMatchObject({ code: "quote_conflict" });
+    expect(mocks.checkout_session).not.toHaveBeenCalled();
+  });
+
+  test("an expired Checkout marks the gift expired and asks for a new quote", async () => {
+    const quoted = await quote();
+    mocks.donation_get.mockResolvedValue(
+      saved(quoted.quote_id, { via_extra: "cs_test_old" })
+    );
+    mocks.checkout_session_state.mockResolvedValue({ status: "expired" });
+
+    await expect(
+      donate(
+        { quote_token: quoted.quote_token, donor },
+        new Request("https://better.giving/agents")
+      )
+    ).rejects.toMatchObject({ code: "quote_expired" });
+    expect(mocks.expire).toHaveBeenCalledWith(quoted.quote_id);
+    expect(mocks.checkout_session).not.toHaveBeenCalled();
   });
 
   test("customer or IP cap refuses before writing or calling Stripe", async () => {
@@ -231,5 +324,36 @@ describe("agent status", () => {
       amount: { base: 10, tip: 1, fee_allowance: 0.5, total: 11.5 },
     });
     expect(result).not.toHaveProperty("from_email");
+  });
+
+  test("reports an abandoned Checkout as expired", async () => {
+    const id = "6e2ee494-1cda-4b0b-9867-37a25b9c76c4";
+    mocks.donation_get.mockResolvedValue({
+      ...saved(id, { via_extra: "cs_test_old" }),
+      currency: "USD",
+    });
+    mocks.checkout_session_state.mockResolvedValue({ status: "expired" });
+
+    const result = await donation_status({ donation_id: id });
+
+    expect(result.status).toBe("expired");
+    expect(mocks.expire).toHaveBeenCalledWith(id);
+  });
+
+  test("an open Checkout stays created", async () => {
+    const id = "6e2ee494-1cda-4b0b-9867-37a25b9c76c4";
+    mocks.donation_get.mockResolvedValue({
+      ...saved(id, { via_extra: "cs_test_open" }),
+      currency: "USD",
+    });
+    mocks.checkout_session_state.mockResolvedValue({
+      status: "open",
+      url: "https://checkout.stripe.com/c/pay/cs_test_open",
+    });
+
+    const result = await donation_status({ donation_id: id });
+
+    expect(result.status).toBe("created");
+    expect(mocks.expire).not.toHaveBeenCalled();
   });
 });

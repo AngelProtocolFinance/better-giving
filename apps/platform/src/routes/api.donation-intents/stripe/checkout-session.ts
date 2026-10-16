@@ -1,3 +1,4 @@
+import { href } from "react-router";
 import { to_atomic_c } from "#/helpers/stripe";
 import type { IAmount } from "@/donations";
 import type { IMetadata } from "@/stripe";
@@ -8,6 +9,8 @@ export interface ICheckoutSessionInput extends IAmount {
   order_id: string;
   donor_email: string;
   recipient_name: string;
+  /** where a donor who backs out of Checkout lands: the recipient's donate page */
+  cancel_path: string;
   descriptor_suffix?: string;
 }
 
@@ -47,8 +50,8 @@ export async function checkout_session(
           statement_descriptor_suffix: input.descriptor_suffix,
         }),
       },
-      success_url: `${base_url}/agents?donation_id=${input.order_id}`,
-      cancel_url: `${base_url}/agents?donation_id=${input.order_id}`,
+      success_url: `${base_url}${href("/donations/:id", { id: input.order_id })}`,
+      cancel_url: `${base_url}${input.cancel_path}`,
     },
     { idempotencyKey: `agent-checkout:${input.order_id}` }
   );
@@ -57,8 +60,17 @@ export async function checkout_session(
   return { id: session.id, url: session.url };
 }
 
-export async function checkout_session_url(id: string): Promise<string> {
+export type TCheckoutSessionState =
+  | { status: "open"; url: string }
+  | { status: "complete" | "expired" };
+
+export async function checkout_session_state(
+  id: string
+): Promise<TCheckoutSessionState> {
   const session = await stripe.checkout.sessions.retrieve(id);
-  if (!session.url) throw new Error("Stripe Checkout did not return a URL");
-  return session.url;
+  if (session.status === "open") {
+    if (!session.url) throw new Error("Stripe Checkout did not return a URL");
+    return { status: "open", url: session.url };
+  }
+  return { status: session.status === "complete" ? "complete" : "expired" };
 }

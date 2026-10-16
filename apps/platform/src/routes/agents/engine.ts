@@ -1,20 +1,23 @@
 import { Buffer } from "node:buffer";
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { href } from "react-router";
 import * as v from "valibot";
 import { to_fn } from "#/.server/donation-recipient";
 import { get_npos } from "#/.server/npos";
 import { stripe_amounts } from "#/components/donation/common/amounts";
 import {
   checkout_session,
-  checkout_session_url,
+  checkout_session_state,
 } from "#/routes/api.donation-intents/stripe/checkout-session";
 import { npo_descriptor_suffix } from "#/routes/api.donation-intents/stripe/descriptor-suffix";
 import { donor_refusal } from "#/routes/api.donation-intents/stripe/donor-refusal";
 import { MIN_DONATION_USD } from "@/constants/common";
 import type { IDonation, IDonor, IProgram } from "@/donations";
 import { to_from } from "@/donations/helpers";
+import { app } from "$/env";
 import { db } from "$/pg/db";
 import {
+  agent_donation_expire,
   agent_donation_reserve,
   donation_get,
   donation_update,
@@ -114,20 +117,33 @@ function parsed<
   return result.output;
 }
 
+const quote_mac = (body: string) =>
+  createHmac("sha256", app.api_encryption_key)
+    .update(`agent-quote:${body}`)
+    .digest();
+
 function encode_quote(quote: IQuoteToken): string {
-  return Buffer.from(JSON.stringify(quote)).toString("base64url");
+  const body = Buffer.from(JSON.stringify(quote)).toString("base64url");
+  return `${body}.${quote_mac(body).toString("base64url")}`;
 }
 
 function decode_quote(token: string): IQuoteToken {
+  const invalid = new AgentDonationError(
+    "invalid_quote",
+    "The quote token is invalid."
+  );
+  const [body, mac, ...rest] = token.split(".");
+  if (!body || !mac || rest.length) throw invalid;
+  const given = Buffer.from(mac, "base64url");
+  const expected = quote_mac(body);
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
+    throw invalid;
+  }
   try {
-    const value = JSON.parse(Buffer.from(token, "base64url").toString("utf8"));
+    const value = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     return parsed(quote_token, value);
-  } catch (error) {
-    if (error instanceof AgentDonationError) throw error;
-    throw new AgentDonationError(
-      "invalid_quote",
-      "The quote token is invalid."
-    );
+  } catch {
+    throw invalid;
   }
 }
 
@@ -227,30 +243,77 @@ function caller_id(request: Request): string {
   return `ip:${createHash("sha256").update(ip).digest("hex")}`;
 }
 
-async function existing_checkout(donation_id: string) {
-  const existing = await donation_get(donation_id);
-  if (!existing) return undefined;
-  if (existing.source !== "bg-agent") {
+const quote_expired = () =>
+  new AgentDonationError(
+    "quote_expired",
+    "The checkout for this quote expired. Request a new quote."
+  );
+
+async function open_checkout(don: IDonation) {
+  try {
+    const descriptor_suffix = await npo_descriptor_suffix(don);
+    const session = await checkout_session({
+      ...don.amount,
+      order_id: don.id,
+      donor_email: don.from_email,
+      recipient_name: don.to_name,
+      cancel_path:
+        don.to_type === "fund"
+          ? href("/donate-fund/:fund_id", { fund_id: don.to_id })
+          : href("/donate/:id", { id: don.to_id }),
+      descriptor_suffix,
+    });
+    await donation_update(db, don.id, { via_extra: session.id });
+    return { donation_id: don.id, checkout_url: session.url };
+  } catch (error) {
+    const refusal = donor_refusal(error);
+    if (!refusal) throw error;
+    throw new AgentDonationError(refusal.code, refusal.reason);
+  }
+}
+
+/** a retried quote resumes the saved row; the token's amounts are never re-read */
+async function resume_checkout(don: IDonation | undefined, donor: IDonor) {
+  if (don?.source !== "bg-agent") {
     throw new AgentDonationError(
       "invalid_quote",
       "The quote id is unavailable."
     );
   }
-  const session_id = existing.via_extra;
-  if (!session_id) return { donation: existing };
-  return {
-    donation: existing,
-    checkout_url: await checkout_session_url(session_id),
-  };
+  if (don.from_email.toLowerCase() !== donor.email) {
+    throw new AgentDonationError(
+      "quote_conflict",
+      "This quote is already reserved for a different donor. Request a new quote."
+    );
+  }
+  if (don.status === "expired") throw quote_expired();
+  if (don.status !== "created") {
+    throw new AgentDonationError(
+      "quote_used",
+      "This quote was already paid. Check donation_status."
+    );
+  }
+  if (!don.via_extra) return open_checkout(don);
+
+  const session = await checkout_session_state(don.via_extra);
+  if (session.status === "open") {
+    return { donation_id: don.id, checkout_url: session.url };
+  }
+  if (session.status === "expired") {
+    await agent_donation_expire(don.id);
+    throw quote_expired();
+  }
+  throw new AgentDonationError(
+    "quote_used",
+    "This quote was already paid. Check donation_status."
+  );
 }
 
 export async function donate(input: unknown, request: Request) {
   const args = parsed(donate_input, input);
   const quote = decode_quote(args.quote_token);
-  const prior = await existing_checkout(quote.id);
-  if (prior?.checkout_url) {
-    return { donation_id: quote.id, checkout_url: prior.checkout_url };
-  }
+  const prior = await donation_get(quote.id);
+  if (prior) return resume_checkout(prior, args.donor);
 
   const recipient = await to_fn(quote.recipient_id, { open_at: new Date() });
   if (!recipient) {
@@ -306,44 +369,26 @@ export async function donate(input: unknown, request: Request) {
     program,
   };
 
-  if (!prior) {
-    const reservation = await agent_donation_reserve(row, since, RATE_LIMIT);
-    if (reservation === "limited") {
-      throw new AgentDonationError(
-        "rate_limited",
-        "Donation checkout limit reached. Try again in one hour."
-      );
-    }
-    if (reservation === "existing") {
-      const raced = await existing_checkout(quote.id);
-      if (!raced) {
-        throw new AgentDonationError(
-          "invalid_quote",
-          "The quote id is unavailable."
-        );
-      }
-      if (raced.checkout_url) {
-        return { donation_id: quote.id, checkout_url: raced.checkout_url };
-      }
-    }
+  const reservation = await agent_donation_reserve(row, since, RATE_LIMIT);
+  if (reservation === "limited") {
+    throw new AgentDonationError(
+      "rate_limited",
+      "Donation checkout limit reached. Try again in one hour."
+    );
   }
+  if (reservation === "existing") {
+    return resume_checkout(await donation_get(quote.id), args.donor);
+  }
+  return open_checkout(row);
+}
 
-  try {
-    const descriptor_suffix = await npo_descriptor_suffix(recipient);
-    const session = await checkout_session({
-      ...donation_amount,
-      order_id: quote.id,
-      donor_email: args.donor.email,
-      recipient_name: recipient.to_name,
-      descriptor_suffix,
-    });
-    await donation_update(db, quote.id, { via_extra: session.id });
-    return { donation_id: quote.id, checkout_url: session.url };
-  } catch (error) {
-    const refusal = donor_refusal(error);
-    if (!refusal) throw error;
-    throw new AgentDonationError(refusal.code, refusal.reason);
-  }
+/** a `created` row whose Checkout lapsed is expired, even if Stripe's expiry event never arrived */
+async function current_status(don: IDonation): Promise<IDonation["status"]> {
+  if (don.status !== "created" || !don.via_extra) return don.status;
+  const session = await checkout_session_state(don.via_extra);
+  if (session.status !== "expired") return don.status;
+  await agent_donation_expire(don.id);
+  return "expired";
 }
 
 export async function donation_status(input: unknown) {
@@ -354,7 +399,7 @@ export async function donation_status(input: unknown) {
   }
   return {
     donation_id: donation.id,
-    status: donation.status,
+    status: await current_status(donation),
     currency: donation.currency,
     amount: {
       ...donation.amount,

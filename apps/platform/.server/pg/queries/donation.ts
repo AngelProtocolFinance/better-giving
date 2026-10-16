@@ -830,6 +830,28 @@ export async function agent_donation_reserve(
   });
 }
 
+/**
+ * marks an agent checkout expired while it is still `created`. the status
+ * guard keeps a late expiry from overwriting a payment that already landed.
+ */
+export async function agent_donation_expire(
+  donation_id: string,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  const [row] = await tx
+    .update(donations)
+    .set({ status: "expired", updated_at: new Date().toISOString() })
+    .where(
+      and(
+        eq(donations.id, donation_id),
+        eq(donations.source, "bg-agent"),
+        eq(donations.status, "created")
+      )
+    )
+    .returning({ id: donations.id });
+  return !!row;
+}
+
 export async function donation_settlement_get(
   donation_id: string
 ): Promise<typeof donation_settlements.$inferSelect | undefined> {
