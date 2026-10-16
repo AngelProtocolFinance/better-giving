@@ -44,6 +44,8 @@ const tools = [
           oneOf: [{ type: "integer", minimum: 1 }, { type: "string" }],
         },
         amount: { type: "number", minimum: 2 },
+        currency: { const: "USD" },
+        frequency: { const: "one-time" },
         tip_percent: { enum: ["none", "10", "15", "20"] },
         cover_processing_fee: { type: "boolean" },
         program_id: { type: "string" },

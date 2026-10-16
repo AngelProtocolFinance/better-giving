@@ -120,6 +120,20 @@ describe("agent quote", () => {
       expect(mocks.to_fn).not.toHaveBeenCalled();
     }
   );
+
+  test.each([
+    ["currency", "EUR"],
+    ["frequency", "monthly"],
+  ])("refuses unsupported %s", async (field, value) => {
+    await expect(
+      create_quote({
+        recipient_id: 7,
+        amount: 10,
+        [field]: value,
+      })
+    ).rejects.toMatchObject({ code: "invalid_input" });
+    expect(mocks.to_fn).not.toHaveBeenCalled();
+  });
 });
 
 describe("agent donate", () => {

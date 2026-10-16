@@ -31,7 +31,7 @@ const to_id = v.union([
   v.pipe(v.number(), v.integer(), v.minValue(1)),
   v.pipe(v.string(), v.uuid()),
 ]);
-const quote_input = v.object({
+const quote_input = v.strictObject({
   recipient_id: to_id,
   amount: v.pipe(
     v.number(),
@@ -44,26 +44,33 @@ const quote_input = v.object({
   tip_percent: v.optional(tip_percent, "none"),
   cover_processing_fee: v.optional(v.boolean(), false),
   program_id: v.optional(v.pipe(v.string(), v.uuid())),
+  currency: v.optional(v.literal("USD"), "USD"),
+  frequency: v.optional(v.literal("one-time"), "one-time"),
 });
-const donor = v.object({
+const donor = v.strictObject({
   email: v.pipe(v.string(), v.email(), v.toLowerCase()),
   first_name: v.pipe(v.string(), v.nonEmpty()),
   last_name: v.pipe(v.string(), v.nonEmpty()),
 });
-const donate_input = v.object({
+const donate_input = v.strictObject({
   quote_token: v.pipe(v.string(), v.nonEmpty()),
   donor,
 });
-const status_input = v.object({
+const status_input = v.strictObject({
   donation_id: v.pipe(v.string(), v.uuid()),
 });
 const find_input = v.pipe(
-  v.object({
+  v.strictObject({
     query: v.optional(v.string()),
     ein: v.optional(v.string()),
   }),
   v.check((input) => !!input.query || !!input.ein, "query or ein is required")
 );
+const quote_token = v.strictObject({
+  v: v.literal(1),
+  id: v.pipe(v.string(), v.uuid()),
+  ...quote_input.entries,
+});
 
 interface IQuoteToken {
   v: 1;
@@ -73,6 +80,8 @@ interface IQuoteToken {
   tip_percent: "none" | "10" | "15" | "20";
   cover_processing_fee: boolean;
   program_id?: string;
+  currency: "USD";
+  frequency: "one-time";
 }
 
 export interface IAgentQuote {
@@ -114,13 +123,7 @@ function encode_quote(quote: IQuoteToken): string {
 function decode_quote(token: string): IQuoteToken {
   try {
     const value = JSON.parse(Buffer.from(token, "base64url").toString("utf8"));
-    const input = parsed(quote_input, value);
-    if (value.v !== 1 || typeof value.id !== "string") throw new Error();
-    return {
-      v: 1,
-      id: parsed(v.pipe(v.string(), v.uuid()), value.id),
-      ...input,
-    };
+    return parsed(quote_token, value);
   } catch (error) {
     if (error instanceof AgentDonationError) throw error;
     throw new AgentDonationError(
@@ -195,6 +198,8 @@ export async function create_quote(input: unknown): Promise<IAgentQuote> {
     tip_percent: args.tip_percent,
     cover_processing_fee: args.cover_processing_fee,
     program_id: args.program_id,
+    currency: "USD",
+    frequency: "one-time",
   };
   return {
     quote_token: encode_quote(token),
