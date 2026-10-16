@@ -1,19 +1,23 @@
 import { EIN } from "@better-giving/brand";
 import { ExtLink } from "@better-giving/ui";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ShieldCheck, Sprout, Users } from "lucide-react";
+import type { CSSProperties } from "react";
 import { guidestar } from "#/constants/urls";
 
 const values = [
   {
     title: "Integrity",
+    Icon: ShieldCheck,
     body: "Radical transparency: open code, open books, and a public Candid/GuideStar profile.",
   },
   {
     title: "Sustainability",
+    Icon: Sprout,
     body: "Long-term financial health, for your organization, and for the commons itself.",
   },
   {
     title: "Inclusivity",
+    Icon: Users,
     body: "All nonprofits, any size, anywhere: the same tools on the same terms.",
   },
 ] as const;
@@ -28,22 +32,31 @@ export function Values({ classes = "" }: IValues) {
       <div className="page">
         <h2
           id="values-heading"
-          className="section-heading text-center max-w-2xl mx-auto"
+          className="section-heading text-center max-w-2xl mx-auto reveal"
         >
           What we hold ourselves to
         </h2>
-        <div className="grid gap-5 md:grid-cols-3 mt-11">
-          {values.map((v) => (
-            <div
-              key={v.title}
-              className="card-on-band grid gap-2 content-start"
+        <ul className="mt-14 md:mt-20 grid gap-12 md:grid-cols-3 md:gap-10 lg:gap-16">
+          {values.map(({ title, Icon, body }, i) => (
+            <li
+              key={title}
+              className="reveal grid content-start justify-items-center gap-4 text-center"
+              style={{ "--reveal-order": i } as CSSProperties}
             >
-              <span className="text-xl font-bold">{v.title}</span>
-              <p className="text-sm/relaxed text-gray-11">{v.body}</p>
-            </div>
+              <span
+                aria-hidden
+                className="size-16 rounded-full border bg-surface text-primary grid place-items-center"
+              >
+                <Icon className="pictogram-sm" strokeWidth={1.5} />
+              </span>
+              <h3 className="mt-2 text-xl font-bold">{title}</h3>
+              <p className="text-base/relaxed text-gray-11 text-pretty max-w-xs">
+                {body}
+              </p>
+            </li>
           ))}
-        </div>
-        <p className="mt-8 text-center text-sm/relaxed text-gray-11 max-w-2xl mx-auto">
+        </ul>
+        <p className="mt-16 md:mt-20 border-t pt-8 text-center text-sm/relaxed text-gray-11 text-pretty">
           Better Giving is a registered 501(c)(3) public charity, EIN {EIN}.{" "}
           <ExtLink href={guidestar.profile} className="font-bold link">
             View our transparency profile on Candid{" "}

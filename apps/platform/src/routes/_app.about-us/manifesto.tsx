@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 const rights = [
   {
     num: "01",
@@ -24,27 +26,32 @@ export function Manifesto({ classes = "" }: IManifesto) {
   return (
     <section className={classes} aria-labelledby="manifesto-heading">
       <div className="page">
-        <p className="text-xs font-bold uppercase tracking-wider text-primary text-center">
-          The Better Giving Manifesto
-        </p>
-        <h2
-          id="manifesto-heading"
-          className="section-heading mt-3 text-center max-w-2xl mx-auto"
-        >
-          Every nonprofit has three rights
-        </h2>
-        <div className="grid gap-5 md:grid-cols-3 mt-11">
-          {rights.map((r) => (
-            <div
-              key={r.num}
-              className="card-on-band shadow-lift-card grid gap-2.5 content-start"
-            >
-              <span className="text-3xl font-bold text-primary">{r.num}</span>
-              <span className="text-xl font-bold">{r.title}</span>
-              <p className="text-sm/relaxed text-gray-11">{r.body}</p>
-            </div>
-          ))}
+        <div className="reveal grid justify-items-center text-center">
+          <p className="eyebrow text-primary">The Better Giving Manifesto</p>
+          <h2 id="manifesto-heading" className="section-heading mt-4 max-w-2xl">
+            Every nonprofit has <em className="text-primary">three rights</em>
+          </h2>
         </div>
+        <ol className="mt-14 md:mt-20 grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x">
+          {rights.map((r, i) => (
+            <li
+              key={r.num}
+              className="reveal grid content-start gap-4 py-10 first:pt-0 last:pb-0 md:py-0 md:px-10 md:first:pl-0 md:last:pr-0"
+              style={{ "--reveal-order": i } as CSSProperties}
+            >
+              <span
+                className="display-figure text-6xl md:text-7xl text-primary"
+                aria-hidden
+              >
+                {r.num}
+              </span>
+              <h3 className="subsection-heading mt-2">{r.title}</h3>
+              <p className="text-base/relaxed text-gray-11 text-pretty">
+                {r.body}
+              </p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

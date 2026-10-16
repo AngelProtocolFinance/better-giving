@@ -47,24 +47,22 @@ export function Donate({ base_url, classes = "" }: IDonate) {
   return (
     <section className={classes} aria-labelledby="donate-heading">
       <div className="page grid justify-items-center">
-        <p className="text-xs font-bold uppercase tracking-wider text-primary">
-          Support Better Giving
-        </p>
-        <h2
-          id="donate-heading"
-          className="section-heading mt-3 text-center max-w-2xl"
-        >
-          Free for nonprofits isn't free to run
-        </h2>
-        <p className="mt-4 text-gray-11 leading-relaxed text-pretty text-center max-w-2xl">
-          Better Giving is a 501(c)(3) nonprofit. Donations here pay for the
-          servers, the support, and the engineering behind tools nonprofits
-          never get billed for.
-        </p>
+        <div className="reveal grid justify-items-center text-center">
+          <p className="eyebrow text-primary">Support Better Giving</p>
+          <h2 id="donate-heading" className="section-heading mt-4 max-w-2xl">
+            Free for nonprofits{" "}
+            <em className="text-primary">isn't free to run</em>
+          </h2>
+          <p className="mt-5 text-lg/relaxed text-gray-11 text-pretty max-w-2xl">
+            Better Giving is a 501(c)(3) nonprofit. Donations here pay for the
+            servers, the support, and the engineering behind tools nonprofits
+            never get billed for.
+          </p>
+        </div>
         <Steps
           {...donate_mount}
           base_url={base_url}
-          classes="mt-11 max-w-2xl rounded border shadow-lift-card"
+          classes="mt-12 md:mt-16 max-w-2xl rounded border shadow-lift-card"
         />
       </div>
     </section>

@@ -10,35 +10,44 @@ interface IVolunteer {
 export function Volunteer({ classes = "" }: IVolunteer) {
   return (
     <section className={classes} aria-labelledby="volunteer-heading">
-      <div className="page grid gap-14 lg:grid-cols-[0.95fr_1.05fr] items-center">
-        <Image
-          src={laira_cheering}
-          width={340}
-          alt="Laira celebrating"
-          className="w-full max-w-xs justify-self-center max-lg:order-2"
-        />
-        <div className="grid gap-4 justify-items-start">
-          <p className="text-xs font-bold uppercase tracking-wider text-primary">
-            Who runs this?
-          </p>
-          <h2 id="volunteer-heading" className="section-heading">
-            Volunteers. No investors. No salaries to protect.
-          </h2>
-          <p className="text-gray-11 leading-relaxed text-pretty">
-            Better Giving is run by volunteers from across the nonprofit and
-            technology worlds, people who build, maintain, and support the
-            commons because they believe nonprofits deserve better financial
-            infrastructure. There's no venture capital to satisfy and no revenue
-            target to hit, which is exactly why we can promise free forever and
-            mean it.
-          </p>
-          <p className="text-gray-11 leading-relaxed text-pretty">
-            Want to lend your skills (code, design, writing, nonprofit
-            expertise)? We'd love to have you.
-          </p>
+      <div className="page grid gap-14 lg:gap-20 lg:grid-cols-[0.9fr_1.1fr] items-center">
+        <div className="relative isolate grid place-items-center max-lg:order-2">
+          <span
+            className="absolute -z-10 size-64 md:size-80 rounded-full bg-band"
+            aria-hidden
+          />
+          <Image
+            src={laira_cheering}
+            width={340}
+            alt="Laira celebrating"
+            className="w-56 md:w-72 h-auto"
+          />
+        </div>
+        <div className="grid justify-items-start max-w-prose">
+          <div className="reveal grid gap-4">
+            <p className="eyebrow text-primary">Who runs this?</p>
+            <h2 id="volunteer-heading" className="section-heading">
+              Volunteers. No investors.{" "}
+              <em className="text-primary">No salaries to protect.</em>
+            </h2>
+          </div>
+          <div className="mt-8 grid gap-5 text-lg/relaxed text-gray-11 text-pretty">
+            <p>
+              Better Giving is run by volunteers from across the nonprofit and
+              technology worlds, people who build, maintain, and support the
+              commons because they believe nonprofits deserve better financial
+              infrastructure. There's no venture capital to satisfy and no
+              revenue target to hit, which is exactly why we can promise free
+              forever and mean it.
+            </p>
+            <p>
+              Want to lend your skills (code, design, writing, nonprofit
+              expertise)? We'd love to have you.
+            </p>
+          </div>
           <a
             href={`mailto:${EMAILS.support}`}
-            className="inline-flex items-center gap-1.5 font-bold link"
+            className="mt-8 inline-flex items-center gap-1.5 text-lg font-bold link"
           >
             Volunteer with us
             <ArrowRight className="icon-md" />

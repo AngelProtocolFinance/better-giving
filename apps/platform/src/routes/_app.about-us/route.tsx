@@ -3,6 +3,8 @@ import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import type { Route } from "./+types/route";
 import { Donate } from "./donate";
+import { FounderQuote } from "./founder-quote";
+import { Hero } from "./hero";
 import { Manifesto } from "./manifesto";
 import { UnderdogLetter } from "./underdog-letter";
 import { Values } from "./values";
@@ -30,54 +32,19 @@ export const meta: Route.MetaFunction = () =>
 export default function Page({ loaderData }: Route.ComponentProps) {
   return (
     <main>
-      <div className="bg-linear-to-b from-background to-band pt-20 pb-20 text-center">
-        <div className="page">
-          <p className="text-xs font-bold uppercase tracking-wider text-primary">
-            About Better Giving
-          </p>
-          <h1 className="hero-heading mt-4 max-w-4xl mx-auto">
-            A nonprofit whose mission is your mission's money
-          </h1>
-          <p className="mt-5 text-lg text-gray-11 max-w-2xl mx-auto text-pretty">
-            Since 2021, we've helped 210+ nonprofits worldwide raise over $6M,
-            with free tools, shared growth, and a simple belief: the
-            organizations doing the work should keep the money.
-          </p>
-        </div>
-      </div>
-
-      <div className="surface-primary py-24">
-        <div className="page">
-          <div className="max-w-3xl mx-auto grid justify-items-center gap-5 text-center">
-            <span
-              className="text-6xl/none font-bold text-secondary h-9"
-              aria-hidden
-            >
-              “
-            </span>
-            <p className="text-2xl md:text-3xl/normal font-medium text-pretty">
-              We believe a new model of philanthropy is possible, not based on
-              scarcity and dependence, but on abundance and financial
-              self-sufficiency.
-            </p>
-            <span className="text-primary-fg/90">
-              Chauncey St. John - Founder &amp; Executive Director
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <UnderdogLetter classes="py-24" />
-      <Manifesto classes="bg-band py-24" />
-      <Volunteer classes="py-24" />
-      <Values classes="bg-band py-24" />
+      <Hero />
+      <FounderQuote classes="surface-deep py-24 md:py-32" />
+      <UnderdogLetter classes="py-24 md:py-32" />
+      <Manifesto classes="bg-band py-24 md:py-32" />
+      <Volunteer classes="py-24 md:py-32" />
+      <Values classes="bg-band py-24 md:py-32" />
 
       <CtaBand
         title="Build the commons with us"
         subtitle="Join as a member, contribute as a volunteer, or just read the code. Every door is open."
       />
 
-      <Donate base_url={loaderData.base_url} classes="bg-band py-24" />
+      <Donate base_url={loaderData.base_url} classes="bg-band py-24 md:py-32" />
     </main>
   );
 }
