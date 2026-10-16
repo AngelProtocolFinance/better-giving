@@ -28,7 +28,7 @@ const clause = (root: HTMLElement, n: number, letter: string) =>
   ).trim();
 
 const CUT_OFF =
-  "Sections 4(g), 4(h) and 4(j), and Section 4(i) as it applies to Recovery Amounts, apply only to donations made on or after the later of (i) 12:00 a.m. Eastern Time (America/New_York) on October 18, 2026 and (ii) the date these Terms take effect under Section 9(d). A donation is “made” when the Donor’s payment is authorized or, for securities, cryptocurrency or other digital assets, when Better Giving receives the asset. The terms “Reversed Donation” and “Recovery Amount” defined in Section 4(g) apply throughout Section 4.";
+  "Sections 4(g), 4(h) and 4(j), and Section 4(i) as it applies to Recovery Amounts, apply only to donations made on or after the later of (i) 12:00 a.m. Eastern Time (America/New_York) on October 23, 2026 and (ii) the date these Terms take effect under Section 9(d). A donation is “made” when the Donor’s payment is authorized or, for securities, cryptocurrency or other digital assets, when Better Giving receives the asset. The terms “Reversed Donation” and “Recovery Amount” defined in Section 4(g) apply throughout Section 4.";
 
 describe("nonprofit terms", () => {
   test("carry the recovery items in Receiving Grants, before Fees, under the effective date", async () => {
@@ -36,7 +36,7 @@ describe("nonprofit terms", () => {
 
     await expect
       .element(
-        screen.getByText("Effective October 18, 2026", {
+        screen.getByText("Effective October 23, 2026", {
           exact: true,
         })
       )

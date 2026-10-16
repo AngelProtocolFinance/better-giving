@@ -19,13 +19,14 @@ test("placeholders and the service footer survive rendering", async () => {
 
   assert.equal(
     subject,
-    "Updates to the Better Giving Terms for Nonprofits – effective [EFFECTIVE DATE]"
+    "Updates to the Better Giving Terms for Nonprofits – effective October 23, 2026"
   );
   assert.equal(text, plain_body);
 
   for (const file of [html, text]) {
     assert.equal(count(file, "{{npo_name}}"), 2);
-    assert.ok(file.includes("[EFFECTIVE DATE]"));
+    assert.equal(count(file, "[EFFECTIVE DATE]"), 0);
+    assert.ok(file.includes("October 23, 2026"));
     assert.ok(file.includes("[TERMS URL]"));
     assert.ok(file.includes("[SUPPORT EMAIL]"));
     assert.ok(
@@ -42,6 +43,7 @@ test("placeholders and the service footer survive rendering", async () => {
 
   assert.equal(count(text, "[TERMS URL]"), 1);
   assert.equal(count(text, "[SUPPORT EMAIL]"), 1);
+  assert.equal(count(text, "October 23, 2026"), 4);
   assert.equal(readFileSync(html_path, "utf8"), html);
   assert.equal(readFileSync(text_path, "utf8"), text);
 });

@@ -9,7 +9,7 @@ import {
 
 describe("terms_effective_at", () => {
   test("a date in daylight time is midnight four hours behind utc", () => {
-    expect(terms_effective_at("2026-10-18")).toBe("2026-10-18T04:00:00.000Z");
+    expect(terms_effective_at("2026-10-23")).toBe("2026-10-23T04:00:00.000Z");
   });
 
   test("the shipped date's instant reads as midnight in New York on that date", () => {
@@ -39,14 +39,14 @@ describe("terms_effective_at", () => {
 
 describe("terms_recovery_at", () => {
   test("a posting whose seventh day is later than the fixed date uses that day", () => {
-    expect(terms_recovery_at("2026-10-18", "2026-10-15")).toBe(
-      "2026-10-22T04:00:00.000Z"
+    expect(terms_recovery_at("2026-09-18", "2026-09-15")).toBe(
+      "2026-09-22T04:00:00.000Z"
     );
   });
 
   test("the fixed date wins when seven days after posting is sooner", () => {
-    expect(terms_recovery_at("2026-10-18", "2026-10-01")).toBe(
-      "2026-10-18T04:00:00.000Z"
+    expect(terms_recovery_at("2026-09-18", "2026-09-01")).toBe(
+      "2026-09-18T04:00:00.000Z"
     );
   });
 
@@ -59,10 +59,11 @@ describe("terms_recovery_at", () => {
     );
   });
 
-  test("the shipped posting is seven days that land after the fixed date", () => {
+  test("the shipped posting's seventh day is midnight in New York on the fixed date", () => {
     const at = terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
 
-    expect(at! > terms_effective_at(TERMS_EFFECTIVE)!).toBe(true);
+    expect(at).toBe(terms_effective_at(TERMS_EFFECTIVE));
+    expect(at).toBe("2026-10-23T04:00:00.000Z");
   });
 
   test("an unparsable fixed date reaches nobody", () => {

@@ -71,8 +71,8 @@ const { PAID_GRANT, clear_card_gifts, seed_card_gift } = await import(
 );
 const { seed_user } = await import("#/__tests__/fixtures/funds");
 
-/** after the terms' recovery right (2026-10-18), so the row reaches its npo */
-const GIFT_AT = "2026-10-20T16:00:00.000Z";
+/** after the terms' recovery right (2026-10-23), so the row reaches its npo */
+const GIFT_AT = "2026-10-23T16:00:00.000Z";
 const GIFT_DAY = to_utc_day(GIFT_AT);
 const OPENED_UNIX = 1_790_000_000;
 const CLOSED_UNIX = OPENED_UNIX + 40 * 86_400;
