@@ -15,6 +15,7 @@ import {
   connect_start_href,
   type IConnectCardData,
 } from "@/stripe-connect/card-data";
+import { stripe as stripe_env } from "$/env";
 import { account_status_live } from "$/stripe-connect/sync";
 import type { Route } from "./+types/route";
 import { form_buttons } from "./form-buttons";
@@ -25,13 +26,19 @@ const reg_step = step_loader(4);
 export const loader = async (args: Route.LoaderArgs) => {
   const reg = await reg_step(args);
   if (reg instanceof Response) return reg;
+  const connect_routing = stripe_env.connect_routing;
   const acct = reg.o_stripe_account_id;
   const stripe: IConnectCardData = {
-    status: acct ? await account_status_live(acct) : "not_connected",
+    status:
+      connect_routing && acct
+        ? await account_status_live(acct)
+        : "not_connected",
     start_href: connect_start_href({ kind: "reg", reg_id: reg.id }),
-    notice: connect_notice(new URL(args.request.url)),
+    ...(connect_routing && {
+      notice: connect_notice(new URL(args.request.url)),
+    }),
   };
-  return { ...reg, stripe };
+  return { ...reg, stripe, connect_routing };
 };
 export const action = update_action(next_step[4]);
 
@@ -42,10 +49,10 @@ export default function Page({ loaderData: reg }: Route.ComponentProps) {
   const back = before_banking(reg.o_type);
   // stable identity — BankDetails renders it as a component
   const FormButtons = useMemo(() => form_buttons(back), [back]);
-  use_strip_connect_params(!!reg.stripe.notice);
-  const stripe_card = (
+  use_strip_connect_params(reg.connect_routing && !!reg.stripe.notice);
+  const stripe_card = reg.connect_routing ? (
     <StripeConnectCard {...reg.stripe} classes="self-stretch mb-8" />
-  );
+  ) : null;
 
   const submit: OnSubmit = async (recipient, bank_statement) => {
     const update: TRegUpdate = {

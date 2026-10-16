@@ -13,6 +13,7 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const cfg = vi.hoisted(() => ({
   client_id: "ca_TestOnly000000" as string | undefined,
+  routing: true,
 }));
 const retrieve = vi.hoisted(() => vi.fn());
 const token = vi.hoisted(() => vi.fn());
@@ -40,7 +41,11 @@ vi.mock("$/env", async (orig) => {
   return {
     ...real,
     get stripe() {
-      return { ...real.stripe, connect_client_id: cfg.client_id };
+      return {
+        ...real.stripe,
+        connect_client_id: cfg.client_id,
+        connect_routing: cfg.routing,
+      };
     },
   };
 });
@@ -120,6 +125,7 @@ afterAll(async () => {
 beforeEach(() => {
   session.user = undefined;
   cfg.client_id = "ca_TestOnly000000";
+  cfg.routing = true;
   retrieve.mockReset();
   retrieve.mockImplementation(async (id: string) => ({
     id,
@@ -146,6 +152,19 @@ const state_of = (res: Response) => {
 };
 
 describe("stripe connect start", () => {
+  test("refuses while routing is off", async () => {
+    cfg.routing = false;
+
+    const unsigned = await call("kind=npo&npo_id=1");
+    expect(unsigned.status).toBe(404);
+    expect(unsigned.headers.get("location")).toBeNull();
+
+    const { npo } = await member_of_npo("start-off");
+    const res = await call(`kind=npo&npo_id=${npo.id}`);
+    expect(res.status).toBe(404);
+    expect(res.headers.get("location")).toBeNull();
+  });
+
   test("no session goes to sign in, coming back here", async () => {
     const res = await call("kind=npo&npo_id=1");
 

@@ -16,8 +16,8 @@ export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Page);
 function Page({ loaderData }: Route.ComponentProps) {
-  const { methods, stripe } = loaderData;
-  use_strip_connect_params(!!stripe.notice);
+  const { methods, stripe, connect_routing } = loaderData;
+  use_strip_connect_params(connect_routing && !!stripe.notice);
 
   return (
     <div className="px-6 py-4 md:px-10 md:py-8">
@@ -28,7 +28,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           <span>New</span>
         </NavLink>
       </div>
-      <StripeConnectCard {...stripe} classes="mb-8" />
+      {connect_routing && <StripeConnectCard {...stripe} classes="mb-8" />}
 
       {methods.length === 0 ? (
         <EmptyState>No payout methods yet</EmptyState>

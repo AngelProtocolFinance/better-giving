@@ -16,6 +16,7 @@ const target_query = v.variant("kind", [
 ]);
 
 export async function loader({ request }: Route.LoaderArgs) {
+  if (!stripe_env.connect_routing) return resp.status(404);
   const { user } = await get_session(request);
   if (!user) return to_auth(request);
   const client_id = stripe_env.connect_client_id;
