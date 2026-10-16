@@ -74,23 +74,12 @@ interface IPlanCard {
 function Plan({ plan, featured, order }: IPlanCard) {
   return (
     <li
-      className={`${featured ? "surface-deep rounded p-6 shadow-lift-cta relative" : "card-on-band"} reveal grid gap-6 md:row-span-4 md:grid-rows-subgrid`}
+      className={`${featured ? "surface-deep rounded p-6 md:p-8" : "tile"} reveal grid gap-6 md:row-span-4 md:grid-rows-subgrid`}
       style={{ "--reveal-order": order } as CSSProperties}
     >
-      {featured ? (
-        <>
-          <div
-            className="absolute inset-0 rounded dot-grid dot-grid-fade"
-            aria-hidden
-          />
-          <span className="absolute -top-3 left-6 eyebrow text-amber-6 rounded-full border bg-primary-deep px-3 py-1">
-            Free forever
-          </span>
-        </>
-      ) : null}
-      <h2 className="relative text-lg font-bold">{plan.name}</h2>
+      <h2 className="text-lg font-bold">{plan.name}</h2>
 
-      <p className="relative flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="display-figure text-6xl md:text-7xl">
           {plan.figure}
         </span>
@@ -102,7 +91,7 @@ function Plan({ plan, featured, order }: IPlanCard) {
       </p>
 
       <ul
-        className={`relative grid content-start gap-3 border-t pt-6 text-sm/relaxed ${featured ? "" : "text-gray-12"}`}
+        className={`grid content-start gap-3 text-sm/relaxed ${featured ? "" : "text-gray-12"}`}
       >
         {plan.points.map((point) => (
           <li key={point} className="flex gap-3">
@@ -117,10 +106,7 @@ function Plan({ plan, featured, order }: IPlanCard) {
         ))}
       </ul>
 
-      <Link
-        to={plan.cta.to}
-        className="relative btn btn-lg btn-secondary self-end"
-      >
+      <Link to={plan.cta.to} className="btn btn-lg btn-secondary self-end">
         {plan.cta.label}
       </Link>
     </li>

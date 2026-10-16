@@ -15,10 +15,8 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
       <div className="page grid gap-14 lg:gap-20 lg:grid-cols-2 items-center">
         <div className="grid gap-5 content-start">
           <div className="grid gap-5 reveal">
-            <p className="eyebrow text-primary">Grow your funds</p>
             <h2 id="grow-funds-heading" className="section-heading">
-              {"This quarter's gifts, "}
-              <em className="text-primary">next decade's reserves</em>
+              This quarter's gifts, next decade's reserves
             </h2>
             <p className="text-gray-11 text-lg text-pretty">
               Route any share of your donations into two places money grows:
@@ -49,7 +47,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           </p>
         </div>
 
-        <figure className="card shadow-lift-card grid gap-8 reveal">
+        <figure className="grid gap-8 reveal">
           <figcaption className="text-lg font-bold text-center">
             Sustainability Fund target allocation
           </figcaption>
@@ -73,18 +71,15 @@ interface IFundOption {
 function FundOption({ icon, title, order, children }: IFundOption) {
   return (
     <div
-      className="card flex gap-4 items-start reveal"
+      className="tile flex gap-5 items-start reveal"
       style={reveal_order(order)}
     >
-      <span
-        className="flex-none size-11 rounded-full bg-secondary text-primary grid place-items-center"
-        aria-hidden
-      >
+      <span className="flex-none text-primary" aria-hidden>
         {icon}
       </span>
       <div className="grid gap-1">
-        <h3 className="font-bold">{title}</h3>
-        <p className="text-sm/relaxed text-gray-11">{children}</p>
+        <h3 className="text-lg font-bold">{title}</h3>
+        <p className="text-base/relaxed text-gray-11">{children}</p>
       </div>
     </div>
   );

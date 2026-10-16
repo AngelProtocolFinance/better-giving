@@ -12,7 +12,7 @@ export function WhoPays({ classes = "" }: IWhoPays) {
         <div className="grid gap-8 justify-items-start">
           <div className="reveal grid gap-5">
             <h2 id="who-pays-heading" className="section-heading max-w-xl">
-              So who <em className="text-primary">pays</em> for all this?
+              So who pays for all this?
             </h2>
             <p className="text-lg/relaxed text-gray-11 text-pretty max-w-xl">
               Donors do, voluntarily. At checkout, donors can add an optional
@@ -26,7 +26,7 @@ export function WhoPays({ classes = "" }: IWhoPays) {
             </p>
           </div>
           <div
-            className="reveal card flex gap-4 max-w-xl"
+            className="reveal tile flex gap-4 max-w-xl"
             style={{ "--reveal-order": 1 } as CSSProperties}
           >
             <Info aria-hidden className="icon-lg mt-0.5 text-primary" />
@@ -64,7 +64,7 @@ function Receipt() {
     <div
       role="img"
       aria-label="Illustrative receipt: on a $100 donation, platform, fund-management, setup and exit fees are all $0.00, and 100% is granted to the nonprofit."
-      className="reveal w-full max-w-sm justify-self-center lg:justify-self-end lg:rotate-1 shadow-lift-media"
+      className="reveal w-full max-w-sm justify-self-center lg:justify-self-end"
     >
       <div
         aria-hidden

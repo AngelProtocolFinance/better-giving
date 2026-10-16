@@ -100,13 +100,6 @@ const gift_icons = [
   Coins,
 ];
 
-// the CTA is the tile's one link, and its hit area is the whole tile (the
-// stretched `after:` box below), so the lift promises only what a click does.
-// it answers a pointer over the tile and a keyboard user landing on the CTA
-// alike.
-const lift =
-  "transition duration-base hover:-translate-y-0.5 hover:shadow-lift-card has-focus-visible:-translate-y-0.5 has-focus-visible:shadow-lift-card";
-
 interface IPillars {
   classes?: string;
 }
@@ -115,12 +108,8 @@ export function Pillars({ classes = "" }: IPillars) {
   return (
     <section className={classes} aria-labelledby="pillars-heading">
       <div className="page">
-        <h2
-          id="pillars-heading"
-          className="section-heading text-center max-w-2xl mx-auto reveal"
-        >
-          {"Everything a nonprofit needs to raise, keep, and "}
-          <em className="text-primary">grow</em>
+        <h2 id="pillars-heading" className="section-heading max-w-3xl reveal">
+          Everything a nonprofit needs to raise, keep, and grow
         </h2>
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 mt-12 md:mt-16">
           {pillars.map((p) => (
@@ -140,21 +129,21 @@ function Tile({ pillar: p }: ITile) {
   const on_brand = p.art === "code";
   return (
     <div
-      className={`${on_brand ? "surface-primary rounded p-6" : "card-on-band"} reveal relative isolate overflow-hidden grid gap-8 content-between ${lift} ${p.span}`}
+      className={`${on_brand ? "surface-primary rounded p-6 md:p-8" : "tile"} group reveal relative isolate overflow-hidden grid gap-8 content-between ${p.span}`}
       style={{ "--reveal-order": p.order } as React.CSSProperties}
     >
       {p.art === "map" ? <MapArt /> : null}
-      {on_brand ? (
-        <div
-          className="absolute inset-0 -z-10 dot-grid dot-grid-fade"
-          aria-hidden
-        />
-      ) : null}
       {p.art === "form" || p.art === "map" ? null : <Art kind={p.art} />}
       <div
         className={`grid gap-2.5 content-start ${p.art === "map" ? "md:max-w-sm" : ""}`}
       >
-        <h3 className="text-xl font-bold">{p.title}</h3>
+        {/* the linked tile's hover: the title takes the link ink. not on the
+            brand fill, where that ink is the ground */}
+        <h3
+          className={`text-xl font-bold ${on_brand ? "" : "transition-colors duration-base group-hover:text-primary"}`}
+        >
+          {p.title}
+        </h3>
         <p
           className={`text-sm/relaxed ${on_brand ? "text-primary-fg/90" : "text-gray-11"}`}
         >
@@ -169,7 +158,7 @@ function Tile({ pillar: p }: ITile) {
           className={`justify-self-start inline-flex items-center gap-1.5 font-bold text-sm pt-2 after:absolute after:inset-0 ${on_brand ? "hover:underline" : "link"}`}
         >
           {p.cta}
-          <ArrowRight className="icon-md" />
+          <ArrowRight className="icon-md transition-transform duration-base group-hover:translate-x-0.5" />
         </Link>
       </div>
       {p.art === "form" ? <FormArt /> : null}
@@ -201,7 +190,7 @@ function Art({ kind }: IArt) {
         {gift_icons.map((Icon, i) => (
           <span
             key={i}
-            className="size-10 rounded-full border-2 border-surface bg-secondary text-primary grid place-items-center"
+            className="size-10 rounded-full border-2 border-secondary bg-surface text-primary grid place-items-center"
           >
             <Icon className="icon-lg" />
           </span>
@@ -255,7 +244,7 @@ function MapArt() {
  *  express-pay pill. decorative — the tile's copy carries the claim. */
 function FormArt() {
   return (
-    <div className="card shadow-lift-card grid gap-3" aria-hidden>
+    <div className="rounded bg-surface p-6 grid gap-3" aria-hidden>
       <div className="grid grid-cols-2 rounded-full bg-gray-3 p-1 text-xs font-semibold text-center">
         <span className="rounded-full py-1.5 text-gray-11">One-time</span>
         <span className="rounded-full py-1.5 bg-surface text-gray-12 shadow-track-fill">

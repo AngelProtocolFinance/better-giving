@@ -9,12 +9,11 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
   return (
     <section className={classes} aria-labelledby="own-grow-heading">
       <div className="page">
-        <div className="reveal grid justify-items-center text-center">
-          <p className="eyebrow text-primary">Why we're different</p>
-          <h2 id="own-grow-heading" className="section-heading mt-4 max-w-2xl">
-            Own it. <em className="text-primary">Grow it.</em>
+        <div className="reveal grid gap-5 max-w-3xl">
+          <h2 id="own-grow-heading" className="section-heading">
+            Own it. Grow it.
           </h2>
-          <p className="section-body mt-5 text-gray-11 max-w-3xl">
+          <p className="section-body text-gray-11">
             Most platforms move your money and keep the keys. We built the
             opposite: infrastructure you can own, and reserves that grow.
           </p>
@@ -28,12 +27,10 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
                 both panels' headings and copy stay on one baseline */}
             <div className="relative">
               <h3 className="subsection-heading">Own it.</h3>
-              <span
+              <CodeXml
                 aria-hidden="true"
-                className="absolute right-0 top-1/2 -translate-y-1/2 flex-center size-10 rounded border text-amber-6"
-              >
-                <CodeXml className="icon-2xl" />
-              </span>
+                className="absolute right-0 top-1/2 -translate-y-1/2 icon-2xl text-amber-6"
+              />
             </div>
             <p className="text-base/relaxed md:text-lg/relaxed text-blue-5 text-pretty">
               Our whole stack is open source: trust you can verify in code, not

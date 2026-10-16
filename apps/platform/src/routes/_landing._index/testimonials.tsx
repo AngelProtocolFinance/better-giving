@@ -27,10 +27,7 @@ export function Testimonials({ classes = "" }: ITestimonials) {
   return (
     <section className={classes} aria-labelledby="testimonials-heading">
       <div className="page">
-        <h2
-          id="testimonials-heading"
-          className="section-heading text-center reveal"
-        >
+        <h2 id="testimonials-heading" className="section-heading reveal">
           Nonprofits on Better Giving
         </h2>
         <div className="grid gap-16 md:grid-cols-2 md:gap-x-16 lg:gap-x-24 mt-14 md:mt-20">
@@ -40,12 +37,6 @@ export function Testimonials({ classes = "" }: ITestimonials) {
               className="flex flex-col gap-6 reveal"
               style={{ "--reveal-order": i } as React.CSSProperties}
             >
-              <span
-                className="display-figure text-7xl text-primary h-7"
-                aria-hidden
-              >
-                “
-              </span>
               <blockquote className="display-quote">{q.quote}</blockquote>
               <figcaption className="flex items-center gap-4 mt-auto pt-4">
                 <img

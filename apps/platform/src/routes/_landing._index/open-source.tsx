@@ -22,18 +22,12 @@ interface IOpenSource {
 
 export function OpenSource({ classes = "" }: IOpenSource) {
   return (
-    <section
-      className={`${classes} relative overflow-hidden`}
-      aria-labelledby="open-source-heading"
-    >
-      <div className="absolute inset-0 dot-grid dot-grid-fade" aria-hidden />
-      <div className="page relative grid gap-14 lg:gap-20 lg:grid-cols-[1.1fr_0.9fr] items-center">
+    <section className={classes} aria-labelledby="open-source-heading">
+      <div className="page grid gap-14 lg:gap-20 lg:grid-cols-[1.1fr_0.9fr] items-center">
         <div className="grid gap-5 justify-items-start">
           <div className="grid gap-5 reveal">
-            <p className="eyebrow text-amber-6">Open source</p>
             <h2 id="open-source-heading" className="section-heading">
-              {"Don't take our word for it. "}
-              <em className="text-amber-6">Read the code.</em>
+              Don't take our word for it. Read the code.
             </h2>
             <p className="text-blue-5 text-lg/relaxed text-pretty max-w-xl">
               Every part of Better Giving is public: the donation form, the

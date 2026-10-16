@@ -7,19 +7,16 @@ import laira3 from "#/assets/laira/laira3.webp";
 const steps = [
   {
     img: laira1,
-    step: "01",
     title: "Sign up",
     body: "Register free in minutes. No fees, no contracts. You're a Member from day one.",
   },
   {
     img: laira2,
-    step: "02",
     title: "Add the donation form",
     body: "Brand it and embed it on your site. Fewer clicks and express checkout mean more completed gifts and monthly donors.",
   },
   {
     img: laira3,
-    step: "03",
     title: "Grow",
     body: "Get payouts within 5 working days, or route a share into savings and the Sustainability Fund.",
   },
@@ -33,51 +30,28 @@ export function Steps({ classes = "" }: ISteps) {
   return (
     <section className={classes} aria-labelledby="steps-heading">
       <div className="page">
-        <h2 id="steps-heading" className="section-heading text-center reveal">
-          Easy as <em className="text-primary">1-2-3</em>
+        <h2 id="steps-heading" className="section-heading reveal">
+          Easy as 1-2-3
         </h2>
-        <div className="relative mt-16 md:mt-20">
-          {/* the md+ connector, from the first medallion's centre to the
-              last's; each medallion's own fill hides the line behind it */}
-          <span
-            aria-hidden="true"
-            className="absolute top-14 left-1/6 right-1/6 border-t-2 border-dashed border-gray-7 max-md:hidden"
-          />
-          <ol className="grid gap-12 md:grid-cols-3 md:gap-8">
-            {steps.map((s, i) => (
-              <li
-                key={s.step}
-                className="reveal relative grid content-start grid-cols-[auto_1fr] gap-x-6 md:grid-cols-1 md:justify-items-center md:text-center"
-                style={{ "--reveal-order": i } as CSSProperties}
-              >
-                {/* below md the connector runs down the medallion column, one
-                  segment per gap: centre of this medallion to the next's */}
-                {i < steps.length - 1 && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-10 top-10 -bottom-22 border-l-2 border-dashed border-gray-7 md:hidden"
-                  />
-                )}
-                <div className="relative row-span-2 md:row-span-1">
-                  <span className="relative flex-center size-20 md:size-28 rounded-full border bg-surface display-figure text-4xl md:text-6xl text-primary">
-                    {s.step}
-                  </span>
-                  <Image
-                    src={s.img}
-                    alt=""
-                    className="absolute -right-16 -bottom-3 h-24 w-auto max-md:hidden"
-                  />
-                </div>
-                <h3 className="text-2xl font-bold text-balance self-center md:self-auto md:mt-8">
-                  {s.title}
-                </h3>
-                <p className="mt-2 text-base/relaxed text-gray-11 text-pretty max-w-80">
-                  {s.body}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </div>
+        <ol className="grid gap-5 md:grid-cols-3 mt-12 md:mt-16">
+          {steps.map((s, i) => (
+            <li
+              key={s.title}
+              className="tile reveal grid content-start gap-x-5 gap-y-3 max-md:grid-cols-[auto_1fr]"
+              style={{ "--reveal-order": i } as CSSProperties}
+            >
+              <Image
+                src={s.img}
+                alt=""
+                className="h-20 md:h-28 w-auto max-md:row-span-2 md:mb-5"
+              />
+              <h3 className="subsection-heading">{s.title}</h3>
+              <p className="text-base/relaxed text-gray-11 text-pretty">
+                {s.body}
+              </p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

@@ -62,9 +62,6 @@ export default function Page() {
       <Hero />
       <div className="pt-16 md:pt-20 pb-8 md:pb-12">
         <TrustBar classes="pb-10 md:pb-12" />
-        <div className="page">
-          <hr className="border-gray-6" />
-        </div>
         <PartnersStrip />
       </div>
       <Steps classes="bg-band py-24 md:py-32" />

@@ -1830,6 +1830,33 @@ dialog footer's tinted surface included.
 - **`actions-band` is the only place a `bg-gray-3 border-t` strip is authored.**
   The sweep fails on any other class string carrying both.
 
+## Marketing house rules
+
+Decided 2026-10-16, after a pass against the house rules of tasteskill v2
+(`Leonxlnx/taste-skill`, `skills/taste-skill/SKILL.md` → *House rules*). They
+govern the public marketing pages (the `_landing.*` routes, `_app.about-us`,
+`_app.product`, `pages/@sections/`, and the marketing header, banner and
+footer) and nothing in the product UI. Each removes a device that reads as
+generated; each "instead" is what fills the space.
+
+| Rule | Instead |
+| --- | --- |
+| No styled accent word in a heading: no `<em>`, no second ink, no underline swoosh | One face, one ink. The words carry the emphasis |
+| No eyebrows: no small uppercase label above a heading | Fold the fact into the heading or the first sentence, or drop it |
+| No pill badge above a hero headline, no tag pill on a card | Say it in the supporting sentence, or as a plain sentence-case line |
+| No index numbering (01 / 02 / 03, numeral medallions, dashed connectors) | Order by position and the words; a real `<ol>` underneath |
+| No hairline dividers, no 1px outlined boxes | Space, and a step in tone: the `tile` utility (`--secondary`, no edge) |
+| No shadow on anything at rest (`shadow-lift-*` stays for what floats) | A tone step between surfaces |
+| No gradients and no decorative texture (radial glows, dot grids) | A flat field: page, `--band`, `--secondary`, or `surface-deep` |
+| No glass: no backdrop blur, no translucent bar | An opaque header: wordmark, links, one button |
+| No monospace outside code (the terminal) and printed artefacts (the receipt) | The body face; `figures` where digits align |
+| No hover lift on cards | A linked tile's title takes the link ink; the arrow nudges |
+| Left-aligned by default | At most one centred moment per page |
+
+Not adopted, recorded: the rule's two-line headline cap. The marketing copy is
+final per the design handoff, and several headlines run three lines at desktop
+by their length; shortening them is a copy decision, not a layout one.
+
 ## Two color layers, and the line between them
 
 Not every color in the app lives in this file, and the answer is not "everything

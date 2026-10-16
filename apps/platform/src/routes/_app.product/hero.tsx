@@ -1,8 +1,7 @@
-import { ExtLink, Image } from "@better-giving/ui";
+import { ExtLink } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
 import donation_form from "#/assets/images/donation-form.webp";
-import laira_pointing from "#/assets/laira/laira-pointing.webp";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 interface IHero {
@@ -11,19 +10,12 @@ interface IHero {
 
 export function Hero({ classes = "" }: IHero) {
   return (
-    <div
-      className={`${classes} relative isolate overflow-clip bg-linear-to-b from-background to-band pt-12 pb-24 md:pt-20 md:pb-32`}
-    >
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 -z-10 dot-grid dot-grid-fade"
-      />
+    <div className={`${classes} pt-12 pb-8 md:pt-20 md:pb-12`}>
       <div className="page grid gap-16 lg:gap-12 lg:grid-cols-[11fr_9fr] items-center">
         <div className="grid gap-6 justify-items-start">
-          <p className="eyebrow text-primary">Product</p>
           <h1 className="hero-heading">
-            {"One form that turns visitors into donors, and donors into "}
-            <em className="text-primary">monthly givers</em>
+            One form that turns visitors into donors, and donors into monthly
+            givers
           </h1>
           <p className="text-lg/relaxed md:text-xl/relaxed text-pretty text-gray-11 max-w-xl">
             Brandable, embeddable, and conversion-optimized: fewer clicks,
@@ -33,7 +25,7 @@ export function Hero({ classes = "" }: IHero) {
           <div className="flex max-sm:flex-col max-sm:justify-self-stretch sm:flex-wrap sm:items-center gap-3.5 mt-2">
             <Link
               to={href("/register")}
-              className="group btn btn-lg btn-primary shadow-lift-cta gap-2"
+              className="group btn btn-lg btn-primary gap-2"
             >
               Join free forever
               <ArrowRight
@@ -47,22 +39,14 @@ export function Hero({ classes = "" }: IHero) {
           </div>
         </div>
 
-        <div className="relative w-full max-w-lg justify-self-center lg:justify-self-end">
-          <div className="overflow-hidden rounded border bg-panel shadow-lift-media">
-            <img
-              src={donation_form}
-              width={746}
-              height={540}
-              alt="Better Giving donation form"
-              fetchPriority="high"
-              className="block w-full h-auto"
-            />
-          </div>
-          <Image
-            src={laira_pointing}
-            width={112}
-            alt=""
-            className="absolute -bottom-10 -left-24 -rotate-3 max-lg:hidden"
+        <div className="w-full max-w-lg justify-self-center lg:justify-self-end overflow-hidden rounded border bg-panel">
+          <img
+            src={donation_form}
+            width={746}
+            height={540}
+            alt="Better Giving donation form"
+            fetchPriority="high"
+            className="block w-full h-auto"
           />
         </div>
       </div>

@@ -562,6 +562,17 @@
   @apply bg-surface border rounded p-6;
 }
 
+/* the marketing tile: a filled object with no edge and no lift. the marketing
+   pages separate surfaces by a step in tone, never by a hairline or a shadow
+   (ledger → "Marketing house rules"), and `--secondary` (blue-3) is the first
+   rung that reads as an object on both the page and a band. its inks are
+   measured there: gray-12 body, gray-11 secondary (Lc 71.5). a linked tile
+   does not change fill on hover — its title takes the link ink instead — so
+   no unmeasured hover rung enters the palette. */
+@utility tile {
+  @apply bg-secondary rounded p-6 md:p-8;
+}
+
 /* the card that is the whole of a single-purpose screen — login, signup,
    check-email, and the five password-reset panels each sit alone on an
    otherwise empty page in exactly this shape. not a narrower `page`: that one

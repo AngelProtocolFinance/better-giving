@@ -88,18 +88,14 @@ export function Features({ classes = "" }: IFeatures) {
   return (
     <section className={classes} aria-labelledby="features-heading">
       <div className="page">
-        <h2
-          id="features-heading"
-          className="section-heading text-center max-w-2xl mx-auto reveal"
-        >
-          {"Smarter tools for "}
-          <em className="text-primary">simpler fundraising</em>
+        <h2 id="features-heading" className="section-heading max-w-2xl reveal">
+          Smarter tools for simpler fundraising
         </h2>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-12 md:mt-16">
           {showcase.map((f, i) => (
             <div
               key={f.title}
-              className={`card-on-band grid content-between gap-8 reveal ${f.span}`}
+              className={`tile grid content-between gap-8 reveal ${f.span}`}
               style={{ "--reveal-order": i < 2 ? 0 : 1 } as CSSProperties}
             >
               <div className="grid gap-2 content-start">
@@ -110,17 +106,12 @@ export function Features({ classes = "" }: IFeatures) {
             </div>
           ))}
           <ul
-            className="card-on-band md:col-span-2 grid gap-x-8 gap-y-7 md:grid-cols-2 content-center reveal"
+            className="tile md:col-span-2 grid gap-x-10 gap-y-8 md:grid-cols-2 content-center reveal"
             style={{ "--reveal-order": 1 } as CSSProperties}
           >
             {compact.map(({ title, body, Icon }) => (
               <li key={title} className="grid grid-cols-[auto_1fr] gap-x-4">
-                <span
-                  aria-hidden="true"
-                  className="size-10 rounded-full bg-secondary text-primary grid place-items-center"
-                >
-                  <Icon className="icon-lg" />
-                </span>
+                <Icon aria-hidden="true" className="icon-xl text-primary" />
                 <div className="grid gap-1 content-start">
                   <h3 className="font-bold text-gray-12">{title}</h3>
                   <p className="text-sm/normal text-gray-11">{body}</p>
@@ -139,7 +130,7 @@ export function Features({ classes = "" }: IFeatures) {
 
 function GoalArt() {
   return (
-    <div className="card shadow-lift-card grid gap-4" aria-hidden="true">
+    <div className="rounded bg-surface p-6 grid gap-4" aria-hidden="true">
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-sm font-semibold text-gray-12">
           Spring appeal
@@ -183,7 +174,7 @@ function CurrencyArt() {
 function ReceiptArt() {
   return (
     <div
-      className="card shadow-lift-card grid gap-3 text-sm"
+      className="rounded bg-surface p-6 grid gap-3 text-sm"
       aria-hidden="true"
     >
       <div className="flex items-center gap-2.5">

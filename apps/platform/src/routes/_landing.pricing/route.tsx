@@ -20,17 +20,10 @@ export const meta: Route.MetaFunction = () =>
 export default function Page() {
   return (
     <main>
-      <div className="relative isolate overflow-clip bg-linear-to-b from-background to-band pt-20 pb-16 md:pt-28 md:pb-20 text-center">
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 dot-grid dot-grid-fade"
-        />
-        <div className="page grid justify-items-center">
-          <p className="eyebrow text-primary">Pricing</p>
-          <h1 className="hero-heading mt-5 max-w-4xl">
-            Free. Forever. <em className="text-primary">Really.</em>
-          </h1>
-          <p className="section-body mt-6 text-gray-11 max-w-3xl">
+      <div className="bg-band pt-20 pb-16 md:pt-28 md:pb-20">
+        <div className="page grid gap-6 justify-items-start">
+          <h1 className="hero-heading max-w-4xl">Free. Forever. Really.</h1>
+          <p className="section-body text-gray-11 max-w-3xl">
             Not free-then-paid. Not free-with-gated-features. We're a nonprofit
             like you. We grant out 100% of donations and never take a cut.
           </p>
