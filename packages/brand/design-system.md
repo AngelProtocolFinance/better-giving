@@ -491,16 +491,19 @@ does not).
 
 The same hole this file names elsewhere (*a fill and an ink are only safe
 together if someone measured that combination*) applies to a token mixed with
-its **own** fill. `components/footer/` runs an alpha ladder on `--primary-fg`
-that nobody checked; two uses fall short. Composited over `--primary` and measured:
+its **own** fill. `components/footer/` ran an alpha ladder on `--primary-fg`
+that nobody checked, and two uses fell short. The marketing (`full`) variant and
+its newsletter field have since moved to `surface-deep` and its measured ink set
+(see the `--primary-deep` section); the `minimal` variant is still on
+`--primary` and still spends `/90`. Composited over `--primary` and measured:
 
 | rung | over `--primary` | |
 | --- | --- | --- |
 | `text-primary-fg` | Lc 82.3 | passes Lc 75 body |
-| `text-primary-fg/90` | Lc 71.9 | passes Lc 60: every secondary line in the footer, the nav and legal links (`link_cls` and the legal row), the success message in `newsletter-form.tsx`. **Misses** Lc 75 where it carries body copy: the tagline and the 501(c)(3) line under the logo |
+| `text-primary-fg/90` | Lc 71.9 | passes Lc 60: the minimal footer's socials and legal row. **Misses** Lc 75 where it carries body copy, which was the marketing footer's tagline and 501(c)(3) line, now `text-blue-5` on deep (Lc 79.1) |
 | `text-primary-fg/80` | Lc 62.0 | passes Lc 60, by 2.0. No footer use |
-| `text-primary-fg/50` | Lc 34.6 | the input placeholder in `newsletter-form.tsx`. Clears the Lc 30 a placeholder needs, and no more |
-| `border-primary-fg/20` | **Lc 11.6** | **fails** the Lc 30 of a control boundary: the email field in `newsletter-form.tsx`. `--primary-border` exists for exactly this job at about Lc 61 |
+| `text-primary-fg/50` | Lc 34.6 | clears the Lc 30 a placeholder needs, and no more. Was the placeholder in `newsletter-form.tsx`, now `blue-6` on deep. No live use |
+| `border-primary-fg/20` | **Lc 11.6** | **fails** the Lc 30 of a control boundary. Was the newsletter email field's edge, now `border-blue-8` on deep (Lc 47.3). `--primary-border` exists for this job on `--primary` at about Lc 61 |
 
 **`/80` is the floor for a label or a short message on `--primary`, and only
 full ink holds body copy.** Below `/80` the ladder is decorative only. This is not an authored scale and should not become one by
@@ -616,6 +619,8 @@ spells one rung is the shape the ramp exists to remove.
 | accent ink: eyebrow, one emphasised word | `text-amber-6` | **71.0** | content (60) |
 | focus ring | `--ring` → `--primary-ring` (white) | **99.6** | spot (30) |
 | hairline | `--border` → `blue-11` | **17.3** | hairline (15) |
+| control boundary: a field's edge | `border-blue-8` | **47.3** | spot (30) |
+| placeholder in a field | `placeholder:text-blue-6` | **70.9** | content (60) |
 
 Measured and not taken:
 
@@ -632,8 +637,14 @@ Measured and not taken:
 (gray-6 is Lc 17.4 on the page; this is 17.3): a separator, not a control
 boundary, which is the job `--border` has everywhere but inside
 `surface-primary`. A field drawn on a deep band needs a control boundary (Lc
-30) and has no recorded edge yet: that is a gap to measure when one is built,
-not a step to pick at the call site.
+30), and that edge is **`border-blue-8`, Lc 47.3**: the first step that clears,
+because the ramp falls from it straight to `blue-9` at **Lc 16.5** (and
+`blue-10` 11.0, `blue-11` 17.3). It is the same hex as the page's `--ring`,
+which is harmless here: on the band the ring is rebound to white. The field
+takes no fill (the band shows through, so the edge is measured against the
+band itself) and its placeholder is `blue-6`, the label step. The marketing
+footer's newsletter field is the one site
+(`apps/platform/src/components/footer/newsletter-form.tsx`).
 
 `surface-deep`'s inks are only measured on the **opaque** fill. Over a
 photograph the scrim rules above apply and the muted and accent inks are
@@ -1477,7 +1488,8 @@ The second exemption is a hole rather than a decision. `--primary-fg` on
 `--primary` is where a link on a brand fill starts, and the ladder under it is
 unmeasured. See "`--primary-fg` alpha steps are an unmeasured ladder", whose
 rule is that it must not become an authored scale by accretion. So the sites on
-a brand ground keep what they had: the footer's `/90 → full` step, and a hover
+a brand ground keep what they had: the minimal footer's `/90 → full` step (the
+marketing footer's `blue-5 → white` on deep is two measured inks), and a hover
 underline on the three that carry no second ink. **A hover ink for a brand
 ground is a value someone has to measure**, and until then the recipe covers the
 page and not the band.
@@ -1976,7 +1988,7 @@ Variable**.
 | --- | --- | --- |
 | `--font-display` | Quicksand Variable | every heading `h1`-`h6`, marketing and dashboard alike, and every numeric figure (the `figures` utility) |
 | `--font-body` | Quicksand Variable | everything else: body copy, buttons, forms, tables, labels |
-| `--font-editorial` | Fraunces Variable, Georgia, serif | marketing headlines only, and only through four utilities: `hero-heading`, `section-heading`, `display-figure`, `display-quote` |
+| `--font-editorial` | Fraunces Variable, Georgia, serif | marketing headlines only, and only through five utilities: `hero-heading`, `section-heading`, `subsection-heading`, `display-figure`, `display-quote` |
 | `--font-gochi` | Gochi Hand | the handwritten aside. Six call sites, never decoratively |
 
 **`--font-editorial` is a third role, not the display/body swap the next
@@ -2139,10 +2151,10 @@ the namespace stops the drift growing while it waits.
 
 ### The named type roles
 
-Nine utilities in `packages/ui/src/styles/utilities.css` name a type role, so a
+Ten utilities in `packages/ui/src/styles/utilities.css` name a type role, so a
 call site picks a *role* rather than a step off the ladder. Each is size and
 wrapping only (never color, never spacing) so what the text is on the page
-stays the caller's to say. The four editorial ones also carry the face and a
+stays the caller's to say. The five editorial ones also carry the face and a
 weight, because the face is the role; the weight is
 `var(--tw-font-weight, …)`, so a call site's `font-bold` / `font-medium` still
 wins whatever order the sheet sorts them in.
@@ -2151,6 +2163,7 @@ wins whatever order the sheet sorts them in.
 | --- | --- |
 | `hero-heading` | the one `h1` at the top of a marketing page: the largest type in the product, at most one per page. `text-4xl` → `5xl` → `6xl` (tight) → `7xl` (1) at `xl`; Fraunces 600 |
 | `section-heading` | the `h2` opening a band further down a marketing page; one rung under the hero at every breakpoint so a section never competes with the page title. Fraunces 600 |
+| `subsection-heading` | the `h3` heading a large marketing panel inside a section (the home page's "Own it." / "Grow it." pair); one rung under `section-heading` at every breakpoint, `text-2xl` → `3xl` (tight), so a panel reads as part of its band. Fraunces 600 |
 | `display-figure` | a big marketing numeral (a stat, a step number, a "$0"): Fraunces 600, leading 1, lining + tabular. Size stays the caller's |
 | `display-quote` | a pull quote: Fraunces 400, `text-2xl` → `3xl` at snug leading, `text-pretty` |
 | `section-body` | the standfirst paragraph directly under a `section-heading`: larger than body copy because it is read as part of the heading |

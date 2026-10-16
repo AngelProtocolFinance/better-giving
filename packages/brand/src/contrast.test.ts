@@ -630,6 +630,24 @@ const pairings: Pairing[] = [
     17.3,
     min.hairline
   ),
+  // a field drawn on the band: --border there is the hairline above, so the
+  // control boundary is a call-site step. blue-8 is the first that clears; the
+  // ramp drops from it straight to blue-9's 16.5.
+  p(
+    "blue-8 field edge on --primary-deep",
+    colors.blue_8,
+    colors.primary_deep,
+    47.3,
+    min.spot
+  ),
+  p(
+    "blue-9 field edge on --primary-deep",
+    colors.blue_9,
+    colors.primary_deep,
+    16.5,
+    min.spot,
+    "the step under blue-8, ruled out as a control boundary on the deep fill"
+  ),
   p(
     "blue-5 secondary copy on --primary-deep",
     colors.blue_5,

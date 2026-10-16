@@ -133,16 +133,19 @@ describe("scroll reveal", () => {
 });
 
 describe("editorial face", () => {
-  test("the marketing heading roles read it", async () => {
-    const screen = await render(
-      <h1 data-testid="h" className="hero-heading">
-        Every way to give. <em>Free forever.</em>
-      </h1>
-    );
-    const style = getComputedStyle(screen.getByTestId("h").element());
-    expect(style.fontFamily).toMatch(/^"?Fraunces Variable"?,/);
-    expect(style.fontWeight).toBe("600");
-  });
+  test.each(["hero-heading", "section-heading", "subsection-heading"])(
+    "%s reads it",
+    async (role) => {
+      const screen = await render(
+        <h1 data-testid="h" className={role}>
+          Every way to give. <em>Free forever.</em>
+        </h1>
+      );
+      const style = getComputedStyle(screen.getByTestId("h").element());
+      expect(style.fontFamily).toMatch(/^"?Fraunces Variable"?,/);
+      expect(style.fontWeight).toBe("600");
+    }
+  );
 
   // an <em> in a headline must land on the drawn italic, not a synthesized
   // slant of the roman — so the italic face has to exist and load.

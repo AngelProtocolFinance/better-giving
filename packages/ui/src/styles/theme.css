@@ -154,11 +154,11 @@
 }
 
 /* the editorial face, outside @theme on purpose: a theme key would mint a
-   `font-editorial` utility, and the role is reachable ONLY through the four
+   `font-editorial` utility, and the role is reachable ONLY through the five
    marketing type utilities in ./utilities.css (hero-heading, section-heading,
-   display-figure, display-quote). that is what keeps product ui, dashboards,
-   emails, the pdf export and the embed on Quicksand by construction rather
-   than by review. Fraunces is instanced with its SOFT axis at 100 — rounded
+   subsection-heading, display-figure, display-quote). that is what keeps
+   product ui, dashboards, emails, the pdf export and the embed on Quicksand
+   by construction rather than by review. Fraunces is instanced with its SOFT axis at 100 — rounded
    terminals that agree with the wordmark, the reason the flat-terminal pair
    was rejected (packages/brand/design-system.md → "The face"). */
 :root {

@@ -100,8 +100,10 @@ const gift_icons = [
   Coins,
 ];
 
-// the tile is not the link — its CTA is. the lift answers a pointer over the
-// tile and a keyboard user landing on that CTA alike.
+// the CTA is the tile's one link, and its hit area is the whole tile (the
+// stretched `after:` box below), so the lift promises only what a click does.
+// it answers a pointer over the tile and a keyboard user landing on the CTA
+// alike.
 const lift =
   "transition duration-base hover:-translate-y-0.5 hover:shadow-lift-card has-focus-visible:-translate-y-0.5 has-focus-visible:shadow-lift-card";
 
@@ -138,16 +140,19 @@ function Tile({ pillar: p }: ITile) {
   const on_brand = p.art === "code";
   return (
     <div
-      className={`${on_brand ? "surface-primary rounded p-6" : "card-on-band"} reveal relative overflow-hidden grid gap-8 content-between ${lift} ${p.span}`}
+      className={`${on_brand ? "surface-primary rounded p-6" : "card-on-band"} reveal relative isolate overflow-hidden grid gap-8 content-between ${lift} ${p.span}`}
       style={{ "--reveal-order": p.order } as React.CSSProperties}
     >
       {p.art === "map" ? <MapArt /> : null}
       {on_brand ? (
-        <div className="absolute inset-0 dot-grid dot-grid-fade" aria-hidden />
+        <div
+          className="absolute inset-0 -z-10 dot-grid dot-grid-fade"
+          aria-hidden
+        />
       ) : null}
       {p.art === "form" || p.art === "map" ? null : <Art kind={p.art} />}
       <div
-        className={`relative grid gap-2.5 content-start ${p.art === "map" ? "md:max-w-sm" : ""}`}
+        className={`grid gap-2.5 content-start ${p.art === "map" ? "md:max-w-sm" : ""}`}
       >
         <h3 className="text-xl font-bold">{p.title}</h3>
         <p
@@ -156,10 +161,12 @@ function Tile({ pillar: p }: ITile) {
           {p.body}
         </p>
         {/* on the brand fill the link keeps the fill's contrast ink and its
-            underline hover — the link sweep's one exemption in this file */}
+            underline hover — the link sweep's one exemption in this file.
+            nothing between it and the tile is positioned, so its after: box
+            stretches over the tile itself */}
         <Link
           to={p.to}
-          className={`justify-self-start inline-flex items-center gap-1.5 font-bold text-sm pt-2 ${on_brand ? "hover:underline" : "link"}`}
+          className={`justify-self-start inline-flex items-center gap-1.5 font-bold text-sm pt-2 after:absolute after:inset-0 ${on_brand ? "hover:underline" : "link"}`}
         >
           {p.cta}
           <ArrowRight className="icon-md" />
@@ -186,7 +193,7 @@ function Art({ kind }: IArt) {
     );
   }
   if (kind === "code") {
-    return <Code className="relative pictogram-sm" aria-hidden />;
+    return <Code className="pictogram-sm" aria-hidden />;
   }
   if (kind === "gifts") {
     return (
@@ -232,7 +239,7 @@ function Art({ kind }: IArt) {
 function MapArt() {
   return (
     <div
-      className="absolute inset-0 md:left-1/3 bg-primary max-md:opacity-50"
+      className="absolute inset-0 -z-10 md:left-1/3 bg-primary max-md:opacity-50"
       style={{
         maskImage: `url(${map})`,
         maskSize: "contain",

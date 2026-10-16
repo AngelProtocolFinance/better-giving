@@ -124,7 +124,8 @@ const exempt: Record<string, string[]> = {
   // the contrast-ink ladder on a --primary fill, measured in
   // packages/brand/design-system.md → "`--primary-fg` alpha steps". the ramp
   // carries no second rung for ink on a brand ground, so these three keep the
-  // treatments they have.
+  // treatments they have. the footer's marketing variant is on --primary-deep,
+  // where its hover lands on the same white from the measured `text-blue-5`.
   "apps/platform/src/components/footer/footer.tsx": ["text-primary-fg"],
   "apps/platform/src/components/chrome/announcement-banner.tsx": ["underline"],
   "apps/platform/src/routes/_app.marketplace_.$id/page-error.tsx": [

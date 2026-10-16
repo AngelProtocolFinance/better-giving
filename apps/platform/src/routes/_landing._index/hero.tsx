@@ -15,7 +15,7 @@ import {
 import { href, Link } from "react-router";
 import laira_heart from "#/assets/laira/laira-heart.webp";
 import { BOOK_A_DEMO } from "#/constants/urls";
-import { FormMock } from "./form-mock";
+import { FormMock } from "#/pages/@sections/form-mock";
 
 const gift_types = [
   { name: "Card", Icon: CreditCard },
@@ -28,7 +28,9 @@ const gift_types = [
   { name: "Crypto", Icon: Coins },
 ] as const;
 
-/** each chip's lg anchor around the mock; below lg they sit in a row under it */
+/** each chip's lg anchor around the mock, on the card's empty edges only: two
+ *  straddle the top padding above the header row, one sits under the card
+ *  beside the mock's pause toggle. below lg they sit in a row under it. */
 const chips = [
   {
     label: "$0 platform fees",
@@ -36,14 +38,14 @@ const chips = [
     at: "lg:-left-8 lg:-top-5",
   },
   {
-    label: "Payouts within 5 working days",
-    Icon: Landmark,
-    at: "lg:-right-6 lg:top-2/3",
-  },
-  {
     label: "Recurring giving built in",
     Icon: CalendarSync,
-    at: "lg:-bottom-5 lg:left-24",
+    at: "lg:-right-4 lg:-top-5",
+  },
+  {
+    label: "Payouts within 5 working days",
+    Icon: Landmark,
+    at: "lg:left-8 lg:bottom-0",
   },
 ] as const;
 
@@ -131,7 +133,7 @@ export function Hero({ classes = "" }: IHero) {
             src={laira_heart}
             width={120}
             alt="Laira holding a heart"
-            className="absolute -bottom-12 -left-16 rotate-3 max-lg:hidden"
+            className="absolute -bottom-12 -left-24 rotate-3 max-lg:hidden"
           />
           <ul className="mt-6 flex flex-wrap justify-center gap-2 lg:contents">
             {chips.map(({ label, Icon, at }) => (

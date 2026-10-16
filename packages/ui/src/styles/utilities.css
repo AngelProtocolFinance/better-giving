@@ -593,8 +593,9 @@
    reaching past them means naming a new role here, not spelling a step at the
    call site.
 
-   the four editorial roles (hero-heading, section-heading, display-figure,
-   display-quote) are the only readers of --font-editorial, and they carry a
+   the five editorial roles (hero-heading, section-heading,
+   subsection-heading, display-figure, display-quote) are the only readers of
+   --font-editorial, and they carry a
    face and a weight because the face is the role. the weight is written as
    `var(--tw-font-weight, …)` — the same deferral btn-sm uses for leading — so
    a call site's `font-bold` or `font-medium` wins regardless of which rule
@@ -625,6 +626,16 @@
    hero at every breakpoint so a section never competes with the page's title. */
 @utility section-heading {
   @apply text-3xl/tight md:text-4.5xl/tight text-balance;
+  font-family: var(--font-editorial);
+  font-weight: var(--tw-font-weight, 600);
+}
+
+/* the h3 heading a large marketing panel inside a section — two side-by-side
+   feature panels under one section-heading. one rung under section-heading at
+   every breakpoint, so the panels read as parts of the band, not as bands of
+   their own. */
+@utility subsection-heading {
+  @apply text-2xl/tight md:text-3xl/tight text-balance;
   font-family: var(--font-editorial);
   font-weight: var(--tw-font-weight, 600);
 }

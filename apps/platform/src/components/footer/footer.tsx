@@ -42,7 +42,7 @@ const social_links = [
   { label: "Instagram", url: socials.instagram },
 ] as const;
 
-const link_cls = "text-sm text-primary-fg/90 hover:text-primary-fg";
+const link_cls = "text-sm text-blue-5 hover:text-primary-fg";
 
 export function Footer({ classes = "", variant = "full", width }: Props) {
   const page =
@@ -111,10 +111,12 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
     );
   }
 
+  // full: marketing. surface-deep rather than minimal's fill, because every
+  // marketing page ends in the surface-primary CtaBand and one fill would merge
+  // the two into a block. its inks are the measured deep set — white, and
+  // `text-blue-5` for everything secondary (ledger → `surface-deep`).
   return (
-    <footer
-      className={`${classes} surface-primary border-t border-primary-fg/10 pt-16 pb-10`}
-    >
+    <footer className={`${classes} surface-deep pt-16 pb-10`}>
       <div
         className={`${page} grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.3fr]`}
       >
@@ -122,11 +124,11 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
           <Link to={href("/")} title="Go to Home page">
             <img src={logo_white} alt="Better Giving" className="w-36 h-auto" />
           </Link>
-          <p className="text-sm/relaxed text-primary-fg/90 max-w-70 text-pretty">
+          <p className="text-sm/relaxed text-blue-5 max-w-70 text-pretty">
             A member-powered, open-source fundraising and financial commons for
             nonprofits.
           </p>
-          <p className="text-xs/relaxed text-primary-fg/90">
+          <p className="text-xs/relaxed text-blue-5">
             Better Giving is a 501(c)(3) nonprofit.
             <br />
             EIN {EIN}
@@ -186,7 +188,7 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
               <ExtLink
                 key={s.label}
                 href={s.url}
-                className="text-xs font-medium text-primary-fg/90 hover:text-primary-fg"
+                className="text-xs font-medium text-blue-5 hover:text-primary-fg"
               >
                 {s.label}
               </ExtLink>
@@ -196,9 +198,9 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
       </div>
 
       <div
-        className={`${page} mt-10 pt-5 border-t border-primary-fg/10 flex flex-wrap justify-between gap-x-6 gap-y-2.5`}
+        className={`${page} mt-10 pt-5 border-t flex flex-wrap justify-between gap-x-6 gap-y-2.5`}
       >
-        <span className="text-xs/relaxed text-primary-fg/90 text-pretty">
+        <span className="text-xs/relaxed text-blue-5 text-pretty">
           Past performance of the Sustainability Fund is not indicative of
           future results; all investments carry risk. ©{" "}
           {new Date().getFullYear()} Better Giving.
@@ -206,19 +208,19 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
         <span className="flex gap-4">
           <Link
             to={href("/privacy-policy")}
-            className="text-xs text-primary-fg/90 hover:text-primary-fg"
+            className="text-xs text-blue-5 hover:text-primary-fg"
           >
             Privacy Policy
           </Link>
           <Link
             to={href("/security-policy")}
-            className="text-xs text-primary-fg/90 hover:text-primary-fg"
+            className="text-xs text-blue-5 hover:text-primary-fg"
           >
             Security
           </Link>
           <Link
             to={href("/terms-of-use")}
-            className="text-xs text-primary-fg/90 hover:text-primary-fg"
+            className="text-xs text-blue-5 hover:text-primary-fg"
           >
             Terms of Use
           </Link>

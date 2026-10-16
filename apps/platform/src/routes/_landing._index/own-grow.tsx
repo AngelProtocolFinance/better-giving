@@ -1,4 +1,4 @@
-import { CodeXml, KeyRound } from "lucide-react";
+import { CodeXml } from "lucide-react";
 import type { CSSProperties } from "react";
 
 interface IOwnGrow {
@@ -21,11 +21,20 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
         </div>
         <div className="grid gap-6 md:grid-cols-2 mt-14 md:mt-16">
           <div
-            className="reveal relative overflow-clip rounded surface-deep p-8 md:p-10 grid content-start gap-5"
+            className="reveal rounded surface-deep p-8 md:p-10 grid content-start gap-5"
             style={{ "--reveal-order": 0 } as CSSProperties}
           >
-            <OpenMotif />
-            <h3 className="section-heading">Own it.</h3>
+            {/* the mark is centred on the heading's line and out of flow, so
+                both panels' headings and copy stay on one baseline */}
+            <div className="relative">
+              <h3 className="subsection-heading">Own it.</h3>
+              <span
+                aria-hidden="true"
+                className="absolute right-0 top-1/2 -translate-y-1/2 flex-center size-10 rounded border text-amber-6"
+              >
+                <CodeXml className="icon-2xl" />
+              </span>
+            </div>
             <p className="text-base/relaxed md:text-lg/relaxed text-blue-5 text-pretty">
               Our whole stack is open source: trust you can verify in code, not
               just promises. You own the donor relationship, your data exports
@@ -43,7 +52,7 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
             className="reveal rounded bg-mint text-gray-12 p-8 md:p-10 grid grid-rows-[auto_auto_1fr] gap-5"
             style={{ "--reveal-order": 1 } as CSSProperties}
           >
-            <h3 className="section-heading">Grow it.</h3>
+            <h3 className="subsection-heading">Grow it.</h3>
             <p className="text-base/relaxed md:text-lg/relaxed text-pretty">
               We don't just move money. We help you keep and grow it. Route any
               share of what you raise into FDIC-insured savings (~3-4%) or a
@@ -56,22 +65,6 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
         </div>
       </div>
     </section>
-  );
-}
-
-function OpenMotif() {
-  return (
-    <div
-      aria-hidden="true"
-      className="absolute top-8 right-8 md:top-10 md:right-10 text-amber-6"
-    >
-      <span className="flex-center size-14 rounded border">
-        <CodeXml className="pictogram-sm" />
-      </span>
-      <span className="absolute -left-4 -top-3 flex-center size-9 rounded-full border bg-primary-deep">
-        <KeyRound className="icon-lg" />
-      </span>
-    </div>
   );
 }
 

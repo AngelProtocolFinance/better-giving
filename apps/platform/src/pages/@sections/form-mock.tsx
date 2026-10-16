@@ -6,6 +6,8 @@ import {
   HandCoins,
   Heart,
   Lock,
+  Pause,
+  Play,
 } from "lucide-react";
 import {
   type ReactNode,
@@ -94,10 +96,7 @@ function StockBody() {
       <MockField label="Number of shares">
         <span className="figures">10</span>
       </MockField>
-      <p className="flex gap-2 text-sm text-gray-11">
-        Estimated value
-        <span className="figures font-semibold text-gray-12">~$2,500</span>
-      </p>
+      <p className="text-sm text-gray-11">Value set at transfer</p>
     </div>
   );
 }
@@ -176,11 +175,14 @@ export interface IFormMock {
 /**
  * a token-built illustration of the donation form that cycles its gift types.
  * decorative: the drawing is hidden and inert, a sibling sentence describes it.
+ * the toggle under it is the keyboard and touch path to stopping the motion
+ * (WCAG 2.2.2); hover only holds a face for as long as the pointer stays.
  */
 export function FormMock({ classes = "", interval_ms = 3500 }: IFormMock) {
   const ref = useRef<HTMLDivElement>(null);
   const reduced = use_reduced_motion();
   const [hovered, set_hovered] = useState(false);
+  const [paused, set_paused] = useState(false);
   const [on_screen, set_on_screen] = useState(false);
   const [active, set_active] = useState(0);
 
@@ -194,7 +196,7 @@ export function FormMock({ classes = "", interval_ms = 3500 }: IFormMock) {
     return () => io.disconnect();
   }, []);
 
-  const playing = !reduced && !hovered && on_screen;
+  const playing = !reduced && !paused && !hovered && on_screen;
 
   // rescheduled from the face that landed, so a resume waits a full interval
   useEffect(() => {
@@ -209,7 +211,7 @@ export function FormMock({ classes = "", interval_ms = 3500 }: IFormMock) {
   return (
     <div
       ref={ref}
-      className={classes}
+      className={`${classes} grid gap-3`}
       onPointerEnter={() => set_hovered(true)}
       onPointerLeave={() => set_hovered(false)}
     >
@@ -276,6 +278,21 @@ export function FormMock({ classes = "", interval_ms = 3500 }: IFormMock) {
           ))}
         </span>
       </div>
+      {/* nothing moves under reduced motion, so there is nothing to pause */}
+      {reduced ? null : (
+        <button
+          type="button"
+          onClick={() => set_paused(!paused)}
+          aria-label={paused ? "Play animation" : "Pause animation"}
+          className="btn btn-icon btn-secondary justify-self-end"
+        >
+          {paused ? (
+            <Play aria-hidden="true" className="icon-xl" />
+          ) : (
+            <Pause aria-hidden="true" className="icon-xl" />
+          )}
+        </button>
+      )}
     </div>
   );
 }
