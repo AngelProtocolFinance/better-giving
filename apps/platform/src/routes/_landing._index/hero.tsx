@@ -76,7 +76,7 @@ export function Hero({ classes = "" }: IHero) {
           <h1 className="hero-heading">
             Every way to give.
             <br />
-            One form.{" "}
+            {"One form. "}
             <em className="relative inline-block text-primary">
               Free forever.
               <svg
@@ -143,7 +143,7 @@ export function Hero({ classes = "" }: IHero) {
           <Image
             src={laira_heart}
             width={120}
-            alt="Laira holding a heart"
+            alt=""
             className="absolute -bottom-16 -left-24 rotate-3 max-xl:hidden"
           />
           <ul className="mt-6 flex flex-wrap justify-center gap-2 lg:contents">

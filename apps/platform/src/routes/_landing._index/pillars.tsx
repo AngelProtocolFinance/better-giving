@@ -119,7 +119,7 @@ export function Pillars({ classes = "" }: IPillars) {
           id="pillars-heading"
           className="section-heading text-center max-w-2xl mx-auto reveal"
         >
-          Everything a nonprofit needs to raise, keep, and{" "}
+          {"Everything a nonprofit needs to raise, keep, and "}
           <em className="text-primary">grow</em>
         </h2>
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 mt-12 md:mt-16">

@@ -43,4 +43,29 @@ describe("Accordion", () => {
         .not.toBeVisible();
     }
   );
+
+  test.each([
+    [undefined, 3],
+    [4, 4],
+  ] as const)(
+    "heading_level %s: each trigger sits inside an h%i named by its question",
+    async (heading_level, level) => {
+      const screen = await render(
+        <Accordion items={items} heading_level={heading_level} />
+      );
+      const heading = screen.getByRole("heading", {
+        level,
+        name: "Can I receive a tax receipt?",
+      });
+      await expect.element(heading).toBeVisible();
+      await expect
+        .element(
+          heading.getByRole("button", { name: "Can I receive a tax receipt?" })
+        )
+        .toHaveAttribute("aria-expanded", "false");
+      expect(screen.getByRole("heading", { level }).elements()).toHaveLength(
+        items.length
+      );
+    }
+  );
 });

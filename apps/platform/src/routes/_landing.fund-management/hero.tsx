@@ -22,7 +22,7 @@ export function Hero({ classes = "" }: IHero) {
         <div className="grid gap-6 justify-items-start">
           <p className="eyebrow text-primary">Fund Management</p>
           <h1 className="hero-heading">
-            This quarter's gifts,{" "}
+            {"This quarter's gifts, "}
             <em className="text-primary">next decade's reserves</em>
           </h1>
           <p className="text-lg/relaxed md:text-xl/relaxed text-pretty text-gray-11 max-w-xl">
@@ -54,7 +54,7 @@ export function Hero({ classes = "" }: IHero) {
           <Image
             src={laira_coin}
             width={112}
-            alt="Laira lifting a gold coin"
+            alt=""
             className="absolute -top-14 -right-8 rotate-6 max-lg:hidden"
           />
         </div>

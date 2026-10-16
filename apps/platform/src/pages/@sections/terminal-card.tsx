@@ -2,7 +2,11 @@ import type React from "react";
 import { Children } from "react";
 
 interface ITerminalCard {
+  /** the window title — drawn, not read */
   label: string;
+  /** what the drawing shows: the card is one image to assistive tech, and its
+   *  lines are illustrative, not commands to copy */
+  description: string;
   classes?: string;
   /** reveal the body lines one after another as the card scrolls in */
   sequence?: boolean;
@@ -15,6 +19,7 @@ interface ITerminalCard {
  *  ink and hairlines are `--primary-fg` steps over its own black scrim. */
 export function TerminalCard({
   label,
+  description,
   classes = "",
   sequence = false,
   children,
@@ -24,8 +29,13 @@ export function TerminalCard({
     // card lift's primary-at-5% composites onto primary and paints nothing.
     <div
       className={`${classes} bg-black/25 border border-primary-fg/15 rounded overflow-hidden shadow-lift-media`}
+      role="img"
+      aria-label={description}
     >
-      <div className="flex items-center gap-2 px-5 py-3.5 border-b border-primary-fg/10 bg-black/15">
+      <div
+        className="flex items-center gap-2 px-5 py-3.5 border-b border-primary-fg/10 bg-black/15"
+        aria-hidden
+      >
         <span className="size-3 rounded-full bg-destructive" />
         <span className="size-3 rounded-full bg-warning" />
         <span className="size-3 rounded-full bg-success" />
@@ -36,7 +46,10 @@ export function TerminalCard({
           Public
         </span>
       </div>
-      <div className="px-5 md:px-6 py-5 font-mono text-xs/loose md:text-sm/loose text-primary-fg/75 break-words">
+      <div
+        className="px-5 md:px-6 py-5 font-mono text-xs/loose md:text-sm/loose text-primary-fg/75 break-words"
+        aria-hidden
+      >
         {sequence
           ? Children.toArray(children).map((line, i) => (
               <div

@@ -92,7 +92,7 @@ export function Features({ classes = "" }: IFeatures) {
           id="features-heading"
           className="section-heading text-center max-w-2xl mx-auto reveal"
         >
-          Smarter tools for{" "}
+          {"Smarter tools for "}
           <em className="text-primary">simpler fundraising</em>
         </h2>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-12 md:mt-16">

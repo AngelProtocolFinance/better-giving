@@ -15,7 +15,7 @@ export function UnderdogLetter({ classes = "" }: IUnderdogLetter) {
       <div className="page grid gap-14 lg:gap-20 lg:grid-cols-2 items-center">
         <div className="max-w-prose">
           <h2 id="underdog-heading" className="section-heading reveal">
-            We're not the biggest platform.{" "}
+            {"We're not the biggest platform. "}
             <em className="text-primary">So we try harder.</em>
           </h2>
           <div className="mt-8 grid gap-5 text-lg/relaxed text-gray-11 text-pretty">

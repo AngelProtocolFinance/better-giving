@@ -19,7 +19,7 @@ export function Volunteer({ classes = "" }: IVolunteer) {
           <Image
             src={laira_cheering}
             width={340}
-            alt="Laira celebrating"
+            alt=""
             className="w-56 md:w-72 h-auto"
           />
         </div>
@@ -27,7 +27,7 @@ export function Volunteer({ classes = "" }: IVolunteer) {
           <div className="reveal grid gap-4">
             <p className="eyebrow text-primary">Who runs this?</p>
             <h2 id="volunteer-heading" className="section-heading">
-              Volunteers. No investors.{" "}
+              {"Volunteers. No investors. "}
               <em className="text-primary">No salaries to protect.</em>
             </h2>
           </div>

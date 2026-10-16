@@ -14,6 +14,10 @@ interface Props {
   /** `compact` is a tight list inside a card; `divided` is a padded, ruled
    * list for a page section */
   variant?: "compact" | "divided";
+  /** each trigger sits in a heading of this level, so the questions show up in
+   *  heading navigation; one below the heading that introduces the list
+   *  @default 3 */
+  heading_level?: 2 | 3 | 4;
   /** outer placement only — width, margin */
   className?: string;
 }
@@ -36,20 +40,27 @@ const looks = {
 export function Accordion({
   items,
   variant = "compact",
+  heading_level = 3,
   className = "",
 }: Props) {
   const look = looks[variant];
+  const Heading = `h${heading_level}` as const;
   return (
     <Ark.Root collapsible className={`${look.root} ${className}`}>
       {items.map((it) => (
         <Ark.Item key={it.value} value={it.value} className="group">
-          <Ark.ItemTrigger className={look.trigger}>
-            <span className={look.label}>{it.trigger}</span>
-            <DrawerIcon
-              is_open={false}
-              className="icon-lg shrink-0 group-data-[state=open]:rotate-180"
-            />
-          </Ark.ItemTrigger>
+          {/* the base layer sets every heading in the display face at bold;
+              the trigger's type is its label's, so the heading hands back the
+              body's */}
+          <Heading className="font-body font-normal">
+            <Ark.ItemTrigger className={look.trigger}>
+              <span className={look.label}>{it.trigger}</span>
+              <DrawerIcon
+                is_open={false}
+                className="icon-lg shrink-0 group-data-[state=open]:rotate-180"
+              />
+            </Ark.ItemTrigger>
+          </Heading>
           <Ark.ItemContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
             <div className={look.content}>{it.content}</div>
           </Ark.ItemContent>

@@ -450,7 +450,7 @@
   --z-index-scrim: 40; /* the --overlay a modal lays over the page */
   --z-index-modal: 50; /* dialog, drawer, route-modal — above their own scrim */
   --z-index-floating: 60; /* menu, popup, tooltip, toast — above an open modal */
-  --z-index-top: 100; /* the one step above everything: route-load progress */
+  --z-index-top: 100; /* the one step above everything: route-load progress, and the focused skip link */
 
   /* the speed ladder. three steps, and they are the three values the app and
      the keyframes below already ran at — the ladder names them, it does not

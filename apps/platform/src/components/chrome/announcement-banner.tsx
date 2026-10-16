@@ -33,9 +33,17 @@ export const BANNER_POST_SLUG = "setting-a-new-standard-for-digital-giving";
  * (see PublicLayout), and grid auto-placement assigns tracks to boxes: an
  * outer element that stopped generating a box would slide the header and
  * outlet up a track each. an empty outer element in an `auto` track is 0px,
- * which is what collapsing is supposed to mean here.
+ * which is what collapsing is supposed to mean here. the landmark is the inner
+ * container, so a dismissed bar leaves no empty "Announcement" region behind.
+ *
+ * the dismiss button unmounts with the bar, so `on_dismissed` is where the
+ * caller puts focus next.
  */
-export function AnnouncementBanner() {
+interface IAnnouncementBanner {
+  on_dismissed: () => void;
+}
+
+export function AnnouncementBanner({ on_dismissed }: IAnnouncementBanner) {
   const [dismissed, set_dismissed] = useState(false);
 
   const dismiss = () => {
@@ -47,20 +55,20 @@ export function AnnouncementBanner() {
     }
     document.documentElement.dataset.bannerDismissed = "ncnp-endorsement";
     set_dismissed(true);
+    on_dismissed();
   };
 
   return (
-    <aside
-      aria-label="Announcement"
-      data-banner="ncnp-endorsement"
-      className="surface-deep print:hidden"
-    >
+    <div data-banner="ncnp-endorsement" className="surface-deep print:hidden">
       {/* the row is full-bleed, bounded by the gutter rather than a
           max-width: capping the column made the sentence wrap with the bar
           half empty. `px-5 md:px-10` is the gutter `page` gives the marketing
           header's row, so their content edges line up. */}
       {!dismissed && (
-        <div className="flex items-start gap-2 px-5 md:px-10 py-2 [html[data-banner-dismissed='ncnp-endorsement']_&]:hidden">
+        <aside
+          aria-label="Announcement"
+          className="flex items-start gap-2 px-5 md:px-10 py-2 [html[data-banner-dismissed='ncnp-endorsement']_&]:hidden"
+        >
           {/* only the visible "Find out more" text is the link — the sentence
               around it is plain text, so hovering or clicking the rest of the
               bar does nothing. */}
@@ -83,17 +91,20 @@ export function AnnouncementBanner() {
           </p>
           {/* the dismiss button stays outside the link's subtree — a <button>
               inside an <a> is invalid markup and its click would bubble into
-              the navigation. */}
+              the navigation. min-*-11 is the 44px hit area. -mr-2.5 keeps the
+              glyph on the gutter edge the 24px box put it on; -my-2 spends the
+              row's own padding on it, so a one-line bar is exactly the 44px
+              target tall rather than clipping it under the header. */}
           <button
             type="button"
             onClick={dismiss}
             aria-label="Dismiss announcement"
-            className="glyph-btn text-blue-5 hover:text-primary-fg focus-visible:text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="glyph-btn min-w-11 min-h-11 -my-2 -mr-2.5 text-blue-5 hover:text-primary-fg focus-visible:text-primary-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
             <XIcon className="icon-md" />
           </button>
-        </div>
+        </aside>
       )}
-    </aside>
+    </div>
   );
 }

@@ -50,7 +50,7 @@ export function Donate({ base_url, classes = "" }: IDonate) {
         <div className="reveal grid justify-items-center text-center">
           <p className="eyebrow text-primary">Support Better Giving</p>
           <h2 id="donate-heading" className="section-heading mt-4 max-w-2xl">
-            Free for nonprofits{" "}
+            {"Free for nonprofits "}
             <em className="text-primary">isn't free to run</em>
           </h2>
           <p className="mt-5 text-lg/relaxed text-gray-11 text-pretty max-w-2xl">

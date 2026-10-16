@@ -71,7 +71,7 @@ export function MembershipAdvantage({ classes = "" }: IMembershipAdvantage) {
           <Image
             src={laira_gift}
             width={320}
-            alt="Laira holding a gift"
+            alt=""
             className="relative w-48 md:w-64 lg:w-80 h-auto"
           />
         </span>

@@ -1,5 +1,6 @@
 import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 // sticky, z-index and scroll-padding are all stylesheet behaviour — without the
 // real css the header is a static block and every case passes or fails on
@@ -39,6 +40,10 @@ function layout_stub() {
 afterEach(() => {
   window.scrollTo(0, 0);
 });
+
+function inert_of(el: Element) {
+  return el.closest("[inert]") !== null;
+}
 
 describe("PublicLayout header", () => {
   test.each([
@@ -112,5 +117,78 @@ describe("PublicLayout header", () => {
     expect(getComputedStyle(document.documentElement).scrollPaddingTop).toBe(
       `${header.getBoundingClientRect().height}px`
     );
+  });
+});
+
+describe("PublicLayout skip link", () => {
+  test("is the first tab stop, and following it puts focus on the content", async () => {
+    const Stub = layout_stub();
+    const screen = await render(
+      <Stub initialEntries={["/about-us"]} future={{ v8_middleware: true }} />
+    );
+    await expect.element(screen.getByText("section 299")).toBeInTheDocument();
+
+    const skip = screen.getByRole("link", { name: "Skip to content" });
+    await userEvent.tab();
+    await expect.element(skip).toHaveFocus();
+    await expect.element(skip).toBeVisible();
+
+    await userEvent.keyboard("{Enter}");
+
+    const target = document.activeElement as HTMLElement;
+    expect(target.id).toBe("main");
+    expect(target.contains(screen.getByText("section 0").element())).toBe(true);
+  });
+});
+
+describe("PublicLayout mobile menu", () => {
+  test("everything outside the header is inert while it is open, and nothing after it closes", async () => {
+    const Stub = layout_stub();
+    const screen = await render(
+      <Stub initialEntries={["/about-us"]} future={{ v8_middleware: true }} />
+    );
+    await expect.element(screen.getByText("section 0")).toBeInTheDocument();
+
+    const outside = () => [
+      screen.getByRole("link", { name: "Skip to content" }).element(),
+      screen.getByRole("link", { name: /find out more/i }).element(),
+      screen.getByText("section 0").element(),
+      screen.getByRole("contentinfo").element(),
+    ];
+    expect(outside().map(inert_of)).toEqual([false, false, false, false]);
+
+    const toggle = screen.getByRole("button", { name: /navigation menu/i });
+    await toggle.click();
+    expect(outside().map(inert_of)).toEqual([true, true, true, true]);
+    // the header itself stays live: the toggle and the menu are reachable
+    expect(inert_of(toggle.element())).toBe(false);
+
+    await userEvent.keyboard("{Escape}");
+    await expect.element(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(outside().map(inert_of)).toEqual([false, false, false, false]);
+  });
+
+  test("a navigation closes it, so the page it lands on is not left inert", async () => {
+    const Stub = layout_stub();
+    const screen = await render(
+      <Stub initialEntries={["/about-us"]} future={{ v8_middleware: true }} />
+    );
+    await screen.getByRole("button", { name: /navigation menu/i }).click();
+
+    // a navigation no menu link started (back, in effect): the footer's link
+    // is inert to a person, so a scripted click stands in, and only the
+    // layout's path-keyed state can close the menu
+    (
+      screen
+        .getByRole("contentinfo")
+        .getByRole("link", { name: /^marketplace$/i })
+        .element() as HTMLElement
+    ).click();
+
+    // minimal chrome: its header has no menu toggle
+    await expect
+      .element(screen.getByRole("button", { name: /navigation menu/i }))
+      .not.toBeInTheDocument();
+    expect(inert_of(screen.getByText("section 0").element())).toBe(false);
   });
 });

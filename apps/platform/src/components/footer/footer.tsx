@@ -42,7 +42,11 @@ const social_links = [
   { label: "Instagram", url: socials.instagram },
 ] as const;
 
-const link_cls = "text-sm text-blue-5 hover:text-primary-fg";
+// py-0.5 lifts the 20px line to the 24px target floor; the columns' gap-1.5
+// gives the 4px back, so the 30px row pitch is what it was.
+const link_cls = "text-sm text-blue-5 hover:text-primary-fg py-0.5";
+
+const legal_link_cls = "text-xs text-blue-5 hover:text-primary-fg py-1";
 
 export function Footer({ classes = "", variant = "full", width }: Props) {
   const page =
@@ -118,7 +122,7 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
   return (
     <footer className={`${classes} surface-deep pt-16 pb-10`}>
       <div
-        className={`${page} grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.3fr]`}
+        className={`${page} grid gap-x-10 gap-y-12 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)]`}
       >
         <div className="grid content-start gap-4 justify-items-start">
           <Link to={href("/")} title="Go to Home page">
@@ -142,8 +146,8 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
           </ExtLink>
         </div>
 
-        <nav aria-label="Platform" className="grid content-start gap-2.5">
-          <span className="text-sm font-bold text-primary-fg mb-1">
+        <nav aria-label="Platform" className="grid content-start gap-1.5">
+          <span className="text-sm font-bold text-primary-fg mb-1.5">
             Platform
           </span>
           {platform.map((l) => (
@@ -153,8 +157,8 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
           ))}
         </nav>
 
-        <nav aria-label="Organization" className="grid content-start gap-2.5">
-          <span className="text-sm font-bold text-primary-fg mb-1">
+        <nav aria-label="Organization" className="grid content-start gap-1.5">
+          <span className="text-sm font-bold text-primary-fg mb-1.5">
             Organization
           </span>
           <Link to={href("/about-us")} className={link_cls}>
@@ -183,12 +187,14 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
             Stay in the loop
           </span>
           <NewsletterForm />
-          <div className="flex flex-wrap gap-x-3.5 gap-y-1 mt-1.5">
+          {/* py-1 and min-w-6 make each label a 24px target ("X" alone is 7px
+              wide); mt-0.5 gives back the 4px py-1 adds above the row. */}
+          <div className="flex flex-wrap gap-x-3.5 mt-0.5">
             {social_links.map((s) => (
               <ExtLink
                 key={s.label}
                 href={s.url}
-                className="text-xs font-medium text-blue-5 hover:text-primary-fg"
+                className="min-w-6 py-1 text-center text-xs font-medium text-blue-5 hover:text-primary-fg"
               >
                 {s.label}
               </ExtLink>
@@ -205,23 +211,16 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
           future results; all investments carry risk. ©{" "}
           {new Date().getFullYear()} Better Giving.
         </span>
-        <span className="flex gap-4">
-          <Link
-            to={href("/privacy-policy")}
-            className="text-xs text-blue-5 hover:text-primary-fg"
-          >
+        {/* -my-1 takes back the links' py-1, so the 24px targets don't
+            deepen the bar */}
+        <span className="flex gap-4 -my-1">
+          <Link to={href("/privacy-policy")} className={legal_link_cls}>
             Privacy Policy
           </Link>
-          <Link
-            to={href("/security-policy")}
-            className="text-xs text-blue-5 hover:text-primary-fg"
-          >
+          <Link to={href("/security-policy")} className={legal_link_cls}>
             Security
           </Link>
-          <Link
-            to={href("/terms-of-use")}
-            className="text-xs text-blue-5 hover:text-primary-fg"
-          >
+          <Link to={href("/terms-of-use")} className={legal_link_cls}>
             Terms of Use
           </Link>
         </span>

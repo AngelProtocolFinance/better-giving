@@ -38,7 +38,7 @@ export function Fee({ classes = "" }: IFee) {
           <Image
             src={laira_shake_hands_x2}
             width={420}
-            alt="Two Lairas shaking hands"
+            alt=""
             className="relative w-64 md:w-80 lg:w-96 h-auto"
           />
         </span>

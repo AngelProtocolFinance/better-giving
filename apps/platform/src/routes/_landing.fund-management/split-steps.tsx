@@ -30,7 +30,7 @@ export function SplitSteps({ classes = "" }: ISplitSteps) {
           id="split-steps-heading"
           className="section-heading text-center max-w-2xl mx-auto reveal"
         >
-          Set your split once.{" "}
+          {"Set your split once. "}
           <em className="text-primary">We handle the rest.</em>
         </h2>
         <div className="relative mt-16 md:mt-20">

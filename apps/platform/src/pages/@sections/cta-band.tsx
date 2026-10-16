@@ -30,12 +30,7 @@ export function CtaBand({
             className="absolute size-72 bg-radial from-blue-8 to-transparent to-60%"
             aria-hidden
           />
-          <Image
-            src={laira_cheering}
-            width={140}
-            alt="Laira celebrating"
-            className="relative"
-          />
+          <Image src={laira_cheering} width={140} alt="" className="relative" />
         </span>
         <h2 className="section-heading max-w-2xl mt-6">{title}</h2>
         <p className="mt-5 text-lg text-primary-fg/90 max-w-xl text-pretty">

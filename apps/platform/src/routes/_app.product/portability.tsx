@@ -38,7 +38,7 @@ export function Portability({ classes = "" }: IPortability) {
             id="portability-heading"
             className="section-heading mt-4 max-w-3xl"
           >
-            Your donors are yours,{" "}
+            {"Your donors are yours, "}
             <em className="text-primary">including your recurring donors</em>
           </h2>
           <p className="mt-5 text-lg/relaxed text-gray-11 max-w-2xl text-pretty">

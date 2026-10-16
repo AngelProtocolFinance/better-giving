@@ -22,7 +22,7 @@ export function Hero({ classes = "" }: IHero) {
         <div className="grid gap-6 justify-items-start">
           <p className="eyebrow text-primary">Product</p>
           <h1 className="hero-heading">
-            One form that turns visitors into donors, and donors into{" "}
+            {"One form that turns visitors into donors, and donors into "}
             <em className="text-primary">monthly givers</em>
           </h1>
           <p className="text-lg/relaxed md:text-xl/relaxed text-pretty text-gray-11 max-w-xl">
@@ -61,7 +61,7 @@ export function Hero({ classes = "" }: IHero) {
           <Image
             src={laira_pointing}
             width={112}
-            alt="Laira pointing at the donation form"
+            alt=""
             className="absolute -bottom-10 -left-24 -rotate-3 max-lg:hidden"
           />
         </div>

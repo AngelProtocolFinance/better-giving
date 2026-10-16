@@ -17,7 +17,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           <div className="grid gap-5 reveal">
             <p className="eyebrow text-primary">Grow your funds</p>
             <h2 id="grow-funds-heading" className="section-heading">
-              This quarter's gifts,{" "}
+              {"This quarter's gifts, "}
               <em className="text-primary">next decade's reserves</em>
             </h2>
             <p className="text-gray-11 text-lg text-pretty">
@@ -55,13 +55,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           </figcaption>
           <AllocationRing
             center_value="~11%"
-            center_label={
-              <>
-                avg. annual return,
-                <br />
-                past 5 yrs*
-              </>
-            }
+            center_label={["avg. annual return,", "past 5 yrs*"]}
           />
         </figure>
       </div>

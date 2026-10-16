@@ -25,7 +25,7 @@ export function WhoPays({ classes = "" }: IWhoPays) {
               cover them, so the vast majority of every gift reaches you.
             </p>
           </div>
-          <aside
+          <div
             className="reveal card flex gap-4 max-w-xl"
             style={{ "--reveal-order": 1 } as CSSProperties}
           >
@@ -37,7 +37,7 @@ export function WhoPays({ classes = "" }: IWhoPays) {
               You can opt out of the donor-contribution model in favor of a
               simple 1.5% platform fee, your choice, always.
             </p>
-          </aside>
+          </div>
         </div>
 
         <Receipt />

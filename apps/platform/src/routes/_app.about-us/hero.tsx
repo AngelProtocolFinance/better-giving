@@ -22,7 +22,7 @@ export function Hero({ classes = "" }: IHero) {
       <div className="page grid justify-items-center">
         <p className="eyebrow text-primary">About Better Giving</p>
         <h1 className="hero-heading mt-5 max-w-5xl">
-          A nonprofit whose mission is{" "}
+          {"A nonprofit whose mission is "}
           <em className="text-primary">your mission's money</em>
         </h1>
         <p className="section-body mt-6 text-gray-11 max-w-3xl">

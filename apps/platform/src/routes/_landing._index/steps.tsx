@@ -7,21 +7,18 @@ import laira3 from "#/assets/laira/laira3.webp";
 const steps = [
   {
     img: laira1,
-    alt: "Laira holding the number 1",
     step: "01",
     title: "Sign up",
     body: "Register free in minutes. No fees, no contracts. You're a Member from day one.",
   },
   {
     img: laira2,
-    alt: "Laira holding the number 2",
     step: "02",
     title: "Add the donation form",
     body: "Brand it and embed it on your site. Fewer clicks and express checkout mean more completed gifts and monthly donors.",
   },
   {
     img: laira3,
-    alt: "Laira holding the number 3",
     step: "03",
     title: "Grow",
     body: "Get payouts within 5 working days, or route a share into savings and the Sustainability Fund.",
@@ -67,7 +64,7 @@ export function Steps({ classes = "" }: ISteps) {
                   </span>
                   <Image
                     src={s.img}
-                    alt={s.alt}
+                    alt=""
                     className="absolute -right-16 -bottom-3 h-24 w-auto max-md:hidden"
                   />
                 </div>

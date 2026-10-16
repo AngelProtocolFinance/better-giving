@@ -34,7 +34,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
           <div className="grid gap-5 reveal">
             <p className="eyebrow text-primary">Governance</p>
             <h2 id="governance-heading" className="section-heading">
-              Managed like an endowment,{" "}
+              {"Managed like an endowment, "}
               <em className="text-primary">open like a commons</em>
             </h2>
           </div>
@@ -68,13 +68,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
           </figcaption>
           <AllocationRing
             center_value="100%"
-            center_label={
-              <>
-                of growth
-                <br />
-                is yours
-              </>
-            }
+            center_label={["of growth", "is yours"]}
           />
         </figure>
       </div>

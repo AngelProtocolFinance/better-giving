@@ -32,7 +32,7 @@ export function OpenSource({ classes = "" }: IOpenSource) {
           <div className="grid gap-5 reveal">
             <p className="eyebrow text-amber-6">Open source</p>
             <h2 id="open-source-heading" className="section-heading">
-              Don't take our word for it.{" "}
+              {"Don't take our word for it. "}
               <em className="text-amber-6">Read the code.</em>
             </h2>
             <p className="text-blue-5 text-lg/relaxed text-pretty max-w-xl">
@@ -69,7 +69,11 @@ export function OpenSource({ classes = "" }: IOpenSource) {
           </ExtLink>
         </div>
 
-        <TerminalCard label="better-giving / donation-form" sequence>
+        <TerminalCard
+          label="better-giving / donation-form"
+          description="Illustration: cloning and running the open-source donation form"
+          sequence
+        >
           <TermCmd>git clone https://github.com/better-giving/…</TermCmd>
           <TermComment>brandable, embeddable donation form</TermComment>
           <TermCmd>pnpm install &amp;&amp; pnpm dev</TermCmd>

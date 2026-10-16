@@ -67,13 +67,27 @@ export function chrome_for(pathname: string): Chrome {
 
 interface IPublicHeader {
   classes?: string;
+  /** the marketing header's mobile menu; the other headers have none */
+  menu_open: boolean;
+  on_menu_open_change: (open: boolean) => void;
 }
 
-export function PublicHeader({ classes }: IPublicHeader) {
+export function PublicHeader({
+  classes,
+  menu_open,
+  on_menu_open_change,
+}: IPublicHeader) {
   const { pathname } = useLocation();
   const chrome = chrome_for(pathname);
 
-  if (chrome === "marketing") return <MarketingHeader classes={classes} />;
+  if (chrome === "marketing")
+    return (
+      <MarketingHeader
+        classes={classes}
+        menu_open={menu_open}
+        on_menu_open_change={on_menu_open_change}
+      />
+    );
   if (chrome === "minimal")
     return <AppHeader variant="minimal" classes={classes} />;
   return <AppHeader variant="bare" classes={classes} />;

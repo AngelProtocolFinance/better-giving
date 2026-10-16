@@ -21,7 +21,7 @@ export function Hero({ classes = "" }: IHero) {
         <div className="grid gap-6 justify-items-start">
           <p className="eyebrow text-primary">Fiscal Sponsorship</p>
           <h1 className="hero-heading">
-            Unlock U.S. donors,{" "}
+            {"Unlock U.S. donors, "}
             <em className="text-primary">wherever you are</em>
           </h1>
           <p className="text-lg/relaxed md:text-xl/relaxed text-pretty text-gray-11 max-w-xl">

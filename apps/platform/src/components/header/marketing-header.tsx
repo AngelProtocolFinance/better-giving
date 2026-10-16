@@ -1,5 +1,5 @@
 import { ArrowRight, MenuIcon, XIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef } from "react";
 import { href, Link, NavLink } from "react-router";
 import { DappLogo } from "#/components/image";
 import { use_session } from "#/hooks/use-session";
@@ -21,24 +21,83 @@ const links = [
 const nav_link_cls = ({ isActive }: { isActive: boolean }) =>
   `transition-colors ${isActive ? "text-primary underline decoration-2 underline-offset-8" : "text-gray-12 hover:text-primary"}`;
 
+// py-0.5 lifts the 20px line box to the 24px target floor; the row is the
+// logo's height, so the label's box grows inside it without moving.
 const link_cls = (state: { isActive: boolean }) =>
-  `text-sm font-medium ${nav_link_cls(state)}`;
+  `text-sm font-medium py-0.5 ${nav_link_cls(state)}`;
 
 interface IMarketingHeader {
   classes?: string;
+  /** held by the layout, which inerts everything outside the header while the
+   *  menu is open */
+  menu_open: boolean;
+  on_menu_open_change: (open: boolean) => void;
 }
 
-export function MarketingHeader({ classes = "" }: IMarketingHeader) {
+export function MarketingHeader({
+  classes = "",
+  menu_open: open,
+  on_menu_open_change,
+}: IMarketingHeader) {
   const { session } = use_session();
-  const [open, set_open] = useState(false);
-  const close = () => set_open(false);
   const menu_id = useId();
+  const header_ref = useRef<HTMLElement>(null);
+  const toggle_ref = useRef<HTMLButtonElement>(null);
+  const first_link_ref = useRef<HTMLAnchorElement>(null);
+
+  const close = () => on_menu_open_change(false);
+  // a close that doesn't navigate hands focus back to the control that opened
+  // the menu; a link's close leaves it to the navigation.
+  const dismiss = () => {
+    close();
+    toggle_ref.current?.focus();
+  };
+
+  const toggle = () => {
+    // the panel is capped to the viewport under a header pinned at the top.
+    // while the announcement bar still holds the header lower, that cap would
+    // overhang the fold by the bar's height, so opening pins the header first
+    // (`-top-px` is where it sticks).
+    const top = header_ref.current?.getBoundingClientRect().top ?? 0;
+    if (!open && top > 0)
+      window.scrollBy({ top: top + 1, behavior: "instant" });
+    on_menu_open_change(!open);
+  };
+
+  // disclosure-nav focus: into the panel on open. tab stays inside because the
+  // layout inerts the page behind it.
+  useEffect(() => {
+    if (open) first_link_ref.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const on_key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      on_menu_open_change(false);
+      toggle_ref.current?.focus();
+    };
+    // the toggle is `nav:hidden`, and the panel with it: once the window
+    // widens past the breakpoint nothing is open on screen, but the layout
+    // would keep the page inert.
+    const on_resize = () => {
+      if (toggle_ref.current?.getClientRects().length === 0) {
+        on_menu_open_change(false);
+      }
+    };
+    document.addEventListener("keydown", on_key);
+    window.addEventListener("resize", on_resize);
+    return () => {
+      document.removeEventListener("keydown", on_key);
+      window.removeEventListener("resize", on_resize);
+    };
+  }, [open, on_menu_open_change]);
 
   // optimistic-anon: treat loading as anon so CTAs render immediately
   const is_signed_in = !!session?.signed_in;
 
   return (
-    <header className={`${classes} relative header-ground`}>
+    <header ref={header_ref} className={`${classes} relative header-ground`}>
       {/* the row carries a logo, six labels and two ctas, and at the 75rem
           `nav` breakpoint it fills the 1120px content box to within a few px:
           that is why the nav collapses at 75rem rather than at a breakpoint
@@ -91,13 +150,16 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
             </>
           )}
         </div>
+        {/* min-*-11 is the 44px hit area around the 24px glyph; -mr-2.5 keeps
+            the glyph on the gutter edge the 24px box put it on. */}
         <button
+          ref={toggle_ref}
           type="button"
-          onClick={() => set_open((o) => !o)}
+          onClick={toggle}
           aria-label="Navigation menu"
           aria-expanded={open}
           aria-controls={menu_id}
-          className="nav:hidden glyph-btn text-gray-12 focus-visible:outline-2 focus-visible:outline-ring"
+          className="nav:hidden glyph-btn min-w-11 min-h-11 -mr-2.5 text-gray-12 focus-visible:outline-2 focus-visible:outline-ring"
         >
           {open ? (
             <XIcon className="icon-2xl" />
@@ -113,25 +175,28 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
               viewport minus the header's own box (`100%` resolves against the
               containing block, i.e. this header) so the scrim ends exactly at
               the fold when the header is stuck — `h-dvh` from `top-full`
-              overhangs by the header height, and by the announcement banner's
-              height too while the bar is visible and the page is unscrolled. */}
-          <button
-            type="button"
-            aria-label="Close navigation menu"
-            onClick={close}
+              overhangs by the header height. a pointer's close only: it is no
+              tab stop, since Escape and the toggle close it from the keyboard. */}
+          <div
+            aria-hidden="true"
+            onClick={dismiss}
             className="nav:hidden absolute inset-x-0 top-full h-[calc(100dvh_-_100%)] cursor-default bg-gray-12/40 backdrop-blur-sm"
           />
+          {/* the same cap as the scrim, so a menu taller than a short or
+              zoomed viewport scrolls inside itself instead of running past
+              the fold of a page that is pinned under it. */}
           <div
             id={menu_id}
-            className="nav:hidden absolute inset-x-0 top-full bg-panel border-b shadow-floating"
+            className="nav:hidden absolute inset-x-0 top-full max-h-[calc(100dvh_-_100%)] overflow-y-auto overscroll-contain scrollbars bg-panel border-b shadow-floating"
           >
             {/* on `page`, so the labels start on the logo's edge. the open
                 menu has the room the bar lacks, so the links take the
                 editorial role rather than the bar's 14px. */}
             <nav aria-label="Marketing" className="page grid py-6">
-              {links.map((l) => (
+              {links.map((l, i) => (
                 <NavLink
                   key={l.to}
+                  ref={i === 0 ? first_link_ref : undefined}
                   to={l.to}
                   onClick={close}
                   className={(state) =>

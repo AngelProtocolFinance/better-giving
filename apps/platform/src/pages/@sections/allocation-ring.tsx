@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
+import { Fragment } from "react";
 
 const allocation = [
   {
@@ -22,8 +23,6 @@ const allocation = [
   { pct: 7.5, label: "metals", swatch: "bg-warning", stroke: "stroke-warning" },
 ] as const;
 
-const ring_label = `Target allocation: ${allocation.map((a) => `${a.pct}% ${a.label}`).join(", ")}`;
-
 // each segment is one dashed circle on a 100-unit path, rotated to start at
 // twelve o'clock; the gap is cut from the segment's own length, so every
 // segment still starts at its true cumulative share.
@@ -36,8 +35,8 @@ const segments = allocation.map((a, i) => ({
 interface IAllocationRing {
   /** the figure set in the ring's hole */
   center_value: string;
-  /** the caption under that figure; may carry its own `<br />` */
-  center_label: ReactNode;
+  /** the caption under that figure, one entry per line */
+  center_label: readonly string[];
   classes?: string;
 }
 
@@ -49,6 +48,9 @@ export function AllocationRing({
   center_label,
   classes = "",
 }: IAllocationRing) {
+  // the legend under the ring is the readable breakdown, so the ring's own
+  // name carries only what the legend doesn't: the figure in its hole
+  const ring_label = `Target allocation, shares listed below. Center: ${center_value} ${center_label.join(" ")}`;
   return (
     <div className={`${classes} grid gap-8`}>
       <div
@@ -78,7 +80,14 @@ export function AllocationRing({
         </svg>
         <div className="col-start-1 row-start-1 grid justify-items-center text-center gap-1.5">
           <span className="display-figure text-5xl">{center_value}</span>
-          <span className="text-xs text-gray-11">{center_label}</span>
+          <span className="text-xs text-gray-11">
+            {center_label.map((line, i) => (
+              <Fragment key={line}>
+                {i > 0 && <br />}
+                {line}
+              </Fragment>
+            ))}
+          </span>
         </div>
       </div>
       <ul className="grid gap-4 text-sm">

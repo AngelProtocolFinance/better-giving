@@ -1416,7 +1416,11 @@ Three rules travel with it:
   Two AAA-only findings are parked in `IDEAS.md` for the same reason.) The
   fix *narrows* the two live buttons from 40px to 24px wide; that is still
   conformant. Wanting a roomier hit area is a look decision: step the call site
-  up to `btn btn-icon` (36×36); do not inflate `btn-sm`.
+  up to `btn btn-icon` (36×36); do not inflate `btn-sm`. Two marketing-chrome
+  controls take that look decision to 44×44 (`min-w-11 min-h-11`, glyph
+  unchanged): the mobile nav toggle in `MarketingHeader` and the dismiss in
+  `AnnouncementBanner`. Each is the only control in its bar and the most-tapped
+  one on a phone; the extra box costs no layout. Nothing else is held to 44.
 - **An accessible name is mandatory.** `btn-icon` removes the only text node, so
   the button has no name without `aria-label` (or an `sr-only` span). Both live
   sites already carry one and the toggle correctly swaps it ("Show API Key" /

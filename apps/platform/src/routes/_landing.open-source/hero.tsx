@@ -53,6 +53,7 @@ export function Hero({ classes = "" }: IHero) {
 
         <TerminalCard
           label="AngelProtocolFinance / better-giving"
+          description="Illustration: cloning and running the open-source Better Giving platform"
           classes="w-full max-w-xl justify-self-center lg:justify-self-end"
           sequence
         >

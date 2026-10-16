@@ -23,8 +23,10 @@ function stub(Page: () => ReactNode) {
   ]);
 }
 
+const noop = () => {};
+
 function Bare() {
-  return <AnnouncementBanner />;
+  return <AnnouncementBanner on_dismissed={noop} />;
 }
 
 // replica of PublicLayout's shell: four declared row tracks fed by four
@@ -34,7 +36,7 @@ function Bare() {
 function GridPage() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_4rem_minmax(calc(100dvh-4rem),1fr)_auto]">
-      <AnnouncementBanner />
+      <AnnouncementBanner on_dismissed={noop} />
       <div data-testid="header" className="h-full" />
       <div data-testid="outlet" />
       <div data-testid="footer" />
@@ -118,8 +120,11 @@ describe("AnnouncementBanner", () => {
     expect(document.documentElement.dataset.bannerDismissed).toBe(
       "ncnp-endorsement"
     );
-    // content gone immediately, in the same tick...
+    // content gone immediately, in the same tick, landmark and all...
     await expect.element(screen.getByText(COPY)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: /announcement/i }))
+      .not.toBeInTheDocument();
     // ...but the outer box stays, collapsed, so the caller's grid keeps its row
     const el = root(screen.container);
     expect(el).not.toBeNull();
@@ -170,6 +175,10 @@ describe("AnnouncementBanner", () => {
     expect(el).not.toBeNull();
     expect(height(el as HTMLElement)).toBe(0);
     await expect.element(screen.getByText(COPY)).not.toBeVisible();
+    // and no empty "Announcement" landmark is left for a screen reader
+    await expect
+      .element(screen.getByRole("complementary", { name: /announcement/i }))
+      .not.toBeInTheDocument();
   });
 
   test("keeps the caller's grid tracks aligned when pre-dismissed", async () => {
@@ -200,6 +209,21 @@ describe("AnnouncementBanner", () => {
 });
 
 describe("PublicLayout banner gate", () => {
+  test("dismissing from the keyboard lands focus on the content, not the body", async () => {
+    const Stub = layout_stub();
+    const screen = await render(
+      <Stub initialEntries={["/"]} future={{ v8_middleware: true }} />
+    );
+
+    await screen.getByRole("button", { name: /dismiss/i }).click();
+
+    await expect.element(screen.getByText("home page")).toBeInTheDocument();
+    expect(document.activeElement?.id).toBe("main");
+    expect(
+      document.activeElement?.contains(screen.getByText("home page").element())
+    ).toBe(true);
+  });
+
   test("the homepage shows the bar", async () => {
     const Stub = layout_stub();
     const screen = await render(
