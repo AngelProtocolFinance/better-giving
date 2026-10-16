@@ -1046,6 +1046,45 @@ Two things it deliberately does not do:
   before it finishes. A fixed distance from the top edge's entry has neither
   failure.
 
+### The scrolled header ground
+
+`header-ground` (`packages/ui/src/styles/utilities.css`, beside `reveal`) is the
+second scroll-driven animation and follows the same rules: no named speed, the
+enter curve (`--ease-out`), and the same two gates, `@supports
+(animation-timeline: scroll())` **and** `@media (prefers-reduced-motion:
+no-preference)`. The marketing header (`components/header/marketing-header.tsx`)
+is the one consumer.
+
+At the top of the page the header has no fill and no hairline, so it reads as
+part of the hero. Over the first **4rem** of root scroll (the header row's own
+height, spelled `calc(var(--spacing) * 16)`) a `::before` layer fades in and
+holds: `--background` at 90% through `color-mix`, `backdrop-blur-md`, the
+`--border` hairline, and `--shadow-floating`, the level the elevation set
+already gives a sticky header once it is stuck. Only the layer's **opacity**
+animates. The fill, the edge and the shadow are static on it, so a scrolled
+pixel moves one compositor property and repaints nothing.
+
+**The 90% is measured, not a taste value.** The blur samples whatever the page
+puts under the header, so the floor is the darkest ground there can be.
+Composited in sRGB:
+
+| backdrop under the header | `gray-12` nav ink | `--primary` current item |
+| --- | --- | --- |
+| none (opaque `--background`) | Lc 101.5 | Lc 75.1 |
+| `--primary-deep` band, 90% fill | **Lc 90.0** | **Lc 63.7** |
+| pure black (a photograph's worst case), 90% fill | Lc 86.8 | Lc 60.4 |
+| `--primary-deep` band, 85% fill | Lc 84.2 | Lc 57.8, **fails** Lc 60 |
+
+A nav item is a label, so Lc 60 is the floor (`--primary-fg` alpha-ladder
+section: "/80 is the floor for a label"). 90% is the nearest 5% step that holds
+it over every backdrop; 85% fails over a deep band. Do not thin it without
+re-measuring. The current item's 2px underline is a non-text indicator and needs
+only Lc 30.
+
+The fallback (a browser without scroll timelines, or reduced motion) is the
+solid header: opaque `--background` and the hairline, no blur and no shadow, at
+rest and scrolled alike. `theme.test.tsx` pins both halves.
+
 ## Decisions that look like bugs
 
 Recorded so they are not "fixed" by someone reading them as oversights.
@@ -1988,7 +2027,7 @@ Variable**.
 | --- | --- | --- |
 | `--font-display` | Quicksand Variable | every heading `h1`-`h6`, marketing and dashboard alike, and every numeric figure (the `figures` utility) |
 | `--font-body` | Quicksand Variable | everything else: body copy, buttons, forms, tables, labels |
-| `--font-editorial` | Fraunces Variable, Georgia, serif | marketing headlines only, and only through five utilities: `hero-heading`, `section-heading`, `subsection-heading`, `display-figure`, `display-quote` |
+| `--font-editorial` | Fraunces Variable, Georgia, serif | marketing headlines only, and only through six utilities: `hero-heading`, `section-heading`, `subsection-heading`, `display-figure`, `display-quote`, `display-quote-lg` |
 | `--font-gochi` | Gochi Hand | the handwritten aside. Six call sites, never decoratively |
 
 **`--font-editorial` is a third role, not the display/body swap the next
@@ -2061,7 +2100,7 @@ and up) **fails to compile**.
 | `text-4.5xl` | 2.625rem: authored; `--text-4_5xl`, since v4 spells a dot as `_` | 10 |
 | `text-5xl` | 3rem | 14 |
 | `text-6xl` | 3.75rem | 2 |
-| `text-7xl` | 4.5rem, line-height 1: the top rung, read by `hero-heading` at `xl` and nothing else | 0 |
+| `text-7xl` | 4.5rem, line-height 1: the top rung, read by `hero-heading` at `xl` and by `display-figure` set as a showcase numeral or mark (a "$0", a manifesto numeral, a quote's opening mark) | 4 |
 
 Counts are `.tsx`/`.ts` call sites across `apps/platform/src apps/docs/src
 packages/ui/src` at the time of writing and drift with every commit: re-run
@@ -2151,10 +2190,10 @@ the namespace stops the drift growing while it waits.
 
 ### The named type roles
 
-Ten utilities in `packages/ui/src/styles/utilities.css` name a type role, so a
+Eleven utilities in `packages/ui/src/styles/utilities.css` name a type role, so a
 call site picks a *role* rather than a step off the ladder. Each is size and
 wrapping only (never color, never spacing) so what the text is on the page
-stays the caller's to say. The five editorial ones also carry the face and a
+stays the caller's to say. The six editorial ones also carry the face and a
 weight, because the face is the role; the weight is
 `var(--tw-font-weight, …)`, so a call site's `font-bold` / `font-medium` still
 wins whatever order the sheet sorts them in.
@@ -2166,6 +2205,7 @@ wins whatever order the sheet sorts them in.
 | `subsection-heading` | the `h3` heading a large marketing panel inside a section (the home page's "Own it." / "Grow it." pair); one rung under `section-heading` at every breakpoint, `text-2xl` → `3xl` (tight), so a panel reads as part of its band. Fraunces 600 |
 | `display-figure` | a big marketing numeral (a stat, a step number, a "$0"): Fraunces 600, leading 1, lining + tabular. Size stays the caller's |
 | `display-quote` | a pull quote: Fraunces 400, `text-2xl` → `3xl` at snug leading, `text-pretty` |
+| `display-quote-lg` | the page's one hero pull quote, a quote that is a band of its own (About's founder quote): one rung over `display-quote`, `text-3xl` → `4xl` at snug leading, same face, weight and wrapping |
 | `section-body` | the standfirst paragraph directly under a `section-heading`: larger than body copy because it is read as part of the heading |
 | `article-heading` | a heading inside long-form prose (blog, legal, help); divides a body of text rather than a page |
 | `pre-heading` | the lead-in line above a heading: larger than `eyebrow` and **not** uppercased, so it carries a readable phrase |

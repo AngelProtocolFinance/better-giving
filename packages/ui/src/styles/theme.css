@@ -13,7 +13,9 @@
      other name compiles to nothing rather than drifting in. text-8xl/-9xl are
      deliberately absent — a 96px/128px step nobody picks is the far end of the
      same drift the radius reset closes at the near end. text-7xl is the top
-     rung, and it has exactly one reader: `hero-heading` at xl.
+     rung, read by `hero-heading` at xl and by `display-figure` set as a
+     showcase numeral or mark — a "$0", a manifesto numeral, a quote's
+     opening mark.
 
      EVERY redeclared step carries its --text-<step>--line-height companion.
      that key lives inside this namespace, so the reset drops it too, and an
@@ -154,9 +156,9 @@
 }
 
 /* the editorial face, outside @theme on purpose: a theme key would mint a
-   `font-editorial` utility, and the role is reachable ONLY through the five
+   `font-editorial` utility, and the role is reachable ONLY through the six
    marketing type utilities in ./utilities.css (hero-heading, section-heading,
-   subsection-heading, display-figure, display-quote). that is what keeps
+   subsection-heading, display-figure, display-quote, display-quote-lg). that is what keeps
    product ui, dashboards, emails, the pdf export and the embed on Quicksand
    by construction rather than by review. Fraunces is instanced with its SOFT axis at 100 — rounded
    terminals that agree with the wordmark, the reason the flat-terminal pair

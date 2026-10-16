@@ -53,24 +53,30 @@ export function AnnouncementBanner() {
     <aside
       aria-label="Announcement"
       data-banner="ncnp-endorsement"
-      className="bg-primary text-primary-fg print:hidden"
+      className="surface-deep print:hidden"
     >
       {/* the row is full-bleed, bounded by the gutter rather than a
           max-width: capping the column made the sentence wrap with the bar
-          half empty. `px-5` is the gutter the marketing header's bar uses, so
-          their content edges line up. */}
+          half empty. `px-5 md:px-10` is the gutter `page` gives the marketing
+          header's row, so their content edges line up. */}
       {!dismissed && (
-        <div className="flex items-start gap-2 px-5 py-2 [html[data-banner-dismissed='ncnp-endorsement']_&]:hidden">
+        <div className="flex items-start gap-2 px-5 md:px-10 py-2 [html[data-banner-dismissed='ncnp-endorsement']_&]:hidden">
           {/* only the visible "Find out more" text is the link — the sentence
               around it is plain text, so hovering or clicking the rest of the
               bar does nothing. */}
-          <p className="flex-1 text-center text-2xs leading-relaxed text-balance sm:text-xs">
-            Setting a new standard for digital giving. Better Giving endorses
-            the National Council for Nonprofits Principles for Ethical Online
-            Fundraising.{" "}
+          {/* surface-deep's ink set: the headline sentence and the link in
+              full white, the rest in its secondary step. the link keeps the
+              contrast ink and a hover underline — a link on a brand ground
+              has no measured hover ink (ledger → the link primitive). */}
+          <p className="flex-1 text-center text-2xs leading-relaxed text-balance text-blue-5 sm:text-xs">
+            <span className="font-medium text-primary-fg">
+              Setting a new standard for digital giving.
+            </span>{" "}
+            Better Giving endorses the National Council for Nonprofits
+            Principles for Ethical Online Fundraising.{" "}
             <Link
               to={href("/blog/:slug", { slug: BANNER_POST_SLUG })}
-              className="font-bold whitespace-nowrap hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:outline-primary-fg"
+              className="font-bold text-primary-fg whitespace-nowrap hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:outline-ring"
             >
               Find out more →
             </Link>
@@ -82,7 +88,7 @@ export function AnnouncementBanner() {
             type="button"
             onClick={dismiss}
             aria-label="Dismiss announcement"
-            className="glyph-btn text-primary-fg/70 hover:text-primary-fg focus-visible:text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-fg"
+            className="glyph-btn text-blue-5 hover:text-primary-fg focus-visible:text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <XIcon className="icon-md" />
           </button>

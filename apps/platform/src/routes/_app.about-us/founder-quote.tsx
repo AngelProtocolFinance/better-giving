@@ -18,7 +18,7 @@ export function FounderQuote({ classes = "" }: IFounderQuote) {
           >
             “
           </span>
-          <blockquote className="display-quote mt-6">
+          <blockquote className="display-quote-lg mt-6">
             We believe a new model of philanthropy is possible, not based on
             scarcity and dependence, but on abundance and financial
             self-sufficiency.

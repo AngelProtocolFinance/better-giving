@@ -1,5 +1,5 @@
-import { MenuIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, MenuIcon, XIcon } from "lucide-react";
+import { useId, useState } from "react";
 import { href, Link, NavLink } from "react-router";
 import { DappLogo } from "#/components/image";
 import { use_session } from "#/hooks/use-session";
@@ -14,8 +14,15 @@ const links = [
   { label: "About", to: href("/about-us") },
 ] as const;
 
-const link_cls = ({ isActive }: { isActive: boolean }) =>
-  `text-sm font-medium ${isActive ? "text-primary" : "text-gray-12 hover:text-primary"}`;
+// the current item keeps the brand ink and adds a 2px underline in that same
+// ink: ink alone is one blue word in a row of dark ones, which reads as
+// a hover that stuck. a hover is the ink shift and nothing else, so the
+// underline stays the current page's alone.
+const nav_link_cls = ({ isActive }: { isActive: boolean }) =>
+  `transition-colors ${isActive ? "text-primary underline decoration-2 underline-offset-8" : "text-gray-12 hover:text-primary"}`;
+
+const link_cls = (state: { isActive: boolean }) =>
+  `text-sm font-medium ${nav_link_cls(state)}`;
 
 interface IMarketingHeader {
   classes?: string;
@@ -25,19 +32,20 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
   const { session } = use_session();
   const [open, set_open] = useState(false);
   const close = () => set_open(false);
+  const menu_id = useId();
 
   // optimistic-anon: treat loading as anon so CTAs render immediately
   const is_signed_in = !!session?.signed_in;
 
   return (
-    <header
-      className={`${classes} relative bg-panel/95 backdrop-blur-md border-b`}
-    >
-      {/* the row carries a logo, six labels and two ctas — 944px of intrinsic
-          width before a single gap, which is why the nav collapses at 75rem
-          rather than at a breakpoint name. the row sits on the same `page`
-          shape as the sections below it, so the logo's left edge and the
-          first heading's line up. */}
+    <header className={`${classes} relative header-ground`}>
+      {/* the row carries a logo, six labels and two ctas, and at the 75rem
+          `nav` breakpoint it fills the 1120px content box to within a few px:
+          that is why the nav collapses at 75rem rather than at a breakpoint
+          name, and why below xl the label gap steps down and the cta's arrow
+          is left off — with both, the labels wrap to two lines up to ~1235px.
+          the row sits on the same `page` shape as the sections below it, so
+          the logo's left edge and the first heading's line up. */}
       <div className="page flex items-center justify-between gap-x-6 py-2">
         {/* shrink-0 belongs on the flex item, and DappLogo's own classes land
             on the <img> inside its <a> — without this the anchor shrinks and
@@ -47,7 +55,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
         </div>
         <nav
           aria-label="Marketing"
-          className="hidden nav:flex items-center gap-x-6"
+          className="hidden nav:flex items-center gap-x-5 xl:gap-x-6"
         >
           {links.map((l) => (
             <NavLink key={l.to} to={l.to} className={link_cls}>
@@ -69,9 +77,13 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
             <>
               <Link
                 to={href("/register")}
-                className="btn btn-primary shadow-lift-cta"
+                className="group btn btn-primary shadow-lift-cta gap-2"
               >
                 Join free forever
+                <ArrowRight
+                  aria-hidden="true"
+                  className="max-xl:hidden icon-sm transition-transform group-hover:translate-x-0.5"
+                />
               </Link>
               <Link to={href("/login")} className="btn btn-secondary">
                 Log In
@@ -84,7 +96,8 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
           onClick={() => set_open((o) => !o)}
           aria-label="Navigation menu"
           aria-expanded={open}
-          className="nav:hidden text-gray-12"
+          aria-controls={menu_id}
+          className="nav:hidden glyph-btn text-gray-12 focus-visible:outline-2 focus-visible:outline-ring"
         >
           {open ? (
             <XIcon className="icon-2xl" />
@@ -108,47 +121,58 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
             onClick={close}
             className="nav:hidden absolute inset-x-0 top-full h-[calc(100dvh_-_100%)] cursor-default bg-gray-12/40 backdrop-blur-sm"
           />
-          <div className="nav:hidden absolute inset-x-0 top-full bg-panel border-b border-secondary shadow-floating">
-            <nav aria-label="Marketing" className="grid gap-1 p-4">
+          <div
+            id={menu_id}
+            className="nav:hidden absolute inset-x-0 top-full bg-panel border-b shadow-floating"
+          >
+            {/* on `page`, so the labels start on the logo's edge. the open
+                menu has the room the bar lacks, so the links take the
+                editorial role rather than the bar's 14px. */}
+            <nav aria-label="Marketing" className="page grid py-6">
               {links.map((l) => (
                 <NavLink
                   key={l.to}
                   to={l.to}
                   onClick={close}
-                  className={({ isActive }) =>
-                    `rounded px-4 py-2 text-sm font-medium hover:bg-secondary ${isActive ? "text-primary" : "text-gray-12"}`
+                  className={(state) =>
+                    `subsection-heading py-2 ${nav_link_cls(state)}`
                   }
                 >
                   {l.label}
                 </NavLink>
               ))}
-              <div className="my-2 h-px bg-gray-6" />
-              {is_signed_in ? (
-                <Link
-                  to={href("/dashboard")}
-                  onClick={close}
-                  className="rounded px-4 py-2 text-sm font-medium hover:bg-secondary text-gray-12"
-                >
-                  My Dashboard
-                </Link>
-              ) : (
-                <>
+              <div className="grid gap-3 mt-6 pt-6 border-t">
+                {is_signed_in ? (
                   <Link
-                    to={href("/register")}
+                    to={href("/dashboard")}
                     onClick={close}
-                    className="btn btn-primary"
+                    className="btn btn-lg btn-secondary"
                   >
-                    Join free forever
+                    My Dashboard
                   </Link>
-                  <Link
-                    to={href("/login")}
-                    onClick={close}
-                    className="btn btn-secondary"
-                  >
-                    Log In
-                  </Link>
-                </>
-              )}
+                ) : (
+                  <>
+                    <Link
+                      to={href("/register")}
+                      onClick={close}
+                      className="group btn btn-lg btn-primary shadow-lift-cta gap-2"
+                    >
+                      Join free forever
+                      <ArrowRight
+                        aria-hidden="true"
+                        className="icon-md transition-transform group-hover:translate-x-0.5"
+                      />
+                    </Link>
+                    <Link
+                      to={href("/login")}
+                      onClick={close}
+                      className="btn btn-lg btn-secondary"
+                    >
+                      Log In
+                    </Link>
+                  </>
+                )}
+              </div>
             </nav>
           </div>
         </>
