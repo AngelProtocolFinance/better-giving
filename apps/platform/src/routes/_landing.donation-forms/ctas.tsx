@@ -38,7 +38,7 @@ export function Ctas({ classes = "" }) {
             >
               Join us today!
             </Link>
-            <div className="md:ml-3 max-md:text-center mt-2">
+            <div className="md:ms-3 max-md:text-center mt-2">
               or,{" "}
               <Link
                 target="_blank"
@@ -86,7 +86,7 @@ export function Ctas({ classes = "" }) {
             >
               Join us today!
             </Link>
-            <div className="md:ml-3 max-md:text-center mt-2">
+            <div className="md:ms-3 max-md:text-center mt-2">
               or,{" "}
               <Link
                 target="_blank"
@@ -123,7 +123,7 @@ export function Ctas({ classes = "" }) {
             >
               Join us today!
             </Link>
-            <div className="md:ml-3 max-md:text-center mt-2">
+            <div className="md:ms-3 max-md:text-center mt-2">
               or,{" "}
               <Link
                 target="_blank"
@@ -171,7 +171,7 @@ export function Ctas({ classes = "" }) {
             >
               Join us today!
             </Link>
-            <div className="md:ml-3 max-md:text-center mt-2">
+            <div className="md:ms-3 max-md:text-center mt-2">
               or,{" "}
               <Link
                 target="_blank"

@@ -107,7 +107,7 @@ export function AllocationRing({
                 primary/30 15.5, metals' amber 13.9 on luminance alone, which
                 its hue separates */}
             <span
-              className="h-2 rounded-full bg-gray-7 overflow-hidden"
+              className="h-2 rounded-full bg-gray-7 overflow-clip"
               aria-hidden
             >
               <span

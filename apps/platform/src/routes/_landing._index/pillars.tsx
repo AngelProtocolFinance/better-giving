@@ -128,8 +128,10 @@ interface ITile {
 function Tile({ pillar: p }: ITile) {
   const on_brand = p.art === "code";
   return (
+    // `clip` is no scroll container, so a grid item keeps its min-content
+    // floor; min-w-0 holds the column to the track as `hidden` did
     <div
-      className={`${on_brand ? "surface-primary rounded p-6 md:p-8" : "tile"} group reveal relative isolate overflow-hidden grid gap-8 content-between ${p.span}`}
+      className={`${on_brand ? "surface-primary rounded p-6 md:p-8" : "tile"} group reveal relative isolate overflow-clip min-w-0 grid gap-8 content-between ${p.span}`}
       style={{ "--reveal-order": p.order } as React.CSSProperties}
     >
       {p.art === "map" ? <MapArt /> : null}
@@ -158,7 +160,7 @@ function Tile({ pillar: p }: ITile) {
           className={`justify-self-start inline-flex items-center gap-1.5 font-bold text-sm pt-2 after:absolute after:inset-0 ${on_brand ? "hover:underline" : "link"}`}
         >
           {p.cta}
-          <ArrowRight className="icon-md transition-transform duration-base group-hover:translate-x-0.5" />
+          <ArrowRight className="icon-md transition-transform duration-base motion-safe:group-hover:translate-x-0.5" />
         </Link>
       </div>
       {p.art === "form" ? <FormArt /> : null}
@@ -228,11 +230,10 @@ function Art({ kind }: IArt) {
 function MapArt() {
   return (
     <div
-      className="absolute inset-0 -z-10 md:left-1/3 bg-primary max-md:opacity-50"
+      className="absolute inset-0 -z-10 md:inset-s-1/3 bg-primary max-md:opacity-50 mask-right rtl:mask-left"
       style={{
         maskImage: `url(${map})`,
         maskSize: "contain",
-        maskPosition: "right center",
         maskRepeat: "no-repeat",
       }}
       aria-hidden

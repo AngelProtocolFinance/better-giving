@@ -137,7 +137,7 @@ function GoalArt() {
         </span>
         <span className="text-xs font-semibold text-primary">75%</span>
       </div>
-      <div className="h-3 rounded-full bg-gray-3 inset-shadow-track overflow-hidden">
+      <div className="h-3 rounded-full bg-gray-3 inset-shadow-track overflow-clip">
         <div className="h-full w-3/4 rounded-full bg-primary shadow-track-fill" />
       </div>
       <div className="flex items-baseline justify-between gap-3 text-sm">
@@ -177,7 +177,7 @@ function ReceiptArt() {
       <div className="flex items-center gap-2.5">
         <span className="size-6 rounded bg-primary" />
         <span className="font-semibold text-gray-12">Your nonprofit</span>
-        <span className="ml-auto text-xs font-semibold text-gray-11">
+        <span className="ms-auto text-xs font-semibold text-gray-11">
           Tax receipt
         </span>
       </div>

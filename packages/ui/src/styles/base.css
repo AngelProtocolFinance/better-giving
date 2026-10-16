@@ -12,6 +12,24 @@
     outline-color: var(--ring);
   }
 
+  /* overflow-wrap inherits, so one root declaration reaches every run of text:
+     an unbroken string — an email, a wallet address, a pasted url — breaks
+     inside its box instead of pushing the page sideways at 375. `break-word`,
+     not `anywhere`: it leaves min-content sizing alone, so table columns and
+     shrink-to-fit boxes keep the widths they have.
+     overscroll: the rubber-band bounce and scroll chaining off the page end are
+     a touch gesture's feedback; on a desktop trackpad they only pull the page,
+     sticky header and all, off its own ground. any-pointer rather than pointer, so
+     a touchscreen laptop keeps the bounce (and pull-to-refresh) for its touch
+     input. */
+  html {
+    overflow-wrap: break-word;
+    overscroll-behavior-y: none;
+    @media (any-pointer: coarse) {
+      overscroll-behavior-y: auto;
+    }
+  }
+
   h1,
   h2,
   h3,

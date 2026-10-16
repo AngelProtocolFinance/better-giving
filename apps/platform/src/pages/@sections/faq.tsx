@@ -362,7 +362,7 @@ function HelpLinks({ classes = "" }: IHelpLinks) {
           }
           window.open(INTERCOM_HELP, "_blank");
         }}
-        className="flex items-center gap-x-2 link md:text-lg font-semibold text-left"
+        className="flex items-center gap-x-2 link md:text-lg font-semibold text-start"
       >
         Need additional support? Live Chat.
       </button>

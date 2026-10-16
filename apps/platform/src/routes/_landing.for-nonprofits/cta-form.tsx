@@ -86,7 +86,7 @@ export function CtaForm({
   }, [errors, signed_in_as, message]);
 
   return (
-    <div className={`${classes} card w-full max-w-115 text-left`}>
+    <div className={`${classes} card w-full max-w-115 text-start`}>
       <h2 className="text-xl font-bold">Create your free account</h2>
       <p className="mt-2 text-sm text-gray-11">
         Takes about 2 minutes. Most accounts are approved within 3 business

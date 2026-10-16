@@ -6,7 +6,7 @@ export function BottomCta({ classes = "" }) {
     <div
       className={`${classes} grid surface-primary rounded px-10 py-12 md:px-16`}
     >
-      <h3 className="text-center md:text-left article-heading text-primary-fg mb-9">
+      <h3 className="text-center md:text-start article-heading text-primary-fg mb-9">
         The all-in-one fundraising solution you deserve is only a few clicks
         away
       </h3>

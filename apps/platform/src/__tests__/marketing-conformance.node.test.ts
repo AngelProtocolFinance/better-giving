@@ -30,6 +30,24 @@ import { sources_of } from "./conformance/walk";
  *   each has a legitimate shape (a control's edge, a real `<ol>`, the one
  *   centred moment) that a text match cannot tell from the device.
  *
+ * ## two css rules that ride the same scope
+ *
+ * not house rules — they hold on any page — but these pages were the ones
+ * swept onto them, so this is where they are held:
+ *
+ * - **the inline axis is logical.** `ms`/`me`, `ps`/`pe`, `inset-s`/`inset-e`,
+ *   `text-start`/`text-end`, `border-s`/`border-e`, `rounded-s`/`rounded-e`:
+ *   each mirrors with `dir`, where its `l`/`r` twin stays put. read like
+ *   `card`, as class-string tokens with their variants stripped, because
+ *   `left`, `right` and `-right-` are ordinary words in copy and in arbitrary
+ *   values (`[mask:linear-gradient(to_left,…)]`). a bundle hoisted into a
+ *   `const`, or a `className={a ? "…" : "…"}`, is opaque to it. transforms
+ *   have no logical form, so `translate-x` is not a finding.
+ * - **`overflow-clip`, not `-hidden`.** `hidden` makes the box a scroll
+ *   container: focus or `scrollIntoView` can scroll it, which shifts a clipped
+ *   frame's content or a marquee's track out of line. `clip` paints the same
+ *   edge and scrolls nothing. read as raw text, being distinctive.
+ *
  * hence the `node` vitest project: the rest of the suite runs in browser mode,
  * which has no `node:fs`.
  */
@@ -224,5 +242,71 @@ describe("marketing uses the tile family", () => {
       )
       .map(({ file, n }) => `${file}:${n}`);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("the inline axis mirrors", () => {
+  /** the utility a class token names: variants, `!` and the negative sign
+   *  removed. a `:` inside `[…]`/`(…)` belongs to an arbitrary value. */
+  const utility_of = (token: string) => {
+    let depth = 0;
+    let cut = 0;
+    for (let i = 0; i < token.length; i++) {
+      const c = token[i];
+      if (c === "[" || c === "(") depth++;
+      else if (c === "]" || c === ")") depth--;
+      else if (c === ":" && depth === 0) cut = i + 1;
+    }
+    return token.slice(cut).replace(/^!?-?|!$/g, "");
+  };
+
+  const PHYSICAL =
+    /^(?:(?:m|p|scroll-m|scroll-p)[lr]-|(?:left|right)-|(?:border|rounded)-[lr](?:-|$)|text-(?:left|right)$)/;
+
+  test("the needle reads the utility, not the words around it", () => {
+    const cases: [string, boolean][] = [
+      ["ml-2", true],
+      ["md:pr-4", true],
+      ["group-hover:-right-2", true],
+      ["!left-0", true],
+      ["xl:text-left", true],
+      ["border-l", true],
+      ["border-r-2", true],
+      ["rounded-l", true],
+      ["scroll-ml-4", true],
+      ["ms-2", false],
+      ["-inset-e-8", false],
+      ["text-start", false],
+      ["rounded-lg", false],
+      ["prose", false],
+      ["translate-x-0.5", false],
+      ["[mask-image:linear-gradient(to_left,black,transparent)]", false],
+      ["mask-x-from-90%", false],
+    ];
+    expect(
+      cases.filter(([t, want]) => PHYSICAL.test(utility_of(t)) !== want)
+    ).toEqual([]);
+  });
+
+  test("no physical inline-axis utility", () => {
+    const offenders = class_values.flatMap(({ file, n, value }) =>
+      tokens(value)
+        .filter((t) => PHYSICAL.test(utility_of(t)))
+        .map((t) => `${file}:${n} ${t}`)
+    );
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("a clip is not a scroller", () => {
+  test("no `overflow-hidden`", () => {
+    // a box that a script really scrolls keeps `hidden`, and goes on an
+    // exempt list here with the script named. `auto`/`scroll` are scrollers
+    // by intent and are not findings.
+    expect(
+      findings(
+        /(?<![-\w])overflow-(?:[xy]-)?hidden(?![-\w])|overflow[XY]?:\s*["']hidden["']/g
+      )
+    ).toEqual([]);
   });
 });

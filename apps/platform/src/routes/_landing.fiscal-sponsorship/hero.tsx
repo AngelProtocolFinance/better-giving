@@ -28,7 +28,7 @@ export function Hero({ classes = "" }: IHero) {
               Apply in minutes
               <ArrowRight
                 aria-hidden="true"
-                className="icon-md transition-transform group-hover:translate-x-0.5"
+                className="icon-md transition-transform motion-safe:group-hover:translate-x-0.5"
               />
             </Link>
             <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
@@ -91,7 +91,7 @@ function FeeComparison() {
           </div>
           <span className="relative block h-5 rounded-full bg-surface">
             <span
-              className="absolute inset-y-0 left-2/5 right-0 rounded-full"
+              className="absolute inset-y-0 inset-s-2/5 inset-e-0 rounded-full"
               style={market_hatch}
             />
           </span>

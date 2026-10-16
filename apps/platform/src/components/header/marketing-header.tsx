@@ -151,13 +151,13 @@ export function MarketingHeader({
                 Join free forever
                 <ArrowRight
                   aria-hidden="true"
-                  className="max-xl:hidden icon-sm transition-transform group-hover:translate-x-0.5"
+                  className="max-xl:hidden icon-sm transition-transform motion-safe:group-hover:translate-x-0.5"
                 />
               </Link>
             </>
           )}
         </div>
-        {/* min-*-11 is the 44px hit area around the 24px glyph; -mr-2.5 keeps
+        {/* min-*-11 is the 44px hit area around the 24px glyph; -me-2.5 keeps
             the glyph on the gutter edge the 24px box put it on. */}
         <button
           ref={toggle_ref}
@@ -166,7 +166,7 @@ export function MarketingHeader({
           aria-label="Navigation menu"
           aria-expanded={open}
           aria-controls={menu_id}
-          className="nav:hidden glyph-btn min-w-11 min-h-11 -mr-2.5 text-gray-12 focus-visible:outline-2 focus-visible:outline-ring"
+          className="nav:hidden glyph-btn min-w-11 min-h-11 -me-2.5 text-gray-12 focus-visible:outline-2 focus-visible:outline-ring"
         >
           {open ? (
             <XIcon className="icon-2xl" />
@@ -232,7 +232,7 @@ export function MarketingHeader({
                       Join free forever
                       <ArrowRight
                         aria-hidden="true"
-                        className="icon-md transition-transform group-hover:translate-x-0.5"
+                        className="icon-md transition-transform motion-safe:group-hover:translate-x-0.5"
                       />
                     </Link>
                     {/* min-h-11 is the 44px target the button above it has */}

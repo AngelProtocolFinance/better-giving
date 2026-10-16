@@ -32,6 +32,13 @@
     border-radius: var(--radius);
   }
 
+  /* every hand-written :hover in the style layer sits inside
+     `@media (hover: hover)`, the same gate tailwind's own `hover:` variant
+     compiles to. without it a tap on touch leaves the hover fill stuck on the
+     control until the next tap lands elsewhere. no `(pointer: fine)` beside it:
+     that would part these recipes from every `hover:` class at the call sites,
+     and a touchscreen laptop driven by its trackpad is a hover device. */
+
   /* gray-7 is the ramp's ELEMENT-BORDER rung and every control recipe in this
      file spells it — not --border, which is gray-6, the separator rung that
      dividers, panel hairlines and table rules keep. spelled as the step rather
@@ -52,16 +59,20 @@
     &:active {
       background-color: var(--secondary-active);
     }
-    &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: var(--secondary);
+    @media (hover: hover) {
+      &:hover:not(:disabled):not([aria-disabled="true"]) {
+        background-color: var(--secondary);
+      }
     }
   }
 
   .btn-ghost {
     background-color: transparent;
     color: inherit;
-    &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: var(--secondary);
+    @media (hover: hover) {
+      &:hover:not(:disabled):not([aria-disabled="true"]) {
+        background-color: var(--secondary);
+      }
     }
     &:active {
       background-color: var(--secondary-active);
@@ -74,18 +85,18 @@
 
   /* the filled variants below share one fill between :hover and :active: the
      ramp gives a solid two steps, not three, so there is no third rung to press
-     to. the press reads as a 1px downward nudge instead — the affordance a
-     scale can't supply, and on touch, where there is no hover, the only
-     acknowledgement a tap gets. */
+     to. the press reads as the family's 0.97 scale instead (the press block
+     after the focus ring below) — the affordance a colour ramp can't supply. */
   .btn-primary {
     background-color: var(--primary);
     color: var(--primary-fg);
     &:active {
       background-color: var(--primary-hover);
-      transform: translateY(1px);
     }
-    &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: var(--primary-hover);
+    @media (hover: hover) {
+      &:hover:not(:disabled):not([aria-disabled="true"]) {
+        background-color: var(--primary-hover);
+      }
     }
   }
 
@@ -94,10 +105,11 @@
     color: var(--destructive-fg);
     &:active {
       background-color: var(--destructive-hover);
-      transform: translateY(1px);
     }
-    &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: var(--destructive-hover);
+    @media (hover: hover) {
+      &:hover:not(:disabled):not([aria-disabled="true"]) {
+        background-color: var(--destructive-hover);
+      }
     }
   }
 
@@ -106,10 +118,11 @@
     color: var(--success-fg);
     &:active {
       background-color: var(--success-hover);
-      transform: translateY(1px);
     }
-    &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: var(--success-hover);
+    @media (hover: hover) {
+      &:hover:not(:disabled):not([aria-disabled="true"]) {
+        background-color: var(--success-hover);
+      }
     }
   }
 
@@ -118,10 +131,11 @@
     color: var(--warning-fg);
     &:active {
       background-color: var(--warning-hover);
-      transform: translateY(1px);
     }
-    &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: var(--warning-hover);
+    @media (hover: hover) {
+      &:hover:not(:disabled):not([aria-disabled="true"]) {
+        background-color: var(--warning-hover);
+      }
     }
   }
 
@@ -142,8 +156,10 @@
     background-color: transparent;
     color: inherit;
     border: 2px solid color-mix(in oklab, currentColor 40%, transparent);
-    &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: color-mix(in oklab, currentColor 10%, transparent);
+    @media (hover: hover) {
+      &:hover:not(:disabled):not([aria-disabled="true"]) {
+        background-color: color-mix(in oklab, currentColor 10%, transparent);
+      }
     }
     &:active {
       background-color: color-mix(in oklab, currentColor 15%, transparent);
@@ -172,6 +188,28 @@
     &:focus-visible {
       outline: 2px solid var(--ring);
       outline-offset: 2px;
+    }
+  }
+
+  /* the press: every variant shrinks to 0.97 while held, the acknowledgement a
+     click gets even where :hover already spent the pressed fill. no transition
+     here — a press is the one state a user can outrun, so easing it in reads as
+     lag (ledger → State ladder). `scale` rather than `transform` so it
+     composes with a call site's `translate-*`. movement, so it is opt-in: under
+     reduced motion the fill is the press's whole signal. `.pending` is excluded
+     like the disabled forms — a control that cannot be pressed must not give. */
+  .btn,
+  .btn-ghost,
+  .btn-outline,
+  .btn-secondary,
+  .btn-success,
+  .btn-primary,
+  .btn-warning,
+  .btn-destructive {
+    @media (prefers-reduced-motion: no-preference) {
+      &:active:not(:disabled):not([aria-disabled="true"]):not(.pending) {
+        scale: 0.97;
+      }
     }
   }
 
@@ -317,8 +355,10 @@
     &[data-highlighted] {
       background-color: var(--secondary);
     }
-    &:hover {
-      background-color: var(--secondary);
+    @media (hover: hover) {
+      &:hover {
+        background-color: var(--secondary);
+      }
     }
   }
 
@@ -431,10 +471,13 @@
       align-items: center;
       justify-content: center;
       gap: calc(var(--spacing) * 2);
+      @media (hover: hover) {
+        &:hover:not(:disabled):not([aria-disabled="true"]) {
+          background-color: var(--secondary);
+        }
+      }
       /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */
-      &:hover:not(:disabled):not([aria-disabled="true"]),
-      /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */
-        &:active {
+      &:active {
         background-color: var(--secondary);
       }
       /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */

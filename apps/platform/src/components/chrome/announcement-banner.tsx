@@ -91,7 +91,7 @@ export function AnnouncementBanner({ on_dismissed }: IAnnouncementBanner) {
           </p>
           {/* the dismiss button stays outside the link's subtree — a <button>
               inside an <a> is invalid markup and its click would bubble into
-              the navigation. min-*-11 is the 44px hit area. -mr-2.5 keeps the
+              the navigation. min-*-11 is the 44px hit area. -me-2.5 keeps the
               glyph on the gutter edge the 24px box put it on; -my-2 spends the
               row's own padding on it, so a one-line bar is exactly the 44px
               target tall rather than clipping it under the header. */}
@@ -99,7 +99,7 @@ export function AnnouncementBanner({ on_dismissed }: IAnnouncementBanner) {
             type="button"
             onClick={dismiss}
             aria-label="Dismiss announcement"
-            className="glyph-btn min-w-11 min-h-11 -my-2 -mr-2.5 text-blue-5 hover:text-primary-fg focus-visible:text-primary-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+            className="glyph-btn min-w-11 min-h-11 -my-2 -me-2.5 text-blue-5 hover:text-primary-fg focus-visible:text-primary-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
             <XIcon className="icon-md" />
           </button>

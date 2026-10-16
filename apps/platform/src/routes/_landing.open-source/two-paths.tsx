@@ -107,7 +107,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
               Get the code
               <ArrowRight
                 aria-hidden="true"
-                className="icon-md transition-transform group-hover:translate-x-0.5"
+                className="icon-md transition-transform motion-safe:group-hover:translate-x-0.5"
               />
             </ExtLink>
           </div>

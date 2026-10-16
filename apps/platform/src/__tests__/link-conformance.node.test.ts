@@ -159,7 +159,9 @@ describe("the link recipe", () => {
     // the same split the type roles keep by holding no colour. a display or a
     // font-weight baked in here is a decision every one of the 139 call sites
     // would then have to cancel.
-    const decls = [...recipe.matchAll(/([a-z-]+):\s*([^;]+);/g)].map(
+    // `[^;{]` so the `@media (hover: hover) {` wrapper is not read as a
+    // declaration — the hover ink is gated on hover-capable devices.
+    const decls = [...recipe.matchAll(/([a-z-]+):\s*([^;{]+);/g)].map(
       (m) => `${m[1]}: ${m[2]}`
     );
     expect(decls).toEqual([
@@ -168,6 +170,7 @@ describe("the link recipe", () => {
       "outline: 2px solid var(--ring)",
       "outline-offset: 2px",
     ]);
+    expect(recipe).toContain("@media (hover: hover)");
     // the house focus trigger, and the only one: `:focus` here would ring a
     // link on a pointer press that no control in components.css rings.
     expect(recipe).toContain("&:focus-visible {");

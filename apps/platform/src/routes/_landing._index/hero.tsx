@@ -60,7 +60,7 @@ export function Hero({ classes = "" }: IHero) {
               Join free forever
               <ArrowRight
                 aria-hidden="true"
-                className="icon-md transition-transform group-hover:translate-x-0.5"
+                className="icon-md transition-transform motion-safe:group-hover:translate-x-0.5"
               />
             </Link>
             <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
@@ -74,7 +74,7 @@ export function Hero({ classes = "" }: IHero) {
           </p>
         </div>
 
-        <div className="w-full max-w-lg justify-self-center lg:justify-self-end overflow-hidden rounded border bg-panel">
+        <div className="w-full max-w-lg justify-self-center lg:justify-self-end overflow-clip rounded border bg-panel">
           <img
             src={donation_form}
             width={746}

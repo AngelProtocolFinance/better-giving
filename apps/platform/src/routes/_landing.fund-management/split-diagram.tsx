@@ -73,7 +73,7 @@ export function SplitDiagram({ classes = "" }: ISplitDiagram) {
           </span>
         </div>
 
-        <div className="relative mt-8 flex h-3 rounded-full overflow-hidden">
+        <div className="relative mt-8 flex h-3 rounded-full overflow-clip">
           {split.map((s) => (
             <span
               key={s.label}

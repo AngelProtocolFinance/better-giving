@@ -14,7 +14,11 @@
 /* side-specific corners at the same one radius. v4 derives `rounded-b`/`-r`
    from the --radius-* scale, and that scale is reset to `initial` in theme.css
    so a stray `rounded-sm` can't compile — which takes these down with it
-   unless they're bound here too. same value, same rule, just two corners. */
+   unless they're bound here too. same value, same rule, just two corners.
+   `-s`/`-e` are the inline-start/-end pair a call site reaches for, flipping
+   under `dir="rtl"`; `-l`/`-r` are physical and stay put, which is what their
+   names promise. `-t`/`-b` can be logical: block-start is the top in every
+   horizontal writing mode, so the two spellings never differ. */
 @utility rounded-t {
   border-start-start-radius: var(--radius);
   border-start-end-radius: var(--radius);
@@ -23,13 +27,21 @@
   border-end-start-radius: var(--radius);
   border-end-end-radius: var(--radius);
 }
-@utility rounded-l {
+@utility rounded-s {
   border-start-start-radius: var(--radius);
   border-end-start-radius: var(--radius);
 }
-@utility rounded-r {
+@utility rounded-e {
   border-start-end-radius: var(--radius);
   border-end-end-radius: var(--radius);
+}
+@utility rounded-l {
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+}
+@utility rounded-r {
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
 }
 
 /* the three named speeds from theme.css, as the names a call site writes.
@@ -175,8 +187,8 @@
    works ON a .btn, whose 36px min-block-size, bold weight and px-6 come with
    it. all of that is a control's chrome, wrong around a naked glyph, and it
    pins the smallest possible target at 36px when the floor is 24. this tier
-   contributes hit area and nothing else, so color, hover and focus classes
-   stay the call site's.
+   contributes hit area and the family's press scale and nothing else, so
+   color, hover and focus classes stay the call site's.
    24px is WCAG 2.2 SC 2.5.8 Target Size (Minimum), AA — the same floor btn-sm
    pins itself to, reached here by the min alone since the glyph is always
    smaller than the box. mins rather than definite sizes so a larger glyph
@@ -194,6 +206,12 @@
   min-inline-size: calc(var(--spacing) * 6) /* 24px */;
   min-block-size: calc(var(--spacing) * 6) /* 24px */;
   border-radius: var(--radius);
+  /* the .btn family's press (styles/components.css), on the same terms */
+  @media (prefers-reduced-motion: no-preference) {
+    &:active:not(:disabled):not([aria-disabled="true"]) {
+      scale: 0.97;
+    }
+  }
 }
 
 /* icon size ladder, for lucide glyphs. css inline-/block-size beat the svg's
@@ -276,8 +294,10 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-  &:hover:not(:disabled):not([aria-disabled="true"]) {
-    background-color: color-mix(in oklch, var(--form-primary) 90%, black);
+  @media (hover: hover) {
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      background-color: color-mix(in oklch, var(--form-primary) 90%, black);
+    }
   }
   &:active {
     background-color: color-mix(in oklch, var(--form-primary) 85%, black);
@@ -327,8 +347,10 @@
    that set. */
 @utility link {
   color: var(--primary);
-  &:hover {
-    color: var(--primary-hover);
+  @media (hover: hover) {
+    &:hover {
+      color: var(--primary-hover);
+    }
   }
   &:focus-visible {
     outline: 2px solid var(--ring);

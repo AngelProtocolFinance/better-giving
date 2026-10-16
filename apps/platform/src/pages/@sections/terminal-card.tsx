@@ -26,9 +26,11 @@ export function TerminalCard({
 }: ITerminalCard) {
   return (
     // no lift: it sits at rest on its brand ground, set off by its own darker
-    // scrim, and its edge is the window frame it draws
+    // scrim, and its edge is the window frame it draws. `clip` is no scroll
+    // container, so as a grid item it keeps its min-content floor; min-w-0
+    // lets a long command wrap rather than widen the column
     <div
-      className={`${classes} bg-black/25 border border-primary-fg/15 rounded overflow-hidden`}
+      className={`${classes} bg-black/25 border border-primary-fg/15 rounded overflow-clip min-w-0`}
       role="img"
       aria-label={description}
     >
@@ -39,10 +41,10 @@ export function TerminalCard({
         <span className="size-3 rounded-full bg-destructive" />
         <span className="size-3 rounded-full bg-warning" />
         <span className="size-3 rounded-full bg-success" />
-        <span className="font-mono text-xs text-primary-fg/80 ml-2 truncate">
+        <span className="font-mono text-xs text-primary-fg/80 ms-2 truncate">
           {label}
         </span>
-        <span className="font-mono text-2xs text-primary-fg/80 border border-primary-fg/25 rounded-full px-2 py-0.5 ml-auto">
+        <span className="font-mono text-2xs text-primary-fg/80 border border-primary-fg/25 rounded-full px-2 py-0.5 ms-auto">
           Public
         </span>
       </div>

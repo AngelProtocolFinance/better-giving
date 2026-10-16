@@ -11,28 +11,31 @@ export function Socials({ classes = "" }) {
     <div className={`flex items-center gap-3 md:gap-6 ${classes} pb-4`}>
       <ExtLink
         href={socials.linkedin}
-        className="hover:scale-110 active:scale-110"
+        className="motion-safe:hover:scale-110 motion-safe:active:scale-110"
       >
         <img src={linkedin} alt="linkedin" width={20} />
       </ExtLink>
       <ExtLink
         href={socials.facebook}
-        className="hover:scale-110 active:scale-110"
+        className="motion-safe:hover:scale-110 motion-safe:active:scale-110"
       >
         <img src={facebook} alt="facebook" width={18} />
       </ExtLink>
-      <ExtLink href={socials.x} className="hover:scale-110 active:scale-110">
+      <ExtLink
+        href={socials.x}
+        className="motion-safe:hover:scale-110 motion-safe:active:scale-110"
+      >
         <img src={x} alt="x" width={15} />
       </ExtLink>
       <ExtLink
         href={socials.youtube}
-        className="hover:scale-110 active:scale-110"
+        className="motion-safe:hover:scale-110 motion-safe:active:scale-110"
       >
         <img src={youtube} alt="youtube" width={21} />
       </ExtLink>
       <ExtLink
         href={socials.instagram}
-        className="hover:scale-110 active:scale-110"
+        className="motion-safe:hover:scale-110 motion-safe:active:scale-110"
       >
         <img src={instagram} alt="instagram" width={18} />
       </ExtLink>

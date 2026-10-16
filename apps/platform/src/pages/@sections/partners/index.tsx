@@ -44,7 +44,7 @@ export function Partners({
       >
         {/* the ends fade by masking the logos, not by painting the ground
             over them, so the fade holds on any fill the caller sets */}
-        <Marquee.Viewport className="w-full h-full overflow-hidden mask-y-from-85%">
+        <Marquee.Viewport className="w-full h-full overflow-clip mask-y-from-85%">
           <Marquee.Content className="animate-marquee-y group-data-paused:[animation-play-state:paused] motion-reduce:animate-none">
             <Marquee.Item className="flex flex-wrap gap-8 py-4 justify-center">
               {partners.map((partner) => (

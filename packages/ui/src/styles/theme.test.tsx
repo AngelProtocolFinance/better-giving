@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "vitest";
-import { commands } from "vitest/browser";
+import { commands, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 const token = (name: string) =>
@@ -156,4 +156,146 @@ describe("editorial face", () => {
     expect(faces.map((f) => f.style)).toContain("italic");
     expect(faces.every((f) => f.status === "loaded")).toBe(true);
   });
+});
+
+// the media-query half is read off the CSSOM rather than emulated. chromium
+// can emulate a hover-less device (touch emulation) but cannot hand the hover
+// type back: once touch emulation is lifted, `(hover: none)` keeps matching for
+// the rest of the page, and fileParallelism off means one page carries every
+// file. `setEmulatedMedia` takes no `hover` feature, and playwright's
+// emulateMedia has none either.
+// tailwind's own `hover:` nests the gate INSIDE the hover rule
+// (`.x { &:hover { @media (hover: hover) { … } } }`), so a hover selector is
+// a finding only where a declaration lands under it with no gate on the way.
+const ungated_hovers = (
+  rules: CSSRuleList,
+  ctx = { gated: false, hover: "" }
+): string[] =>
+  Array.from(rules).flatMap((rule) => {
+    const gated =
+      ctx.gated ||
+      (rule instanceof CSSMediaRule &&
+        /\(\s*hover\s*:\s*hover\s*\)/.test(rule.conditionText));
+    const hover =
+      rule instanceof CSSStyleRule && /(?<!\\):hover/.test(rule.selectorText)
+        ? rule.selectorText
+        : ctx.hover;
+    const own =
+      rule instanceof CSSStyleRule && hover && !gated && rule.style.length > 0
+        ? [hover]
+        : [];
+    const nested =
+      "cssRules" in rule
+        ? ungated_hovers(rule.cssRules as CSSRuleList, { gated, hover })
+        : [];
+    return [...own, ...nested];
+  });
+
+describe("hover is gated on a hover-capable pointer", () => {
+  test("no :hover rule in the stylesheet sits outside (hover: hover)", async () => {
+    // a class nobody renders is still emitted (the scan is of source text), so
+    // the sheet already holds every recipe; rendering one only proves it loaded
+    await render(<button type="button" className="btn btn-primary" />);
+    const findings = Array.from(document.styleSheets).flatMap((sheet) =>
+      ungated_hovers(sheet.cssRules)
+    );
+    expect(findings).toEqual([]);
+  });
+
+  test("a hover device still takes the hover fill", async () => {
+    expect(matchMedia("(hover: hover)").matches).toBe(true);
+    const screen = await render(
+      <button type="button" className="btn btn-primary">
+        Donate
+      </button>
+    );
+    const btn = screen.getByRole("button").element();
+    const resting = getComputedStyle(btn).backgroundColor;
+    await userEvent.hover(btn);
+    expect(btn.matches(":hover")).toBe(true);
+    expect(getComputedStyle(btn).backgroundColor).not.toBe(resting);
+    await userEvent.unhover(btn);
+  });
+});
+
+describe("press scale", () => {
+  afterEach(async () => {
+    await commands.emulateMedia({ reducedMotion: null });
+  });
+
+  // chromium holds a button :active while Space is down, which is the one
+  // press a test can keep held long enough to read.
+  const held_scale = async () => {
+    const screen = await render(
+      <button type="button" className="btn btn-secondary">
+        Save
+      </button>
+    );
+    const btn = screen.getByRole("button").element() as HTMLElement;
+    btn.focus();
+    await userEvent.keyboard("{Space>}");
+    expect(btn.matches(":active")).toBe(true);
+    const scale = getComputedStyle(btn).scale;
+    await userEvent.keyboard("{/Space}");
+    return scale;
+  };
+
+  test("shrinks to 0.97 while held", async () => {
+    await commands.emulateMedia({ reducedMotion: "no-preference" });
+    expect(await held_scale()).toBe("0.97");
+  });
+
+  test("does not move under prefers-reduced-motion", async () => {
+    await commands.emulateMedia({ reducedMotion: "reduce" });
+    expect(await held_scale()).toBe("none");
+  });
+});
+
+describe("root", () => {
+  test("stops the rubber-band on a fine pointer", () => {
+    expect(matchMedia("(any-pointer: coarse)").matches).toBe(false);
+    expect(getComputedStyle(document.documentElement).overscrollBehaviorY).toBe(
+      "none"
+    );
+  });
+
+  test("breaks an unbroken string inside its box", () => {
+    expect(getComputedStyle(document.documentElement).overflowWrap).toBe(
+      "break-word"
+    );
+  });
+});
+
+describe("side corners", () => {
+  test.each([
+    ["rounded-s", "ltr", [true, false, false, true]],
+    ["rounded-s", "rtl", [false, true, true, false]],
+    ["rounded-e", "ltr", [false, true, true, false]],
+    ["rounded-e", "rtl", [true, false, false, true]],
+    ["rounded-l", "rtl", [true, false, false, true]],
+    ["rounded-r", "rtl", [false, true, true, false]],
+  ] as const)(
+    "%s under %s rounds its own two corners",
+    async (name, dir, want) => {
+      const screen = await render(
+        <div dir={dir}>
+          <div data-testid="ref" className="rounded" />
+          <div data-testid="c" className={name} />
+        </div>
+      );
+      const radius = getComputedStyle(
+        screen.getByTestId("ref").element()
+      ).borderTopLeftRadius;
+      // clockwise from top-left
+      const style = getComputedStyle(screen.getByTestId("c").element());
+      const radii = [
+        style.borderTopLeftRadius,
+        style.borderTopRightRadius,
+        style.borderBottomRightRadius,
+        style.borderBottomLeftRadius,
+      ];
+      expect(radii.map((r) => r !== "0px")).toEqual(want);
+      expect(radii.filter((r) => r !== "0px")).toEqual([radius, radius]);
+    }
+  );
 });

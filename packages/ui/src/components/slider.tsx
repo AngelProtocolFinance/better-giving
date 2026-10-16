@@ -42,7 +42,7 @@ export function Slider({
         {label}
       </Ark.Label>
       <Ark.Control className="flex h-5 w-full items-center">
-        <Ark.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-gray-3 inset-shadow-track">
+        <Ark.Track className="relative h-2 w-full grow overflow-clip rounded-full bg-gray-3 inset-shadow-track">
           <Ark.Range className="absolute h-full bg-primary data-disabled:bg-gray-11" />
         </Ark.Track>
         <Ark.Thumb

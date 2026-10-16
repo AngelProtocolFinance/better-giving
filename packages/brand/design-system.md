@@ -1046,6 +1046,49 @@ Two things it deliberately does not do:
   before it finishes. A fixed distance from the top edge's entry has neither
   failure.
 
+### CSS craft (good-css)
+
+Decided 2026-10-16, after a pass against [good-css](https://good-css.com/). What
+it changed in the style layer, and where its rules were weighed against a
+decision this file already records and not taken.
+
+- **Hover is gated on `(hover: hover)`** in every hand-written recipe
+  (`.btn-*`, `btn-form-primary`, `link`, `.selector-opt`, the table footer
+  button). Tailwind's own `hover:` variant already compiles to that query, so
+  these were the only hover rules a tap on touch could leave stuck on. No
+  `(pointer: fine)` beside it: that would part the recipes from every `hover:`
+  class at the call sites. `theme.test.tsx` sweeps the loaded CSSOM for a
+  `:hover` declaration outside the gate; the query is read rather than
+  emulated, because Chromium can emulate a hover-less device but cannot give
+  the hover type back for the rest of the page.
+- **The press is a 0.97 scale behind `prefers-reduced-motion: no-preference`**:
+  see *State ladder*. `reveal` is behind the same query already (*The scroll
+  reveal is off the speed ladder*), and the style layer carries no other
+  transform on hover or press.
+- **The root carries two text and scroll rules** (`packages/ui/src/styles/base.css`):
+  `overflow-wrap: break-word`, inherited everywhere, so an email or a pasted url
+  breaks inside its box instead of widening the page (`break-word`, not
+  `anywhere`, so min-content sizing is untouched); and
+  `overscroll-behavior-y: none`, set back to `auto` under
+  `(any-pointer: coarse)` so any touch input keeps its bounce and
+  pull-to-refresh.
+- **`overflow-clip` over `overflow-hidden`** wherever nothing scrolls the box
+  (`Slider`'s track). The one kept `hidden` is the `Accordion` item content:
+  only `hidden` makes a formatting context, which holds the compact answer's
+  bottom margin inside the `--height` the collapsible measures.
+
+Not adopted, because this file decided otherwise first:
+
+| good-css rule | why not | decided in |
+| --- | --- | --- |
+| `light-dark()` tokens | the palette is light-only | *The palette is light-only* |
+| a fluid `clamp()` type and space scale | the type ladder is closed and steps at breakpoints | *The size ladder: closed* |
+| concentric nested radii | one radius token, closed ladder | *State ladder* (`--radius` paragraph); platform `CLAUDE.md` → "one radius" |
+| icons sized in `cap` / `lh` | the icon ladder is a closed px set | *Icon size ladder* |
+| no `ease-in` | `ease-in` is the exit curve, on purpose | *The curves are Tailwind's three, and each one has a job* |
+| OKLCH greys with a `none` hue | the grey ramp is Radix slate, tinted on purpose | *The ramp* |
+| cross-document view transitions | the app navigates client-side | n/a |
+
 ## Decisions that look like bugs
 
 Recorded so they are not "fixed" by someone reading them as oversights.
@@ -1126,7 +1169,7 @@ rung is a named token off the ramp**: nothing is mixed at a use-site.
 
 | control | resting | hover | active (pressed) |
 | --- | --- | --- | --- |
-| filled (`.btn-primary` and the three semantic variants) | step 9: `--primary`, `--destructive`, `--success`, `--warning` | step 10: `--*-hover` | **step 10 + `translateY(1px)`** |
+| filled (`.btn-primary` and the three semantic variants) | step 9: `--primary`, `--destructive`, `--success`, `--warning` | step 10: `--*-hover` | **step 10 + `scale: 0.97`** (motion allowed only) |
 | tinted / ghost (`.btn-secondary`, `.btn-ghost`) | `--panel` or transparent | step 3: `--secondary` | step 5: `--secondary-active` |
 | a subtle band that is also a control | `--destructive-subtle` (step 3) | n/a | `--destructive-subtle-active` (step 5) |
 | text-only (`link`) | step 9: `--primary` | step 10: `--primary-hover` | n/a: the two solid rungs are spent, and a run of text has no press affordance to spend instead |
@@ -1142,12 +1185,15 @@ bug:
 - **A solid has two rungs, not three.** Radix gives a fill step 9 and step 10 and
   stops; steps 11 and 12 are text and both sit *lighter* than 10 (`blue-10`
   `#055f9c` against `blue-11` `#206fad`). So `:hover` and `:active` share step 10,
-  and the press is carried by a non-color affordance instead: a
-  `translateY(1px)` nudge on all four filled variants
-  (`packages/ui/src/styles/components.css`). It is instant, never
-  transitioned: a press is the one state a user can outrun, so easing the
-  nudge in reads as lag rather than as contact. On touch, where there is no
-  hover, that nudge is the only acknowledgement a tap gets.
+  and the press is carried by a non-color affordance instead: `scale: 0.97`
+  while held, on every `.btn` variant and on `glyph-btn`
+  (`packages/ui/src/styles/components.css`, `utilities.css`). It is instant,
+  never transitioned: a press is the one state a user can outrun, so easing the
+  shrink in reads as lag rather than as contact. It is movement, so it sits
+  behind `prefers-reduced-motion: no-preference`; with reduced motion on a
+  hover device a filled button's press has no signal of its own, and the
+  click's result is the acknowledgement. On touch the rest → step 10 fill
+  change still marks a tap.
 - **A tinted surface presses UP its scale**, 3 → 5, never toward black. Darkening
   a light band moves it toward its own dark ink, which is the failure a
   darkening ladder produces there and the reason these active rungs are steps.
@@ -1461,7 +1507,7 @@ one.
 **What it does not carry**: size, weight, spacing, display. That is the same
 split the type roles keep by holding no colour, and the reason 139 call sites
 could take the name without moving a pixel of layout. Nor a pressed rung: a solid has two
-rungs, both spent, and a run of text has no `translateY` to spend instead.
+rungs, both spent, and a run of text has no press scale to spend instead.
 
 It replaced **six spellings across 139 call sites**:
 `hover:text-primary` (73), `hover:underline` (29), `hover:text-primary/80` (22),
@@ -1812,6 +1858,7 @@ generated; each "instead" is what fills the space.
 | No glass: no backdrop blur, no translucent bar | An opaque header: wordmark, links, one button |
 | No monospace outside code (the terminal) and printed artefacts (the receipt) | The body face; `figures` where digits align |
 | No hover lift on cards | A linked tile's title takes the link ink; the arrow nudges |
+| Logical properties (start/end, inline/block), `overflow-clip` over `hidden` | `ms`/`me`, `ps`/`pe`, `start-`/`end-`, `text-start`/`text-end`, `border-s`/`border-e`, `rounded-s`/`rounded-e`; transform axes (`translate-x`) stay physical, having no logical form. Enforced by `marketing-conformance.node.test.ts` |
 | Left-aligned by default | At most one centred moment per page |
 
 Not adopted, recorded: the rule's two-line headline cap. The marketing copy is

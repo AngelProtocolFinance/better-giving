@@ -65,7 +65,7 @@ export function PublicLayout() {
       <a
         href="#main"
         inert={menu_open}
-        className="not-focus:sr-only fixed top-2 left-2 z-top btn btn-secondary shadow-floating"
+        className="not-focus:sr-only fixed top-2 inset-s-2 z-top btn btn-secondary shadow-floating"
       >
         Skip to content
       </a>

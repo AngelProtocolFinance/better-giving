@@ -20,7 +20,7 @@ export function PartnersStrip({ classes = "" }: IPartnersStrip) {
   const [held, set_held] = useState(false);
   const [hovered, set_hovered] = useState(false);
   return (
-    <section className={`${classes} overflow-hidden py-8`}>
+    <section className={`${classes} overflow-clip py-8`}>
       {/* the strip's lead line, on the page edge the sections share */}
       <p className="page text-lg text-gray-12 text-pretty">
         Trusted by nonprofits, faith charities, schools &amp; universities
@@ -42,7 +42,7 @@ export function PartnersStrip({ classes = "" }: IPartnersStrip) {
         >
           {/* the ends fade by masking the logos, not by painting the ground
               over them, so the fade holds on any fill the caller sets */}
-          <Marquee.Viewport className="w-full overflow-hidden mask-x-from-90%">
+          <Marquee.Viewport className="w-full overflow-clip mask-x-from-90%">
             <Marquee.Content className="animate-marquee-x group-data-paused:[animation-play-state:paused] motion-reduce:animate-none">
               <Marquee.Item className="flex items-center gap-16 px-8">
                 {partners.map((p) => (
@@ -71,7 +71,7 @@ export function PartnersStrip({ classes = "" }: IPartnersStrip) {
           icon
           aria-label={held ? "Play logos" : "Pause logos"}
           onClick={() => set_held(!held)}
-          classes="absolute right-4 top-1/2 -translate-y-1/2 motion-reduce:hidden"
+          classes="absolute inset-e-4 top-1/2 -translate-y-1/2 motion-reduce:hidden"
         >
           {held ? (
             <Play className="icon-md" aria-hidden />

@@ -30,7 +30,7 @@ export function Hero({ classes = "" }: IHero) {
               Join free forever
               <ArrowRight
                 aria-hidden="true"
-                className="icon-md transition-transform group-hover:translate-x-0.5"
+                className="icon-md transition-transform motion-safe:group-hover:translate-x-0.5"
               />
             </Link>
             <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
@@ -47,7 +47,7 @@ export function Hero({ classes = "" }: IHero) {
             src={laira_coin}
             width={112}
             alt=""
-            className="absolute -top-14 -right-8 rotate-6 max-lg:hidden"
+            className="absolute -top-14 -inset-e-8 rotate-6 max-lg:hidden"
           />
         </div>
       </div>

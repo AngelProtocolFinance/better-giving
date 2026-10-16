@@ -29,7 +29,7 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
               <h3 className="subsection-heading">Own it.</h3>
               <CodeXml
                 aria-hidden="true"
-                className="absolute right-0 top-1/2 -translate-y-1/2 icon-2xl text-amber-6"
+                className="absolute inset-e-0 top-1/2 -translate-y-1/2 icon-2xl text-amber-6"
               />
             </div>
             <p className="text-base/relaxed md:text-lg/relaxed text-blue-5 text-pretty">

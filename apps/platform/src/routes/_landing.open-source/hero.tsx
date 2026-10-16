@@ -33,7 +33,7 @@ export function Hero({ classes = "" }: IHero) {
               View the repository
               <ArrowRight
                 aria-hidden="true"
-                className="icon-md transition-transform group-hover:translate-x-0.5"
+                className="icon-md transition-transform motion-safe:group-hover:translate-x-0.5"
               />
             </ExtLink>
             <Link to={href("/register")} className="btn btn-lg btn-outline">

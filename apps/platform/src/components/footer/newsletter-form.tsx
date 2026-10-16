@@ -86,7 +86,7 @@ export function NewsletterForm() {
         )}
         {data === "success" && (
           <p className="text-xs text-blue-5 mt-1.5">
-            <Check className="stroke-primary-fg inline mr-0.5 icon-sm" />
+            <Check className="stroke-primary-fg inline me-0.5 icon-sm" />
             The form was sent successfully. By doing so, you have agreed to our
             privacy policy
           </p>

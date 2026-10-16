@@ -9,14 +9,14 @@ export function Hero2({ classes = "" }) {
       className={`${classes} grid content-start justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 py-28`}
     >
       <div className="max-w-2xl order-2 xl:order-1">
-        <h1 className="text-center xl:text-left mb-4 section-heading">
+        <h1 className="text-center xl:text-start mb-4 section-heading">
           Why stop at one day of generosity?
         </h1>
-        <p className="mb-10 text-lg xl:text-xl text-center xl:text-left">
+        <p className="mb-10 text-lg xl:text-xl text-center xl:text-start">
           Every year, Giving Tuesday brings a surge of generosity and a flood of
           "limited-time offers." But those features often vanish the next day.
         </p>
-        <p className="mb-10 text-lg xl:text-xl text-center xl:text-left text-primary font-semibold">
+        <p className="mb-10 text-lg xl:text-xl text-center xl:text-start text-primary font-semibold">
           At {app_name}, generosity doesn't expire. Every donation works harder,
           every day of the year.
         </p>

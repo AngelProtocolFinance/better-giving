@@ -28,14 +28,14 @@ const looks = {
     root: "",
     item: "",
     trigger: "flex items-start justify-between gap-2 mb-2 w-full",
-    label: "text-left text-sm group-data-[state=open]:font-semibold",
+    label: "text-start text-sm group-data-[state=open]:font-semibold",
     content: "text-sm grid gap-3 text-gray-11 mb-6",
   },
   divided: {
     root: "divide-y divide-gray-6",
     item: "",
     trigger: "flex items-center justify-between gap-2 w-full py-6 px-4",
-    label: "text-left group-data-[state=open]:font-semibold",
+    label: "text-start group-data-[state=open]:font-semibold",
     content: "pb-4 px-4",
   },
   // the row is the trigger's to fill, so the inset sits on the trigger and the
@@ -45,7 +45,7 @@ const looks = {
     item: "bg-secondary rounded",
     trigger:
       "flex items-center justify-between gap-4 w-full p-6 md:px-8 rounded focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2",
-    label: "text-left group-data-[state=open]:font-semibold",
+    label: "text-start group-data-[state=open]:font-semibold",
     content: "px-6 md:px-8 pb-6",
   },
 };
@@ -78,6 +78,8 @@ export function Accordion({
               />
             </Ark.ItemTrigger>
           </Heading>
+          {/* hidden, not clip: only hidden makes a formatting context, which
+              keeps the compact answer's mb-6 inside the --height zag measures */}
           <Ark.ItemContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
             <div className={look.content}>{it.content}</div>
           </Ark.ItemContent>
