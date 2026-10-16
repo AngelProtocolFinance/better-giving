@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { href } from "react-router";
 import * as v from "valibot";
+import { client_ip } from "#/.server/auth/rate-limit";
 import { to_fn } from "#/.server/donation-recipient";
 import { get_npos } from "#/.server/npos";
 import { stripe_amounts } from "#/components/donation/common/amounts";
@@ -235,11 +236,10 @@ export async function create_quote(input: unknown): Promise<IAgentQuote> {
 }
 
 function caller_id(request: Request): string {
-  const forwarded = request.headers
-    .get("x-forwarded-for")
-    ?.split(",")[0]
-    ?.trim();
-  const ip = request.headers.get("cf-connecting-ip") || forwarded || "unknown";
+  // same trusted address as the auth limiter: Vercel overwrites a single
+  // `x-forwarded-for`, and a chain or `cf-connecting-ip` is caller-supplied.
+  // missing and spoofed callers share one bucket instead of a fresh one each.
+  const ip = client_ip(request.headers) ?? "unknown";
   return `ip:${createHash("sha256").update(ip).digest("hex")}`;
 }
 

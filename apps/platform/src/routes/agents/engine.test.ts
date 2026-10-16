@@ -289,6 +289,36 @@ describe("agent donate", () => {
     expect(mocks.checkout_session).not.toHaveBeenCalled();
   });
 
+  test("rate limit keys on one trusted address, not a caller-supplied header", async () => {
+    const spoofed = {
+      "cf-connecting-ip": "198.51.100.9",
+      "x-forwarded-for": "203.0.113.8, 10.0.0.1",
+    };
+    const first = await quote();
+    await donate(
+      { quote_token: first.quote_token, donor },
+      new Request("https://better.giving/agents", { headers: spoofed })
+    );
+    const second = await quote();
+    await donate(
+      { quote_token: second.quote_token, donor },
+      new Request("https://better.giving/agents", {
+        headers: { ...spoofed, "cf-connecting-ip": "198.51.100.10" },
+      })
+    );
+    const trusted = await quote();
+    await donate(
+      { quote_token: trusted.quote_token, donor },
+      new Request("https://better.giving/agents", {
+        headers: { "x-forwarded-for": "203.0.113.8" },
+      })
+    );
+
+    const ids = mocks.reserve.mock.calls.map((call) => call[0].source_id);
+    expect(ids[0]).toBe(ids[1]);
+    expect(ids[2]).not.toBe(ids[0]);
+  });
+
   test("customer or IP cap refuses before writing or calling Stripe", async () => {
     const quoted = await quote();
     mocks.reserve.mockResolvedValue("limited");
