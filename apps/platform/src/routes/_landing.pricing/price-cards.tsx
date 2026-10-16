@@ -1,24 +1,51 @@
-import { Check as CheckIcon } from "lucide-react";
+import { Check } from "lucide-react";
+import type { CSSProperties } from "react";
 import { href, Link } from "react-router";
 
-interface ICheck {
-  children: React.ReactNode;
-  /** on-navy featured card uses success accent for contrast */
-  dark?: boolean;
+interface IPlan {
+  name: string;
+  figure: string;
+  unit: string;
+  points: string[];
+  cta: { label: string; to: string };
 }
 
-function Check({ children, dark }: ICheck) {
-  return (
-    <span className="flex gap-2.5 text-sm/normal">
-      <CheckIcon
-        className={`flex-none icon-md mt-0.5 ${dark ? "text-success" : "text-primary"}`}
-        strokeWidth={3}
-        aria-hidden
-      />
-      {children}
-    </span>
-  );
-}
+const plans: IPlan[] = [
+  {
+    name: "Fundraising & fund management",
+    figure: "$0",
+    unit: "all features included",
+    points: [
+      "Donation form, every gift type, embedding",
+      "Recurring giving, peer-to-peer, receipts & reporting",
+      "High-yield savings & Sustainability Fund, with no setup, AUM, or performance fees",
+      "Full donor data, exports, portability guarantee",
+    ],
+    cta: { label: "Join free forever", to: href("/register") },
+  },
+  {
+    name: "Fiscal sponsorship",
+    figure: "2.9%",
+    unit: "per sponsored gift",
+    points: [
+      "Tax-deductible U.S. giving for orgs abroad or without a 501(c)(3)",
+      "Compliance, receipts & granting handled",
+      "Market rate is 4-10%, and we're working to make ours donor-coverable",
+    ],
+    cta: { label: "Learn more", to: href("/fiscal-sponsorship") },
+  },
+  {
+    name: "Self-hosted",
+    figure: "$0",
+    unit: "open-source software",
+    points: [
+      "Run the donation form on your own infrastructure",
+      "Your own gateway: you pay only its processing costs",
+      "Total ownership of tokens, data & donors",
+    ],
+    cta: { label: "See the open source", to: href("/open-source") },
+  },
+];
 
 interface IPriceCards {
   classes?: string;
@@ -26,81 +53,76 @@ interface IPriceCards {
 
 export function PriceCards({ classes = "" }: IPriceCards) {
   return (
-    <div className={`${classes}`}>
-      <div className="page grid gap-6 md:grid-cols-3">
-        <div className="bg-primary rounded p-8 flex flex-col gap-3.5 shadow-lift-cta text-primary-fg">
-          <span className="text-lg font-bold">
-            Fundraising &amp; fund management
-          </span>
-          <span className="text-5xl font-bold">
-            $0
-            <span className="text-base font-normal text-primary-fg/90">
-              {" "}
-              (all features included)
-            </span>
-          </span>
-          <div className="grid gap-2 text-primary-fg/90">
-            <Check dark>Donation form, every gift type, embedding</Check>
-            <Check dark>
-              Recurring giving, peer-to-peer, receipts &amp; reporting
-            </Check>
-            <Check dark>
-              High-yield savings &amp; Sustainability Fund, with no setup, AUM,
-              or performance fees
-            </Check>
-            <Check dark>Full donor data, exports, portability guarantee</Check>
-          </div>
-          <Link to={href("/register")} className="btn btn-secondary mt-auto">
-            Join free forever
-          </Link>
-        </div>
+    <section className={classes} aria-label="Plans">
+      {/* md: one four-row track set shared by all three cards through subgrid,
+          so the figures, the lists and the buttons sit on common lines */}
+      <ul className="page grid gap-6 md:grid-cols-3 md:grid-rows-[auto_auto_1fr_auto]">
+        {plans.map((plan, i) => (
+          <Plan key={plan.name} plan={plan} featured={i === 0} order={i} />
+        ))}
+      </ul>
+    </section>
+  );
+}
 
-        <div className="card-on-band flex flex-col gap-3.5">
-          <span className="text-lg font-bold">Fiscal sponsorship</span>
-          <span className="text-5xl font-bold">
-            2.9%
-            <span className="text-base font-normal text-gray-11">
-              {" "}
-              per sponsored gift
-            </span>
-          </span>
-          <div className="grid gap-2">
-            <Check>
-              Tax-deductible U.S. giving for orgs abroad or without a 501(c)(3)
-            </Check>
-            <Check>Compliance, receipts &amp; granting handled</Check>
-            <Check>
-              Market rate is 4-10%, and we're working to make ours
-              donor-coverable
-            </Check>
-          </div>
-          <Link
-            to={href("/fiscal-sponsorship")}
-            className="btn btn-secondary mt-auto"
-          >
-            Learn more
-          </Link>
-        </div>
+interface IPlanCard {
+  plan: IPlan;
+  featured: boolean;
+  order: number;
+}
 
-        <div className="card-on-band flex flex-col gap-3.5">
-          <span className="text-lg font-bold">Self-hosted</span>
-          <span className="text-5xl font-bold">
-            $0
-            <span className="text-base font-normal text-gray-11">
-              {" "}
-              (open-source software)
-            </span>
+function Plan({ plan, featured, order }: IPlanCard) {
+  return (
+    <li
+      className={`${featured ? "surface-deep rounded p-6 shadow-lift-cta relative" : "card-on-band"} reveal grid gap-6 md:row-span-4 md:grid-rows-subgrid`}
+      style={{ "--reveal-order": order } as CSSProperties}
+    >
+      {featured ? (
+        <>
+          <div
+            className="absolute inset-0 rounded dot-grid dot-grid-fade"
+            aria-hidden
+          />
+          <span className="absolute -top-3 left-6 eyebrow text-amber-6 rounded-full border bg-primary-deep px-3 py-1">
+            Free forever
           </span>
-          <div className="grid gap-2">
-            <Check>Run the donation form on your own infrastructure</Check>
-            <Check>Your own gateway: you pay only its processing costs</Check>
-            <Check>Total ownership of tokens, data &amp; donors</Check>
-          </div>
-          <Link to={href("/open-source")} className="btn btn-secondary mt-auto">
-            See the open source
-          </Link>
-        </div>
-      </div>
-    </div>
+        </>
+      ) : null}
+      <h2 className="relative text-lg font-bold">{plan.name}</h2>
+
+      <p className="relative flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="display-figure text-6xl md:text-7xl">
+          {plan.figure}
+        </span>
+        <span
+          className={`text-base ${featured ? "text-blue-5" : "text-gray-11"}`}
+        >
+          {plan.unit}
+        </span>
+      </p>
+
+      <ul
+        className={`relative grid content-start gap-3 border-t pt-6 text-sm/relaxed ${featured ? "" : "text-gray-12"}`}
+      >
+        {plan.points.map((point) => (
+          <li key={point} className="flex gap-3">
+            <span
+              className="flex-none mt-0.5 size-5 rounded-full bg-primary text-primary-fg grid place-items-center"
+              aria-hidden
+            >
+              <Check className="icon-xs" strokeWidth={3} />
+            </span>
+            {point}
+          </li>
+        ))}
+      </ul>
+
+      <Link
+        to={plan.cta.to}
+        className="relative btn btn-lg btn-secondary self-end"
+      >
+        {plan.cta.label}
+      </Link>
+    </li>
   );
 }
