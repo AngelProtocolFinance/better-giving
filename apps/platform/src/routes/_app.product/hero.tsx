@@ -1,7 +1,7 @@
 import { ExtLink } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
-import donation_form from "#/assets/images/donation-form.webp";
+import donation_form from "#/assets/images/donation-form.png";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 interface IHero {
@@ -39,11 +39,11 @@ export function Hero({ classes = "" }: IHero) {
           </div>
         </div>
 
-        <div className="w-full max-w-lg justify-self-center lg:justify-self-end overflow-clip rounded border bg-panel">
+        <div className="w-full max-w-lg justify-self-center lg:justify-self-end overflow-clip rounded bg-panel">
           <img
             src={donation_form}
-            width={746}
-            height={540}
+            width={757}
+            height={625}
             alt="Better Giving donation form"
             fetchPriority="high"
             className="block w-full h-auto"
