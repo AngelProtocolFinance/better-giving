@@ -18,20 +18,13 @@ export function CtaBand({
   cta_label = "Join free forever",
 }: ICtaBand) {
   return (
+    // the one centred moment on every page that ends with it (ledger →
+    // "Marketing house rules"), so a section above it stays left-aligned
     <section
-      className={`${classes} relative overflow-hidden surface-primary px-6 py-20 md:py-28 text-center`}
+      className={`${classes} surface-primary px-6 py-20 md:py-28 text-center`}
     >
-      <div className="absolute inset-0 dot-grid dot-grid-fade" aria-hidden />
-      <div className="relative grid justify-items-center reveal">
-        <span className="relative grid place-items-center">
-          {/* a halo centred on Laira, spent before the heading starts, so the
-              white copy keeps the fill's own contrast */}
-          <span
-            className="absolute size-72 bg-radial from-blue-8 to-transparent to-60%"
-            aria-hidden
-          />
-          <Image src={laira_cheering} width={140} alt="" className="relative" />
-        </span>
+      <div className="grid justify-items-center reveal">
+        <Image src={laira_cheering} width={140} alt="" />
         <h2 className="section-heading max-w-2xl mt-6">{title}</h2>
         <p className="mt-5 text-lg text-primary-fg/90 max-w-xl text-pretty">
           {subtitle}

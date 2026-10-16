@@ -25,10 +25,10 @@ export function TerminalCard({
   children,
 }: ITerminalCard) {
   return (
-    // the media lift, not the card one: this sits on a brand ground, where the
-    // card lift's primary-at-5% composites onto primary and paints nothing.
+    // no lift: it sits at rest on its brand ground, set off by its own darker
+    // scrim, and its edge is the window frame it draws
     <div
-      className={`${classes} bg-black/25 border border-primary-fg/15 rounded overflow-hidden shadow-lift-media`}
+      className={`${classes} bg-black/25 border border-primary-fg/15 rounded overflow-hidden`}
       role="img"
       aria-label={description}
     >

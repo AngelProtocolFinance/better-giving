@@ -26,14 +26,13 @@ export function Partners({
     >
       <motion.h2
         id="partners-heading"
-        className="section-heading font-medium text-center mb-8"
+        className="section-heading font-medium mb-8"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-100px" }}
         transition={{ type: "spring" }}
       >
-        Join <span className="font-semibold text-primary">thousands</span> of{" "}
-        {of_what}
+        {`Join thousands of ${of_what}`}
       </motion.h2>
 
       <Marquee.Root
@@ -43,7 +42,9 @@ export function Partners({
         pauseOnInteraction
         className="group justify-self-center relative w-full h-100"
       >
-        <Marquee.Viewport className="w-full h-full overflow-hidden">
+        {/* the ends fade by masking the logos, not by painting the ground
+            over them, so the fade holds on any fill the caller sets */}
+        <Marquee.Viewport className="w-full h-full overflow-hidden mask-y-from-85%">
           <Marquee.Content className="animate-marquee-y group-data-paused:[animation-play-state:paused] motion-reduce:animate-none">
             <Marquee.Item className="flex flex-wrap gap-8 py-4 justify-center">
               {partners.map((partner) => (
@@ -61,14 +62,6 @@ export function Partners({
             </Marquee.Item>
           </Marquee.Content>
         </Marquee.Viewport>
-        <Marquee.Edge
-          side="top"
-          className="absolute top-0 left-0 right-0 h-16 z-10 pointer-events-none bg-linear-to-b from-background to-transparent"
-        />
-        <Marquee.Edge
-          side="bottom"
-          className="absolute bottom-0 left-0 right-0 h-16 z-10 pointer-events-none bg-linear-to-t from-background to-transparent"
-        />
       </Marquee.Root>
       <Stats classes="mt-16" />
     </section>

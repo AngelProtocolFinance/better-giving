@@ -11,13 +11,10 @@ export function Testimonials({ classes = "s" }) {
       <img
         src={quotation}
         alt=""
-        className="justify-self-center w-24 lg:w-36 mb-8"
+        className="w-24 lg:w-36 mb-8"
         aria-hidden="true"
       />
-      <h2
-        id="testimonials-heading"
-        className="text-center section-heading justify-self-center mb-14"
-      >
+      <h2 id="testimonials-heading" className="section-heading mb-14">
         Member success spotlight: <br /> Inspiring change together
       </h2>
 

@@ -21,12 +21,13 @@ export function PartnersStrip({ classes = "" }: IPartnersStrip) {
   const [hovered, set_hovered] = useState(false);
   return (
     <section className={`${classes} overflow-hidden py-8`}>
-      <p className="eyebrow text-center text-gray-11 px-6">
+      {/* the strip's lead line, on the page edge the sections share */}
+      <p className="page text-lg text-gray-12 text-pretty">
         Trusted by nonprofits, faith charities, schools &amp; universities
         worldwide
       </p>
-      <div className="relative mt-5">
-        {/* every logo is alt="" and the eyebrow carries the claim, so the
+      <div className="relative mt-6">
+        {/* every logo is alt="" and the lead line carries the claim, so the
             strip is drawing, not content; hidden, it also drops zag's
             "Marquee content" region from the landmark list */}
         <Marquee.Root
@@ -39,7 +40,9 @@ export function PartnersStrip({ classes = "" }: IPartnersStrip) {
           className="group relative w-full"
           aria-hidden
         >
-          <Marquee.Viewport className="w-full overflow-hidden">
+          {/* the ends fade by masking the logos, not by painting the ground
+              over them, so the fade holds on any fill the caller sets */}
+          <Marquee.Viewport className="w-full overflow-hidden mask-x-from-90%">
             <Marquee.Content className="animate-marquee-x group-data-paused:[animation-play-state:paused] motion-reduce:animate-none">
               <Marquee.Item className="flex items-center gap-16 px-8">
                 {partners.map((p) => (
@@ -55,19 +58,11 @@ export function PartnersStrip({ classes = "" }: IPartnersStrip) {
               </Marquee.Item>
             </Marquee.Content>
           </Marquee.Viewport>
-          <Marquee.Edge
-            side="start"
-            className="absolute left-0 top-0 bottom-0 w-24 z-10 pointer-events-none bg-linear-to-r from-background to-transparent"
-          />
-          <Marquee.Edge
-            side="end"
-            className="absolute right-0 top-0 bottom-0 w-24 z-10 pointer-events-none bg-linear-to-l from-background to-transparent"
-          />
         </Marquee.Root>
         {/* outside the root: inside it, pauseOnInteraction would pause on the
             button's own focus and resume on its blur. no z-index: the root's
             paint containment makes it a stacking context, and this positioned
-            sibling after it paints over the edge fade by source order.
+            sibling after it paints over the logos by source order.
             reduced motion already stops the strip, so there is nothing to
             pause */}
         <Button

@@ -16,12 +16,12 @@ interface ITrustBar {
   classes?: string;
   items?: readonly Stat[];
   /**
-   * `bar` — the thin ruled strip that sits directly under a hero.
-   * `band` — a section in its own right: centered, larger figures, and no
-   * rules between the figures at mobile.
-   * neither owns its gutter, padding or border — those are the caller's, so a
-   * band can butt up against a neighbour without doubling the rule and can
-   * match its page's gutter.
+   * `bar` — the strip that sits directly under a hero.
+   * `band` — a section in its own right, with larger figures.
+   * both are left-aligned columns parted by space alone, no rules (ledger →
+   * "Marketing house rules"). neither owns its gutter, padding or ground —
+   * those are the caller's, so a band can sit on its page's alternating
+   * fill and match its page's gutter.
    */
   variant?: "bar" | "band";
   /** names the region as a landmark; without it the row stays a plain div */
@@ -39,18 +39,11 @@ export function TrustBar({
 
   return (
     <El aria-label={label} className={classes}>
-      <div className="page grid grid-cols-2 md:grid-cols-4 gap-y-6 figures slashed-zero">
-        {items.map((s, i) => (
-          <div
-            key={s.value}
-            className={`grid gap-2 content-start ${band ? "text-center" : ""} ${i > 0 ? `md:border-l md:border-gray-6 ${band ? "" : "md:pl-9"}` : ""} ${
-              // a centered 2-up pair reads as a block; a rule between the two
-              // halves only fights the centering
-              !band && i % 2 === 1
-                ? "max-md:border-l max-md:border-gray-6 max-md:pl-6"
-                : ""
-            }`}
-          >
+      <div
+        className={`page grid grid-cols-2 md:grid-cols-4 gap-x-6 md:gap-x-10 figures slashed-zero ${band ? "gap-y-8" : "gap-y-6"}`}
+      >
+        {items.map((s) => (
+          <div key={s.value} className="grid gap-2 content-start">
             <span
               className={`display-figure ${band ? "text-4xl md:text-5xl" : "text-3xl md:text-4xl"} ${s.accent ? "text-primary" : ""}`}
             >

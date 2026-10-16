@@ -13,7 +13,8 @@ interface IFaq {
 interface Props {
   classes?: string;
   items: IFaq[];
-  /** eyebrow above the heading — omitted, nothing renders in its place */
+  /** @deprecated renders nothing: the marketing pages carry no eyebrow
+   *  (ledger → "Marketing house rules"). drop it at the call site. */
   pre_heading?: string;
   heading?: string;
   /** lead paragraph between the heading and the first question */
@@ -279,12 +280,13 @@ export const faqs = [
 export function FAQ({
   classes = "",
   items,
-  pre_heading,
   heading = "Got questions? We've got answers.",
   sub,
   layout = "stacked",
 }: Props) {
   const accordion = (
+    // keeps its hairlines: `divided` is the shared Accordion's only
+    // page-section look
     <Accordion
       variant="divided"
       items={items.map((faq) => ({
@@ -312,7 +314,6 @@ export function FAQ({
         aria-labelledby="faq-heading"
       >
         <div className="grid gap-5 content-start lg:sticky lg:top-24 lg:self-start reveal">
-          {pre_heading && <p className="eyebrow text-primary">{pre_heading}</p>}
           <h2 id="faq-heading" className="section-heading">
             {heading}
           </h2>
@@ -330,15 +331,16 @@ export function FAQ({
 
   return (
     <section className={`${classes} grid`} aria-labelledby="faq-heading">
-      <div className="grid gap-4 justify-items-center text-center mb-12 reveal">
-        {pre_heading && <p className="eyebrow text-primary">{pre_heading}</p>}
+      <div className="grid gap-4 justify-items-start mb-12 reveal">
         <h2 id="faq-heading" className="section-heading">
           {heading}
         </h2>
-        {sub && <p className="text-lg text-gray-11 text-pretty">{sub}</p>}
+        {sub && (
+          <p className="text-lg text-gray-11 text-pretty max-w-2xl">{sub}</p>
+        )}
       </div>
       {accordion}
-      <HelpLinks classes="justify-items-center pt-10" />
+      <HelpLinks classes="justify-items-start pt-10" />
     </section>
   );
 }

@@ -4,6 +4,8 @@ import type { Benefit as TBenefit } from "#/content/benefits";
 type Props = {
   classes?: string;
   items: TBenefit[];
+  /** @deprecated renders nothing: the marketing pages carry no eyebrow
+   *  (ledger → "Marketing house rules"). drop it at the call site. */
   subheading?: string;
   heading: string;
   body: string;
@@ -11,15 +13,10 @@ type Props = {
 export function Benefits(props: Props) {
   return (
     <section className={`grid ${props.classes ?? ""}`}>
-      {props.subheading && (
-        <h4 className="text-lg uppercase text-primary text-center mb-4">
-          {props.subheading}
-        </h4>
-      )}
-      <h2 className="text-3xl md:text-4.5xl capitalize text-center text-pretty mb-4">
+      <h2 className="text-3xl md:text-4.5xl capitalize text-pretty mb-4">
         {props.heading}
       </h2>
-      <p className="text-xl text-center mb-24 text-balance">{props.body}</p>
+      <p className="text-xl mb-24 text-pretty">{props.body}</p>
       <div className="grid gap-y-4 @2xl:gap-y-8">
         {props.items.map((b, i) => (
           <Benefit {...b} key={i} />
@@ -31,7 +28,7 @@ export function Benefits(props: Props) {
 
 function Benefit(props: TBenefit) {
   return (
-    <article className="grid justify-items-center @2xl:grid-cols-2 group gap-x-10">
+    <article className="grid justify-items-start @2xl:grid-cols-2 group gap-x-10">
       <div
         className={`w-full max-w-xs @2xl:max-w-120 aspect-square ${props.cardBgClass} grid place-items-center rounded order-1 group-even:order-2 p-8 @3xl:p-16`}
       >
@@ -43,10 +40,10 @@ function Benefit(props: TBenefit) {
         />
       </div>
       <div className="order-2 mt-4 @2xl:mt-0 @2xl:group-even:order-1 @2xl:group-even:justify-self-end self-center @5xl:self-start @5xl:mt-24">
-        <h4 className="text-xl @2xl:text-2xl text-center @2xl:text-left mb-6 text-pretty">
+        <h4 className="text-xl @2xl:text-2xl mb-6 text-pretty">
           {props.title}
         </h4>
-        <p className="text-lg @2xl:text-xl text-gray-11 text-center @2xl:text-left">
+        <p className="text-lg @2xl:text-xl text-gray-11 text-pretty">
           {props.description}
         </p>
       </div>

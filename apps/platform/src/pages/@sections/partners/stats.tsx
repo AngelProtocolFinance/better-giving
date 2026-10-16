@@ -45,7 +45,7 @@ function CountUp({ end, suffix = "" }: { end: number; suffix?: string }) {
   }, [is_in_view, end]);
 
   return (
-    <p ref={ref} className="text-3xl text-center font-bold text-primary">
+    <p ref={ref} className="text-3xl font-bold text-primary">
       {count.toLocaleString()}
       {suffix}
     </p>
@@ -56,39 +56,39 @@ export function Stats({ classes = "" }) {
   return (
     <div className={`${classes} grid md:grid-cols-3 gap-8`}>
       <motion.article
-        className="grid justify-items-center"
+        className="grid content-start"
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-100px" }}
         transition={{ type: "spring" }}
       >
         <CountUp end={6} suffix=" Million+" />
-        <p className="max-w-md text-center mt-2 text-lg">
+        <p className="max-w-md mt-2 text-lg text-pretty">
           Raised across crypto, stock, DAF, and card donations for nonprofit
           members.
         </p>
       </motion.article>
       <motion.article
-        className="grid justify-items-center"
+        className="grid content-start"
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-100px" }}
         transition={{ type: "spring", delay: 0.1 }}
       >
         <CountUp end={11} suffix="%" />
-        <p className="max-w-md text-center mt-2 text-lg">
+        <p className="max-w-md mt-2 text-lg text-pretty">
           5-year average fund return through the Sustainability Fund.
         </p>
       </motion.article>
       <motion.article
-        className="grid justify-items-center"
+        className="grid content-start"
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-100px" }}
         transition={{ type: "spring", delay: 0.2 }}
       >
         <CountUp end={5} suffix="+" />
-        <p className="max-w-md text-center mt-2 text-lg">
+        <p className="max-w-md mt-2 text-lg text-pretty">
           Years providing free donation & fund management solutions.
         </p>
       </motion.article>

@@ -203,8 +203,10 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
         </div>
       </div>
 
+      {/* set off by space alone, no rule: the gap above is a tier past the
+          columns' own gap-y-12 (ledger → "Marketing house rules") */}
       <div
-        className={`${page} mt-10 pt-5 border-t flex flex-wrap justify-between gap-x-6 gap-y-2.5`}
+        className={`${page} mt-16 flex flex-wrap justify-between gap-x-6 gap-y-2.5`}
       >
         <span className="text-xs/relaxed text-blue-5 text-pretty">
           Past performance of the Sustainability Fund is not indicative of

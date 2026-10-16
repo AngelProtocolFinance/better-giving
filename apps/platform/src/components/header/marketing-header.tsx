@@ -97,7 +97,10 @@ export function MarketingHeader({
   const is_signed_in = !!session?.signed_in;
 
   return (
-    <header ref={header_ref} className={`${classes} relative header-ground`}>
+    // an opaque bar on the page's own fill at rest and scrolled alike: no
+    // translucency, no blur, no hairline, no shadow (ledger → "Marketing house
+    // rules"). the open menu panel below floats, so it keeps its level.
+    <header ref={header_ref} className={`${classes} relative bg-background`}>
       {/* the row carries a logo, six labels and two ctas, and at the 75rem
           `nav` breakpoint it fills the 1120px content box to within a few px:
           that is why the nav collapses at 75rem rather than at a breakpoint
@@ -123,7 +126,7 @@ export function MarketingHeader({
           ))}
         </nav>
         {/* fixed cta/avatar slot: anon->avatar swap doesn't shift the nav */}
-        <div className="hidden nav:flex items-center justify-end gap-3">
+        <div className="hidden nav:flex items-center justify-end gap-5">
           {is_signed_in ? (
             <Link
               to={href("/dashboard")}
@@ -134,18 +137,22 @@ export function MarketingHeader({
             </Link>
           ) : (
             <>
+              {/* one button: the sign-in is a nav-ink link beside it */}
+              <Link
+                to={href("/login")}
+                className={link_cls({ isActive: false })}
+              >
+                Log In
+              </Link>
               <Link
                 to={href("/register")}
-                className="group btn btn-primary shadow-lift-cta gap-2"
+                className="group btn btn-primary gap-2"
               >
                 Join free forever
                 <ArrowRight
                   aria-hidden="true"
                   className="max-xl:hidden icon-sm transition-transform group-hover:translate-x-0.5"
                 />
-              </Link>
-              <Link to={href("/login")} className="btn btn-secondary">
-                Log In
               </Link>
             </>
           )}
@@ -180,7 +187,7 @@ export function MarketingHeader({
           <div
             aria-hidden="true"
             onClick={dismiss}
-            className="nav:hidden absolute inset-x-0 top-full h-[calc(100dvh_-_100%)] cursor-default bg-gray-12/40 backdrop-blur-sm"
+            className="nav:hidden absolute inset-x-0 top-full h-[calc(100dvh_-_100%)] cursor-default bg-gray-12/40"
           />
           {/* the same cap as the scrim, so a menu taller than a short or
               zoomed viewport scrolls inside itself instead of running past
@@ -206,7 +213,7 @@ export function MarketingHeader({
                   {l.label}
                 </NavLink>
               ))}
-              <div className="grid gap-3 mt-6 pt-6 border-t">
+              <div className="grid gap-3 mt-8">
                 {is_signed_in ? (
                   <Link
                     to={href("/dashboard")}
@@ -220,7 +227,7 @@ export function MarketingHeader({
                     <Link
                       to={href("/register")}
                       onClick={close}
-                      className="group btn btn-lg btn-primary shadow-lift-cta gap-2"
+                      className="group btn btn-lg btn-primary gap-2"
                     >
                       Join free forever
                       <ArrowRight
@@ -228,10 +235,11 @@ export function MarketingHeader({
                         className="icon-md transition-transform group-hover:translate-x-0.5"
                       />
                     </Link>
+                    {/* min-h-11 is the 44px target the button above it has */}
                     <Link
                       to={href("/login")}
                       onClick={close}
-                      className="btn btn-lg btn-secondary"
+                      className={`justify-self-center inline-flex items-center min-h-11 px-3 text-lg font-medium ${nav_link_cls({ isActive: false })}`}
                     >
                       Log In
                     </Link>

@@ -11,7 +11,7 @@ describe("PartnersStrip", () => {
       );
     const is_paused = () => root()?.hasAttribute("data-paused");
 
-    // the logos say nothing the eyebrow doesn't, so the strip is out of the
+    // the logos say nothing the lead line doesn't, so the strip is out of the
     // AX tree and the toggle is its only presence there
     expect(root()).toHaveAttribute("aria-hidden", "true");
     expect(is_paused()).toBe(false);

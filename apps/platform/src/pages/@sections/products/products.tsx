@@ -6,20 +6,14 @@ import { Items } from "./items";
 export function Products({ classes = "" }) {
   return (
     <section
-      className={`${classes} grid justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 pb-24`}
+      className={`${classes} grid justify-items-start gap-10 xl:grid-cols-2 pb-24`}
       aria-labelledby="fundraising-section-heading"
     >
       <div className="grid max-w-2xl order-2 xl:order-1">
-        <p className="text-center xl:text-left uppercase mb-5 pre-heading text-primary">
-          Everything you need, already included.
-        </p>
-        <h2
-          id="fundraising-section-heading"
-          className="text-center xl:text-left section-heading mb-4"
-        >
+        <h2 id="fundraising-section-heading" className="section-heading mb-4">
           Raise funds easily. <br /> Grow them effortlessly.
         </h2>
-        <p className="mb-10 text-lg xl:text-xl text-center xl:text-left">
+        <p className="mb-10 text-lg xl:text-xl text-pretty">
           From high-converting donation forms to growth through Savings and a
           Sustainability Fund, plus global fiscal sponsorship. {app_name} is
           built by and for nonprofits. Free-no platform or fund-management fees.
@@ -27,7 +21,7 @@ export function Products({ classes = "" }) {
 
         <Link
           to={href("/register")}
-          className="btn btn-lg btn-primary justify-self-center xl:justify-self-start font-bold"
+          className="btn btn-lg btn-primary justify-self-start font-bold"
         >
           Join us today!
         </Link>
