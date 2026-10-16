@@ -13,9 +13,9 @@ import {
   Wallet,
 } from "lucide-react";
 import { href, Link } from "react-router";
+import donation_form from "#/assets/images/donation-form.webp";
 import laira_heart from "#/assets/laira/laira-heart.webp";
 import { BOOK_A_DEMO } from "#/constants/urls";
-import { FormMock } from "#/pages/@sections/form-mock";
 
 const gift_types = [
   { name: "Card", Icon: CreditCard },
@@ -28,24 +28,25 @@ const gift_types = [
   { name: "Crypto", Icon: Coins },
 ] as const;
 
-/** each chip's lg anchor around the mock, on the card's empty edges only: two
- *  straddle the top padding above the header row, one sits under the card
- *  beside the mock's pause toggle. below lg they sit in a row under it. */
+/** each chip's lg anchor around the screenshot, reaching at most 14px inside
+ *  the frame so it lands only on blank capture: the Card tab's top padding,
+ *  the empty top-right corner, and the strip under "Continue with Card" (17px
+ *  tall at the 1024 frame). below lg they sit in a row under it. */
 const chips = [
   {
     label: "$0 platform fees",
     Icon: PiggyBank,
-    at: "lg:-left-8 lg:-top-5",
+    at: "lg:-left-8 lg:-top-8",
   },
   {
     label: "Recurring giving built in",
     Icon: CalendarSync,
-    at: "lg:-right-4 lg:-top-5",
+    at: "lg:-right-4 lg:-top-8",
   },
   {
     label: "Payouts within 5 working days",
     Icon: Landmark,
-    at: "lg:left-8 lg:bottom-0",
+    at: "lg:-right-4 lg:-bottom-6",
   },
 ] as const;
 
@@ -128,12 +129,22 @@ export function Hero({ classes = "" }: IHero) {
         </div>
 
         <div className="relative w-full max-w-lg justify-self-center lg:justify-self-end">
-          <FormMock />
+          <div className="overflow-hidden rounded border bg-panel shadow-lift-media">
+            <img
+              src={donation_form}
+              width={746}
+              height={540}
+              alt="Better Giving embeddable donation form"
+              fetchPriority="high"
+              className="block w-full h-auto"
+            />
+          </div>
+          {/* low enough that its in-frame corner stays on the blank sidebar under "Crypto" */}
           <Image
             src={laira_heart}
             width={120}
             alt="Laira holding a heart"
-            className="absolute -bottom-12 -left-24 rotate-3 max-lg:hidden"
+            className="absolute -bottom-16 -left-24 rotate-3 max-xl:hidden"
           />
           <ul className="mt-6 flex flex-wrap justify-center gap-2 lg:contents">
             {chips.map(({ label, Icon, at }) => (
