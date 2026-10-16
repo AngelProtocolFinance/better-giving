@@ -67,19 +67,18 @@ const paragraphs = (f: IFields): IBlock[] => [
   {
     kind: "body",
     lines: [
-      `We have posted revised Better Giving Terms for Nonprofits and Referral Program Terms. The revised terms take effect at 12:00 a.m. Eastern Time on ${f.effective_date}.`,
+      `We've updated the Better Giving Terms for Nonprofits and Referral Program Terms. The changes take effect at 12:00 a.m. Eastern Time on ${f.effective_date}.`,
     ],
   },
-  { kind: "label", lines: ["What changes:"] },
+  { kind: "label", lines: ["The highlights:"] },
   {
     kind: "body",
     lines: [
-      "- Recovering reversed donations: If a donation we already granted to you is refunded, reversed or charged back, we may deduct the granted part from your future grants, plus the card/payment processing fees and any dispute fee we paid on it. On a partial refund you owe only the same share. We tell you each amount before we deduct it. If the reversed part is still in your Savings or Investment balance, or in an unpaid grant, we may take it back from there or cancel that grant instead. When a donor opens a dispute, we may treat the disputed amount as reversed straight away. If we win, the donor withdraws, or the payment isn't reversed, we cancel the amount and return anything taken back. If the dispute is reopened and the donor keeps the money, the amount applies again.",
-      "- Amounts left owing: If your grants don't cover an amount, it stays owed. If you leave the platform, the agreement ends, or no grant is due within 90 days of our notice, we may invoice you, payable within 30 days, or collect it by other lawful means. We may waive any amount. These recovery duties continue after you leave the platform or the agreement ends.",
-      `- Older donations aren't affected: The recovery rules above apply only to donations made on or after ${f.effective_date}. For referral partners: if a donation is refunded, reversed or disputed after the referral reward was paid, we may deduct that reward from later referral payments. This applies to donations made on or after ${f.effective_date}.`,
-      "- Receipts, refunds and donor information: Better Giving receives every donation and issues the donor's receipt. You must not issue your own receipt or describe a platform donation as a gift to your organization. You may still thank donors. Use the donor details we share only to thank donors and to share reasonable information about your work. Better Giving may refund all or part of a donation. Refunded amounts aren't charitable contributions, and we issue a corrected receipt when a donor asks.",
-      "- Fees and liability: The terms now list every fee, including payment processing fees deducted before a donation is allocated. There are no other fees. The $100 liability cap doesn't limit amounts we owe you, such as a grant deducted in error.",
-      "- Notice of changes: Future changes take effect 7 days after we post them, unless the posting gives a later date.",
+      `1. Refunds and chargebacks: If a donation we already granted to you is later refunded or charged back, we may recover that amount and its related fees from future grants. We'll always tell you the amount before we deduct it, and if we win a dispute, we return it. This applies only to donations made on or after ${f.effective_date}.`,
+      "2. Receipts and donor details: Better Giving receives each donation and issues the donor's tax receipt, so please don't issue your own. You're always welcome to thank your donors. Use donor details only to thank donors and share news about your work.",
+      "3. Fees: The terms now list every fee in one place.",
+      "4. Future changes: Future updates take effect 7 days after we post them, unless the update states a later date.",
+      `5. Referral partners: If we've already paid a referral reward on a donation that's later refunded or charged back, we may deduct it from future referral payments. This applies to donations made on or after ${f.effective_date}.`,
     ],
   },
   {
@@ -92,7 +91,7 @@ const paragraphs = (f: IFields): IBlock[] => [
   {
     kind: "body",
     lines: [
-      `Acceptance: If you keep using Better Giving as a nonprofit after ${f.effective_date}, you accept the revised terms. If you don't accept them, you may end the agreement under Section 8.`,
+      `If you keep using Better Giving after ${f.effective_date}, you accept the revised terms. If you don't accept them, you may end the agreement under Section 8.`,
     ],
   },
   { kind: "body", lines: [`Questions? Contact ${f.support_email}.`] },
@@ -140,13 +139,13 @@ interface ILineProps {
  * linking it makes the text part print the token twice.
  */
 function LineText({ line, links }: ILineProps) {
-  const bullet = line.match(/^(- )([^:]+:)([\s\S]*)$/);
-  if (bullet) {
+  const item = line.match(/^(\d+\. )([^:]+:)([\s\S]*)$/);
+  if (item) {
     return (
       <>
-        {bullet[1]}
-        <strong>{bullet[2]}</strong>
-        <LineText line={bullet[3]} links={links} />
+        {item[1]}
+        <strong>{item[2]}</strong>
+        <LineText line={item[3]} links={links} />
       </>
     );
   }
