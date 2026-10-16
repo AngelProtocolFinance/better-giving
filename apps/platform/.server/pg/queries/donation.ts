@@ -1,5 +1,6 @@
 import {
   and,
+  count,
   desc,
   eq,
   inArray,
@@ -62,6 +63,7 @@ function to_donation(
     currency: don.currency,
     frequency: don.frequency,
     source: don.source,
+    source_id: don.source_id ?? undefined,
     form_id: don.form_id ?? undefined,
     subscription_id: don.subscription_id ?? undefined,
     via: don.via,
@@ -226,6 +228,7 @@ export async function donation_put(
       currency: data.currency,
       frequency: data.frequency,
       source: data.source,
+      source_id: data.source_id,
       form_id: data.form_id,
       subscription_id: data.subscription_id,
       via: data.via,
@@ -580,6 +583,8 @@ export async function donation_update(
   if (base_rest.frequency !== undefined)
     base_set.frequency = base_rest.frequency;
   if (base_rest.source !== undefined) base_set.source = base_rest.source;
+  if (base_rest.source_id !== undefined)
+    base_set.source_id = base_rest.source_id;
   if (base_rest.form_id !== undefined) base_set.form_id = base_rest.form_id;
   if (base_rest.subscription_id !== undefined)
     base_set.subscription_id = base_rest.subscription_id;
@@ -765,6 +770,26 @@ export async function donation_donor_get(
     .from(donation_donors)
     .where(eq(donation_donors.donation_id, donation_id));
   return row;
+}
+
+export async function agent_donation_count_since(
+  since: string,
+  opts: { email?: string; source_id?: string }
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(donations)
+    .innerJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
+    .where(
+      and(
+        eq(donations.source, "bg-agent"),
+        sql`${donations.created_at} >= ${since}::timestamptz`,
+        opts.email
+          ? eq(donation_donors.email, opts.email)
+          : eq(donations.source_id, opts.source_id!)
+      )
+    );
+  return row?.value ?? 0;
 }
 
 export async function donation_settlement_get(

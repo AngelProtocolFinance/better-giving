@@ -3,7 +3,7 @@ import * as v from "valibot";
 import { $, $int_gte1, $req, frequency } from "../schemas";
 import { endOfDay, iso_date, startOfDay } from "../schemas/date";
 
-const donation_sources = ["bg-marketplace", "bg-widget"] as const;
+const donation_sources = ["bg-marketplace", "bg-widget", "bg-agent"] as const;
 export const donation_source = v.picklist(donation_sources);
 export type TDonationSource = v.InferOutput<typeof donation_source>;
 
