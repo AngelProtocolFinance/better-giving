@@ -9,7 +9,7 @@ import {
 } from "vitest";
 import { seed_npo, seed_user } from "#/__tests__/fixtures/funds";
 import { user } from "../schema/auth";
-import { donations } from "../schema/donation";
+import { donation_settlements, donations } from "../schema/donation";
 import { npos } from "../schema/npo";
 import { owed_amounts } from "../schema/owed";
 import { loss_logs } from "../schema/revenue";
@@ -129,6 +129,34 @@ describe("the recorded notice", () => {
   test("is none for a gift made before the effective date", async () => {
     await gift("don-before", DAY_BEFORE);
     await refund("don-before");
+    expect(await due()).toEqual([]);
+  });
+
+  test("a checkout opened before the cutoff and paid on it still reaches the party", async () => {
+    await gift("don-early", DAY_BEFORE);
+    await t.db.insert(donation_settlements).values({
+      donation_id: "don-early",
+      sttl_id: "pi_early",
+      date: EFFECTIVE,
+      currency: "USD",
+      net: 95,
+      fee: 5,
+    });
+    await refund("don-early");
+    expect(await due()).toEqual(["recorded"]);
+  });
+
+  test("a checkout opened on the cutoff and paid before it does not", async () => {
+    await gift("don-late", EFFECTIVE);
+    await t.db.insert(donation_settlements).values({
+      donation_id: "don-late",
+      sttl_id: "pi_late",
+      date: DAY_BEFORE,
+      currency: "USD",
+      net: 95,
+      fee: 5,
+    });
+    await refund("don-late");
     expect(await due()).toEqual([]);
   });
 

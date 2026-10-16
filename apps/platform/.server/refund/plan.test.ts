@@ -248,6 +248,39 @@ describe("calc_refund_plan", () => {
     expect(po.kind === "payout_status" && po.status).toBe("refunded_loss");
   });
 
+  test("a donation made before the cutoff keeps its savings, investment and pending grant", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          id: "dist-1",
+          donation_id: "don-1",
+          to_id: 1,
+          to_name: "Test NPO",
+          alloc: { liq: 40, lock: 30, cash: 30 },
+          net: 100,
+          amount: 110,
+          amount_usd: 110,
+          fee_base: 5,
+          fee_fsa: 3,
+          fee_processing: 2,
+        },
+        payout: { id: "po-1", type: "pending" },
+        bal: { liq: 40, lock_units: 3, cash: 30 },
+        nav: { price: 10 },
+        recovery_applies: false,
+      }),
+      make_ctx()
+    );
+    expect(plan.is_loss).toBe(false);
+    expect(plan.effects.map((e) => e.kind)).not.toContain("balance_update");
+    expect(plan.effects.map((e) => e.kind)).not.toContain("payout_status");
+    expect(plan.effects.map((e) => e.kind)).not.toContain("owed");
+    expect(plan.effects.map((e) => e.kind)).not.toContain("nav_log");
+    expect(plan.preview.effects.map((l) => l.label)).not.toContain(
+      "Grant payout"
+    );
+  });
+
   test("savings short, cash payout pending → payout cancelled, only the shortfall is owed", () => {
     const plan = calc_refund_plan(
       make_inputs({

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
+  recovery_covers,
   TERMS_EFFECTIVE,
   TERMS_POSTED,
   terms_date_label,
@@ -68,6 +69,25 @@ describe("terms_recovery_at", () => {
 
   test("an unparsable fixed date reaches nobody", () => {
     expect(terms_recovery_at("soon", TERMS_POSTED)).toBeNull();
+  });
+});
+
+describe("recovery_covers", () => {
+  const cutoff = "2026-10-23T04:00:00.000Z";
+
+  test("the cutoff instant and anything after it is covered", () => {
+    expect(recovery_covers(cutoff)).toBe(true);
+    expect(recovery_covers("2026-10-23T16:00:00.000Z")).toBe(true);
+  });
+
+  test("a checkout that pays before the cutoff is not covered", () => {
+    expect(recovery_covers("2026-10-23T03:59:59.000Z")).toBe(false);
+  });
+
+  test("an unparsable instant covers nothing", () => {
+    expect(recovery_covers(null)).toBe(false);
+    expect(recovery_covers(undefined)).toBe(false);
+    expect(recovery_covers("soon")).toBe(false);
   });
 });
 

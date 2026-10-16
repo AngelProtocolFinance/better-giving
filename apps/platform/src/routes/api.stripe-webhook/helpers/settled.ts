@@ -1,9 +1,11 @@
 import { stripe } from "$/kit/stripe";
 
-/** in usd */
+/** in usd; `paid_at` is the charge's creation, unix seconds — when the
+ * payment was authorized, not when checkout opened */
 interface Settled {
   net: number;
   fee: number;
+  paid_at: number;
 }
 
 // thrown when stripe hasn't populated balance_transaction yet (typical for
@@ -39,7 +41,7 @@ async function poll(id: string, attempt: number): Promise<Settled> {
     typeof lc.balance_transaction !== "string"
   ) {
     const { net, fee } = lc.balance_transaction;
-    return { net: net / 100, fee: fee / 100 };
+    return { net: net / 100, fee: fee / 100, paid_at: lc.created };
   }
 
   if (attempt >= ATTEMPTS) throw new BalanceTxnNotReadyError(id);

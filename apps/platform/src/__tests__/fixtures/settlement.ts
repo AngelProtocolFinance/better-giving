@@ -134,7 +134,7 @@ export function setup_stripe_mocks(sttl: { net: number; fee: number }) {
     JSON.parse(body)
   );
   (stripe.paymentIntents.retrieve as any).mockResolvedValue({
-    latest_charge: { balance_transaction: sttl },
+    latest_charge: { created: 1700000000, balance_transaction: sttl },
   });
   (stripe.paymentMethods.retrieve as any).mockResolvedValue({ type: "card" });
 }

@@ -1,6 +1,6 @@
 import { and, asc, eq, exists, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../db";
-import { donations } from "../schema/donation";
+import { donation_settlements, donations } from "../schema/donation";
 import { owed_amounts, owed_notices } from "../schema/owed";
 import type { DbOrTx } from "./helpers";
 import { type OwedParty, owed_reaches_party } from "./owed";
@@ -22,6 +22,10 @@ const reaches = (tx: DbOrTx) =>
       .select({ one: sql`1` })
       .from(owed_amounts)
       .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+      .leftJoin(
+        donation_settlements,
+        eq(donation_settlements.donation_id, donations.id)
+      )
       .where(
         and(eq(owed_amounts.id, owed_notices.owed_id), owed_reaches_party())
       )
@@ -59,6 +63,10 @@ export async function queue_owed_notices_missed(
         })
         .from(owed_amounts)
         .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+        .leftJoin(
+          donation_settlements,
+          eq(donation_settlements.donation_id, donations.id)
+        )
         .where(
           and(
             owed_reaches_party(),

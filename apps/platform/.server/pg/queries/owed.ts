@@ -15,7 +15,7 @@ import { TERMS_EFFECTIVE, TERMS_POSTED, terms_recovery_at } from "@/terms";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import { finite } from "../schema/columns";
-import { donations } from "../schema/donation";
+import { donation_settlements, donations } from "../schema/donation";
 import { npos } from "../schema/npo";
 import { owed_amounts, owed_entries, owed_notices } from "../schema/owed";
 import { loss_logs } from "../schema/revenue";
@@ -38,13 +38,16 @@ export type OwedParty =
 const recovery_cutoff = () => terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
 
 /** whether an owed row reaches its party — is mailed and shown in its
- * history: its gift was made at or after the recovery cutoff. none does
- * while that date is unparsable; admins see every row regardless. reads
- * `donations.created_at`, so the query joins the row's gift */
+ * history: the gift was made at or after the recovery cutoff. a gift is
+ * made when payment is authorized or the asset is received, stored as
+ * `donation_settlements.date`. `donations.created_at` is the checkout open
+ * and stands in only when no settlement was stored. none does while the
+ * cutoff is unparsable; admins see every row regardless. the query joins
+ * the gift and its settlement */
 export const owed_reaches_party = (): SQL => {
   const effective = recovery_cutoff();
   return effective
-    ? sql`${donations.created_at} >= ${effective}::timestamptz`
+    ? sql`COALESCE(${donation_settlements.date}, ${donations.created_at}) >= ${effective}::timestamptz`
     : sql`false`;
 };
 
@@ -255,6 +258,10 @@ async function queue_notice(
         })
         .from(owed_amounts)
         .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+        .leftJoin(
+          donation_settlements,
+          eq(donation_settlements.donation_id, donations.id)
+        )
         .where(and(eq(owed_amounts.id, owed_id), owed_reaches_party()))
     )
     .onConflictDoNothing({
@@ -857,6 +864,10 @@ export async function outstanding_for_party(
     .select(getTableColumns(owed_amounts))
     .from(owed_amounts)
     .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+    .leftJoin(
+      donation_settlements,
+      eq(donation_settlements.donation_id, donations.id)
+    )
     .where(
       and(
         party_is(party),

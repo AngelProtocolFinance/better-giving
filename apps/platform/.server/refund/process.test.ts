@@ -175,6 +175,8 @@ async function seed(o?: {
     frequency: "one-time",
     source: "bg-marketplace",
     via: "stripe:card",
+    // paid on the recovery cutoff, so a refund may still take ungranted funds
+    created_at: "2026-10-23T16:00:00.000Z",
   });
   await db.insert(donation_recipients).values({
     donation_id: id,

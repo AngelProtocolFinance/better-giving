@@ -170,6 +170,7 @@ async function seed_donation_payout(
     frequency: "one-time",
     source: "bg-marketplace",
     via: "stripe:card",
+    created_at: "2026-10-23T16:00:00.000Z",
   });
   await db().insert(dists).values({
     id: dist,

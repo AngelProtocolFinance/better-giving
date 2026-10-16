@@ -61,6 +61,8 @@ import { handle_intent_succeeded } from "./intent-suceeded";
 const ORDER_ID = "order-1";
 const SUBS_ID = "sub_1";
 const INVOICE_DATE = 1767225600; // 2026-01-01T00:00:00Z
+// later than the PaymentIntent: the donor pays after checkout opens
+const CHARGE_AT = 1767300000; // 2026-01-01T20:40:00Z
 // every donor here names an employer, so `don-match` is queued whenever the
 // handler decides the charge is eligible for one. without it the match
 // decision is unobservable — settle_msgs drops the msg on an empty name and
@@ -102,7 +104,10 @@ beforeEach(async () => {
   npo_id = npo!.id;
 
   stripe.paymentIntents.retrieve.mockResolvedValue({
-    latest_charge: { balance_transaction: { net: 9500, fee: 500 } },
+    latest_charge: {
+      created: CHARGE_AT,
+      balance_transaction: { net: 9500, fee: 500 },
+    },
   });
   stripe.paymentMethods.retrieve.mockResolvedValue({ type: "card" });
   stripe.invoicePayments.list.mockResolvedValue({
@@ -328,7 +333,8 @@ describe("handle_intent_succeeded - one-time redelivery", () => {
     const rows = await all_donations();
     expect(rows).toHaveLength(1);
     expect(rows[0]!.status).toBe("settled");
-    expect(await settlements_for("pi_onetime")).toHaveLength(1);
+    const [sttl] = await settlements_for("pi_onetime");
+    expect(sttl?.date).toBe(new Date(CHARGE_AT * 1000).toISOString());
     expect(enqueue).toHaveBeenCalledTimes(2);
     expect(kinds_of(enqueue.mock.calls[1]!)).toEqual(
       kinds_of(enqueue.mock.calls[0]!)

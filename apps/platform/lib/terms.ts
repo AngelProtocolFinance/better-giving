@@ -40,6 +40,17 @@ export function add_calendar_days(date: string, days: number): string | null {
   return `${y}-${m}-${d}`;
 }
 
+/** whether a donation made at `at` — payment authorized, or the asset
+ * received — falls under the recovery cutoff. an unparsable cutoff or
+ * instant covers none */
+export function recovery_covers(at: string | null | undefined): boolean {
+  const cutoff = terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
+  if (!cutoff || !at) return false;
+  const made = new Date(at).getTime();
+  if (Number.isNaN(made)) return false;
+  return made >= new Date(cutoff).getTime();
+}
+
 /** midnight in New York of the later of `effective` and, when `posted` is a
  * calendar day, seven days after it. a blank `posted` is no second date.
  * null when `effective` is not a calendar date — nothing reaches a party */

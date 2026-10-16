@@ -171,6 +171,7 @@ async function settle_routed(
     frequency: "one-time",
     source: "bg-marketplace",
     via: "stripe:card",
+    created_at: "2026-10-23T16:00:00.000Z",
   });
   const { msgs } = await db().transaction((tx) =>
     settle_npo(tx as unknown as DbOrTx, make_input(npo!.id, net))

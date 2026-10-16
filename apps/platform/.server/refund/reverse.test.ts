@@ -138,7 +138,10 @@ beforeEach(async () => {
 
 /** a settled gift of $100 on `via`, distributed whole to one npo's liquid
  * balance, which holds $1000 */
-async function seed(via: string, o?: { fee?: number; currency?: string }) {
+async function seed(
+  via: string,
+  o?: { fee?: number; currency?: string; made_at?: string }
+) {
   counter++;
   const db = test_db.current!.db;
   const [npo] = await db
@@ -181,7 +184,8 @@ async function seed(via: string, o?: { fee?: number; currency?: string }) {
   await db.insert(donation_settlements).values({
     donation_id: id,
     sttl_id: `sttl-${counter}`,
-    date: "2026-07-01T00:00:00.000Z",
+    // paid on the recovery cutoff, so the revised terms still allow the take-back
+    date: o?.made_at ?? "2026-10-23T16:00:00.000Z",
     currency: o?.currency ?? "USD",
     net: 96.8,
     fee: o?.fee ?? 3.2,
@@ -235,6 +239,29 @@ async function state(id: string, npo_id: number) {
 }
 
 describe("reverse_charge — a full refund", () => {
+  test("a gift paid before the cutoff keeps its savings", async () => {
+    const { id, npo_id } = await seed("stripe:card", {
+      made_at: "2026-10-22T16:00:00.000Z",
+    });
+
+    const res = await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "refund",
+      share: whole,
+      alert_from: "charge-refunded",
+      notice,
+    });
+
+    expect(res).toMatchObject({ status: "reversed", applied: 1 });
+    expect(await state(id, npo_id)).toMatchObject({
+      don: "refunded",
+      dist: ["refunded", "completed"],
+      liq: 1000,
+      bal_txs: 0,
+    });
+  });
+
   test("reverses a stripe gift: npo debited, dist and donation refunded", async () => {
     const { id, npo_id } = await seed("stripe:card");
 
