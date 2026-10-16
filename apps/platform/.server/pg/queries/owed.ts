@@ -188,14 +188,31 @@ export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
   // no row back: the conflict's update was skipped, and the row stands as it was
   const owed = row ?? (await owed_for_party(r.donation_id, r.party, tx))!;
   // notice on each create or increase, before that amount can be deducted.
-  // a write that does not grow the figures queues none. a first row is round
-  // 0 even when a concurrent first record wrote it, so the two share one notice
+  // a write that does not grow the figures queues none. an increase while the
+  // latest recorded notice is still unsent stays on that notice: the mail
+  // reads the row as it stands when it goes out. a first row is round 0 even
+  // when a concurrent first record wrote it, so the two share one notice
   if (row && owing(owed)) {
-    const round = before
-      ? sql`(SELECT count(*)::int FROM ${owed_notices}
-          WHERE ${owed_notices.owed_id} = ${owed.id} AND ${owed_notices.kind} = 'recorded')`
-      : sql`0`;
-    await queue_notice(tx, "recorded", owed.id, r.now, round);
+    const unsent = before
+      ? await tx
+          .select({ id: owed_notices.id })
+          .from(owed_notices)
+          .where(
+            and(
+              eq(owed_notices.owed_id, owed.id),
+              eq(owed_notices.kind, "recorded"),
+              isNull(owed_notices.sent_at)
+            )
+          )
+          .limit(1)
+      : [];
+    if (unsent.length === 0) {
+      const round = before
+        ? sql`(SELECT count(*)::int FROM ${owed_notices}
+            WHERE ${owed_notices.owed_id} = ${owed.id} AND ${owed_notices.kind} = 'recorded')`
+        : sql`0`;
+      await queue_notice(tx, "recorded", owed.id, r.now, round);
+    }
   }
   return owed;
 }

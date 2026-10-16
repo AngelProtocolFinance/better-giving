@@ -285,6 +285,17 @@ describe("the recorded notice, re-armed", () => {
     expect(await due()).toEqual(["credited"]);
   });
 
+  test("a growth before the first notice is sent stays on that notice", async () => {
+    await gift("don-1", EFFECTIVE);
+    await record("re_1", 36, 1.28);
+    await record("re_2", 90, 3.2);
+
+    const [notice, ...more] = await owed_notices_due(50, as_db(t.db));
+    expect([notice?.kind, more]).toEqual(["recorded", []]);
+    const claim = await claim_owed_notice(notice!.id, as_db(t.db));
+    expect(claim).toMatchObject({ status: "claimed", round: 0 });
+  });
+
   test("a growth while the row still owes is noticed again and held back until that notice is sent", async () => {
     await gift("don-1", EFFECTIVE);
     await record("re_1", 36, 1.28);
