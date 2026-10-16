@@ -134,7 +134,8 @@ export function setup_stripe_mocks(sttl: { net: number; fee: number }) {
     JSON.parse(body)
   );
   (stripe.paymentIntents.retrieve as any).mockResolvedValue({
-    latest_charge: { created: 1700000000, balance_transaction: sttl },
+    // paid on the recovery cutoff, so a refund preview still takes ungranted funds
+    latest_charge: { created: 1792771200, balance_transaction: sttl },
   });
   (stripe.paymentMethods.retrieve as any).mockResolvedValue({ type: "card" });
 }
