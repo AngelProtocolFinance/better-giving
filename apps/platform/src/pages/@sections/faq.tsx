@@ -18,6 +18,9 @@ interface Props {
   heading?: string;
   /** lead paragraph between the heading and the first question */
   sub?: string;
+  /** `split` sets the heading and help links in a sticky column beside the
+   *  questions from lg up; it assumes the full `page` width */
+  layout?: "stacked" | "split";
 }
 
 export const faqs = [
@@ -279,56 +282,93 @@ export function FAQ({
   pre_heading,
   heading = "Got questions? We've got answers.",
   sub,
+  layout = "stacked",
 }: Props) {
+  const accordion = (
+    <Accordion
+      variant="divided"
+      items={items.map((faq) => ({
+        value: String(faq.id),
+        trigger: (
+          <span className="block text-lg font-semibold text-pretty">
+            {faq.question}
+          </span>
+        ),
+        content: (
+          <div className="grid gap-3 text-gray-11 leading-relaxed max-w-prose">
+            {faq.paragraphs.map((p, idx) => (
+              <Fragment key={idx}>{p}</Fragment>
+            ))}
+          </div>
+        ),
+      }))}
+    />
+  );
+
+  if (layout === "split") {
+    return (
+      <section
+        className={`${classes} grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-20`}
+        aria-labelledby="faq-heading"
+      >
+        <div className="grid gap-5 content-start lg:sticky lg:top-24 lg:self-start reveal">
+          {pre_heading && <p className="eyebrow text-primary">{pre_heading}</p>}
+          <h2 id="faq-heading" className="section-heading">
+            {heading}
+          </h2>
+          {sub && <p className="text-lg text-gray-11 text-pretty">{sub}</p>}
+          {/* beside the questions on a wide screen, after them on a narrow one */}
+          <HelpLinks classes="max-lg:hidden justify-items-start mt-3" />
+        </div>
+        <div className="grid gap-10">
+          {accordion}
+          <HelpLinks classes="lg:hidden justify-items-start" />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className={`${classes} grid`} aria-labelledby="faq-heading">
-      {pre_heading && (
-        <p className="col-span-full text-center eyebrow text-primary mb-4">
-          {pre_heading}
-        </p>
-      )}
-      <h2
-        id="faq-heading"
-        className="col-span-full text-center section-heading mb-10 border-b-0"
-      >
-        {heading}
-      </h2>
-      {sub && (
-        <p className="col-span-full text-center text-lg text-gray-11 text-pretty -mt-6 mb-10">
-          {sub}
-        </p>
-      )}
-      <Accordion
-        variant="divided"
-        items={items.map((faq) => ({
-          value: String(faq.id),
-          trigger: faq.question,
-          content: faq.paragraphs.map((p, idx) => (
-            <Fragment key={idx}>{p}</Fragment>
-          )),
-        }))}
-      />
-      <footer className="grid pt-8">
-        <ExtLink
-          href={INTERCOM_HELP}
-          className="justify-self-center flex items-center gap-x-2 link md:text-lg font-semibold"
-        >
-          <span>Complete FAQs</span>
-          <ArrowRight className="icon-md" />
-        </ExtLink>
-        <button
-          type="button"
-          onClick={() => {
-            if ((window as any).Intercom) {
-              return (window as any).Intercom("show");
-            }
-            window.open(INTERCOM_HELP, "_blank");
-          }}
-          className="mt-4 justify-self-center flex items-center gap-x-2 text-primary hover:text-primary md:text-lg font-semibold"
-        >
-          Need additional support? Live Chat.
-        </button>
-      </footer>
+      <div className="grid gap-4 justify-items-center text-center mb-12 reveal">
+        {pre_heading && <p className="eyebrow text-primary">{pre_heading}</p>}
+        <h2 id="faq-heading" className="section-heading">
+          {heading}
+        </h2>
+        {sub && <p className="text-lg text-gray-11 text-pretty">{sub}</p>}
+      </div>
+      {accordion}
+      <HelpLinks classes="justify-items-center pt-10" />
     </section>
+  );
+}
+
+interface IHelpLinks {
+  classes?: string;
+}
+
+function HelpLinks({ classes = "" }: IHelpLinks) {
+  return (
+    <footer className={`${classes} grid gap-3`}>
+      <ExtLink
+        href={INTERCOM_HELP}
+        className="flex items-center gap-x-2 link md:text-lg font-semibold"
+      >
+        <span>Complete FAQs</span>
+        <ArrowRight className="icon-md" />
+      </ExtLink>
+      <button
+        type="button"
+        onClick={() => {
+          if ((window as any).Intercom) {
+            return (window as any).Intercom("show");
+          }
+          window.open(INTERCOM_HELP, "_blank");
+        }}
+        className="flex items-center gap-x-2 link md:text-lg font-semibold text-left"
+      >
+        Need additional support? Live Chat.
+      </button>
+    </footer>
   );
 }

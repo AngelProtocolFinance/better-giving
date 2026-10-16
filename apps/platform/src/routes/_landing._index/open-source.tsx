@@ -1,5 +1,6 @@
 import { ExtLink } from "@better-giving/ui";
 import { ArrowRight, Check } from "lucide-react";
+import type React from "react";
 import { GITHUB_REPO } from "#/constants/urls";
 import {
   TermCmd,
@@ -15,53 +16,60 @@ const points = [
 ] as const;
 
 interface IOpenSource {
+  /** the ground comes from here — the inks below are `surface-deep`'s set */
   classes?: string;
 }
 
 export function OpenSource({ classes = "" }: IOpenSource) {
   return (
-    <section className={classes} aria-labelledby="open-source-heading">
-      <div className="page grid gap-14 lg:grid-cols-[1.1fr_0.9fr] items-center">
+    <section
+      className={`${classes} relative overflow-hidden`}
+      aria-labelledby="open-source-heading"
+    >
+      <div className="absolute inset-0 dot-grid dot-grid-fade" aria-hidden />
+      <div className="page relative grid gap-14 lg:gap-20 lg:grid-cols-[1.1fr_0.9fr] items-center">
         <div className="grid gap-5 justify-items-start">
-          <p className="text-xs font-bold uppercase tracking-wider text-secondary">
-            Open source
-          </p>
-          <h2
-            id="open-source-heading"
-            className="section-heading text-primary-fg"
-          >
-            Don't take our word for it. Read the code.
-          </h2>
-          <p className="text-primary-fg/90 leading-relaxed text-pretty">
-            Every part of Better Giving is public: the donation form, the
-            platform, all of it. That means trust is verifiable, not just
-            promised. Most nonprofits use our managed platform for convenience;
-            those who want full independence can self-host the form and own
-            their own payment gateway.
-          </p>
-          <div className="grid gap-2.5 text-primary-fg font-medium text-sm">
-            {points.map((p) => (
-              <span key={p} className="flex items-center gap-2.5">
+          <div className="grid gap-5 reveal">
+            <p className="eyebrow text-amber-6">Open source</p>
+            <h2 id="open-source-heading" className="section-heading">
+              Don't take our word for it.{" "}
+              <em className="text-amber-6">Read the code.</em>
+            </h2>
+            <p className="text-blue-5 text-lg/relaxed text-pretty max-w-xl">
+              Every part of Better Giving is public: the donation form, the
+              platform, all of it. That means trust is verifiable, not just
+              promised. Most nonprofits use our managed platform for
+              convenience; those who want full independence can self-host the
+              form and own their own payment gateway.
+            </p>
+          </div>
+          <ul className="grid gap-3 font-medium mt-1">
+            {points.map((p, i) => (
+              <li
+                key={p}
+                className="flex items-start gap-3 reveal"
+                style={{ "--reveal-order": i + 1 } as React.CSSProperties}
+              >
                 <span
-                  className="flex-none size-5.5 rounded-full bg-success text-success-fg grid place-items-center"
+                  className="flex-none size-6 rounded-full bg-success text-success-fg grid place-items-center"
                   aria-hidden
                 >
                   <Check className="icon-sm" strokeWidth={3} />
                 </span>
                 {p}
-              </span>
+              </li>
             ))}
-          </div>
+          </ul>
           <ExtLink
             href={GITHUB_REPO}
-            className="btn btn-lg btn-secondary gap-2 mt-2"
+            className="btn btn-lg btn-secondary gap-2 mt-4"
           >
             View the repository
             <ArrowRight className="icon-md" />
           </ExtLink>
         </div>
 
-        <TerminalCard label="better-giving / donation-form">
+        <TerminalCard label="better-giving / donation-form" sequence>
           <TermCmd>git clone https://github.com/better-giving/…</TermCmd>
           <TermComment>brandable, embeddable donation form</TermComment>
           <TermCmd>pnpm install &amp;&amp; pnpm dev</TermCmd>

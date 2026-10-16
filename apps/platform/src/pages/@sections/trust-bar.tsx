@@ -43,7 +43,7 @@ export function TrustBar({
         {items.map((s, i) => (
           <div
             key={s.value}
-            className={`grid gap-0.5 content-start ${band ? "text-center" : ""} ${i > 0 ? `md:border-l md:border-gray-6 ${band ? "" : "md:pl-9"}` : ""} ${
+            className={`grid gap-2 content-start ${band ? "text-center" : ""} ${i > 0 ? `md:border-l md:border-gray-6 ${band ? "" : "md:pl-9"}` : ""} ${
               // a centered 2-up pair reads as a block; a rule between the two
               // halves only fights the centering
               !band && i % 2 === 1
@@ -52,7 +52,7 @@ export function TrustBar({
             }`}
           >
             <span
-              className={`font-bold ${band ? "text-3xl md:text-4xl" : "text-2xl md:text-3xl"} ${s.accent ? "text-primary" : ""}`}
+              className={`display-figure ${band ? "text-4xl md:text-5xl" : "text-3xl md:text-4xl"} ${s.accent ? "text-primary" : ""}`}
             >
               {s.value}
             </span>

@@ -1,6 +1,5 @@
-import { Image } from "@better-giving/ui";
-import laira_presentation from "#/assets/laira/laira-presentation.webp";
-import laira_shaking_hands from "#/assets/laira/laira-shaking-hands-x2.webp";
+import { CodeXml, KeyRound } from "lucide-react";
+import type { CSSProperties } from "react";
 
 interface IOwnGrow {
   classes?: string;
@@ -10,57 +9,93 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
   return (
     <section className={classes} aria-labelledby="own-grow-heading">
       <div className="page">
-        <p className="text-xs font-bold uppercase tracking-wider text-primary text-center">
-          Why we're different
-        </p>
-        <h2
-          id="own-grow-heading"
-          className="section-heading text-center mt-3 max-w-2xl mx-auto"
-        >
-          Own it. Grow it.
-        </h2>
-        <p className="mt-3.5 text-gray-11 text-center max-w-2xl mx-auto text-pretty">
-          Most platforms move your money and keep the keys. We built the
-          opposite: infrastructure you can own, and reserves that grow.
-        </p>
-        <div className="grid gap-6 md:grid-cols-2 mt-12">
-          <div className="card-on-band shadow-lift-card flex flex-col gap-4">
-            <Image
-              src={laira_shaking_hands}
-              width={120}
-              alt="Two Lairas shaking hands"
-            />
-            <h3 className="text-2xl font-bold">Own it.</h3>
-            <p className="text-base/relaxed text-gray-11">
+        <div className="reveal grid justify-items-center text-center">
+          <p className="eyebrow text-primary">Why we're different</p>
+          <h2 id="own-grow-heading" className="section-heading mt-4 max-w-2xl">
+            Own it. <em className="text-primary">Grow it.</em>
+          </h2>
+          <p className="section-body mt-5 text-gray-11 max-w-3xl">
+            Most platforms move your money and keep the keys. We built the
+            opposite: infrastructure you can own, and reserves that grow.
+          </p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 mt-14 md:mt-16">
+          <div
+            className="reveal relative overflow-clip rounded surface-deep p-8 md:p-10 grid content-start gap-5"
+            style={{ "--reveal-order": 0 } as CSSProperties}
+          >
+            <OpenMotif />
+            <h3 className="section-heading">Own it.</h3>
+            <p className="text-base/relaxed md:text-lg/relaxed text-blue-5 text-pretty">
               Our whole stack is open source: trust you can verify in code, not
               just promises. You own the donor relationship, your data exports
               freely, and if you ever want full independence, you can self-host
               the donation form and own your own gateway. And there's no
               lock-in, including your recurring donors: our{" "}
-              <strong className="text-gray-12">
+              <strong className="text-primary-fg">
                 Recurring-Donor Portability Guarantee
               </strong>{" "}
               means if you ever leave, we actively help migrate your recurring
               donors to your new platform, free, no exit toll.
             </p>
           </div>
-          <div className="card-on-band shadow-lift-card flex flex-col gap-4">
-            <Image
-              src={laira_presentation}
-              width={120}
-              alt="Laira presenting a growth chart"
-            />
-            <h3 className="text-2xl font-bold">Grow it.</h3>
-            <p className="text-base/relaxed text-gray-11">
+          <div
+            className="reveal rounded bg-mint text-gray-12 p-8 md:p-10 grid grid-rows-[auto_auto_1fr] gap-5"
+            style={{ "--reveal-order": 1 } as CSSProperties}
+          >
+            <h3 className="section-heading">Grow it.</h3>
+            <p className="text-base/relaxed md:text-lg/relaxed text-pretty">
               We don't just move money. We help you keep and grow it. Route any
               share of what you raise into FDIC-insured savings (~3-4%) or a
               professionally managed Sustainability Fund, and turn this
               quarter's gifts into next decade's reserves. No setup, AUM, or
               performance fees.
             </p>
+            <GrowthCurve />
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function OpenMotif() {
+  return (
+    <div
+      aria-hidden="true"
+      className="absolute top-8 right-8 md:top-10 md:right-10 text-amber-6"
+    >
+      <span className="flex-center size-14 rounded border">
+        <CodeXml className="pictogram-sm" />
+      </span>
+      <span className="absolute -left-4 -top-3 flex-center size-9 rounded-full border bg-primary-deep">
+        <KeyRound className="icon-lg" />
+      </span>
+    </div>
+  );
+}
+
+/** a rising reserve, drawn from tokens. no axis and no figures: it pictures the
+ *  idea, it does not chart a return */
+function GrowthCurve() {
+  const line = "M8 70C72 67 112 60 156 48S244 19 312 9";
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 320 80"
+      className="self-end w-full h-auto overflow-visible"
+    >
+      <path d={`${line}L312 80L8 80Z`} className="fill-secondary" />
+      <path
+        d={line}
+        className="fill-none stroke-primary [stroke-width:3] [stroke-linecap:round]"
+      />
+      <circle
+        cx="312"
+        cy="9"
+        r="6"
+        className="fill-surface stroke-primary [stroke-width:3]"
+      />
+    </svg>
   );
 }

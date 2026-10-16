@@ -1,5 +1,3 @@
-import type { LinksFunction } from "react-router";
-import donation_form from "#/assets/images/donation-form.png";
 import { app_name, base_url } from "#/constants/env";
 import { socials } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
@@ -52,25 +50,26 @@ const website = {
 export const meta: Route.MetaFunction = () =>
   metas({ jsonld: [organization, website] });
 
-export const links: LinksFunction = () => [
-  { rel: "preload", href: donation_form, as: "image", fetchPriority: "high" },
-];
-
 export default function Page() {
   return (
     <main>
       <Hero />
-      <TrustBar classes="border-y border-gray-6 py-7" />
-      <PartnersStrip classes="border-b border-secondary" />
-      <Steps classes="py-24" />
-      <OwnGrow classes="bg-band py-24" />
-      <Pillars classes="py-24" />
-      <GrowFunds classes="bg-band py-24" />
-      <OpenSource classes="surface-primary py-24" />
-      <Testimonials classes="py-24" />
-      <div className="bg-band py-24">
+      <div className="pt-16 md:pt-20 pb-8 md:pb-12">
+        <TrustBar classes="pb-10 md:pb-12" />
         <div className="page">
-          <FAQ items={home_faqs} classes="max-w-3xl mx-auto" />
+          <hr className="border-gray-6" />
+        </div>
+        <PartnersStrip />
+      </div>
+      <Steps classes="bg-band py-24 md:py-32" />
+      <OwnGrow classes="py-24 md:py-32" />
+      <Pillars classes="bg-band py-24 md:py-32" />
+      <GrowFunds classes="py-24 md:py-32" />
+      <OpenSource classes="surface-deep py-24 md:py-32" />
+      <Testimonials classes="py-24 md:py-32" />
+      <div className="bg-band py-24 md:py-32">
+        <div className="page">
+          <FAQ items={home_faqs} layout="split" />
         </div>
       </div>
       <CtaBand
