@@ -72,7 +72,7 @@ interface IQuoteToken {
   amount: number;
   tip_percent: "none" | "10" | "15" | "20";
   cover_processing_fee: boolean;
-  program?: IProgram;
+  program_id?: string;
 }
 
 export interface IAgentQuote {
@@ -120,7 +120,6 @@ function decode_quote(token: string): IQuoteToken {
       v: 1,
       id: parsed(v.pipe(v.string(), v.uuid()), value.id),
       ...input,
-      program: value.program,
     };
   } catch (error) {
     if (error instanceof AgentDonationError) throw error;
@@ -174,16 +173,19 @@ export async function create_quote(input: unknown): Promise<IAgentQuote> {
       "This recipient does not accept Better Giving tips. Request a quote with tip_percent set to none."
     );
   }
-  const program =
+  const program_row =
     args.program_id && typeof args.recipient_id === "number"
       ? await npo_program_get(args.program_id, args.recipient_id)
       : undefined;
-  if (args.program_id && !program) {
+  if (args.program_id && !program_row) {
     throw new AgentDonationError(
       "program_not_found",
       "The program does not belong to this nonprofit."
     );
   }
+  const program = program_row
+    ? { id: program_row.id, name: program_row.title }
+    : undefined;
   const id = crypto.randomUUID();
   const token: IQuoteToken = {
     v: 1,
@@ -192,7 +194,7 @@ export async function create_quote(input: unknown): Promise<IAgentQuote> {
     amount: args.amount,
     tip_percent: args.tip_percent,
     cover_processing_fee: args.cover_processing_fee,
-    program,
+    program_id: args.program_id,
   };
   return {
     quote_token: encode_quote(token),
@@ -260,6 +262,19 @@ export async function donate(input: unknown, request: Request) {
       "This recipient does not accept Better Giving tips."
     );
   }
+  const program_row =
+    quote.program_id && typeof quote.recipient_id === "number"
+      ? await npo_program_get(quote.program_id, quote.recipient_id)
+      : undefined;
+  if (quote.program_id && !program_row) {
+    throw new AgentDonationError(
+      "program_not_found",
+      "The program does not belong to this nonprofit."
+    );
+  }
+  const program = program_row
+    ? { id: program_row.id, name: program_row.title }
+    : undefined;
   const source_id = caller_id(request);
   const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
   const [customer_count, ip_count] = await Promise.all([
@@ -296,7 +311,7 @@ export async function donate(input: unknown, request: Request) {
     currency: "USD",
     frequency: "one-time",
     source: "bg-agent",
-    program: quote.program,
+    program,
   };
 
   if (!prior) {
@@ -334,7 +349,7 @@ export async function donate(input: unknown, request: Request) {
 export async function donation_status(input: unknown) {
   const args = parsed(status_input, input);
   const donation = await donation_get(args.donation_id);
-  if (!donation || donation.source !== "bg-agent") {
+  if (donation?.source !== "bg-agent") {
     throw new AgentDonationError("not_found", "Donation not found.");
   }
   return {
