@@ -1,19 +1,11 @@
-import { ExtLink, Image } from "@better-giving/ui";
-import { ArrowRight } from "lucide-react";
-import { href, Link } from "react-router";
-import laira_waiving from "#/assets/laira/laira-waiving.webp";
 import { app_name } from "#/constants/env";
-import { GITHUB_REPO } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
-import {
-  TermCmd,
-  TermComment,
-  TerminalCard,
-  TermOk,
-} from "#/pages/@sections/terminal-card";
 import type { Route } from "./+types/route";
+import { Commons } from "./commons";
+import { Hero } from "./hero";
 import { TwoPaths } from "./two-paths";
+import { Why } from "./why";
 
 export const headers: Route.HeadersFunction = () => ({
   "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
@@ -26,108 +18,13 @@ export const meta: Route.MetaFunction = () =>
       "Every part of Better Giving is public code: verify how donations are handled, self-host the form, and help keep the commons free.",
   });
 
-const why = [
-  {
-    title: "Verify, don't trust",
-    body: "Anyone (your board, your auditor, your most skeptical donor) can inspect exactly how donations are processed, routed, and receipted.",
-  },
-  {
-    title: "Own your independence",
-    body: "Self-host the donation form with your own payment gateway and merchant account. Your donor tokens never leave your control. Nothing to migrate, ever.",
-  },
-  {
-    title: "A commons that outlives us",
-    body: "Public code can't be bought, gated, or shut away. The community keeps the infrastructure free for every nonprofit, forever.",
-  },
-] as const;
-
 export default function Page() {
   return (
     <main>
-      <div className="surface-primary pt-20 pb-24">
-        <div className="page grid gap-14 lg:grid-cols-[1.05fr_0.95fr] items-center">
-          <div className="grid gap-5 justify-items-start">
-            <p className="text-xs font-bold uppercase tracking-wider text-secondary">
-              Open Source
-            </p>
-            <h1 className="hero-heading text-primary-fg">Trust you can read</h1>
-            <p className="text-lg/relaxed text-primary-fg/90 max-w-lg text-pretty">
-              Every part of Better Giving is public code: the donation form, the
-              platform, all of it. When software moves money for your mission,
-              "trust us" isn't enough. Verify us instead.
-            </p>
-            <div className="flex max-sm:flex-col max-sm:w-full sm:flex-wrap sm:items-center gap-3.5 mt-1.5">
-              <ExtLink
-                href={GITHUB_REPO}
-                className="btn btn-lg btn-secondary gap-2"
-              >
-                View the repository
-                <ArrowRight className="icon-md" />
-              </ExtLink>
-              <Link to={href("/register")} className="btn btn-lg btn-outline">
-                Join free forever
-              </Link>
-            </div>
-          </div>
-          <TerminalCard label="AngelProtocolFinance / better-giving">
-            <TermCmd>
-              git clone https://github.com/AngelProtocolFinance/better-giving
-            </TermCmd>
-            <TermComment>the whole platform: forms, flows, funds</TermComment>
-            <TermCmd>pnpm install &amp;&amp; pnpm dev</TermCmd>
-            <TermComment>your form, your gateway, your donors</TermComment>
-            <TermOk>ready on localhost:3000</TermOk>
-          </TerminalCard>
-        </div>
-      </div>
-
-      <div className="py-24">
-        <div className="page">
-          <h2 className="section-heading text-center max-w-2xl mx-auto">
-            Why an open-source commons?
-          </h2>
-          <div className="grid gap-5 md:grid-cols-3 mt-11">
-            {why.map((w) => (
-              <div
-                key={w.title}
-                className="bg-secondary border border-gray-6 rounded p-8 grid gap-2.5 content-start"
-              >
-                <span className="text-xl font-bold">{w.title}</span>
-                <p className="text-sm/relaxed text-gray-11">{w.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <TwoPaths classes="bg-band py-24" />
-
-      <div className="page py-24">
-        <div className="max-w-3xl mx-auto grid gap-5 justify-items-center text-center">
-          <Image
-            src={laira_waiving}
-            width={130}
-            alt="Laira waving"
-            className="mb-1"
-          />
-          <h2 className="section-heading">How the commons stays free</h2>
-          <p className="text-gray-11 leading-relaxed max-w-2xl text-pretty">
-            Better Giving is volunteer-driven and funded entirely by optional
-            donor contributions at checkout. Always opt-in, never pre-selected.
-            No platform fees, no investors, no gated features. Members who share
-            the tools also share the responsibility of keeping them free for
-            everyone. Want to contribute code, docs, or time? The repo is open.
-          </p>
-          <ExtLink
-            href={GITHUB_REPO}
-            className="inline-flex items-center gap-1.5 font-bold link"
-          >
-            Contribute on GitHub
-            <ArrowRight className="icon-md" />
-          </ExtLink>
-        </div>
-      </div>
-
+      <Hero classes="surface-deep" />
+      <Why classes="py-24 md:py-32" />
+      <TwoPaths classes="bg-band py-24 md:py-32" />
+      <Commons classes="py-24 md:py-32" />
       <CtaBand
         title="Verify us. Then join us."
         subtitle="Read the code, kick the tires, and set up your form in an afternoon. Free forever either way."
