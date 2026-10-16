@@ -13,9 +13,6 @@ interface IFaq {
 interface Props {
   classes?: string;
   items: IFaq[];
-  /** @deprecated renders nothing: the marketing pages carry no eyebrow
-   *  (ledger → "Marketing house rules"). drop it at the call site. */
-  pre_heading?: string;
   heading?: string;
   /** lead paragraph between the heading and the first question */
   sub?: string;
@@ -285,10 +282,8 @@ export function FAQ({
   layout = "stacked",
 }: Props) {
   const accordion = (
-    // keeps its hairlines: `divided` is the shared Accordion's only
-    // page-section look
     <Accordion
-      variant="divided"
+      variant="tiles"
       items={items.map((faq) => ({
         value: String(faq.id),
         trigger: (

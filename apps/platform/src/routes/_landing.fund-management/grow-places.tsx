@@ -41,7 +41,7 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
           </article>
 
           <article
-            className="surface-deep rounded p-6 md:p-8 reveal grid gap-6 content-start md:row-span-4 md:grid-rows-subgrid"
+            className="tile-deep reveal grid gap-6 content-start md:row-span-4 md:grid-rows-subgrid"
             style={{ "--reveal-order": 1 } as CSSProperties}
           >
             <div className="flex items-center justify-between gap-4">

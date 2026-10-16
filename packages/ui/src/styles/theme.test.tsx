@@ -132,41 +132,6 @@ describe("scroll reveal", () => {
   });
 });
 
-describe("scrolled header ground", () => {
-  afterEach(async () => {
-    await commands.emulateMedia({ reducedMotion: null });
-  });
-
-  const ground = async () => {
-    const screen = await render(
-      <header data-testid="bar" className="relative header-ground" />
-    );
-    return getComputedStyle(screen.getByTestId("bar").element(), "::before");
-  };
-
-  test("fades in on the root scroll timeline", async () => {
-    await commands.emulateMedia({ reducedMotion: "no-preference" });
-
-    const style = await ground();
-    expect(style.animationName).toBe("ground-in");
-    expect(style.getPropertyValue("animation-timeline")).toBe("scroll()");
-    // the range is a fixed scroll distance; `normal` would mean the
-    // declaration was dropped and the ground fades over the whole page.
-    expect(style.getPropertyValue("animation-range-end")).not.toBe("normal");
-  });
-
-  // the same guard as the reveal: the media query itself, so the fallback is
-  // the solid header rather than a ground that never arrives.
-  test("is the solid header under prefers-reduced-motion", async () => {
-    await commands.emulateMedia({ reducedMotion: "reduce" });
-
-    const style = await ground();
-    expect(style.animationName).toBe("none");
-    expect(style.opacity).toBe("1");
-    expect(style.backdropFilter).toBe("none");
-  });
-});
-
 describe("editorial face", () => {
   test.each(["hero-heading", "section-heading", "subsection-heading"])(
     "%s reads it",

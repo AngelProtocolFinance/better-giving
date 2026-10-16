@@ -44,7 +44,11 @@ export function Layout({ children }: PropsWithChildren<{ classes?: string }>) {
         <Links />
         <style />
       </head>
-      <body className="">
+      {/* the page ground (--background, gray-1) on the canvas itself, so a
+          route that paints no ground of its own sits on it rather than on the
+          browser's white. the embed's #donation-container paints the same
+          token, so the iframe reads no differently */}
+      <body className="bg-background">
         {/* motion's default is reducedMotion: "never" — it reads the os
             preference only when told to, and the css ladder guard in
             packages/ui/src/styles/theme.css cannot reach a js-driven

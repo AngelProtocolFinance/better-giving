@@ -244,7 +244,7 @@ function MapArt() {
  *  express-pay pill. decorative — the tile's copy carries the claim. */
 function FormArt() {
   return (
-    <div className="rounded bg-surface p-6 grid gap-3" aria-hidden>
+    <div className="tile-inset grid gap-3" aria-hidden>
       <div className="grid grid-cols-2 rounded-full bg-gray-3 p-1 text-xs font-semibold text-center">
         <span className="rounded-full py-1.5 text-gray-11">One-time</span>
         <span className="rounded-full py-1.5 bg-surface text-gray-12 shadow-track-fill">

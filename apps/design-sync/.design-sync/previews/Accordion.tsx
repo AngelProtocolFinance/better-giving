@@ -37,3 +37,7 @@ export const Compact = () => <Accordion className="w-96" items={items} />;
 export const Divided = () => (
   <Accordion className="w-96" variant="divided" items={items} />
 );
+
+export const Tiles = () => (
+  <Accordion className="w-96" variant="tiles" items={items} />
+);

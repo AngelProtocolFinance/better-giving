@@ -418,67 +418,6 @@
   }
 }
 
-/* header-ground's arrival. top-level for the reason rise-in is: no
-   --animate-* key names it, so a @theme keyframe would never be emitted.
-   `from` alone, so the held end state is the layer's own opacity. */
-@keyframes ground-in {
-  from {
-    opacity: 0;
-  }
-}
-
-/* the ground a pinned marketing header gains as the page scrolls under it. at
-   the top of the page the header reads as part of the hero — no fill, no
-   hairline — and over the first 4rem of scroll (the header row's own height)
-   a translucent --background, a blur, the hairline and the floating level
-   fade in, then hold. driven by the root scroller's position, so no js, no
-   listener, and scrolling back to the top takes it away again.
-   the ground lives on a ::before behind the header's content, and only its
-   opacity moves: one compositor property rather than a fill, an edge and a
-   shadow repainting on every scrolled pixel. `isolation` keeps the layer's
-   z-index -1 inside the header; the caller still positions the header
-   (`sticky`), which is what the layer's `inset-0` resolves against.
-   the fill is 90% because that is where the nav's inks hold over ANY ground
-   the blur can sample — measured against a pure-black backdrop, the darkest
-   one a photograph presents, composited in srgb: gray-12 at Lc 86.8 and the
-   current item's --primary at Lc 60.4, over the Lc 60 a label needs; over a
-   --primary-deep band they are Lc 90.0 and 63.7. 85% puts --primary under
-   60 on a deep band (Lc 57.8), so do not thin it without re-measuring
-   (ledger → motion → "The scrolled header ground").
-   gated exactly as `reveal` is: a browser without scroll timelines, and a
-   reader who asked for reduced motion, get the solid header — opaque
-   --background and the hairline, at rest and scrolled alike. */
-@utility header-ground {
-  isolation: isolate;
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background-color: var(--background);
-    border-block-end: 1px solid var(--border);
-  }
-  @supports (animation-timeline: scroll()) {
-    @media (prefers-reduced-motion: no-preference) {
-      &::before {
-        @apply backdrop-blur-md;
-        background-color: color-mix(
-          in oklab,
-          var(--background) 90%,
-          transparent
-        );
-        box-shadow: var(--shadow-floating);
-        animation-name: ground-in;
-        animation-timing-function: var(--ease-out);
-        animation-fill-mode: both;
-        animation-timeline: scroll();
-        animation-range: 0 calc(var(--spacing) * 16) /* 4rem */;
-      }
-    }
-  }
-}
-
 /* the page shape — one name, one width curve, one gutter. layout is the one
    axis with no closed-set gate behind it: `--color-*` and `--radius-*` are
    reset to `initial` in theme.css so an off-system spelling compiles to
@@ -571,6 +510,24 @@
    no unmeasured hover rung enters the palette. */
 @utility tile {
   @apply bg-secondary rounded p-6 md:p-8;
+}
+
+/* `tile` on the dark brand ground: the one tile in a row that carries the
+   emphasis (the featured price, a pair's lead panel). the fill, ink and
+   rebinds are `surface-deep`'s; the corner and inset are `tile`'s, spelled
+   again rather than applied, because two fills from one @apply resolve by
+   sheet order. */
+@utility tile-deep {
+  @apply surface-deep rounded p-6 md:p-8;
+}
+
+/* a recessed panel ON a tile: the mock form or converter a marketing tile
+   draws to show the product. --surface (gray-1) is the step that reads on
+   --secondary; --secondary and gray-3 vanish into the tile (ledger →
+   "Marketing house rules"). one inset, smaller than the tile's, so the panel
+   sits inside its parent's rhythm rather than echoing it. */
+@utility tile-inset {
+  @apply bg-surface rounded p-6;
 }
 
 /* the card that is the whole of a single-purpose screen — login, signup,

@@ -74,7 +74,7 @@ interface IPlanCard {
 function Plan({ plan, featured, order }: IPlanCard) {
   return (
     <li
-      className={`${featured ? "surface-deep rounded p-6 md:p-8" : "tile"} reveal grid gap-6 md:row-span-4 md:grid-rows-subgrid`}
+      className={`${featured ? "tile-deep" : "tile"} reveal grid gap-6 md:row-span-4 md:grid-rows-subgrid`}
       style={{ "--reveal-order": order } as CSSProperties}
     >
       <h2 className="text-lg font-bold">{plan.name}</h2>

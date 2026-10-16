@@ -101,8 +101,13 @@ export function AllocationRing({
               <span>{a.label}</span>
               <span className="figures font-bold">{a.pct}%</span>
             </span>
+            {/* gray-7: the first step that holds Lc 15 on all three marketing
+                grounds (page 23.8, band 21.5, tile 17.6). the fill on it owes
+                only the same Lc 15, the share being printed above it:
+                primary/30 15.5, metals' amber 13.9 on luminance alone, which
+                its hue separates */}
             <span
-              className="h-2 rounded-full bg-gray-3 overflow-hidden"
+              className="h-2 rounded-full bg-gray-7 overflow-hidden"
               aria-hidden
             >
               <span

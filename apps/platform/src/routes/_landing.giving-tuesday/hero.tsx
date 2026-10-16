@@ -9,15 +9,12 @@ export function Hero({ classes = "" }) {
       className={`${classes} grid content-start justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 pt-20 xl:pt-40  pb-24`}
     >
       <div className="max-w-2xl order-2 xl:order-1">
-        <h4 className="pre-heading text-primary text-center xl:text-left  uppercase mb-5">
-          Giving Tuesday is one day.
-        </h4>
         <h1 className="text-center xl:text-left mb-4 hero-heading">
           {app_name} <br /> Lasts All Year.
         </h1>
         <p className="mb-10 text-lg xl:text-xl text-center xl:text-left">
-          Other platforms turn on special features for one day. At {app_name},
-          they're always on — for free.
+          Giving Tuesday is one day, and other platforms turn on special
+          features for it alone. At {app_name}, they're always on — for free.
         </p>
 
         <div className="flex flex-col xl:flex-row justify-center xl:justify-start items-center gap-6">

@@ -130,7 +130,7 @@ export function Features({ classes = "" }: IFeatures) {
 
 function GoalArt() {
   return (
-    <div className="rounded bg-surface p-6 grid gap-4" aria-hidden="true">
+    <div className="tile-inset grid gap-4" aria-hidden="true">
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-sm font-semibold text-gray-12">
           Spring appeal
@@ -173,10 +173,7 @@ function CurrencyArt() {
 
 function ReceiptArt() {
   return (
-    <div
-      className="rounded bg-surface p-6 grid gap-3 text-sm"
-      aria-hidden="true"
-    >
+    <div className="tile-inset grid gap-3 text-sm" aria-hidden="true">
       <div className="flex items-center gap-2.5">
         <span className="size-6 rounded bg-primary" />
         <span className="font-semibold text-gray-12">Your nonprofit</span>

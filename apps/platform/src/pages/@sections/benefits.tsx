@@ -4,9 +4,6 @@ import type { Benefit as TBenefit } from "#/content/benefits";
 type Props = {
   classes?: string;
   items: TBenefit[];
-  /** @deprecated renders nothing: the marketing pages carry no eyebrow
-   *  (ledger → "Marketing house rules"). drop it at the call site. */
-  subheading?: string;
   heading: string;
   body: string;
 };

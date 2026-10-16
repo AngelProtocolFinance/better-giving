@@ -10,13 +10,12 @@ export function Hero({ classes = "" }: IHero) {
     <div
       className={`${classes} grid max-lg:justify-items-center max-lg:text-center`}
     >
-      <p className="eyebrow text-primary">For U.S. nonprofits</p>
-      <h1 className="hero-heading mt-4 max-w-4xl">
+      <h1 className="hero-heading max-w-4xl">
         Fundraising you can audit. Free, forever.
       </h1>
       <p className="section-body mt-5 max-w-2xl text-gray-11">
-        Accept cards, bank, stocks, DAFs, and crypto with $0 platform fees. Our
-        code is public, so you can verify it.
+        Built for U.S. nonprofits: accept cards, bank, stocks, DAFs, and crypto
+        with $0 platform fees. Our code is public, so you can verify it.
       </p>
       {/* only while the form sits beside this copy. once the columns stack the
           form is directly below, and its own submit is the primary action —

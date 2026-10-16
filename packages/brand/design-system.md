@@ -1046,45 +1046,6 @@ Two things it deliberately does not do:
   before it finishes. A fixed distance from the top edge's entry has neither
   failure.
 
-### The scrolled header ground
-
-`header-ground` (`packages/ui/src/styles/utilities.css`, beside `reveal`) is the
-second scroll-driven animation and follows the same rules: no named speed, the
-enter curve (`--ease-out`), and the same two gates, `@supports
-(animation-timeline: scroll())` **and** `@media (prefers-reduced-motion:
-no-preference)`. The marketing header (`components/header/marketing-header.tsx`)
-is the one consumer.
-
-At the top of the page the header has no fill and no hairline, so it reads as
-part of the hero. Over the first **4rem** of root scroll (the header row's own
-height, spelled `calc(var(--spacing) * 16)`) a `::before` layer fades in and
-holds: `--background` at 90% through `color-mix`, `backdrop-blur-md`, the
-`--border` hairline, and `--shadow-floating`, the level the elevation set
-already gives a sticky header once it is stuck. Only the layer's **opacity**
-animates. The fill, the edge and the shadow are static on it, so a scrolled
-pixel moves one compositor property and repaints nothing.
-
-**The 90% is measured, not a taste value.** The blur samples whatever the page
-puts under the header, so the floor is the darkest ground there can be.
-Composited in sRGB:
-
-| backdrop under the header | `gray-12` nav ink | `--primary` current item |
-| --- | --- | --- |
-| none (opaque `--background`) | Lc 101.5 | Lc 75.1 |
-| `--primary-deep` band, 90% fill | **Lc 90.0** | **Lc 63.7** |
-| pure black (a photograph's worst case), 90% fill | Lc 86.8 | Lc 60.4 |
-| `--primary-deep` band, 85% fill | Lc 84.2 | Lc 57.8, **fails** Lc 60 |
-
-A nav item is a label, so Lc 60 is the floor (`--primary-fg` alpha-ladder
-section: "/80 is the floor for a label"). 90% is the nearest 5% step that holds
-it over every backdrop; 85% fails over a deep band. Do not thin it without
-re-measuring. The current item's 2px underline is a non-text indicator and needs
-only Lc 30.
-
-The fallback (a browser without scroll timelines, or reduced motion) is the
-solid header: opaque `--background` and the hairline, no blur and no shadow, at
-rest and scrolled alike. `theme.test.tsx` pins both halves.
-
 ## Decisions that look like bugs
 
 Recorded so they are not "fixed" by someone reading them as oversights.
@@ -1857,6 +1818,27 @@ Not adopted, recorded: the rule's two-line headline cap. The marketing copy is
 final per the design handoff, and several headlines run three lines at desktop
 by their length; shortening them is a copy decision, not a layout one.
 
+### The tile family
+
+Three names in `packages/ui/src/styles/utilities.css`, and a marketing surface
+spells none of their four classes out by hand:
+
+| name | is | for |
+| --- | --- | --- |
+| `tile` | `--secondary`, the radius, `p-6 md:p-8` | the resting object on the page or a band |
+| `tile-deep` | `surface-deep` (fill, `--primary-fg` ink, the `--ring`/`--border` rebinds), the radius, `tile`'s inset | the one emphasised tile in a row: the featured price, a pair's lead panel |
+| `tile-inset` | `--surface`, the radius, `p-6` | a recessed panel drawn on a `tile`: a mock form, a converter, a receipt |
+
+**On a `tile`, a recessed or contrasting element takes `--surface`.** A track,
+an icon disc, an inset panel: `--secondary` is the tile itself and `gray-3`
+sits within a step of it, so both vanish there. `--surface` (`gray-1`) is the
+step up that reads. `--secondary` remains right for an element on the page or
+a band.
+
+`card` and `card-on-band` are the product's shells (an edge, `--panel`) and do
+not appear on a marketing page; `marketing-conformance.node.test.ts` fails on
+either, alongside the devices the table above bans.
+
 ## Two color layers, and the line between them
 
 Not every color in the app lives in this file, and the answer is not "everything
@@ -1905,25 +1887,6 @@ Three rules, and they are what make this a decision instead of a leak:
 
 `--color-black` / `--color-white` in the same block are literal neutrals, not
 part of this layer.
-
-#### The dot-grid texture
-
-`dot-grid` and `dot-grid-fade` (`apps/platform/src/index.css`, beside the
-washes): 1px dots on a 24px (`--spacing` × 6) grid, painted as a
-`radial-gradient` background, and a radial `mask-image` that dissolves it from
-the top-right corner. Decorative and marketing-only, the same as the washes,
-and they carry **no ink**: a texture under copy, not behind it.
-
-The dot is drawn in **`--border`**, not a pinned step, so one utility serves
-every ground: `gray-6` on the page and on a band, `blue-11` inside
-`surface-deep` (Lc 17.3, the page hairline's weight), and `--primary-border`
-inside `surface-primary`, which is a control boundary's weight (Lc 61.8) and so
-reads as a louder field. There is no `dot-grid-inverse` to pick.
-
-It goes on its own `absolute inset-0`, `aria-hidden` layer behind the content,
-never on the band: `dot-grid-fade` is a mask, which would fade the band's copy
-with it, and `dot-grid` sets `background-image`, which would replace a band's
-gradient.
 
 ### Third-party brand color: the policy
 

@@ -25,8 +25,7 @@ interface IAllocationGovernance {
 }
 
 // the copy leads in the dom so a narrow screen reads heading → points → ring;
-// from lg the ring takes the left column. the ring's tracks are gray-3, which
-// only reads on the page ground, so this section sits on it rather than a band
+// from lg the ring takes the left column.
 export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
   return (
     <section className={classes} aria-labelledby="governance-heading">

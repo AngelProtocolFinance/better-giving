@@ -75,7 +75,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
           </div>
 
           <div
-            className="reveal rounded surface-deep p-6 md:p-8 flex flex-col gap-5"
+            className="reveal tile-deep flex flex-col gap-5"
             style={{ "--reveal-order": 1 } as CSSProperties}
           >
             <p className="text-sm text-blue-5">Maximum control</p>
