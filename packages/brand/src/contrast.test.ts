@@ -606,6 +606,68 @@ const pairings: Pairing[] = [
     min.spot
   ),
 
+  // --- the `surface-deep` ink set: the opaque fill as a full-bleed band
+  p(
+    "--primary-ring (surface-deep's ring) on --primary-deep",
+    colors.primary_fg,
+    colors.primary_deep,
+    99.6,
+    min.spot
+  ),
+  // the page's ring would clear here too; recorded so the rebind reads as a
+  // choice of one brand-fill ring, not a rescue.
+  p(
+    "--ring (blue-8) on --primary-deep",
+    colors.ring,
+    colors.primary_deep,
+    47.3,
+    min.spot
+  ),
+  p(
+    "blue-11 (surface-deep's --border) on --primary-deep",
+    colors.blue_11,
+    colors.primary_deep,
+    17.3,
+    min.hairline
+  ),
+  p(
+    "blue-5 secondary copy on --primary-deep",
+    colors.blue_5,
+    colors.primary_deep,
+    79.1,
+    min.body
+  ),
+  p(
+    "blue-6 on --primary-deep",
+    colors.blue_6,
+    colors.primary_deep,
+    70.9,
+    min.body,
+    "the next step down, ruled out for secondary copy: labels only"
+  ),
+  p(
+    "amber-6 accent ink on --primary-deep",
+    colors.amber_6,
+    colors.primary_deep,
+    71.0,
+    min.content
+  ),
+  p(
+    "amber-7 on --primary-deep",
+    colors.amber_7,
+    colors.primary_deep,
+    62.3,
+    min.content
+  ),
+  p(
+    "amber-9 on --primary-deep",
+    colors.amber_9,
+    colors.primary_deep,
+    52.1,
+    min.content,
+    "the brand amber itself, ruled out as an ink on the deep fill"
+  ),
+
   // --- the allocation slider's adjacent track segments. both are fills and the
   // legend above prints each value as text, so only the hairline floor binds;
   // the lower of the two polarities is the one recorded.

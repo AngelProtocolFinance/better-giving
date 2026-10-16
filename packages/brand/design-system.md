@@ -7,8 +7,8 @@ Type and elevation are here too, and their values are **not** in this package:
 the face tokens, the size/weight/leading/tracking ladders, and the shadow and
 stacking sets all sit in `packages/ui/src/styles/theme.css`. They are recorded
 here because this is the one file that says what a token is *for*, and a second
-ledger would only be a second place to go stale. See "One face, two roles, and
-four closed ladders" and "Elevation: four levels, and one treatment that is not
+ledger would only be a second place to go stale. See "Two faces, three roles,
+and four closed ladders" and "Elevation: four levels, and one treatment that is not
 a rung".
 
 Contrast figures are **APCA Lc** values (`apca-w3` 0.1.9), measured on the
@@ -600,6 +600,47 @@ purpose, a `-dark` suffix reads as "the dark-mode primary" to the next person.
 Being a `var()` alias onto a ramp step it mirrors into `colors.ts` and the drift
 guard sees it, though no email uses it; see "Two consumers, one palette".
 
+#### `surface-deep`: the opaque fill as a band, and its ink set
+
+`surface-deep` (`packages/ui/src/styles/utilities.css`, beside
+`surface-primary` and the same shape) is the token as a full-bleed marketing
+band: the fill, `--primary-fg` ink, and `--ring` / `--border` rebound for
+everything inside. The ink set is ramp steps spelled at the call site, the way
+`text-gray-11` is on the page: no `--deep-muted` token, because a name that
+spells one rung is the shape the ramp exists to remove.
+
+| role | spelling | Lc on `--primary-deep` | clears |
+| --- | --- | --- | --- |
+| body ink | inherited `--primary-fg` (white) | **99.6** | body (75), preferred (90) |
+| muted ink: secondary copy, captions | `text-blue-5` | **79.1** | body (75) |
+| accent ink: eyebrow, one emphasised word | `text-amber-6` | **71.0** | content (60) |
+| focus ring | `--ring` → `--primary-ring` (white) | **99.6** | spot (30) |
+| hairline | `--border` → `blue-11` | **17.3** | hairline (15) |
+
+Measured and not taken:
+
+- **`blue-6`, Lc 70.9.** Clears content (60), not body: a label, never a
+  paragraph. `blue-5` is the first step that carries secondary copy.
+- **`amber-7`, Lc 62.3.** Clears content by 2.3; `amber-6` has the headroom an
+  uppercase 12px eyebrow wants. **`amber-9`**, the brand amber itself, is
+  **Lc 52.1** and fails: the amber ink on deep is a tint, not the fill colour.
+- **The page's `--ring` (`blue-8`) is Lc 47.3** here and would clear. The
+  rebind is to `--primary-ring` anyway so every brand fill, `--primary` and
+  `--primary-deep`, rings the same way.
+
+`--border` is `blue-11` because it lands at the page hairline's own weight
+(gray-6 is Lc 17.4 on the page; this is 17.3): a separator, not a control
+boundary, which is the job `--border` has everywhere but inside
+`surface-primary`. A field drawn on a deep band needs a control boundary (Lc
+30) and has no recorded edge yet: that is a gap to measure when one is built,
+not a step to pick at the call site.
+
+`surface-deep`'s inks are only measured on the **opaque** fill. Over a
+photograph the scrim rules above apply and the muted and accent inks are
+unmeasured there.
+
+All of it is pinned in `src/contrast.test.ts`, under the `--primary-deep` block.
+
 The hero it grounds (`routes/unlock-us-donations/hero.tsx`) carries the token
 at all five sites. A hero ground is a palette value, and this is where it is
 named.
@@ -959,6 +1000,40 @@ library's default `reducedMotion: "never"` and no `<MotionConfig>` anywhere, and
 Tailwind's stock `animate-spin` / `animate-pulse` carry `--animate-*` defaults
 the theme never resets. Neither reads a named speed, so neither collapses;
 guarding them is its own change.
+
+### The scroll reveal is off the speed ladder, by construction
+
+`reveal` (`packages/ui/src/styles/utilities.css`) fades an element in and
+lifts it 1rem (`@keyframes rise-in`) on its own **view timeline**:
+`animation-timeline: view()`, `animation-range: entry 0 entry 25vh`, so it is
+done once its top edge is a quarter-viewport up. It is the
+one animation that spends **no named speed**, and that is the reasoned
+exception rather than drift: a view timeline's progress is scroll distance, so
+a time duration has nothing to measure, and the 0.01ms ladder collapse could not
+reach it even if it did. The curve is still the system's (`--ease-out`, the
+enter role).
+
+So its reduced-motion guard is its own, and it is stronger than the ladder's:
+the whole declaration sits inside `@supports (animation-timeline: view())`
+**and** `@media (prefers-reduced-motion: no-preference)`. A reader who asked for
+less motion, and a browser with no view timelines, match neither block and get
+the element as authored, fully visible, with no JS. `theme.test.tsx` pins both
+halves (it runs; under emulated `reduce`, `animation-name` is `none`).
+
+Two things it deliberately does not do:
+
+- **No time-based `animate-rise-in`.** The keyframe has no `--animate-*` key,
+  which is also why it sits at the top level of `utilities.css` rather than in
+  `@theme` (Tailwind only emits a `@theme` keyframe some `--animate-*` key spends).
+- **No `animation-delay` stagger.** A time delay means nothing on a scroll
+  timeline, and siblings in a row enter the viewport together. A child sets
+  `--reveal-order` (0-3, inline style), and each step starts and ends its
+  range 5vh later.
+- **No percentage range.** `cover 30%` or `entry 100%` scale with the element:
+  a card group taller than the screen would sit faded with its first row in
+  plain view, and a short block at the foot of a page can run out of scroll
+  before it finishes. A fixed distance from the top edge's entry has neither
+  failure.
 
 ## Decisions that look like bugs
 
@@ -1749,6 +1824,25 @@ Three rules, and they are what make this a decision instead of a leak:
 `--color-black` / `--color-white` in the same block are literal neutrals, not
 part of this layer.
 
+#### The dot-grid texture
+
+`dot-grid` and `dot-grid-fade` (`apps/platform/src/index.css`, beside the
+washes): 1px dots on a 24px (`--spacing` × 6) grid, painted as a
+`radial-gradient` background, and a radial `mask-image` that dissolves it from
+the top-right corner. Decorative and marketing-only, the same as the washes,
+and they carry **no ink**: a texture under copy, not behind it.
+
+The dot is drawn in **`--border`**, not a pinned step, so one utility serves
+every ground: `gray-6` on the page and on a band, `blue-11` inside
+`surface-deep` (Lc 17.3, the page hairline's weight), and `--primary-border`
+inside `surface-primary`, which is a control boundary's weight (Lc 61.8) and so
+reads as a louder field. There is no `dot-grid-inverse` to pick.
+
+It goes on its own `absolute inset-0`, `aria-hidden` layer behind the content,
+never on the band: `dot-grid-fade` is a mask, which would fade the band's copy
+with it, and `dot-grid` sets `background-image`, which would replace a band's
+gradient.
+
 ### Third-party brand color: the policy
 
 **Permitted, narrowly.** A vendor's color is not ours to re-derive into oklch,
@@ -1865,9 +1959,9 @@ Unrelated to the literals, and **not** fixed here: thumb 1 is `bg-panel` with a
 "decisions that look like bugs" entry deliberately keeps faint. On a draggable
 thumb that call is sharper than on a panel. Recorded, not decided.
 
-## One face, two roles, and four closed ladders
+## Two faces, three roles, and four closed ladders
 
-The face is settled, and the *ladders* (size, weight, leading, tracking) are
+The faces are settled, and the *ladders* (size, weight, leading, tracking) are
 closed sets in
 `packages/ui/src/styles/theme.css`, so a step nobody picked compiles to no rule
 at all rather than drifting in one call site at a time.
@@ -1875,13 +1969,28 @@ at all rather than drifting in one call site at a time.
 ### The face
 
 The product runs on **Quicksand Variable**, one family, with **Gochi Hand** as
-the handwritten aside.
+the handwritten aside. Marketing headlines take a third role, **Fraunces
+Variable**.
 
 | token | resolves to | what takes it |
 | --- | --- | --- |
 | `--font-display` | Quicksand Variable | every heading `h1`-`h6`, marketing and dashboard alike, and every numeric figure (the `figures` utility) |
 | `--font-body` | Quicksand Variable | everything else: body copy, buttons, forms, tables, labels |
+| `--font-editorial` | Fraunces Variable, Georgia, serif | marketing headlines only, and only through four utilities: `hero-heading`, `section-heading`, `display-figure`, `display-quote` |
 | `--font-gochi` | Gochi Hand | the handwritten aside. Six call sites, never decoratively |
+
+**`--font-editorial` is a third role, not the display/body swap the next
+section rejected.** Those pairs replaced the product's face everywhere; this
+one sits beside it on the marketing pages and nowhere else. Product UI,
+dashboards, forms, emails, the PDF export and the embedded form stay on
+Quicksand. That is held structurally: the token is declared in a plain `:root`
+in `theme.css`, not in `@theme`, so **no `font-editorial` utility exists**, and
+the only readers are the four marketing type utilities. An `h2` in a dashboard
+is still `--font-display`. And it answers the identity objection that sank
+Outfit + DM Sans: Fraunces is instanced with its **`SOFT` axis at 100**
+(`WONK` at 0), which rounds its terminals, so a headline agrees with the
+rounded-terminal wordmark above it instead of arguing with it. Decided
+2026-10-16 for the marketing redesign.
 
 **Both semantic tokens resolve to the same face, and the split is kept anyway.**
 That is not an oversight waiting to be tidied: it is the seam. `h1`-`h6` and
@@ -1923,7 +2032,7 @@ decision with a reason, not as a cleanup.
 
 ### The size ladder: closed
 
-`--text-*: initial`, then twelve steps redeclared. Everything else (`text-7xl`
+`--text-*: initial`, then thirteen steps redeclared. Everything else (`text-8xl`
 and up) **fails to compile**.
 
 | step | value | call sites |
@@ -1940,6 +2049,7 @@ and up) **fails to compile**.
 | `text-4.5xl` | 2.625rem: authored; `--text-4_5xl`, since v4 spells a dot as `_` | 10 |
 | `text-5xl` | 3rem | 14 |
 | `text-6xl` | 3.75rem | 2 |
+| `text-7xl` | 4.5rem, line-height 1: the top rung, read by `hero-heading` at `xl` and nothing else | 0 |
 
 Counts are `.tsx`/`.ts` call sites across `apps/platform/src apps/docs/src
 packages/ui/src` at the time of writing and drift with every commit: re-run
@@ -2029,15 +2139,20 @@ the namespace stops the drift growing while it waits.
 
 ### The named type roles
 
-Seven utilities in `packages/ui/src/styles/utilities.css` name a type role, so a
+Nine utilities in `packages/ui/src/styles/utilities.css` name a type role, so a
 call site picks a *role* rather than a step off the ladder. Each is size and
 wrapping only (never color, never spacing) so what the text is on the page
-stays the caller's to say.
+stays the caller's to say. The four editorial ones also carry the face and a
+weight, because the face is the role; the weight is
+`var(--tw-font-weight, …)`, so a call site's `font-bold` / `font-medium` still
+wins whatever order the sheet sorts them in.
 
 | utility | role |
 | --- | --- |
-| `hero-heading` | the one `h1` at the top of a marketing page: the largest type in the product, at most one per page |
-| `section-heading` | the `h2` opening a band further down a marketing page; one rung under the hero at every breakpoint so a section never competes with the page title |
+| `hero-heading` | the one `h1` at the top of a marketing page: the largest type in the product, at most one per page. `text-4xl` → `5xl` → `6xl` (tight) → `7xl` (1) at `xl`; Fraunces 600 |
+| `section-heading` | the `h2` opening a band further down a marketing page; one rung under the hero at every breakpoint so a section never competes with the page title. Fraunces 600 |
+| `display-figure` | a big marketing numeral (a stat, a step number, a "$0"): Fraunces 600, leading 1, lining + tabular. Size stays the caller's |
+| `display-quote` | a pull quote: Fraunces 400, `text-2xl` → `3xl` at snug leading, `text-pretty` |
 | `section-body` | the standfirst paragraph directly under a `section-heading`: larger than body copy because it is read as part of the heading |
 | `article-heading` | a heading inside long-form prose (blog, legal, help); divides a body of text rather than a page |
 | `pre-heading` | the lead-in line above a heading: larger than `eyebrow` and **not** uppercased, so it carries a readable phrase |
@@ -2046,6 +2161,23 @@ stays the caller's to say.
 
 These are the sanctioned way to pick a heading size. Reaching past them means
 naming a new role here, not spelling a step at the call site.
+
+**The editorial roles carry no tracking.** The Quicksand headings carried
+`tracking-tight` because its sidebearings read loose at display sizes. Fraunces
+corrects itself: its `opsz` axis, driven from the font size by the default
+`font-optical-sizing: auto`, tightens the bearings as the size climbs (at wght
+600, an `n`'s left bearing is 58 units at opsz 36 and 48 at opsz 72, of 2000),
+so a tracking on top would correct twice.
+
+**An `<em>` in an editorial heading is the drawn italic.** Italic is the UA
+default for `em` and `fonts.css` ships a Fraunces italic face, so nothing
+synthesizes a slant; the emphasis colour (`text-primary` on light,
+`text-amber-6` on `surface-deep`) is the caller's.
+
+**`text-7xl` leads at 1, not 1.05.** The leading ladder is closed at `none` (1)
+and `tight` (1.25); 1.05 is not on it, so the top rung takes its own
+companion. A display leading between the two would be a new `--leading-*` key,
+not a bracket.
 
 ### `figures` is an inert seam, and that is recorded on purpose
 
@@ -2073,6 +2205,14 @@ the next person re-derives wrong.
 
 Any figure a reader compares to another (a money column, a total, a count, a
 date) takes it. Tables do **not** get it automatically.
+
+**`display-figure`'s `tabular-nums` is inert the same way.** The upstream
+Fraunces draws lining, proportional digits and ships no `tnum`, `lnum`,
+`onum`, `pnum`, `frac` or `zero` lookup at all (its features are `case`,
+`liga`, `rvrn`, `ss01`, `kern`; measured with fontTools). At wght 600, opsz 72
+a `1` is 873 units wide and a `0` is 1294, so a counter animating through
+Fraunces digits shifts as they change. `lining-nums` is a no-op for the same
+reason: lining is the only set it draws. Both are written as the seam.
 
 `slashed-zero` looks like the same category and is **not**. It sits at 4 call
 sites (`pages/@sections/trust-bar.tsx`, `_landing.for-international-nonprofits/`
@@ -2107,8 +2247,8 @@ should be migrated onto a step.
 
 ### The faces
 
-`packages/ui/src/styles/theme.css` declares `--font-display`, `--font-body` and
-`--font-gochi`. `packages/ui/src/styles/fonts.css` **loads** them, from binaries
+`packages/ui/src/styles/theme.css` declares `--font-display`, `--font-body`,
+`--font-editorial` and `--font-gochi`. `packages/ui/src/styles/fonts.css` **loads** them, from binaries
 committed beside it in `packages/ui/src/styles/fonts/`.
 
 Declaration and load sit together on purpose. Split apart (the tokens here, the
@@ -2143,7 +2283,7 @@ from the shipped bytes rather than from fontsource, because fontsource is no
 longer a dependency: a floor derived from `node_modules` would return nothing on
 a clean install and quietly cut a smaller font than the one it replaced. The
 script also verifies the ratchet after each cut and exits non-zero naming any
-codepoint lost. `packages/ui/src/styles/fonts/generate.sh` regenerates all four
+codepoint lost. `packages/ui/src/styles/fonts/generate.sh` regenerates all eight
 files from the upstream `google/fonts` sources and prints the codepoint counts
 and feature tags per file. Its output is **committed
 source**, the same convention as `packages/crypto`'s and `packages/stocks`'
@@ -2151,7 +2291,28 @@ source**, the same convention as `packages/crypto`'s and `packages/stocks`'
 deliberate act.
 
 Gochi Hand needs no feature Quicksand needed. It is subset the same way purely so
-both faces have one pipeline and one place to look. `apps/docs` now emits it as a
+both faces have one pipeline and one place to look.
+
+**Fraunces is instanced, then cut.** The script pins `SOFT` to 100 and `WONK`
+to 0 with fontTools' instancer and narrows `wght` to 400-700 (`display-quote`'s
+400 to a call site's `font-bold`), keeping `opsz` live; a pinned axis is a
+setting no browser can reach, so shipping it live is bytes for nothing. Roman
+and italic, latin and latin-ext only: no marketing headline carries Vietnamese.
+It keeps pyftsubset's default feature list plus the numeral features CSS can
+ask for, none of which the upstream build draws today (see "`figures` is an
+inert seam").
+
+| binary | bytes | codepoints |
+| --- | --- | --- |
+| `fraunces-latin-opsz-wght-normal.woff2` | 58,568 | 224 |
+| `fraunces-latin-ext-opsz-wght-normal.woff2` | 49,188 | 285 |
+| `fraunces-latin-opsz-wght-italic.woff2` | 74,436 | 223 |
+| `fraunces-latin-ext-opsz-wght-italic.woff2` | 63,172 | 285 |
+
+A marketing page with an italic headline fetches the two latin files, about
+133 KB. Most of that is the live `opsz` axis: the same latin roman with `opsz`
+also pinned (at 144) is about 33 KB. Keeping it live is the decision that buys
+correct spacing at every rung from 36px to 72px. `apps/docs` now emits it as a
 build asset without using it: a browser only fetches a face some element
 actually asks for, so that costs disk and not a request.
 

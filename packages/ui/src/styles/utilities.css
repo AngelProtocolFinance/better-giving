@@ -351,6 +351,73 @@
   --border: var(--primary-border);
 }
 
+/* the same shape on --primary-deep, the dark brand ground: a full-bleed
+   marketing band. body ink is --primary-fg (Lc 99.6). the ring is
+   --primary-ring, the brand-fill ring surface-primary already spends (white,
+   Lc 99.6 on this fill); the page's blue-8 would still clear Lc 30 here, but a
+   ring that changes with every brand ground is two rules where one does.
+   --border is blue-11, the separator weight the page's gray-6 has (Lc 17.3
+   here against 17.4 there) — a hairline, not a control boundary, the same
+   job --border does on the page.
+   the two secondary inks are call-site steps, like gray-11 on the page:
+   `text-blue-5` for secondary copy (Lc 79.1, clears body) and `text-amber-6`
+   for an eyebrow or an accent word (Lc 71.0). every figure is measured in
+   packages/brand/src/contrast.test.ts → the --primary-deep section of the
+   ledger. */
+@utility surface-deep {
+  background-color: var(--primary-deep);
+  color: var(--primary-fg);
+  --ring: var(--primary-ring);
+  --border: var(--blue-11);
+}
+
+/* reveal's entrance. top-level rather than inside theme.css's @theme with the
+   other keyframes: tailwind emits a @theme keyframe only when an --animate-*
+   key naming it is spent, and this one has no such key — a time-based
+   `animate-rise-in` would run at duration 0. `from` alone, on purpose: the
+   implicit `to` is the element's own underlying value, so under fill-mode
+   both the finished animation holds whatever opacity and transform the
+   element already has. `transform` rather than `translate` so it composes
+   with the `translate-*` utilities a hover lift spends. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+}
+
+/* the scroll reveal: a section head or a card group rises 1rem and fades in
+   as it enters the viewport, driven by its own scroll position rather than by
+   time — no js, no observer, and nothing to replay. both gates are the
+   reason it can never hide content: a browser without view timelines, and a
+   reader who asked for reduced motion, match neither block and get the
+   element exactly as authored, fully visible and static.
+   no duration and no named speed: a view timeline's progress is scroll
+   distance, so a time value has nothing to measure (ledger → motion → "The
+   scroll reveal is off the speed ladder"). the curve is the enter role's.
+   the range is a fixed scroll distance from the moment the element's top
+   edge enters — done once that edge is a quarter-viewport up — never a
+   percentage of the element's own range. a percentage scales with the
+   element: a card group taller than the screen would sit faded while its
+   first row is in plain view, and a short block at the foot of a page could
+   run out of scroll before it finished.
+   stagger is NOT an `animation-delay` — a time delay means nothing on a
+   scroll timeline, and siblings in one row enter the viewport together. a
+   child sets `--reveal-order` (0-3, inline style) instead, and each step
+   starts and ends its window 5vh later. */
+@utility reveal {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      animation-name: rise-in;
+      animation-timing-function: var(--ease-out);
+      animation-fill-mode: both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--reveal-order, 0) * 5vh) entry
+        calc(25vh + var(--reveal-order, 0) * 5vh);
+    }
+  }
+}
+
 /* the page shape — one name, one width curve, one gutter. layout is the one
    axis with no closed-set gate behind it: `--color-*` and `--radius-*` are
    reset to `initial` in theme.css so an off-system spelling compiles to
@@ -526,23 +593,66 @@
    reaching past them means naming a new role here, not spelling a step at the
    call site.
 
-   tracking is the one spacing these roles do carry, and only where it is a
-   function of the size rather than a voice: quicksand is drawn for text and
-   its sidebearings read loose once the size curve reaches display rungs, so
-   the correction differs per breakpoint. a call site cannot express that — it
-   sees one class, not the rungs behind it — which is why it lives here with
-   the curve it corrects. */
+   the four editorial roles (hero-heading, section-heading, display-figure,
+   display-quote) are the only readers of --font-editorial, and they carry a
+   face and a weight because the face is the role. the weight is written as
+   `var(--tw-font-weight, …)` — the same deferral btn-sm uses for leading — so
+   a call site's `font-bold` or `font-medium` wins regardless of which rule
+   the sheet sorts last.
+
+   they carry no tracking. a size-dependent correction is the face's own job
+   here: Fraunces' opsz axis, driven from the font size by the default
+   `font-optical-sizing: auto`, tightens its sidebearings as the size climbs
+   (at wght 600 an `n`'s left bearing is 58 units at 36px, 48 at 72px), which is
+   exactly what the per-breakpoint `tracking-tight` did by hand for
+   Quicksand. a tracking on top would correct twice.
+
+   an <em> inside one renders the drawn italic: italic is the ua default for
+   em, and ./fonts.css ships a Fraunces italic face, so nothing synthesizes a
+   slant. the emphasis colour is the caller's. */
 
 /* the one h1 at the top of a marketing page — the largest type in the product,
-   and there is at most one per page. */
+   and there is at most one per page. the leading closes with the size: tight
+   while a narrow column wraps it to three or four lines, the 7xl rung's own
+   1 once it reads as a two-line block. */
 @utility hero-heading {
-  @apply text-3xl/tight md:text-4xl/tight lg:text-6xl/tight tracking-tight text-balance;
+  @apply text-4xl/tight md:text-5xl/tight lg:text-6xl/tight xl:text-7xl text-balance;
+  font-family: var(--font-editorial);
+  font-weight: var(--tw-font-weight, 600);
 }
 
 /* the h2 that opens a band further down a marketing page. one rung under the
    hero at every breakpoint so a section never competes with the page's title. */
 @utility section-heading {
-  @apply text-3xl/tight md:text-4.5xl/tight tracking-tight text-balance;
+  @apply text-3xl/tight md:text-4.5xl/tight text-balance;
+  font-family: var(--font-editorial);
+  font-weight: var(--tw-font-weight, 600);
+}
+
+/* a big marketing numeral — a stat, a step number, a "$0". size stays the
+   caller's (a stat row and a step marker want different rungs); this is the
+   face, the weight and a leading of 1 so the figure sits on its label rather
+   than floating in a line box.
+   lining + tabular, and the tabular half is inert today: the upstream
+   Fraunces draws lining, proportional digits and no `tnum` lookup (measured
+   with fontTools — at wght 600, opsz 72 a `1` is 873 units wide and a `0`
+   1294), so a counter in it still shifts as its digits change. written anyway
+   as the seam `figures` below is — ledger → "`figures` is an inert seam". */
+@utility display-figure {
+  @apply leading-none;
+  font-family: var(--font-editorial);
+  font-weight: var(--tw-font-weight, 600);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* a pull quote — a testimonial set as display type rather than as body copy.
+   the book weight, not the headline's 600: it is read, not scanned. snug
+   leading because it runs to several lines; text-pretty rather than
+   text-balance for the same reason section-body uses it. */
+@utility display-quote {
+  @apply text-2xl/snug md:text-3xl/snug text-pretty;
+  font-family: var(--font-editorial);
+  font-weight: var(--tw-font-weight, 400);
 }
 
 /* the standfirst paragraph directly under a section-heading — larger than body

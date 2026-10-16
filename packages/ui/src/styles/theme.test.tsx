@@ -100,3 +100,57 @@ describe("speed ladder", () => {
     expect(await outcome).toBe("transitionend");
   });
 });
+
+describe("scroll reveal", () => {
+  afterEach(async () => {
+    await commands.emulateMedia({ reducedMotion: null });
+  });
+
+  test("runs on the element's view timeline", async () => {
+    await commands.emulateMedia({ reducedMotion: "no-preference" });
+
+    const screen = await render(<div data-testid="head" className="reveal" />);
+    const style = getComputedStyle(screen.getByTestId("head").element());
+    expect(style.animationName).toBe("rise-in");
+    // lib.dom has no `animationTimeline` yet
+    expect(style.getPropertyValue("animation-timeline")).toBe("view()");
+    // an unparseable range drops only its own declaration and falls back to
+    // `normal`, the whole cover range — still animating, at the wrong pace.
+    expect(style.getPropertyValue("animation-range-end")).toMatch(/^entry \d/);
+  });
+
+  // the guard is the media query itself, not the collapsed ladder: a view
+  // timeline spends no named speed, so nothing at the foot of theme.css
+  // reaches it.
+  test("does not run at all under prefers-reduced-motion", async () => {
+    await commands.emulateMedia({ reducedMotion: "reduce" });
+
+    const screen = await render(<div data-testid="head" className="reveal" />);
+    const style = getComputedStyle(screen.getByTestId("head").element());
+    expect(style.animationName).toBe("none");
+    expect(style.opacity).toBe("1");
+  });
+});
+
+describe("editorial face", () => {
+  test("the marketing heading roles read it", async () => {
+    const screen = await render(
+      <h1 data-testid="h" className="hero-heading">
+        Every way to give. <em>Free forever.</em>
+      </h1>
+    );
+    const style = getComputedStyle(screen.getByTestId("h").element());
+    expect(style.fontFamily).toMatch(/^"?Fraunces Variable"?,/);
+    expect(style.fontWeight).toBe("600");
+  });
+
+  // an <em> in a headline must land on the drawn italic, not a synthesized
+  // slant of the roman — so the italic face has to exist and load.
+  test("ships a real italic", async () => {
+    const faces = await document.fonts.load(
+      'italic 600 48px "Fraunces Variable"'
+    );
+    expect(faces.map((f) => f.style)).toContain("italic");
+    expect(faces.every((f) => f.status === "loaded")).toBe(true);
+  });
+});

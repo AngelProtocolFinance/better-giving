@@ -9,10 +9,11 @@
   --color-white: #ffffff;
 
   /* the size ladder is closed, the same way --color-* and --radius-* are: the
-     twelve steps below are every one the three source trees use, and every
-     other name compiles to nothing rather than drifting in. text-7xl/-8xl/-9xl
-     are deliberately absent — a 72px/96px/128px step nobody picks is the far
-     end of the same drift the radius reset closes at the near end.
+     thirteen steps below are every one the three source trees use, and every
+     other name compiles to nothing rather than drifting in. text-8xl/-9xl are
+     deliberately absent — a 96px/128px step nobody picks is the far end of the
+     same drift the radius reset closes at the near end. text-7xl is the top
+     rung, and it has exactly one reader: `hero-heading` at xl.
 
      EVERY redeclared step carries its --text-<step>--line-height companion.
      that key lives inside this namespace, so the reset drops it too, and an
@@ -51,6 +52,8 @@
   --text-5xl--line-height: 1;
   --text-6xl: 3.75rem;
   --text-6xl--line-height: 1;
+  --text-7xl: 4.5rem;
+  --text-7xl--line-height: 1;
 
   /* the weight ladder is closed to the four in use. font-extrabold and
      font-black are the point of it: Quicksand's wght axis stops at 700, so 800
@@ -102,13 +105,16 @@
   --tracking-label: 0.12em;
   --tracking-badge: 0.08em;
 
-  /* two roles, ONE face. both resolve to Quicksand, and the split exists
-     anyway because it is the seam: h1-h6 and body are bound to these in
-     ./base.css, so no call site ever names a face, and adopting a second one
-     is a one-line edit here rather than a forty-file sweep.
+  /* three roles, two faces. display and body both resolve to Quicksand, and
+     the split exists anyway because it is the seam: h1-h6 and body are bound
+     to these in ./base.css, so no call site ever names a face, and adopting a
+     second one is a one-line edit here rather than a forty-file sweep.
      display: every heading h1-h6, marketing and dashboard alike, plus every
        numeric figure — see the `figures` utility in ./utilities.css.
      body: everything else — copy, buttons, forms, tables, labels.
+     editorial: Fraunces, marketing headlines only — declared in a plain
+       :root block after this @theme rather than in it, so no
+       `font-editorial` utility exists to spell at a call site.
      named by ROLE — the mirror of the decorative color layer, which is named
      by hue precisely because a role name would imply the semantic set can
      reach for it. display-vs-body is a role, so the semantic faces take role
@@ -122,11 +128,11 @@
   --font-gochi: Gochi Hand, cursive;
 
   /* the --font-* namespace is NOT closed the way --text-*, --font-weight-*,
-     --leading-* and --tracking-* above are: clearing it would take the three
-     faces down with it and leave nothing to name. so `font-mono` otherwise
+     --leading-* and --tracking-* above are: clearing it would take the faces
+     down with it and leave nothing to name. so `font-mono` otherwise
      resolves to whatever stack tailwind ships and nobody in this repo picked.
-     pinned to system mono — no third webfont: mono here carries ids, hashes
-     and wallet addresses, not reading copy. */
+     pinned to system mono — no webfont: mono here carries ids, hashes and
+     wallet addresses, not reading copy. */
   --font-mono:
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
     monospace;
@@ -145,6 +151,18 @@
      the sweep is the gate instead —
      apps/platform/src/__tests__/container-query-conformance.node.test.ts, ledger
      entry beside the breakpoints in packages/brand/design-system.md. */
+}
+
+/* the editorial face, outside @theme on purpose: a theme key would mint a
+   `font-editorial` utility, and the role is reachable ONLY through the four
+   marketing type utilities in ./utilities.css (hero-heading, section-heading,
+   display-figure, display-quote). that is what keeps product ui, dashboards,
+   emails, the pdf export and the embed on Quicksand by construction rather
+   than by review. Fraunces is instanced with its SOFT axis at 100 — rounded
+   terminals that agree with the wordmark, the reason the flat-terminal pair
+   was rejected (packages/brand/design-system.md → "The face"). */
+:root {
+  --font-editorial: Fraunces Variable, Georgia, serif;
 }
 
 /* the embed's two accent slots. this package references them — btn-form-primary,

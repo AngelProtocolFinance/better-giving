@@ -11,6 +11,12 @@
 # `font-variant-numeric: slashed-zero` is how css asks for it. their build
 # discards it; this one keeps it. see ../fonts.css.
 #
+# fraunces is instanced before it is cut: SOFT pinned to 100 and WONK to 0
+# (the soft terminals are the reason for the face — see ../theme.css
+# --font-editorial), wght narrowed to 400-700, opsz left live. a pinned axis
+# is not a browser setting anyone can reach, so shipping it live is bytes for
+# nothing.
+#
 # output is equivalent but not byte-identical across runs — woff2 compression
 # is not deterministic. compare glyph counts, codepoints and feature tags, not
 # checksums, when confirming a regeneration did what you expected.
@@ -29,10 +35,13 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 echo "fetching upstream sources from google/fonts…"
-curl -sfL -o "$tmp/Quicksand.ttf" \
-  "https://github.com/google/fonts/raw/main/ofl/quicksand/Quicksand%5Bwght%5D.ttf"
-curl -sfL -o "$tmp/GochiHand.ttf" \
-  "https://github.com/google/fonts/raw/main/ofl/gochihand/GochiHand-Regular.ttf"
+upstream="https://raw.githubusercontent.com/google/fonts/main/ofl"
+curl -sfL -o "$tmp/Quicksand.ttf" "$upstream/quicksand/Quicksand%5Bwght%5D.ttf"
+curl -sfL -o "$tmp/GochiHand.ttf" "$upstream/gochihand/GochiHand-Regular.ttf"
+curl -sfL -o "$tmp/Fraunces.ttf" \
+  "$upstream/fraunces/Fraunces%5BSOFT,WONK,opsz,wght%5D.ttf"
+curl -sfL -o "$tmp/Fraunces-Italic.ttf" \
+  "$upstream/fraunces/Fraunces-Italic%5BSOFT,WONK,opsz,wght%5D.ttf"
 
 # the unicode-ranges in ../fonts.css, verbatim. each subset is cut to the UNION
 # of its range and the coverage the committed subset beside this script already
@@ -41,6 +50,7 @@ curl -sfL -o "$tmp/GochiHand.ttf" \
 "$PY" - "$tmp" <<'PYEOF'
 import subprocess, sys, os
 from fontTools.ttLib import TTFont
+from fontTools.varLib import instancer
 
 tmp = sys.argv[1]
 here = os.getcwd()  # the shell cd'd to this script's dir above
@@ -53,6 +63,11 @@ RANGES = {
 # `zero` is the whole point — everything else is pyftsubset's own default set.
 QUICKSAND_FEATURES = "ccmp,locl,mark,mkmk,kern,liga,dnom,numr,frac,zero"
 GOCHI_FEATURES = "ccmp,locl,mark,mkmk,kern,liga"
+# pyftsubset's defaults (`*` would keep ss01's alternate h/m/n/s too) plus the
+# numeral features css can ask for. the upstream build draws only lining,
+# proportional digits — no lnum/tnum/onum/pnum/frac/zero lookups exist to keep
+# today — so the extras are a ratchet for a future upstream, not a promise.
+FRAUNCES_EXTRA_FEATURES = "lnum,tnum,onum,pnum,frac,zero"
 
 def expand(spec):
     out = set()
@@ -80,14 +95,15 @@ def floor(out):
         print(f"  no existing {os.path.basename(out)} — declared range only")
         return set()
 
-def cut(src, out, spec, features):
+def cut(src, out, spec, features, add_to_defaults=False):
     keep = floor(out)
     unicodes = expand(spec) | keep
     lst = os.path.join(tmp, "u.txt")
     with open(lst, "w") as fh:
         fh.write(",".join(f"U+{c:04X}" for c in sorted(unicodes)))
+    op = "+=" if add_to_defaults else "="
     subprocess.run([sys.executable, "-m", "fontTools.subset", src,
-                    f"--unicodes-file={lst}", f"--layout-features={features}",
+                    f"--unicodes-file={lst}", f"--layout-features{op}{features}",
                     "--flavor=woff2", f"--output-file={out}"], check=True)
     f = TTFont(out)
     # the ratchet is only a promise until something checks it — the subsetter
@@ -112,6 +128,18 @@ for sub, spec in RANGES.items():
 cut(f"{tmp}/GochiHand.ttf",
     os.path.join(here, "gochi-hand-latin-400-normal.woff2"),
     RANGES["latin"], GOCHI_FEATURES)
+
+# the axis limits ../fonts.css declares in each fraunces @font-face.
+for style, src in (("normal", "Fraunces"), ("italic", "Fraunces-Italic")):
+    pinned = os.path.join(tmp, f"{src}-pinned.ttf")
+    f = TTFont(f"{tmp}/{src}.ttf")
+    instancer.instantiateVariableFont(
+        f, {"SOFT": 100, "WONK": 0, "wght": (400, 700)}, inplace=True)
+    f.save(pinned)
+    for sub in ("latin", "latin-ext"):
+        cut(pinned,
+            os.path.join(here, f"fraunces-{sub}-opsz-wght-{style}.woff2"),
+            RANGES[sub], FRAUNCES_EXTRA_FEATURES, add_to_defaults=True)
 PYEOF
 
 echo "done. verify with: pnpm --filter @better-giving/ui build && grep -c woff2 dist/styles.css"

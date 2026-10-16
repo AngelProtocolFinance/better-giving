@@ -36,6 +36,35 @@
   --color-sky: #edf2fe;
 }
 
+/* the dot-grid texture: a quiet field of 1px dots on a 24px grid behind a
+   marketing hero or cta band. decorative, like the washes above, and app-owned
+   for the same reason.
+   one utility for every ground, because the dot is drawn in --border: the
+   page's gray-6 hairline on the page and on a band, and whatever
+   `surface-deep` (blue-11, the page hairline's weight) or `surface-primary`
+   (--primary-border, a control boundary's weight and so a louder field)
+   rebind it to inside their fill — so there is no inverse variant to pick.
+   paint only: it goes on its own `absolute inset-0`, `aria-hidden` layer
+   behind the content, never on the band — the fade below is a mask and would
+   fade the band's copy with it, and this sets background-image, which would
+   replace a band's gradient. */
+@utility dot-grid {
+  background-image: radial-gradient(
+    circle at center,
+    var(--border) 1px,
+    transparent 1px
+  );
+  background-size: calc(var(--spacing) * 6) calc(var(--spacing) * 6);
+}
+
+/* dissolves a dot-grid from the top-right corner toward the opposite one, so
+   the texture frames the copy rather than sitting under it. a mask, so it
+   composes with dot-grid on the same layer; a mask reads alpha only, so
+   `black` is its opaque stop, not a colour. */
+@utility dot-grid-fade {
+  mask-image: radial-gradient(ellipse at top right, black, transparent 70%);
+}
+
 /* donation form: override ring so all focus outlines follow the theme */
 #donation-container {
   --ring: var(--form-primary);

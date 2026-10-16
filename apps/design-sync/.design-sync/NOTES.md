@@ -134,9 +134,9 @@ exist in the emitted `.d.ts`. **Re-run it whenever a component's props change.**
 ## Fonts
 
 `cfg.extraFonts` points at **`../../packages/ui/src/styles/fonts.css`**: the design system's
-own `@font-face` layer, one entry for both families.
+own `@font-face` layer, one entry for every family (Quicksand, Fraunces, Gochi Hand).
 
-`packages/ui` self-hosts both faces beside the tokens that
+`packages/ui` self-hosts every face beside the tokens that
 name them (committed `.woff2` in `packages/ui/src/styles/fonts/`, cut by that dir's
 `generate.sh` so Quicksand keeps its `zero` feature; see `packages/brand/design-system.md`,
 "The faces").
