@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { nav_log_date } from "@/nav";
+import { recovery_covers } from "@/terms";
 import { dist_refund_update } from "../pg/queries/dist";
 import { donation_lock, donation_update } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
@@ -7,7 +8,7 @@ import { npo_balance_update, npo_get_locked } from "../pg/queries/npo";
 import { credit_owed, owed_for_party, owed_total } from "../pg/queries/owed";
 import { payouts_move } from "../pg/queries/payout";
 import { dists } from "../pg/schema/dist";
-import { donations } from "../pg/schema/donation";
+import { donation_settlements, donations } from "../pg/schema/donation";
 import { donation_match_events } from "../pg/schema/match";
 import { payouts } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
@@ -181,6 +182,17 @@ async function uninvested_refund_plan(
       .where(eq(referrer_commissions.donation_id, dist.id)),
   ]);
 
+  const [made] = await tx
+    .select({
+      created_at: donations.created_at,
+      paid_at: donation_settlements.date,
+    })
+    .from(donations)
+    .leftJoin(
+      donation_settlements,
+      eq(donation_settlements.donation_id, donations.id)
+    )
+    .where(eq(donations.id, dist.donation_id));
   return calc_refund_plan(
     {
       dist: {
@@ -216,6 +228,7 @@ async function uninvested_refund_plan(
       },
       nav: null,
       sub_id: null,
+      recovery_applies: recovery_covers(made?.paid_at ?? made?.created_at),
     },
     { now, nav_date: nav_log_date(), form_id: null, program_id: null }
   );

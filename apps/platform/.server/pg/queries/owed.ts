@@ -11,11 +11,11 @@ import {
   sql,
 } from "drizzle-orm";
 import { alias, type PgUpdateSetSource } from "drizzle-orm/pg-core";
-import { TERMS_EFFECTIVE, terms_effective_at } from "@/terms";
+import { TERMS_EFFECTIVE, TERMS_POSTED, terms_recovery_at } from "@/terms";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import { finite } from "../schema/columns";
-import { donations } from "../schema/donation";
+import { donation_settlements, donations } from "../schema/donation";
 import { npos } from "../schema/npo";
 import { owed_amounts, owed_entries, owed_notices } from "../schema/owed";
 import { loss_logs } from "../schema/revenue";
@@ -33,23 +33,30 @@ export type OwedParty =
   | { referrer_user: string }
   | { referrer_npo: string };
 
+/** midnight in New York of the later of the fixed terms date and seven days
+ * after the page was posted. null while the fixed date does not parse */
+const recovery_cutoff = () => terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
+
 /** whether an owed row reaches its party — is mailed and shown in its
- * history: its gift was made at or after the terms' effective date. none does
- * while that date is unparsable; admins see every row regardless. reads
- * `donations.created_at`, so the query joins the row's gift */
+ * history: the gift was made at or after the recovery cutoff. a gift is
+ * made when payment is authorized or the asset is received, stored as
+ * `donation_settlements.date`. `donations.created_at` is the checkout open
+ * and stands in only when no settlement was stored. none does while the
+ * cutoff is unparsable; admins see every row regardless. the query joins
+ * the gift and its settlement */
 export const owed_reaches_party = (): SQL => {
-  const effective = terms_effective_at(TERMS_EFFECTIVE);
+  const effective = recovery_cutoff();
   return effective
-    ? sql`${donations.created_at} >= ${effective}::timestamptz`
+    ? sql`COALESCE(${donation_settlements.date}, ${donations.created_at}) >= ${effective}::timestamptz`
     : sql`false`;
 };
 
-/** whether a run may net the row: it reaches its party, the effective date
- * has arrived, and the party has been sent the notice of what it owes now —
+/** whether a run may net the row: it reaches its party, the cutoff has
+ * arrived, and the party has been sent the notice of what it owes now —
  * the row's latest `recorded` notice. like `owed_reaches_party`, the query
  * joins the row's gift */
 export const owed_deductible = (): SQL =>
-  sql`(${owed_reaches_party()} AND ${terms_effective_at(TERMS_EFFECTIVE)}::timestamptz <= now() AND (
+  sql`(${owed_reaches_party()} AND ${recovery_cutoff()}::timestamptz <= now() AND (
     SELECT ${owed_notices.sent_at} IS NOT NULL FROM ${owed_notices}
     WHERE ${owed_notices.owed_id} = ${owed_amounts.id} AND ${owed_notices.kind} = 'recorded'
     ORDER BY ${owed_notices.round} DESC LIMIT 1
@@ -183,15 +190,32 @@ export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
     .returning();
   // no row back: the conflict's update was skipped, and the row stands as it was
   const owed = row ?? (await owed_for_party(r.donation_id, r.party, tx))!;
-  // the party hears of each rise from owing nothing to owing, and of nothing
-  // that only adds to what it already owes. a first row is round 0 even when
-  // a concurrent first record wrote it, so the two share one notice
-  if (owing(owed) && !(before && owing(before))) {
-    const round = before
-      ? sql`(SELECT count(*)::int FROM ${owed_notices}
-          WHERE ${owed_notices.owed_id} = ${owed.id} AND ${owed_notices.kind} = 'recorded')`
-      : sql`0`;
-    await queue_notice(tx, "recorded", owed.id, r.now, round);
+  // notice on each create or increase, before that amount can be deducted.
+  // a write that does not grow the figures queues none. an increase while the
+  // latest recorded notice is still unsent stays on that notice: the mail
+  // reads the row as it stands when it goes out. a first row is round 0 even
+  // when a concurrent first record wrote it, so the two share one notice
+  if (row && owing(owed)) {
+    const unsent = before
+      ? await tx
+          .select({ id: owed_notices.id })
+          .from(owed_notices)
+          .where(
+            and(
+              eq(owed_notices.owed_id, owed.id),
+              eq(owed_notices.kind, "recorded"),
+              isNull(owed_notices.sent_at)
+            )
+          )
+          .limit(1)
+      : [];
+    if (unsent.length === 0) {
+      const round = before
+        ? sql`(SELECT count(*)::int FROM ${owed_notices}
+            WHERE ${owed_notices.owed_id} = ${owed.id} AND ${owed_notices.kind} = 'recorded')`
+        : sql`0`;
+      await queue_notice(tx, "recorded", owed.id, r.now, round);
+    }
   }
   return owed;
 }
@@ -234,6 +258,10 @@ async function queue_notice(
         })
         .from(owed_amounts)
         .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+        .leftJoin(
+          donation_settlements,
+          eq(donation_settlements.donation_id, donations.id)
+        )
         .where(and(eq(owed_amounts.id, owed_id), owed_reaches_party()))
     )
     .onConflictDoNothing({
@@ -836,6 +864,10 @@ export async function outstanding_for_party(
     .select(getTableColumns(owed_amounts))
     .from(owed_amounts)
     .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+    .leftJoin(
+      donation_settlements,
+      eq(donation_settlements.donation_id, donations.id)
+    )
     .where(
       and(
         party_is(party),

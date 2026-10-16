@@ -13,8 +13,8 @@ export type OwedNoticeKind = "recorded" | "credited" | "waived";
  */
 export interface IOwedNotice {
   kind: OwedNoticeKind;
-  /** 0 the first time the row owes; each later round is the row owing again
-   * after it was settled */
+  /** 0 the first time the row owes; each later round is an increase, or
+   * the row owing again after it was settled */
   round: number;
   /** greeting name: the nonprofit, or the referrer's first name */
   to_name: string;
@@ -195,11 +195,13 @@ function Recorded({ n, party, gift }: IBody) {
   return (
     <>
       {n.round > 0 ? (
-        // the row's date and source are its first event's, not the one that
-        // made it owe again, so neither is named here
+        // a later refund or fee raised it, whether or not part was already
+        // deducted. the row keeps the first event's date, so the increase
+        // is not dated on its own, and it does not claim the balance had
+        // reached zero
         <Text>
-          <strong>{usd(n.outstanding_usd)}</strong> is owed again on the {gift}.
-          What was settled on it before no longer covers what it owes now.
+          The amount owed on the {gift} has increased.{" "}
+          <strong>{usd(n.outstanding_usd)}</strong> is now owed on it.
         </Text>
       ) : (
         <Text>

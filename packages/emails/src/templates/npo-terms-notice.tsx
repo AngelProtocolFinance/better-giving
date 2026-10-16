@@ -7,13 +7,14 @@ import { PlatformLayout } from "../components/platform-layout";
 
 /**
  * service notice that the nonprofit terms have been revised.
- * the merge field and the bracketed placeholders stay literal until a send
- * fills them. nothing here sends mail — render the static files with
+ * `{{npo_name}}`, `[TERMS URL]`, and `[SUPPORT EMAIL]` stay literal until a
+ * send fills them. the effective date is October 23, 2026. nothing here sends
+ * mail — render the static files with
  * `pnpm --filter emails render:npo-terms-notice`.
  */
 
 export const NPO_NAME = "{{npo_name}}";
-export const EFFECTIVE_DATE = "[EFFECTIVE DATE]";
+export const EFFECTIVE_DATE = "October 23, 2026";
 export const TERMS_URL = "[TERMS URL]";
 export const SUPPORT_EMAIL = "[SUPPORT EMAIL]";
 
@@ -25,7 +26,7 @@ export interface IData {
   base_url: string;
   /** ZeptoMail merge field. default is the literal `{{npo_name}}` */
   npo_name?: string;
-  /** default is the literal `[EFFECTIVE DATE]` */
+  /** default is October 23, 2026, the day the revised terms take effect */
   effective_date?: string;
   /** default is the literal `[TERMS URL]` */
   terms_url?: string;

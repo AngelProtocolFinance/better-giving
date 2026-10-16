@@ -89,7 +89,8 @@ export async function seed_card_gift(db: Db, ...ds: IDistSeed[]) {
   await db.insert(donation_settlements).values({
     donation_id: id,
     sttl_id,
-    date: "2026-07-01T00:00:00.000Z",
+    // on the recovery cutoff, so a refund may still take ungranted funds
+    date: "2026-10-23T16:00:00.000Z",
     currency: "USD",
     net: gross - 3.2,
     fee: 3.2,

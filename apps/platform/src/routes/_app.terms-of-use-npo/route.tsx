@@ -349,9 +349,9 @@ export default function TermsNonprofits() {
               <Link to={href("/privacy-policy")}>Privacy Policy</Link>, we may
               disclose to you information about Donors, including name and
               contact information. You agree that we disclose this information
-              to you only for the purpose of enabling you to acknowledge
-              donations and to provide a reasonable amount of information about
-              your charitable work. You become the data controller of the
+              to you only for the purpose of enabling you to thank Donors for
+              their support and to provide a reasonable amount of information
+              about your charitable work. You become the data controller of the
               Donor’s personal information that we provide to you for this
               limited purpose. You must not use the Donor’s personal information
               for any other purpose without the Donor’s further consent,
@@ -407,8 +407,9 @@ export default function TermsNonprofits() {
               fraction of its payment processing fees, plus any dispute fee in
               full (split in proportion to the amounts allocated to each NPO
               where the donation supported more than one NPO). Better Giving
-              will notify you of each Recovery Amount, identifying the donation
-              and the date it was reversed, before deducting it.
+              will notify you of each Recovery Amount when it is created or
+              increases, identifying the donation and the date it was reversed,
+              before deducting it.
             </li>
             <li>
               <b>Savings and Investment Balances.</b> If any part of a Reversed
@@ -449,34 +450,34 @@ export default function TermsNonprofits() {
                   Amount stands.
                 </li>
               </ol>
-              Any part of a cancelled Recovery Amount already deducted or
-              collected from you under Section 4(j), and any part of the
-              disputed amount the Donor does not keep that was taken back from
-              your Savings or Investment balance or from a grant cancelled under
-              Section 4(h), will be added to your next grant or, if no grant is
-              payable to you or this Agreement has ended, paid to you. If a
-              dispute that closed in Better Giving’s favor is later reopened,
-              appealed or reversed and the Donor keeps all or part of the
-              payment, that part is again a Reversed Donation, and Better Giving
-              may recover its Recovery Amount under this Section 4. The Donor
-              Terms of Use treat disputed payments the same way.
+              Any part of a cancelled Recovery Amount already deducted from you
+              under Section 4(g) or 4(j), and any part of the disputed amount
+              the Donor does not keep that was taken back from your Savings or
+              Investment balance or from a grant cancelled under Section 4(h),
+              will be added to your next grant or, if no grant is payable to you
+              or this Agreement has ended, paid to you. If a dispute that closed
+              in Better Giving’s favor is later reopened, appealed or reversed
+              and the Donor keeps all or part of the payment, that part is again
+              a Reversed Donation, and Better Giving may recover its Recovery
+              Amount under this Section 4. The Donor Terms of Use treat disputed
+              payments the same way.
             </li>
             <li>
               <b>Outstanding Recovery Amounts.</b> If the grants payable to you
               are not enough to cover a Recovery Amount, the rest stays owed and
               Better Giving may deduct it from later grants until it is
-              recovered in full. If you stop using the Platform, this Agreement
-              is terminated, or no grant is payable to you within ninety (90)
-              days after Better Giving notifies you of a Recovery Amount, Better
-              Giving may instead invoice you for the amount still owed, and you
-              agree to pay it within thirty (30) days of the invoice. Better
-              Giving may also collect it from you by any other lawful means.
-              Better Giving may waive any Recovery Amount in whole or in part at
-              its discretion. Sections 4(g) and 4(j), and the last two sentences
-              of Section 4(h), apply only to donations made on or after 12:00
-              a.m. Eastern Time ({TERMS_ZONE}) on{" "}
+              recovered in full. Better Giving may waive any Recovery Amount in
+              whole or in part at its discretion. Sections 4(g), 4(h) and 4(j),
+              and Section 4(i) as it applies to Recovery Amounts, apply only to
+              donations made on or after the later of (i) 12:00 a.m. Eastern
+              Time ({TERMS_ZONE}) on{" "}
               {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
-              {EFFECTIVE}.
+              {EFFECTIVE} and (ii) the date these Terms take effect under
+              Section 9(d). A donation is “made” when the Donor’s payment is
+              authorized or, for securities, cryptocurrency or other digital
+              assets, when Better Giving receives the asset. The terms “Reversed
+              Donation” and “Recovery Amount” defined in Section 4(g) apply
+              throughout Section 4.
             </li>
             <li>
               <b>Fees:</b> Registering on the Platform and receiving grants from
@@ -542,10 +543,11 @@ export default function TermsNonprofits() {
             </li>
             <li>
               You agree and acknowledge that all Donors who make grant
-              recommendations to support you have not and will receive any goods
-              or services of value in return of their Donation to Better Giving,
-              except where such goods or services are disregarded in accordance
-              with guidance provided by the Internal Revenue Service.
+              recommendations to support you have not received and will not
+              receive any goods or services of value in return of their Donation
+              to Better Giving, except where such goods or services are
+              disregarded in accordance with guidance provided by the Internal
+              Revenue Service.
             </li>
             <li>
               Our failure to partially or fully exercise any right will not be
@@ -717,11 +719,11 @@ export default function TermsNonprofits() {
             </li>
             <li>
               The obligations of Sections 3(b), 3(d), 4(c), 4(e), 4(g) through
-              4(j), 5, 6, 7, 8 and 9 will survive the termination of this
-              Agreement. Any Recovery Amount still owed at termination stays
-              owed: Better Giving may deduct it from any grant made after
-              termination, and may invoice and collect it from you directly
-              under Section 4(j).
+              4(j) (in each case as limited by the effective-date provision in
+              Section 4(j)), 5, 6, 7, 8 and 9 will survive the termination of
+              this Agreement. Any Recovery Amount still owed at termination
+              stays owed: Better Giving may deduct it from any grant made after
+              termination.
             </li>
           </ol>
         </li>

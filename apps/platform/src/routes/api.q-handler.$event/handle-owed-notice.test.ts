@@ -27,6 +27,7 @@ vi.mock("@/terms", async (io) => ({
   get TERMS_EFFECTIVE() {
     return terms.date;
   },
+  TERMS_POSTED: "",
 }));
 const send_email_or_throw = vi.hoisted(() => vi.fn(async (_: any) => ({})));
 vi.mock("$/email", () => ({ send_email_or_throw }));
@@ -46,6 +47,7 @@ import {
   type OwedParty,
   outstanding_for_npo,
   record_owed,
+  recover_owed,
   write_off_owed,
 } from "$/pg/queries/owed";
 import { claim_owed_notice, owed_notices_due } from "$/pg/queries/owed-notice";
@@ -365,7 +367,64 @@ describe("handle_owed_notice", () => {
     expect(text).not.toMatch(/On Nov 25, 2026, we waived \$108\.20/);
   });
 
-  test("a row owing again after it was settled is mailed as owed again, the won figures not added back", async () => {
+  test("a larger unpaid amount is mailed as an increase, not as owed again", async () => {
+    terms.date = "2026-10-01";
+    await refund();
+    await deliver_due();
+    await db().transaction((tx) =>
+      record_owed(as_db(tx), {
+        donation_id: "don-1",
+        party: { npo_id },
+        source: "refund",
+        source_ref: "re_2",
+        received_usd: 120,
+        fee_processing_usd: 4,
+        now: NOW,
+      })
+    );
+    expect(await deductible()).toEqual([]);
+
+    await deliver_due();
+    const mails = send_email_or_throw.mock.calls.map(([m]) => m);
+    const increase = await mail_text(mails[1]);
+    expect(increase).toMatch(/has increased/);
+    expect(increase).toMatch(/\$124\.00 is now owed/);
+    expect(increase).not.toMatch(/owed again/);
+    expect(await deductible()).toEqual(["don-1"]);
+  });
+
+  test("an increase after a partial deduction is mailed as an increase", async () => {
+    await refund();
+    await deliver_due();
+    await recover_owed(as_db(db()), {
+      donation_id: "don-1",
+      party: { npo_id },
+      usd: 40,
+      reason: "grant_run",
+      ref: "run-1",
+      now: NOW,
+    });
+    await db().transaction((tx) =>
+      record_owed(as_db(tx), {
+        donation_id: "don-1",
+        party: { npo_id },
+        source: "refund",
+        source_ref: "re_2",
+        received_usd: 120,
+        fee_processing_usd: 4,
+        now: NOW,
+      })
+    );
+    await deliver_due();
+
+    const mails = send_email_or_throw.mock.calls.map(([m]) => m);
+    const increase = await mail_text(mails.at(-1));
+    expect(increase).toMatch(/has increased/);
+    expect(increase).toMatch(/\$84\.00 is now owed/);
+    expect(increase).not.toMatch(/owed again/);
+  });
+
+  test("a row that owes again after it was settled is mailed as an increase, the won figures not added back", async () => {
     await dispute();
     await deliver_due();
     await win_dispute();
@@ -382,7 +441,9 @@ describe("handle_owed_notice", () => {
     ]);
     expect(await mail_text(mails[0])).not.toMatch(/owed again/);
     const again = await mail_text(mails[2]);
-    expect(again).toMatch(/\$108\.20 is owed again/);
+    expect(again).toMatch(/has increased/);
+    expect(again).toMatch(/\$108\.20 is now owed/);
+    expect(again).not.toMatch(/owed again/);
     expect(again).toMatch(
       /Credited back when the dispute was settled: \$93\.20/
     );

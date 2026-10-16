@@ -71,6 +71,7 @@ vi.mock("@/terms", async (io) => ({
   get TERMS_EFFECTIVE() {
     return terms.effective;
   },
+  TERMS_POSTED: "",
 }));
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert },
@@ -348,6 +349,7 @@ describe("commissions cron", () => {
         frequency: "one-time",
         source: "bg-marketplace",
         via: "stripe:card",
+        created_at: "2026-10-23T16:00:00.000Z",
       });
     await db()
       .insert(dists)

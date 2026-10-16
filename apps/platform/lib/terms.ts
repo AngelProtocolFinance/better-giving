@@ -1,7 +1,8 @@
 /** the day the nonprofit, donor and referral terms' recovery right takes
- * effect: 7 days after their posting. it begins at midnight in New York
- * (`TERMS_ZONE`); `terms_effective_at` turns it into that instant */
-export const TERMS_EFFECTIVE = "2026-10-18";
+ * effect. it begins at midnight in New York (`TERMS_ZONE`);
+ * `terms_effective_at` turns it into that instant. seven days after
+ * `TERMS_POSTED` lands on this same day. */
+export const TERMS_EFFECTIVE = "2026-10-23";
 
 /** the nonprofit and referral terms print it beside "Eastern Time" as the
  * cut-off's zone, so a zone outside that one needs their wording changed too */
@@ -19,6 +20,52 @@ function utc_midnight_of(date: string): number | null {
   const day = new Date(utc_midnight);
   if (day.getUTCMonth() !== mo - 1 || day.getUTCDate() !== d) return null;
   return utc_midnight;
+}
+
+/** the calendar day this amended terms page is posted. section 9(d) makes an
+ * amendment effective seven days later unless the posting states a later
+ * date. seven days after this posting is `TERMS_EFFECTIVE`, so recovery
+ * begins at midnight in New York on that day. move this with the day the
+ * page actually goes up. */
+export const TERMS_POSTED = "2026-10-16";
+
+/** `date` plus `days` calendar days; null when `date` is not a calendar date */
+export function add_calendar_days(date: string, days: number): string | null {
+  const utc_midnight = utc_midnight_of(date);
+  if (utc_midnight == null) return null;
+  const next = new Date(utc_midnight + days * 86_400_000);
+  const y = next.getUTCFullYear();
+  const m = String(next.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(next.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** whether a donation made at `at` — payment authorized, or the asset
+ * received — falls under the recovery cutoff. an unparsable cutoff or
+ * instant covers none */
+export function recovery_covers(at: string | null | undefined): boolean {
+  const cutoff = terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
+  if (!cutoff || !at) return false;
+  const made = new Date(at).getTime();
+  if (Number.isNaN(made)) return false;
+  return made >= new Date(cutoff).getTime();
+}
+
+/** midnight in New York of the later of `effective` and, when `posted` is a
+ * calendar day, seven days after it. a blank `posted` is no second date.
+ * null when `effective` is not a calendar date — nothing reaches a party */
+export function terms_recovery_at(
+  effective: string,
+  posted: string
+): string | null {
+  const floor = terms_effective_at(effective);
+  if (!floor) return null;
+  const amended_day = posted.trim()
+    ? add_calendar_days(posted.trim(), 7)
+    : null;
+  const amended = amended_day ? terms_effective_at(amended_day) : null;
+  if (!amended) return floor;
+  return amended > floor ? amended : floor;
 }
 
 /** `date`'s midnight in `TERMS_ZONE`, as an ISO instant; null when `date` is

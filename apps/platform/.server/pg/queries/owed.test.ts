@@ -36,6 +36,7 @@ import {
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
   TERMS_EFFECTIVE: "2025-01-01",
+  TERMS_POSTED: "",
 }));
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,

@@ -27,13 +27,16 @@ export async function handle_intent_succeeded({
 }: Stripe.PaymentIntentSucceededEvent.Data) {
   // the PaymentIntent event has no expandable field, so the PaymentMethod is queried for
   // fetch settled amount and fee
-  const [{ fee, net }, pm] = await Promise.all([
+  const [{ fee, net, paid_at }, pm] = await Promise.all([
     settled_fn(intent.id),
     payment_method(str_id(intent.payment_method)),
   ]);
 
+  // the charge's own time, not the PaymentIntent's. checkout writes the
+  // donation row before the donor pays, and `intent.created` is that same
+  // moment; the terms date a gift when payment is authorized
   const settlement: ISettlement = {
-    date: fromUnixTime(intent.created).toISOString(),
+    date: fromUnixTime(paid_at).toISOString(),
     fee,
     net,
     currency: "USD",

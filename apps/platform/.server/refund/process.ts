@@ -4,6 +4,7 @@ import { emails } from "@/constants/common";
 import { humanize } from "@/helpers/decimal";
 import { to_amount } from "@/helpers/email";
 import { nav_log_date } from "@/nav";
+import { recovery_covers } from "@/terms";
 import { base_url, stage } from "../env";
 import { fiat_monitor } from "../kit/discord";
 import { db } from "../pg/db";
@@ -176,11 +177,17 @@ export async function load_refund_plan(
     cash: npo_item?.cash ?? 0,
   };
 
+  const don = await donation_get(g.dist.donation_id);
   const inputs = project_inputs(
     g,
     bal,
     nav ? { price: nav.price } : null,
     ctx.sub_id
+  );
+  // settlement.date is authorization or asset receipt; created_at is the
+  // checkout open, used only when no settlement was stored
+  inputs.recovery_applies = recovery_covers(
+    don?.settlement?.date ?? don?.created_at
   );
   const plan_ctx: RefundCtx = {
     now: new Date().toISOString(),

@@ -61,6 +61,10 @@ export interface RefundInputs {
   bal: { liq: number; lock_units: number; cash: number };
   nav: { price: number } | null;
   sub_id: string | null;
+  /** section 4(h) take-backs — savings, investment, a grant not yet paid —
+   * apply only to a donation made on or after the recovery cutoff. absent,
+   * they do: a caller that has not dated the gift leaves today's behavior */
+  recovery_applies?: boolean;
 }
 
 export interface RefundCtx {
@@ -192,7 +196,9 @@ export function calc_refund_plan(
   inputs: RefundInputs,
   ctx: RefundCtx
 ): RefundPlan {
-  const { dist, payout, commission, rev_log_ids, bal, nav, sub_id } = inputs;
+  const { dist, commission, rev_log_ids, bal, nav, sub_id } = inputs;
+  let { payout } = inputs;
+  const recovery_applies = inputs.recovery_applies !== false;
   const { now, nav_date, form_id, program_id } = ctx;
 
   // reverse what settlement credited: a share missing from the stored jsonb credited 0
@@ -212,6 +218,16 @@ export function calc_refund_plan(
         lock: (alloc.lock / 100) * net,
         cash: (alloc.cash / 100) * net,
       };
+  // an older donation keeps what has not been granted. a grant already paid
+  // still follows the loss path below; the owed ledger withholds it
+  if (!recovery_applies) {
+    bd.liq = 0;
+    bd.lock = 0;
+    if (payout?.type === "pending") {
+      bd.cash = 0;
+      payout = null;
+    }
+  }
   const refund_lock_units = nav && bd.lock > 0 ? bd.lock / nav.price : 0;
 
   const preview: RefundPreview = {
@@ -365,8 +381,9 @@ export function calc_refund_plan(
     });
   }
 
-  // balance/NAV writes — only when fully reversible
-  if (!is_loss && !dist.routed) {
+  // balance/NAV writes — only when fully reversible, and only for a gift
+  // the revised terms let us take ungranted funds back from
+  if (!is_loss && !dist.routed && recovery_applies) {
     const refund_deltas: IBalanceDeltas = {
       liq: bd.liq,
       lock: bd.lock,

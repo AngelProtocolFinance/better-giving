@@ -111,10 +111,11 @@ export default function TermsReferrals() {
           <p>
             Better Giving will notify you of each amount before deducting it,
             and may waive any amount in whole or in part at its discretion. This
-            section applies only to donations made on or after 12:00 a.m.
-            Eastern Time ({TERMS_ZONE}) on{" "}
+            section applies only to donations made on or after the later of (i)
+            12:00 a.m. Eastern Time ({TERMS_ZONE}) on{" "}
             {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
-            {EFFECTIVE}.
+            {EFFECTIVE} and (ii) the date these revised Program Terms take
+            effect.
           </p>
         </li>
         <li>

@@ -1,19 +1,19 @@
 Hello {{npo_name}} team,
 
-We've updated the Better Giving Terms for Nonprofits and Referral Program Terms. The changes take effect at 12:00 a.m. Eastern Time on [EFFECTIVE DATE].
+We've updated the Better Giving Terms for Nonprofits and Referral Program Terms. The changes take effect at 12:00 a.m. Eastern Time on October 23, 2026.
 
 The highlights:
 
-1. Refunds and chargebacks: If a donation we already granted to you is later refunded or charged back, we may recover that amount and its related fees from future grants. We'll always tell you the amount before we deduct it, and if we win a dispute, we return it. This applies only to donations made on or after [EFFECTIVE DATE].
+1. Refunds and chargebacks: If a donation we already granted to you is later refunded or charged back, we may recover that amount and its related fees from future grants. We'll always tell you the amount before we deduct it, and if we win a dispute, we return it. This applies only to donations made on or after October 23, 2026.
 2. Receipts and donor details: Better Giving receives each donation and issues the donor's tax receipt, so please don't issue your own. You're always welcome to thank your donors. Use donor details only to thank donors and share news about your work.
 3. Fees: The terms now list every fee in one place.
 4. Future changes: Future updates take effect 7 days after we post them, unless the update states a later date.
-5. Referral partners: If we've already paid a referral reward on a donation that's later refunded or charged back, we may deduct it from future referral payments. This applies to donations made on or after [EFFECTIVE DATE].
+5. Referral partners: If we've already paid a referral reward on a donation that's later refunded or charged back, we may deduct it from future referral payments. This applies to donations made on or after October 23, 2026.
 
 Read the full terms: [TERMS URL]
 Earlier version (October 2024): https://better.giving/terms-of-use-npo-2024
 
-If you keep using Better Giving after [EFFECTIVE DATE], you accept the revised terms. If you don't accept them, you may end the agreement under Section 8.
+If you keep using Better Giving after October 23, 2026, you accept the revised terms. If you don't accept them, you may end the agreement under Section 8.
 
 Questions? Contact [SUPPORT EMAIL].
 

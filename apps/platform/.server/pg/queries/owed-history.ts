@@ -2,7 +2,7 @@ import { and, asc, desc, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { to_units } from "@/helpers/decimal";
 import { db } from "../db";
-import { donations } from "../schema/donation";
+import { donation_settlements, donations } from "../schema/donation";
 import { owed_amounts, owed_entries } from "../schema/owed";
 import { settlements } from "../schema/payout";
 import type { DbOrTx } from "./helpers";
@@ -174,6 +174,10 @@ async function history_of(tx: DbOrTx, where: SQL): Promise<IOwedHistoryRow[]> {
     })
     .from(owed_amounts)
     .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+    .leftJoin(
+      donation_settlements,
+      eq(donation_settlements.donation_id, donations.id)
+    )
     .where(where)
     .orderBy(desc(owed_amounts.recorded_at), desc(owed_amounts.id));
   const lines = await run_lines(
@@ -236,6 +240,10 @@ export async function grant_run_deductions(
     .from(owed_entries)
     .innerJoin(owed_amounts, eq(owed_amounts.id, owed_entries.owed_id))
     .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+    .leftJoin(
+      donation_settlements,
+      eq(donation_settlements.donation_id, donations.id)
+    )
     .where(
       and(
         eq(owed_amounts.npo_id, npo_id),

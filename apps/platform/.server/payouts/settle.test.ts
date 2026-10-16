@@ -44,6 +44,7 @@ vi.mock("../env", () => ({
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
   TERMS_EFFECTIVE: "2026-01-01",
+  TERMS_POSTED: "",
 }));
 vi.mock("../kit/discord", () => ({
   aws_monitor: { send_alert },
@@ -169,6 +170,7 @@ async function seed_donation_payout(
     frequency: "one-time",
     source: "bg-marketplace",
     via: "stripe:card",
+    created_at: "2026-10-23T16:00:00.000Z",
   });
   await db().insert(dists).values({
     id: dist,

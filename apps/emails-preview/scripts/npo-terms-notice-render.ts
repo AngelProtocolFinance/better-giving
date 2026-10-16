@@ -6,7 +6,7 @@ const with_newline = (value: string): string =>
 
 /**
  * wide lines so a placeholder or the footer is not split across a wrap.
- * prettier's default width breaks `[EFFECTIVE DATE]` inside the title.
+ * prettier's default width breaks the subject inside the title.
  */
 const print_width = 10_000;
 

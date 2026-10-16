@@ -1,9 +1,16 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { TERMS_EFFECTIVE, terms_date_label, terms_effective_at } from "./terms";
+import {
+  recovery_covers,
+  TERMS_EFFECTIVE,
+  TERMS_POSTED,
+  terms_date_label,
+  terms_effective_at,
+  terms_recovery_at,
+} from "./terms";
 
 describe("terms_effective_at", () => {
   test("a date in daylight time is midnight four hours behind utc", () => {
-    expect(terms_effective_at("2026-10-18")).toBe("2026-10-18T04:00:00.000Z");
+    expect(terms_effective_at("2026-10-23")).toBe("2026-10-23T04:00:00.000Z");
   });
 
   test("the shipped date's instant reads as midnight in New York on that date", () => {
@@ -29,6 +36,59 @@ describe("terms_effective_at", () => {
       expect(terms_effective_at(date)).toBeNull();
     }
   );
+});
+
+describe("terms_recovery_at", () => {
+  test("a posting whose seventh day is later than the fixed date uses that day", () => {
+    expect(terms_recovery_at("2026-09-18", "2026-09-15")).toBe(
+      "2026-09-22T04:00:00.000Z"
+    );
+  });
+
+  test("the fixed date wins when seven days after posting is sooner", () => {
+    expect(terms_recovery_at("2026-09-18", "2026-09-01")).toBe(
+      "2026-09-18T04:00:00.000Z"
+    );
+  });
+
+  test("a blank posting is the fixed date alone", () => {
+    expect(terms_recovery_at(TERMS_EFFECTIVE, "")).toBe(
+      terms_effective_at(TERMS_EFFECTIVE)
+    );
+    expect(terms_recovery_at(TERMS_EFFECTIVE, "   ")).toBe(
+      terms_effective_at(TERMS_EFFECTIVE)
+    );
+  });
+
+  test("the shipped posting's seventh day is midnight in New York on the fixed date", () => {
+    const at = terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
+
+    expect(at).toBe(terms_effective_at(TERMS_EFFECTIVE));
+    expect(at).toBe("2026-10-23T04:00:00.000Z");
+  });
+
+  test("an unparsable fixed date reaches nobody", () => {
+    expect(terms_recovery_at("soon", TERMS_POSTED)).toBeNull();
+  });
+});
+
+describe("recovery_covers", () => {
+  const cutoff = "2026-10-23T04:00:00.000Z";
+
+  test("the cutoff instant and anything after it is covered", () => {
+    expect(recovery_covers(cutoff)).toBe(true);
+    expect(recovery_covers("2026-10-23T16:00:00.000Z")).toBe(true);
+  });
+
+  test("a checkout that pays before the cutoff is not covered", () => {
+    expect(recovery_covers("2026-10-23T03:59:59.000Z")).toBe(false);
+  });
+
+  test("an unparsable instant covers nothing", () => {
+    expect(recovery_covers(null)).toBe(false);
+    expect(recovery_covers(undefined)).toBe(false);
+    expect(recovery_covers("soon")).toBe(false);
+  });
 });
 
 describe("terms_date_label", () => {
