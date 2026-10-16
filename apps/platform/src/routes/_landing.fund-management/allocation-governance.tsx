@@ -1,19 +1,6 @@
 import { ArrowLeftRight, Scale } from "lucide-react";
-
-const allocation = [
-  { pct: "50%", label: "U.S. equities", swatch: "bg-primary" },
-  { pct: "10%", label: "non-U.S. equities", swatch: "bg-primary/65" },
-  { pct: "32.5%", label: "fixed income", swatch: "bg-primary/30" },
-  { pct: "7.5%", label: "metals", swatch: "bg-warning" },
-] as const;
-
-// conic segments mirror the legend swatches: token opacities ≈ white mixes
-const donut_bg = `conic-gradient(
-  var(--color-primary) 0% 50%,
-  color-mix(in srgb, var(--color-primary) 65%, white) 50% 60%,
-  color-mix(in srgb, var(--color-primary) 30%, white) 60% 92.5%,
-  var(--color-warning) 92.5% 100%
-)`;
+import type { CSSProperties } from "react";
+import { AllocationRing } from "#/pages/@sections/allocation-ring";
 
 const pillars = [
   {
@@ -22,7 +9,7 @@ const pillars = [
     body: "Professional oversight of strategy and risk, rebalanced quarterly to the target allocation.",
   },
   {
-    icon: <span className="text-base font-bold leading-none">$0</span>,
+    icon: <span className="display-figure text-lg">$0</span>,
     title: "No fees of any kind",
     body: "No setup, AUM, or performance fees. Unheard of in fund management. The commons covers it.",
   },
@@ -37,69 +24,59 @@ interface IAllocationGovernance {
   classes?: string;
 }
 
+// the copy leads in the dom so a narrow screen reads heading → points → ring;
+// from lg the ring takes the left column
 export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
   return (
     <section className={classes} aria-labelledby="governance-heading">
-      <div className="page grid gap-14 lg:grid-cols-2 items-center">
-        <div className="card-on-band shadow-lift-card grid gap-6 justify-items-center">
-          <span className="text-lg font-bold">Target allocation</span>
-          <div
-            className="size-55 rounded-full grid place-items-center"
-            style={{ background: donut_bg }}
-            role="img"
-            aria-label="Target allocation: 50% U.S. equities, 10% non-U.S. equities, 32.5% fixed income, 7.5% metals"
-          >
-            <div className="size-32.5 rounded-full bg-surface grid place-items-center text-center">
-              <div>
-                <span className="block text-2xl font-bold">100%</span>
-                <span className="text-xs text-gray-11">
-                  of growth
-                  <br />
-                  is yours
-                </span>
-              </div>
-            </div>
+      <div className="page grid gap-14 lg:gap-20 lg:grid-cols-2 items-center">
+        <div className="grid content-start lg:col-start-2">
+          <div className="grid gap-5 reveal">
+            <p className="eyebrow text-primary">Governance</p>
+            <h2 id="governance-heading" className="section-heading">
+              Managed like an endowment,{" "}
+              <em className="text-primary">open like a commons</em>
+            </h2>
           </div>
-          <div className="grid grid-cols-2 gap-x-7 gap-y-2.5 text-sm">
-            {allocation.map((a) => (
-              <span key={a.label} className="flex items-center gap-2">
-                <span
-                  className={`size-3 rounded ${a.swatch} inline-block`}
-                  aria-hidden
-                />
-                {a.pct} {a.label}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-5 content-start">
-          <p className="text-xs font-bold uppercase tracking-wider text-primary">
-            Governance
-          </p>
-          <h2 id="governance-heading" className="section-heading">
-            Managed like an endowment, open like a commons
-          </h2>
-          <div className="grid gap-3.5">
-            {pillars.map((p) => (
-              <div
+          <ul className="mt-10 grid divide-y border-y">
+            {pillars.map((p, i) => (
+              <li
                 key={p.title}
-                className="card-on-band flex gap-3.5 items-start"
+                className="reveal flex gap-5 items-start py-6"
+                style={{ "--reveal-order": i + 1 } as CSSProperties}
               >
                 <span
-                  className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
+                  className="flex-none flex-center size-11 rounded-full bg-surface border text-primary"
                   aria-hidden
                 >
                   {p.icon}
                 </span>
-                <div>
-                  <span className="font-bold">{p.title}</span>
-                  <p className="mt-0.5 text-sm/normal text-gray-11">{p.body}</p>
+                <div className="grid gap-1.5">
+                  <h3 className="text-lg font-bold">{p.title}</h3>
+                  <p className="text-base/relaxed text-gray-11 text-pretty">
+                    {p.body}
+                  </p>
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
+
+        <figure className="card-on-band shadow-lift-card grid gap-8 reveal lg:col-start-1 lg:row-start-1">
+          <figcaption className="text-lg font-bold text-center">
+            Target allocation
+          </figcaption>
+          <AllocationRing
+            center_value="100%"
+            center_label={
+              <>
+                of growth
+                <br />
+                is yours
+              </>
+            }
+          />
+        </figure>
       </div>
     </section>
   );

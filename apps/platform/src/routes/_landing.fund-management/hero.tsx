@@ -1,0 +1,64 @@
+import { ExtLink, Image } from "@better-giving/ui";
+import { ArrowRight } from "lucide-react";
+import { href, Link } from "react-router";
+import laira_coin from "#/assets/laira/laira-coin.webp";
+import { BOOK_A_DEMO } from "#/constants/urls";
+import { SplitDiagram } from "./split-diagram";
+
+interface IHero {
+  classes?: string;
+}
+
+export function Hero({ classes = "" }: IHero) {
+  return (
+    <div
+      className={`${classes} relative isolate overflow-clip bg-linear-to-b from-background to-band pt-12 pb-24 md:pt-20 md:pb-32`}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 dot-grid dot-grid-fade"
+      />
+      <div className="page grid gap-16 lg:gap-12 lg:grid-cols-[8fr_5fr] items-center">
+        <div className="grid gap-6 justify-items-start">
+          <p className="eyebrow text-primary">Fund Management</p>
+          <h1 className="hero-heading">
+            This quarter's gifts,{" "}
+            <em className="text-primary">next decade's reserves</em>
+          </h1>
+          <p className="text-lg/relaxed md:text-xl/relaxed text-pretty text-gray-11 max-w-xl">
+            Choose what share of each donation is granted to your bank, held in
+            high-yield savings, or invested in the Sustainability Fund. Change
+            the split anytime. Pay nothing, ever.
+          </p>
+          <div className="flex max-sm:flex-col max-sm:justify-self-stretch sm:flex-wrap sm:items-center gap-3.5 mt-2">
+            <Link
+              to={href("/register")}
+              className="group btn btn-lg btn-primary shadow-lift-cta gap-2"
+            >
+              Join free forever
+              <ArrowRight
+                aria-hidden="true"
+                className="icon-md transition-transform group-hover:translate-x-0.5"
+              />
+            </Link>
+            <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
+              Book a demo
+            </ExtLink>
+          </div>
+          <p className="text-sm text-gray-11">
+            No setup, AUM, or performance fees. 100% of growth is yours.
+          </p>
+        </div>
+        <div className="relative w-full max-w-lg justify-self-center lg:justify-self-end">
+          <SplitDiagram />
+          <Image
+            src={laira_coin}
+            width={112}
+            alt="Laira lifting a gold coin"
+            className="absolute -top-14 -right-8 rotate-6 max-lg:hidden"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
