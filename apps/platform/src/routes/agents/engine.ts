@@ -8,7 +8,6 @@ import {
   checkout_session,
   checkout_session_url,
 } from "#/routes/api.donation-intents/stripe/checkout-session";
-import { customer_with_currency } from "#/routes/api.donation-intents/stripe/customer-with-currency";
 import { npo_descriptor_suffix } from "#/routes/api.donation-intents/stripe/descriptor-suffix";
 import { donor_refusal } from "#/routes/api.donation-intents/stripe/donor-refusal";
 import { MIN_DONATION_USD } from "@/constants/common";
@@ -16,9 +15,8 @@ import type { IDonation, IDonor, IProgram } from "@/donations";
 import { to_from } from "@/donations/helpers";
 import { db } from "$/pg/db";
 import {
-  agent_donation_count_since,
+  agent_donation_reserve,
   donation_get,
-  donation_put,
   donation_update,
 } from "$/pg/queries/donation";
 import { npo_by_regnum } from "$/pg/queries/npo";
@@ -282,17 +280,6 @@ export async function donate(input: unknown, request: Request) {
     : undefined;
   const source_id = caller_id(request);
   const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
-  const [customer_count, ip_count] = await Promise.all([
-    agent_donation_count_since(since, { email: args.donor.email }),
-    agent_donation_count_since(since, { source_id }),
-  ]);
-  if (customer_count >= RATE_LIMIT || ip_count >= RATE_LIMIT) {
-    throw new AgentDonationError(
-      "rate_limited",
-      "Donation checkout limit reached. Try again in one hour."
-    );
-  }
-
   const amount = quote_amount(
     quote.amount,
     quote.tip_percent,
@@ -320,11 +307,21 @@ export async function donate(input: unknown, request: Request) {
   };
 
   if (!prior) {
-    try {
-      await donation_put(db, row);
-    } catch (error) {
+    const reservation = await agent_donation_reserve(row, since, RATE_LIMIT);
+    if (reservation === "limited") {
+      throw new AgentDonationError(
+        "rate_limited",
+        "Donation checkout limit reached. Try again in one hour."
+      );
+    }
+    if (reservation === "existing") {
       const raced = await existing_checkout(quote.id);
-      if (!raced) throw error;
+      if (!raced) {
+        throw new AgentDonationError(
+          "invalid_quote",
+          "The quote id is unavailable."
+        );
+      }
       if (raced.checkout_url) {
         return { donation_id: quote.id, checkout_url: raced.checkout_url };
       }
@@ -332,12 +329,10 @@ export async function donate(input: unknown, request: Request) {
   }
 
   try {
-    const customer_id = await customer_with_currency("USD", args.donor.email);
     const descriptor_suffix = await npo_descriptor_suffix(recipient);
     const session = await checkout_session({
       ...donation_amount,
       order_id: quote.id,
-      customer_id,
       donor_email: args.donor.email,
       recipient_name: recipient.to_name,
       descriptor_suffix,

@@ -772,11 +772,12 @@ export async function donation_donor_get(
   return row;
 }
 
-export async function agent_donation_count_since(
+async function agent_donation_count_since(
   since: string,
-  opts: { email?: string; source_id?: string }
+  opts: { email?: string; source_id?: string },
+  conn: DbOrTx = db
 ): Promise<number> {
-  const [row] = await db
+  const [row] = await conn
     .select({ value: count() })
     .from(donations)
     .innerJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
@@ -790,6 +791,43 @@ export async function agent_donation_count_since(
       )
     );
   return row?.value ?? 0;
+}
+
+export type AgentDonationReservation = "created" | "existing" | "limited";
+
+export async function agent_donation_reserve(
+  data: IDonation,
+  since: string,
+  limit: number
+): Promise<AgentDonationReservation> {
+  return db.transaction(async (tx) => {
+    const lock_keys = [
+      `agent-email:${data.from_email}`,
+      `agent-ip:${data.source_id}`,
+    ].sort();
+    for (const key of lock_keys) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${key})::bigint)`
+      );
+    }
+
+    const [existing] = await tx
+      .select({ source: donations.source })
+      .from(donations)
+      .where(eq(donations.id, data.id));
+    if (existing) {
+      return existing.source === "bg-agent" ? "existing" : "limited";
+    }
+
+    const [customer_count, ip_count] = await Promise.all([
+      agent_donation_count_since(since, { email: data.from_email }, tx),
+      agent_donation_count_since(since, { source_id: data.source_id }, tx),
+    ]);
+    if (customer_count >= limit || ip_count >= limit) return "limited";
+
+    await donation_put(tx, data);
+    return "created";
+  });
 }
 
 export async function donation_settlement_get(

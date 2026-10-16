@@ -3,15 +3,13 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   get_npos: vi.fn(),
   to_fn: vi.fn(),
-  count: vi.fn(),
+  reserve: vi.fn(),
   donation_get: vi.fn(),
-  donation_put: vi.fn(),
   donation_update: vi.fn(),
   npo_by_regnum: vi.fn(),
   npo_program_get: vi.fn(),
   checkout_session: vi.fn(),
   checkout_session_url: vi.fn(),
-  customer: vi.fn(),
   descriptor: vi.fn(),
 }));
 
@@ -19,9 +17,8 @@ vi.mock("#/.server/npos", () => ({ get_npos: mocks.get_npos }));
 vi.mock("#/.server/donation-recipient", () => ({ to_fn: mocks.to_fn }));
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/donation", () => ({
-  agent_donation_count_since: mocks.count,
+  agent_donation_reserve: mocks.reserve,
   donation_get: mocks.donation_get,
-  donation_put: mocks.donation_put,
   donation_update: mocks.donation_update,
 }));
 vi.mock("$/pg/queries/npo", () => ({
@@ -33,9 +30,6 @@ vi.mock("$/pg/queries/program", () => ({
 vi.mock("#/routes/api.donation-intents/stripe/checkout-session", () => ({
   checkout_session: mocks.checkout_session,
   checkout_session_url: mocks.checkout_session_url,
-}));
-vi.mock("#/routes/api.donation-intents/stripe/customer-with-currency", () => ({
-  customer_with_currency: mocks.customer,
 }));
 vi.mock("#/routes/api.donation-intents/stripe/descriptor-suffix", () => ({
   npo_descriptor_suffix: mocks.descriptor,
@@ -60,11 +54,9 @@ const donor = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.to_fn.mockResolvedValue(recipient);
-  mocks.count.mockResolvedValue(0);
+  mocks.reserve.mockResolvedValue("created");
   mocks.donation_get.mockResolvedValue(undefined);
-  mocks.donation_put.mockImplementation(async (_db, row) => row);
   mocks.donation_update.mockResolvedValue(undefined);
-  mocks.customer.mockResolvedValue("cus_test");
   mocks.descriptor.mockResolvedValue("ACME");
   mocks.checkout_session.mockResolvedValue({
     id: "cs_test_1",
@@ -154,8 +146,7 @@ describe("agent donate", () => {
       donation_id: quoted.quote_id,
       checkout_url: "https://checkout.stripe.com/c/pay/cs_test_1",
     });
-    expect(mocks.donation_put).toHaveBeenCalledWith(
-      {},
+    expect(mocks.reserve).toHaveBeenCalledWith(
       expect.objectContaining({
         id: quoted.quote_id,
         source: "bg-agent",
@@ -164,7 +155,9 @@ describe("agent donate", () => {
         frequency: "one-time",
         from_email: donor.email,
         amount: { base: 10, tip: 1.5, fee_allowance: 0.57 },
-      })
+      }),
+      expect.any(String),
+      5
     );
     expect(mocks.checkout_session).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -200,13 +193,12 @@ describe("agent donate", () => {
 
     expect(first).toStrictEqual(second);
     expect(mocks.checkout_session).not.toHaveBeenCalled();
-    expect(mocks.donation_put).not.toHaveBeenCalled();
-    expect(mocks.count).not.toHaveBeenCalled();
+    expect(mocks.reserve).not.toHaveBeenCalled();
   });
 
   test("customer or IP cap refuses before writing or calling Stripe", async () => {
     const quoted = await quote();
-    mocks.count.mockResolvedValueOnce(5).mockResolvedValueOnce(0);
+    mocks.reserve.mockResolvedValue("limited");
 
     await expect(
       donate(
@@ -214,7 +206,6 @@ describe("agent donate", () => {
         new Request("https://better.giving/agents")
       )
     ).rejects.toMatchObject({ code: "rate_limited" });
-    expect(mocks.donation_put).not.toHaveBeenCalled();
     expect(mocks.checkout_session).not.toHaveBeenCalled();
   });
 });

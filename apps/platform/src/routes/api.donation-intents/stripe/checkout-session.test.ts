@@ -28,7 +28,6 @@ describe("agent Checkout Session", () => {
       tip: 1,
       fee_allowance: 0.55,
       order_id: "6e2ee494-1cda-4b0b-9867-37a25b9c76c4",
-      customer_id: "cus_test",
       donor_email: "donor@example.com",
       recipient_name: "ACME",
       descriptor_suffix: "ACME",
@@ -41,7 +40,8 @@ describe("agent Checkout Session", () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: "payment",
-        customer: "cus_test",
+        customer_email: "donor@example.com",
+        customer_creation: "always",
         metadata: {
           order_id: "6e2ee494-1cda-4b0b-9867-37a25b9c76c4",
         },

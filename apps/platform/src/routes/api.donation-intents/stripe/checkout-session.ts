@@ -6,7 +6,6 @@ import { stripe } from "$/kit/stripe";
 
 export interface ICheckoutSessionInput extends IAmount {
   order_id: string;
-  customer_id: string;
   donor_email: string;
   recipient_name: string;
   descriptor_suffix?: string;
@@ -25,8 +24,8 @@ export async function checkout_session(
   const session = await stripe.checkout.sessions.create(
     {
       mode: "payment",
-      customer: input.customer_id,
-      customer_update: { address: "auto", name: "auto" },
+      customer_email: input.donor_email,
+      customer_creation: "always",
       line_items: [
         {
           quantity: 1,

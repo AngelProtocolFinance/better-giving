@@ -9,7 +9,8 @@ import {
 
 const GUIDE = `# Better Giving agent donations
 
-This endpoint is a remote MCP server for one-time USD donations.
+Connect to the remote MCP server at \`https://better.giving/agents/mcp\` for
+one-time USD donations. This page is its agent guide.
 
 ## Laira skill
 
