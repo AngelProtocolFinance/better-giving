@@ -8,15 +8,11 @@ interface IUnderdogLetter {
 
 export function UnderdogLetter({ classes = "" }: IUnderdogLetter) {
   return (
-    <section
-      className={`${classes} overflow-clip`}
-      aria-labelledby="underdog-heading"
-    >
+    <section className={classes} aria-labelledby="underdog-heading">
       <div className="page grid gap-14 lg:gap-20 lg:grid-cols-2 items-center">
         <div className="max-w-prose">
           <h2 id="underdog-heading" className="section-heading reveal">
-            {"We're not the biggest platform. "}
-            <em className="text-primary">So we try harder.</em>
+            We're not the biggest platform. So we try harder.
           </h2>
           <div className="mt-8 grid gap-5 text-lg/relaxed text-gray-11 text-pretty">
             <p>
@@ -32,20 +28,15 @@ export function UnderdogLetter({ classes = "" }: IUnderdogLetter) {
               anywhere.
             </p>
           </div>
-          <p className="mt-8 border-l-2 border-primary pl-6 text-xl/relaxed text-gray-12 text-pretty">
+          <p className="tile mt-10 text-xl/relaxed text-gray-12 text-pretty">
             <strong className="font-bold">
               Why? Because we can't afford to take you for granted.
             </strong>{" "}
             At {app_name} you're not another customer. You're a trusted member.
           </p>
         </div>
-        {/* the art ships its own shaped edge, so it takes no box; a dot field
-            behind its top-right corner seats it on the page instead */}
-        <div className="reveal relative isolate justify-self-center w-full max-w-xl">
-          <div
-            aria-hidden="true"
-            className="absolute -inset-10 -z-10 dot-grid dot-grid-fade"
-          />
+        {/* the art ships its own shaped edge, so it takes no box */}
+        <div className="reveal justify-self-center w-full max-w-xl">
           <Image
             src={laira_pulling_woman_up}
             width={728}

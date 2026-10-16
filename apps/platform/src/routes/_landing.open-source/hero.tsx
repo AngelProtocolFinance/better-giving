@@ -16,19 +16,10 @@ interface IHero {
 
 export function Hero({ classes = "" }: IHero) {
   return (
-    <div
-      className={`${classes} relative isolate overflow-clip pt-16 pb-24 md:pt-24 md:pb-32`}
-    >
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 -z-10 dot-grid dot-grid-fade"
-      />
+    <div className={`${classes} pt-16 pb-24 md:pt-24 md:pb-32`}>
       <div className="page grid gap-16 lg:gap-12 lg:grid-cols-[1.05fr_0.95fr] items-center">
         <div className="grid gap-6 justify-items-start">
-          <p className="eyebrow text-amber-6">Open Source</p>
-          <h1 className="hero-heading max-w-lg">
-            Trust you <em className="text-amber-6">can read</em>
-          </h1>
+          <h1 className="hero-heading max-w-lg">Trust you can read</h1>
           <p className="text-lg/relaxed md:text-xl/relaxed text-pretty text-blue-5 max-w-xl">
             Every part of Better Giving is public code: the donation form, the
             platform, all of it. When software moves money for your mission,

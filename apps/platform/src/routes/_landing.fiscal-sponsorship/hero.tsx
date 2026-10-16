@@ -10,20 +10,10 @@ interface IHero {
 
 export function Hero({ classes = "" }: IHero) {
   return (
-    <div
-      className={`${classes} relative isolate overflow-clip bg-linear-to-b from-background to-band pt-12 pb-24 md:pt-20 md:pb-32`}
-    >
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 -z-10 dot-grid dot-grid-fade"
-      />
+    <div className={`${classes} pt-12 pb-24 md:pt-20 md:pb-32`}>
       <div className="page grid gap-16 lg:gap-12 lg:grid-cols-[3fr_2fr] items-center">
         <div className="grid gap-6 justify-items-start">
-          <p className="eyebrow text-primary">Fiscal Sponsorship</p>
-          <h1 className="hero-heading">
-            {"Unlock U.S. donors, "}
-            <em className="text-primary">wherever you are</em>
-          </h1>
+          <h1 className="hero-heading">Unlock U.S. donors, wherever you are</h1>
           <p className="text-lg/relaxed md:text-xl/relaxed text-pretty text-gray-11 max-w-xl">
             As a U.S. 501(c)(3), Better Giving accepts tax-deductible gifts and
             grants on your behalf, so organizations abroad, or without their own
@@ -33,7 +23,7 @@ export function Hero({ classes = "" }: IHero) {
           <div className="flex max-sm:flex-col max-sm:justify-self-stretch sm:flex-wrap sm:items-center gap-3.5 mt-2">
             <Link
               to={href("/register")}
-              className="group btn btn-lg btn-primary shadow-lift-cta gap-2"
+              className="group btn btn-lg btn-primary gap-2"
             >
               Apply in minutes
               <ArrowRight
@@ -72,11 +62,11 @@ function FeeComparison() {
     <div
       role="img"
       aria-label="Fee comparison: Better Giving's fiscal sponsorship fee is 2.9% per sponsored gift; typical fiscal sponsors charge 4-10%."
-      className="card-on-band shadow-lift-media w-full max-w-lg justify-self-center lg:justify-self-end"
+      className="tile w-full max-w-lg justify-self-center lg:justify-self-end"
     >
       <div aria-hidden className="grid gap-8">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b pb-5">
-          <span className="eyebrow text-gray-11">Sponsorship fee</span>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <span className="font-bold text-gray-12">Sponsorship fee</span>
           <span className="text-sm text-gray-11">per sponsored gift</span>
         </div>
 
@@ -87,7 +77,7 @@ function FeeComparison() {
               2.9%
             </span>
           </div>
-          <span className="block h-5 rounded-full bg-gray-3">
+          <span className="block h-5 rounded-full bg-surface">
             <span className="block h-full w-[29%] rounded-full bg-primary" />
           </span>
         </div>
@@ -99,7 +89,7 @@ function FeeComparison() {
               4-10%
             </span>
           </div>
-          <span className="relative block h-5 rounded-full bg-gray-3">
+          <span className="relative block h-5 rounded-full bg-surface">
             <span
               className="absolute inset-y-0 left-2/5 right-0 rounded-full"
               style={market_hatch}

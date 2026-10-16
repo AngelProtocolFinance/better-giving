@@ -21,8 +21,8 @@ const split = [
     label: "Savings",
     spoken: "to high-yield savings",
     Icon: PiggyBank,
-    bar: "bg-blue-6",
-    flow: "fill-blue-6/50",
+    bar: "bg-blue-8",
+    flow: "fill-blue-8/40",
   },
   {
     pct: 5,
@@ -61,14 +61,10 @@ interface ISplitDiagram {
  *  tokens. one image to assistive tech; the drawing is aria-hidden. */
 export function SplitDiagram({ classes = "" }: ISplitDiagram) {
   return (
-    <div
-      role="img"
-      aria-label={description}
-      className={`${classes} card shadow-lift-card grid`}
-    >
+    <div role="img" aria-label={description} className={`${classes} tile grid`}>
       <div aria-hidden="true" className="contents">
         <div className="flex items-center gap-4">
-          <span className="flex-center size-12 rounded-full bg-secondary text-primary">
+          <span className="flex-center size-12 rounded-full bg-surface text-primary">
             <HandCoins className="icon-2xl" />
           </span>
           <span className="grid gap-1">
@@ -107,7 +103,7 @@ export function SplitDiagram({ classes = "" }: ISplitDiagram) {
                 className={`h-1.5 rounded-full ${bar}`}
                 style={{ width: `${pct}%` }}
               />
-              <span className="mt-4 flex-center size-10 rounded-full bg-secondary text-primary">
+              <span className="mt-4 flex-center size-10 rounded-full bg-surface text-primary">
                 <Icon className="icon-xl" />
               </span>
               <span className="mt-3 display-figure text-3xl md:text-4xl">
@@ -123,7 +119,7 @@ export function SplitDiagram({ classes = "" }: ISplitDiagram) {
           ))}
         </ul>
 
-        <p className="mt-6 border-t pt-4 flex items-center gap-2 text-sm text-gray-11">
+        <p className="mt-8 flex items-center gap-2 text-sm text-gray-11">
           <Repeat className="icon-md text-primary" />
           Every gift follows your split. Change it anytime.
         </p>

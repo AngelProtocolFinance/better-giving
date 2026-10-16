@@ -31,9 +31,9 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
   return (
     <section className={classes} aria-labelledby="two-paths-heading">
       <div className="page">
-        <div className="grid justify-items-center text-center reveal">
+        <div className="grid reveal">
           <h2 id="two-paths-heading" className="section-heading max-w-2xl">
-            Two ways to <em className="text-primary">run it</em>
+            Two ways to run it
           </h2>
           <p className="mt-5 text-lg/relaxed text-gray-11 max-w-2xl text-pretty">
             Most members choose the managed platform for convenience. The
@@ -42,16 +42,12 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
           </p>
         </div>
 
-        <Fork />
-
-        <div className="grid gap-6 md:grid-cols-2 mt-14 md:mt-16 lg:mt-0">
+        <div className="grid gap-6 md:grid-cols-2 mt-14 md:mt-16">
           <div
-            className="reveal card-on-band shadow-lift-card flex flex-col gap-5"
+            className="reveal tile flex flex-col gap-5"
             style={{ "--reveal-order": 0 } as CSSProperties}
           >
-            <span className="self-start text-2xs font-bold uppercase tracking-label bg-secondary text-gray-12 rounded-full px-3 py-1.5">
-              Most popular
-            </span>
+            <p className="text-sm text-gray-11">Most popular</p>
             <h3 className="subsection-heading">Managed platform</h3>
             <ul className="grid gap-3 text-base/normal text-gray-12">
               <Item Icon={Check} ink="text-primary">
@@ -79,19 +75,13 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
           </div>
 
           <div
-            className="reveal relative isolate overflow-clip rounded surface-deep shadow-lift-card p-6 flex flex-col gap-5"
+            className="reveal rounded surface-deep p-6 md:p-8 flex flex-col gap-5"
             style={{ "--reveal-order": 1 } as CSSProperties}
           >
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 -z-10 dot-grid dot-grid-fade"
-            />
-            <span className="self-start font-mono text-2xs font-bold uppercase tracking-label text-amber-6 border rounded-full px-3 py-1.5">
-              Maximum control
-            </span>
+            <p className="text-sm text-blue-5">Maximum control</p>
             <h3 className="subsection-heading">Self-hosted</h3>
             {/* a diff's markers: what you gain, and the one thing you take on */}
-            <ul className="grid gap-3 font-mono text-sm/normal">
+            <ul className="grid gap-3 text-base/normal">
               <Item Icon={Plus} ink="text-amber-6">
                 Run the form on your own infrastructure
               </Item>
@@ -124,34 +114,5 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
         </div>
       </div>
     </section>
-  );
-}
-
-/** the choice drawn as a fork in the road: one trunk under the heading,
- *  splitting toward the centre of each card. lg only — stacked or narrow
- *  columns have no room for the split to read. the svg stretches to the grid's
- *  width, so its strokes are non-scaling and its nodes are html. */
-function Fork() {
-  const trunk = "M500 0V36";
-  const left = "M500 36C500 76 250 52 250 96";
-  const right = "M500 36C500 76 750 52 750 96";
-  const stroke =
-    "fill-none [stroke-width:2] [stroke-linecap:round] [vector-effect:non-scaling-stroke]";
-  return (
-    <div aria-hidden="true" className="relative max-lg:hidden mt-10 h-24">
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 1000 96"
-        preserveAspectRatio="none"
-        className="absolute inset-0 size-full overflow-visible"
-      >
-        <path d={trunk} className={`${stroke} stroke-gray-7`} />
-        <path d={left} className={`${stroke} stroke-primary`} />
-        <path d={right} className={`${stroke} stroke-primary-deep`} />
-      </svg>
-      <span className="absolute left-1/2 top-9 size-3 -translate-1/2 rounded-full border-2 border-gray-7 bg-band" />
-      <span className="absolute left-1/4 bottom-0 size-3 -translate-x-1/2 translate-y-1/2 rounded-full bg-primary" />
-      <span className="absolute left-3/4 bottom-0 size-3 -translate-x-1/2 translate-y-1/2 rounded-full bg-primary-deep" />
-    </div>
   );
 }

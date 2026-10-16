@@ -22,9 +22,9 @@ export default function Page() {
   return (
     <main>
       <Hero />
-      <GrowPlaces classes="py-24 md:py-32" />
-      <AllocationGovernance classes="bg-band py-24 md:py-32" />
-      <SplitSteps classes="py-24 md:py-32" />
+      <GrowPlaces classes="bg-band py-24 md:py-32" />
+      <AllocationGovernance classes="py-24 md:py-32" />
+      <SplitSteps classes="bg-band py-24 md:py-32" />
       <CtaBand
         title="Start building your reserve today"
         subtitle="Free savings and fund management. No setup, AUM, or performance fees. 100% of growth goes to your mission."

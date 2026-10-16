@@ -24,13 +24,9 @@ export function Volunteer({ classes = "" }: IVolunteer) {
           />
         </div>
         <div className="grid justify-items-start max-w-prose">
-          <div className="reveal grid gap-4">
-            <p className="eyebrow text-primary">Who runs this?</p>
-            <h2 id="volunteer-heading" className="section-heading">
-              {"Volunteers. No investors. "}
-              <em className="text-primary">No salaries to protect.</em>
-            </h2>
-          </div>
+          <h2 id="volunteer-heading" className="section-heading reveal">
+            Volunteers. No investors. No salaries to protect.
+          </h2>
           <div className="mt-8 grid gap-5 text-lg/relaxed text-gray-11 text-pretty">
             <p>
               Better Giving is run by volunteers from across the nonprofit and

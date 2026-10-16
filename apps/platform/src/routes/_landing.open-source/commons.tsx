@@ -33,7 +33,7 @@ export function Commons({ classes = "" }: ICommons) {
       <div className="page grid gap-14 lg:gap-20 lg:grid-cols-[1.1fr_0.9fr] items-center">
         <div className="grid justify-items-start max-w-prose">
           <h2 id="commons-heading" className="section-heading reveal">
-            How the commons <em className="text-primary">stays free</em>
+            How the commons stays free
           </h2>
           <p className="mt-6 text-lg/relaxed text-gray-11 text-pretty">
             Better Giving is volunteer-driven and funded entirely by optional
@@ -55,15 +55,12 @@ export function Commons({ classes = "" }: ICommons) {
             assistive tech rather than read twice */}
         <ul
           aria-hidden="true"
-          className="card shadow-lift-card grid divide-y reveal w-full max-w-lg justify-self-center lg:justify-self-end"
+          className="tile grid gap-6 reveal w-full max-w-lg justify-self-center lg:justify-self-end"
           style={{ "--reveal-order": 1 } as CSSProperties}
         >
           {terms.map(({ Icon, label, ...t }) => (
-            <li
-              key={label}
-              className="flex items-center gap-4 py-4 first:pt-0 last:pb-0"
-            >
-              <span className="size-10 rounded-full bg-secondary text-primary grid place-items-center">
+            <li key={label} className="flex items-center gap-4">
+              <span className="flex-none size-10 rounded-full bg-surface text-primary grid place-items-center">
                 <Icon className="icon-lg" />
               </span>
               <span className="grid gap-0.5">
