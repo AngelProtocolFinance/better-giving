@@ -12,6 +12,8 @@ export interface ICheckoutSessionInput extends IAmount {
   /** where a donor who backs out of Checkout lands: the recipient's donate page */
   cancel_path: string;
   descriptor_suffix?: string;
+  /** stable across retries of one attempt; a replacement checkout uses a new one */
+  idempotency_key?: string;
 }
 
 export interface ICheckoutSession {
@@ -53,7 +55,10 @@ export async function checkout_session(
       success_url: `${base_url}${href("/donations/:id", { id: input.order_id })}`,
       cancel_url: `${base_url}${input.cancel_path}`,
     },
-    { idempotencyKey: `agent-checkout:${input.order_id}` }
+    {
+      idempotencyKey:
+        input.idempotency_key ?? `agent-checkout:${input.order_id}`,
+    }
   );
 
   if (!session.url) throw new Error("Stripe Checkout did not return a URL");

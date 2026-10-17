@@ -19,9 +19,11 @@ one-time USD donations. This page is its agent guide.
 3. Call \`quote_donation\` and show every amount returned. If the recipient refuses tips, ask again without one.
 4. Collect the donor's first name, last name, and email, then call \`donate\` with the unchanged quote token.
 5. Give the donor the Stripe-hosted checkout link. Better Giving never receives card numbers.
-6. Poll \`donation_status\` with the donation id until it is settled, failed, or expired. An unpaid checkout expires after 24 hours; request a new quote to try again.
+6. Poll \`donation_status\` with the donation id until it is settled, failed, or expired. \`expired\` means the Checkout lapsed. Call \`donate\` again with the same quote token to open a new Checkout, until the quote itself expires (one hour); then request a new quote.
 
-Repeated \`donate\` calls with the same quote token and donor return the same Checkout Session and do not create another charge. Quote tokens are signed: send them back unchanged.
+Send \`Authorization: Bearer\` with the agent token when you have one. The hourly cap is per token, and otherwise per trusted client address.
+
+Repeated \`donate\` calls with the same quote token and an open Checkout return that Checkout and do not create another charge. Quote tokens are signed: send them back unchanged.
 `;
 
 const tools = [

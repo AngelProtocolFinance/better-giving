@@ -14,7 +14,12 @@ const mocks = vi.hoisted(() => ({
   expire: vi.fn(),
 }));
 
-vi.mock("$/env", () => ({ app: { api_encryption_key: "test-quote-key" } }));
+vi.mock("$/env", () => ({
+  app: {
+    api_encryption_key: "test-quote-key",
+    agent_donation_token: "agent-token-test",
+  },
+}));
 
 vi.mock("#/.server/npos", () => ({ get_npos: mocks.get_npos }));
 vi.mock("#/.server/donation-recipient", () => ({ to_fn: mocks.to_fn }));
@@ -187,6 +192,7 @@ describe("agent donate", () => {
     );
     expect(mocks.donation_update).toHaveBeenCalledWith({}, quoted.quote_id, {
       via_extra: "cs_test_1",
+      status: "created",
     });
   });
 
@@ -272,21 +278,104 @@ describe("agent donate", () => {
     expect(mocks.checkout_session).not.toHaveBeenCalled();
   });
 
-  test("an expired Checkout marks the gift expired and asks for a new quote", async () => {
+  test("an expired Checkout can be donated again", async () => {
     const quoted = await quote();
     mocks.donation_get.mockResolvedValue(
       saved(quoted.quote_id, { via_extra: "cs_test_old" })
     );
     mocks.checkout_session_state.mockResolvedValue({ status: "expired" });
+    mocks.checkout_session.mockResolvedValue({
+      id: "cs_test_new",
+      url: "https://checkout.stripe.com/c/pay/cs_test_new",
+    });
 
-    await expect(
-      donate(
-        { quote_token: quoted.quote_token, donor },
-        new Request("https://better.giving/agents")
-      )
-    ).rejects.toMatchObject({ code: "quote_expired" });
+    const result = await donate(
+      { quote_token: quoted.quote_token, donor },
+      new Request("https://better.giving/agents")
+    );
+
+    expect(result).toStrictEqual({
+      donation_id: quoted.quote_id,
+      checkout_url: "https://checkout.stripe.com/c/pay/cs_test_new",
+    });
     expect(mocks.expire).toHaveBeenCalledWith(quoted.quote_id);
-    expect(mocks.checkout_session).not.toHaveBeenCalled();
+    expect(mocks.checkout_session).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_id: quoted.quote_id,
+        idempotency_key: `agent-checkout:${quoted.quote_id}:after:cs_test_old`,
+      })
+    );
+    expect(mocks.reserve).not.toHaveBeenCalled();
+  });
+
+  test("an expired quote is rejected before anything is written", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-10-16T12:00:00Z"));
+      const quoted = await quote();
+      vi.setSystemTime(new Date("2026-10-16T14:00:00Z"));
+
+      await expect(
+        donate(
+          { quote_token: quoted.quote_token, donor },
+          new Request("https://better.giving/agents")
+        )
+      ).rejects.toMatchObject({ code: "quote_expired" });
+      expect(mocks.donation_get).not.toHaveBeenCalled();
+      expect(mocks.reserve).not.toHaveBeenCalled();
+      expect(mocks.checkout_session).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("rate limit keys on the agent token, then the trusted address", async () => {
+    const authed = await quote();
+    await donate(
+      { quote_token: authed.quote_token, donor },
+      new Request("https://better.giving/agents", {
+        headers: {
+          authorization: "Bearer agent-token-test",
+          "x-forwarded-for": "203.0.113.8, 10.0.0.1",
+          "cf-connecting-ip": "198.51.100.9",
+        },
+      })
+    );
+    const spoofed = await quote();
+    await donate(
+      { quote_token: spoofed.quote_token, donor },
+      new Request("https://better.giving/agents", {
+        headers: {
+          authorization: "Bearer not-the-token",
+          "x-forwarded-for": "198.51.100.20, 10.0.0.2",
+          "cf-connecting-ip": "198.51.100.21",
+        },
+      })
+    );
+    const spoofed_again = await quote();
+    await donate(
+      { quote_token: spoofed_again.quote_token, donor },
+      new Request("https://better.giving/agents", {
+        headers: {
+          authorization: "Bearer a-different-token",
+          "x-forwarded-for": "203.0.113.50, 10.0.0.3",
+          "cf-connecting-ip": "198.51.100.99",
+        },
+      })
+    );
+    const trusted = await quote();
+    await donate(
+      { quote_token: trusted.quote_token, donor },
+      new Request("https://better.giving/agents", {
+        headers: { "x-forwarded-for": "203.0.113.8" },
+      })
+    );
+
+    const ids = mocks.reserve.mock.calls.map((call) => call[0].source_id);
+    expect(ids[1]).toBe(ids[2]);
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(ids[3]).not.toBe(ids[0]);
+    expect(ids[3]).not.toBe(ids[1]);
   });
 
   test("rate limit keys on one trusted address, not a caller-supplied header", async () => {

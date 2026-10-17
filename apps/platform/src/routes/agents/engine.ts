@@ -28,6 +28,7 @@ import { npo_program_get } from "$/pg/queries/program";
 
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT = 5;
+const QUOTE_TTL_S = 60 * 60;
 const tip_percent = v.picklist(["none", "10", "15", "20"]);
 const to_id = v.union([
   v.pipe(v.number(), v.integer(), v.minValue(1)),
@@ -71,12 +72,14 @@ const find_input = v.pipe(
 const quote_token = v.strictObject({
   v: v.literal(1),
   id: v.pipe(v.string(), v.uuid()),
+  exp: v.pipe(v.number(), v.integer(), v.minValue(1)),
   ...quote_input.entries,
 });
 
 interface IQuoteToken {
   v: 1;
   id: string;
+  exp: number;
   recipient_id: number | string;
   amount: number;
   tip_percent: "none" | "10" | "15" | "20";
@@ -208,6 +211,7 @@ export async function create_quote(input: unknown): Promise<IAgentQuote> {
   const token: IQuoteToken = {
     v: 1,
     id,
+    exp: Math.floor(Date.now() / 1000) + QUOTE_TTL_S,
     recipient_id: args.recipient_id,
     amount: args.amount,
     tip_percent: args.tip_percent,
@@ -235,21 +239,40 @@ export async function create_quote(input: unknown): Promise<IAgentQuote> {
   };
 }
 
+const bearer = /^Bearer\s+(\S+)$/i;
+
+function hashes_equal(a: string, b: string): boolean {
+  return timingSafeEqual(
+    createHash("sha256").update(a).digest(),
+    createHash("sha256").update(b).digest()
+  );
+}
+
 function caller_id(request: Request): string {
-  // same trusted address as the auth limiter: Vercel overwrites a single
-  // `x-forwarded-for`, and a chain or `cf-connecting-ip` is caller-supplied.
-  // missing and spoofed callers share one bucket instead of a fresh one each.
+  const expected = app.agent_donation_token;
+  const presented = bearer.exec(
+    request.headers.get("authorization")?.trim() ?? ""
+  )?.[1];
+  // a bearer counts only when it matches the server token. anything else,
+  // including a raw forwarded-for chain, is not its own bucket.
+  if (expected && presented && hashes_equal(presented, expected)) {
+    return `agent:${createHash("sha256").update(expected).digest("hex")}`;
+  }
   const ip = client_ip(request.headers) ?? "unknown";
   return `ip:${createHash("sha256").update(ip).digest("hex")}`;
+}
+
+function quote_still_valid(quote: IQuoteToken): boolean {
+  return quote.exp * 1000 > Date.now();
 }
 
 const quote_expired = () =>
   new AgentDonationError(
     "quote_expired",
-    "The checkout for this quote expired. Request a new quote."
+    "This quote has expired. Request a new quote."
   );
 
-async function open_checkout(don: IDonation) {
+async function open_checkout(don: IDonation, idempotency_key?: string) {
   try {
     const descriptor_suffix = await npo_descriptor_suffix(don);
     const session = await checkout_session({
@@ -262,8 +285,12 @@ async function open_checkout(don: IDonation) {
           ? href("/donate-fund/:fund_id", { fund_id: don.to_id })
           : href("/donate/:id", { id: don.to_id }),
       descriptor_suffix,
+      idempotency_key,
     });
-    await donation_update(db, don.id, { via_extra: session.id });
+    await donation_update(db, don.id, {
+      via_extra: session.id,
+      status: "created",
+    });
     return { donation_id: don.id, checkout_url: session.url };
   } catch (error) {
     const refusal = donor_refusal(error);
@@ -286,14 +313,20 @@ async function resume_checkout(don: IDonation | undefined, donor: IDonor) {
       "This quote is already reserved for a different donor. Request a new quote."
     );
   }
-  if (don.status === "expired") throw quote_expired();
-  if (don.status !== "created") {
+  if (don.status !== "created" && don.status !== "expired") {
     throw new AgentDonationError(
       "quote_used",
       "This quote was already paid. Check donation_status."
     );
   }
-  if (!don.via_extra) return open_checkout(don);
+  if (don.status === "expired" || !don.via_extra) {
+    return open_checkout(
+      don,
+      don.via_extra
+        ? `agent-checkout:${don.id}:after:${don.via_extra}`
+        : undefined
+    );
+  }
 
   const session = await checkout_session_state(don.via_extra);
   if (session.status === "open") {
@@ -301,7 +334,10 @@ async function resume_checkout(don: IDonation | undefined, donor: IDonor) {
   }
   if (session.status === "expired") {
     await agent_donation_expire(don.id);
-    throw quote_expired();
+    return open_checkout(
+      don,
+      `agent-checkout:${don.id}:after:${don.via_extra}`
+    );
   }
   throw new AgentDonationError(
     "quote_used",
@@ -312,6 +348,7 @@ async function resume_checkout(don: IDonation | undefined, donor: IDonor) {
 export async function donate(input: unknown, request: Request) {
   const args = parsed(donate_input, input);
   const quote = decode_quote(args.quote_token);
+  if (!quote_still_valid(quote)) throw quote_expired();
   const prior = await donation_get(quote.id);
   if (prior) return resume_checkout(prior, args.donor);
 
