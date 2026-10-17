@@ -119,7 +119,17 @@ neonConfig.fetchFunction = async (_ep, init) => {
   }
 };
 
-if (!globalThis.__verify_ws) {
+// NODE_OPTIONS=--import runs this file in the pnpm wrapper as well as the app.
+// The wrapper binds first, then never reads the socket, and the app finds the
+// port taken and sends transactions at a proxy that does not answer. Only the
+// process that issues queries should listen.
+const entry = (process.argv[1] ?? "").replaceAll("\\", "/");
+const wrapper =
+  /\/pnpm(?:\.cjs|\.js)?$/.test(entry) ||
+  entry.includes("/pnpm-native") ||
+  entry.includes("/corepack/");
+
+if (!wrapper && !globalThis.__verify_ws) {
   const wss = new WebSocketServer({
     host: "127.0.0.1",
     port: WS_PORT,
