@@ -9,6 +9,7 @@ import {
   int_gte1,
   MAX_NUM_INCREMENTS,
   org_designation,
+  org_slug,
   slug,
   target,
   unsdg_num,
@@ -21,6 +22,7 @@ export {
   donate_method_id,
   https_url,
   org_designation,
+  org_slug,
   slug,
 } from "../schemas";
 
@@ -127,7 +129,7 @@ const npo = v.object({
   cash: v.optional(v.pipe(v.number(), v.minValue(0))),
 });
 
-export const npo_update = v.partial(
+const npo_update_base = v.partial(
   v.omit(npo, [
     "id",
     "kyc_donors_only",
@@ -138,6 +140,12 @@ export const npo_update = v.partial(
     "cash",
   ])
 );
+// assignment uses the reserved-segment check. the shared `slug` stays the
+// shape fund edits already accepted.
+export const npo_update = v.object({
+  ...npo_update_base.entries,
+  slug: v.optional(org_slug),
+});
 
 const npo_fields = v.keyof(npo);
 export interface INpo extends v.InferOutput<typeof npo> {}

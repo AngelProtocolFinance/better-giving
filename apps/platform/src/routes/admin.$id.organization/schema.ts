@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { img_output } from "#/components/img-editor";
-import { $req, org_designation, reg_number, slug } from "@/npo/schema";
+import { $req, org_designation, org_slug, reg_number } from "@/npo/schema";
 
 /** letters and digits from the legal name, for the empty slug's placeholder */
 export function suggest_slug(name: string): string {
@@ -14,7 +14,7 @@ export const schema = v.object({
   registration_number: reg_number,
   endow_designation: org_designation,
   hq_country: $req,
-  slug,
+  slug: org_slug,
 });
 
 export type FV = v.InferInput<typeof schema>;

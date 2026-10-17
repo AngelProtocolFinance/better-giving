@@ -133,7 +133,9 @@ export const segment = pipe(
   )
 );
 
-export const slug = lazy((x) => (x ? segment : $));
+// shared with fund slugs. the route reservation is `org_slug` only.
+export const slug = lazy((x) => (x ? segment_shape : $));
+export const org_slug = lazy((x) => (x ? segment : $));
 
 export const increment_label_max_chars = 60;
 export const MAX_NUM_INCREMENTS = 4;

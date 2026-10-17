@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { safeParse } from "valibot";
 import { describe, expect, it } from "vitest";
-import { segment } from "./index";
+import { org_slug, segment, slug } from "./index";
 import {
   first_url_segment,
   reserved_words,
@@ -84,6 +84,10 @@ describe("reserved segments", () => {
       }
     }
     expect(safeParse(segment, "organizations").success).toBe(true);
+    expect(safeParse(slug, "pricing").success).toBe(true);
+    expect(safeParse(org_slug, "pricing").issues?.[0]?.message).toBe(
+      "pricing matches a top-level route"
+    );
     expect(safeParse(segment, "Donate").issues?.[0]?.message).toBe(
       "Donate matches a top-level route"
     );
