@@ -16,5 +16,6 @@
 
 ## Gotchas
 - The published fixture nonprofit starts without a slug. A database left over from an earlier run of this flow already has `verify-test` set, and the field is then disabled before the flow can set it. `scripts/run.sh` starts from a clean database.
+- Its registration number is `VERIFY0001`. The organization form rejects a hyphen, so a save never reaches the slug.
 - The sidebar link is in the desktop sidebar (`max-md:hidden`). The drive viewport is 1280×900, so the link is on screen.
 - A cold dev server can reload this page while Vite finishes optimizing dependencies. That reload clears a slug typed into the previous document, and Save stays disabled. The drive waits until the legal name is filled, then sets the slug, and repeats that fill after a reload when Save never enables.
