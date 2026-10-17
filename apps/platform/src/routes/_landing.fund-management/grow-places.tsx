@@ -27,9 +27,9 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
               </span>
             </span>
             <p className="text-sm/relaxed text-gray-11">
-              FDIC-insured and accessible anytime. A reliable way to build
-              reserves while funds stay safe and liquid, with electronic payouts
-              within 5 working days whenever you need them.
+              FDIC-insured. A reliable way to build reserves while funds stay
+              safe and liquid. Withdrawal requests are reviewed and processed on
+              a monthly basis.
             </p>
           </div>
           <div className="surface-primary rounded p-9 grid gap-3.5 content-start">

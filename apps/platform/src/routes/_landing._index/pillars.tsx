@@ -22,7 +22,7 @@ const pillars = [
   },
   {
     title: "Keep more of every dollar",
-    body: "No platform or fund-management fees. We're sustained by optional donor contributions at checkout. Always opt-in, never pre-selected.",
+    body: "No platform fee while the optional donor contribution stays on your form. It is opt-in and starts off. Turning that ask off is a 1.5% fee.",
     cta: "See pricing",
     to: href("/pricing"),
   },
@@ -70,8 +70,8 @@ export function Pillars({ classes = "" }: IPillars) {
               Open source &amp; member-powered
             </span>
             <p className="text-sm/relaxed text-primary-fg/90">
-              The entire stack is public code. Verify how we work, self-host if
-              you want, and help keep the commons free for every nonprofit.
+              The entire stack is public code. Read how donations are processed,
+              and help keep the commons free for every nonprofit.
             </p>
             <Link
               to={href("/open-source")}

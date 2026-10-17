@@ -3,23 +3,23 @@ import { EMAILS } from "@better-giving/brand";
 const promises = [
   {
     n: "1",
-    title: "Your data belongs to you",
-    body: "Every record, full giving history, exportable anytime via CSV or API, free.",
+    title: "Your records export",
+    body: "Donation records export from your dashboard.",
   },
   {
     n: "2",
-    title: "Recurring donors are portable",
-    body: "We actively facilitate migrating recurring-donor payment records to your new processor.",
+    title: "Card credentials stay here",
+    body: "We do not transfer stored card credentials to another payment processor. No outbound migration exists today.",
   },
   {
     n: "3",
-    title: "No exit toll",
-    body: "Never conditioned on fees or new terms. Data in 5 business days, migration underway in 10.",
+    title: "No migration timeline",
+    body: "Leaving is not a product fee. We do not promise a day count for moving recurring gifts.",
   },
   {
     n: "4",
-    title: "Or own it from day one",
-    body: "Self-host the open-source form with your own gateway: your tokens never leave your control.",
+    title: "The code is public",
+    body: "Anyone can read how donations are processed. The product you join is the managed platform.",
   },
 ] as const;
 
@@ -38,15 +38,12 @@ export function Portability({ classes = "" }: IPortability) {
           id="portability-heading"
           className="section-heading text-center mt-3 max-w-3xl mx-auto"
         >
-          Your donors are yours, including your recurring donors
+          Your donor records are yours
         </h2>
         <p className="mt-3.5 text-gray-11 text-center max-w-2xl mx-auto text-pretty">
-          Most platforms let you export a spreadsheet, but hold your monthly
-          card-on-file donors hostage. We make the opposite promise, the{" "}
-          <strong className="text-gray-12">
-            Recurring-Donor Portability Guarantee
-          </strong>
-          :
+          You can export donation records from the dashboard. We do not move
+          stored card credentials to another processor, and we do not run an
+          outbound migration.
         </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-11">
           {promises.map((p) => (
@@ -60,11 +57,8 @@ export function Portability({ classes = "" }: IPortability) {
           ))}
         </div>
         <p className="mt-7 text-sm/relaxed text-gray-11 text-center max-w-3xl mx-auto text-pretty">
-          Honest fine print: whether a stored card credential can transfer
-          directly depends on card-network rules, PCI-DSS, and your new
-          processor. Where a direct transfer isn't permitted, we hand over the
-          full recurring-gift schedule and support a re-authorization campaign.
-          We will never be the obstacle. Invoke it anytime:{" "}
+          A donor who wants to keep giving after you leave authorizes a new gift
+          with the new provider. Questions:{" "}
           <a href={`mailto:${EMAILS.support}`} className="font-bold link">
             {EMAILS.support}
           </a>

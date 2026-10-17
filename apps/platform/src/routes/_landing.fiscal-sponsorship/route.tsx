@@ -48,7 +48,7 @@ const steps = [
   },
   {
     title: "We grant funds to you",
-    body: "Electronic payouts within 5 working days, or grow a share in savings and the Sustainability Fund.",
+    body: "Grants are reviewed and processed on a monthly basis, or a share can sit in savings and the Sustainability Fund.",
   },
 ] as const;
 

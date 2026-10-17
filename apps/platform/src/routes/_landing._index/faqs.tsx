@@ -6,11 +6,11 @@ export const home_faqs = [
     question: "Is Better Giving really free? How do you sustain operations?",
     paragraphs: [
       <p key={0}>
-        Yes, completely free, all features included, and we grant out 100% of
-        donations. We're a volunteer-driven 501(c)(3) sustained by optional
-        donor contributions at checkout, which are always opt-in and never
-        pre-selected. There are no platform fees, fund-management fees, or gated
-        features.
+        Yes, all features included. We're a volunteer-driven 501(c)(3). Donors
+        can add an optional contribution at checkout. It is opt-in and starts
+        off. There is no platform fee while that ask stays on the form. Turning
+        it off is a 1.5% fee. Fiscal sponsorship is 2.9% of each sponsored gift.
+        There are no gated features.
       </p>,
     ],
   },
@@ -30,9 +30,9 @@ export const home_faqs = [
     question: "How quickly can I start fundraising?",
     paragraphs: [
       <p key={0}>
-        Register in minutes. We review and get you started right away. Embedding
-        the form on your site is a copy-paste snippet, and payouts arrive
-        electronically within 5 working days.
+        Register in minutes. Embedding the form on your site is a copy-paste
+        snippet. Grants and withdrawal requests are reviewed and processed on a
+        monthly basis.
       </p>,
     ],
   },
@@ -41,10 +41,10 @@ export const home_faqs = [
     question: "Do I keep my donor data (and my donors) if I leave?",
     paragraphs: [
       <p key={0}>
-        Yes. You receive full donor-level data, exportable anytime (CSV and API)
-        at no charge. And under our Recurring-Donor Portability Guarantee, if
-        you ever switch providers we actively help migrate your recurring
-        donors. No exit fees, no fine print.
+        You can export donation records from your dashboard. We do not transfer
+        stored card credentials to another processor, and there is no outbound
+        migration to start. A donor who wants to keep giving after you leave
+        authorizes a new gift with the new provider.
       </p>,
     ],
   },
@@ -53,10 +53,8 @@ export const home_faqs = [
     question: 'What does "open source" mean for my nonprofit?',
     paragraphs: [
       <p key={0}>
-        Our code is public, so you can verify exactly how donations are handled
-        instead of taking our word for it. Most members use the managed platform
-        for convenience; if you want full independence, you can self-host the
-        donation form and own your own payment gateway.
+        Our code is public, so you can read exactly how donations are handled
+        instead of taking our word for it. Nonprofits use the managed platform.
       </p>,
     ],
   },

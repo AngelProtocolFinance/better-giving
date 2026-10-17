@@ -17,7 +17,7 @@ const items: TListItem[] = [
   {
     title1: "Step 1",
     title2: "Sign up",
-    description: `Join ${app_name} — free, no platform or fund-management fees.`,
+    description: `Join ${app_name}. No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee. No fund-management fees.`,
     image: {
       src: laira1,
       width: 95,
