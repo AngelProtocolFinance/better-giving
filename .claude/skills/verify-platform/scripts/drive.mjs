@@ -338,6 +338,91 @@ const FLOWS = {
       return facts;
     },
   },
+  "agents-find": {
+    desc: "MCP find_nonprofit returns the seeded nonprofit and a flagged off-marketplace EIN; quote_donation refuses that EIN",
+    async run({ page, entry }) {
+      const rpc = async (id, name, args) => {
+        const response = await page.request.post(`${BASE}/agents/mcp`, {
+          timeout: 120_000,
+          headers: { "content-type": "application/json" },
+          data: {
+            jsonrpc: "2.0",
+            id,
+            method: "tools/call",
+            params: { name, arguments: args },
+          },
+        });
+        entry.loaded.push(`POST /agents/mcp tools/call ${name}`);
+        expect_ok(
+          response.status() === 200,
+          `POST /agents/mcp ${name} → ${response.status()}`
+        );
+        return response.json();
+      };
+
+      const found = await rpc(1, "find_nonprofit", {
+        query: "Verify Test Nonprofit",
+      });
+      const body = found.result?.structuredContent;
+      expect_ok(body, "find_nonprofit returned no structuredContent");
+      const names = (body.items ?? []).map((item) => item.name);
+      expect_ok(
+        names.includes("Verify Test Nonprofit"),
+        `items missing the seeded nonprofit: ${JSON.stringify(names)}`
+      );
+      const flagged = (body.not_on_better_giving ?? []).find(
+        (row) => row.ein === "990000001"
+      );
+      expect_ok(flagged, "eligible EIN missing from not_on_better_giving");
+      expect_ok(flagged.donatable === false, "flagged entry is donatable");
+      expect_ok(
+        flagged.status === "not_on_better_giving",
+        `status ${flagged.status}`
+      );
+      expect_ok(
+        String(flagged.onboarding_url).endsWith("/register"),
+        `onboarding_url ${flagged.onboarding_url}`
+      );
+      expect_ok(
+        !("id" in flagged) && !("recipient_id" in flagged),
+        "flagged entry carries an id"
+      );
+      const dumped = JSON.stringify(body);
+      expect_ok(!dumped.includes("990000002"), "revoked EIN was returned");
+      expect_ok(
+        !dumped.includes("Fixture Revoked Org"),
+        "revoked org name was returned"
+      );
+
+      const quoted = await rpc(2, "quote_donation", {
+        recipient_id: "990000001",
+        amount: 10,
+      });
+      expect_ok(
+        quoted.result?.isError === true,
+        "quote_donation did not refuse the EIN"
+      );
+      expect_ok(
+        quoted.result?.structuredContent?.code === "invalid_input",
+        `quote code ${quoted.result?.structuredContent?.code}`
+      );
+
+      const stub = fs.existsSync(`${STATE}/nonprofits-stub.log`)
+        ? fs.readFileSync(`${STATE}/nonprofits-stub.log`, "utf8")
+        : "";
+      expect_ok(
+        stub.includes("/v1/search"),
+        "nonprofits stub did not see a search"
+      );
+      return [
+        "POST /agents/mcp find_nonprofit query → Verify Test Nonprofit in items",
+        "990000001 in not_on_better_giving, donatable false, onboarding_url ends /register, no id",
+        "revoked EIN 990000002 absent",
+        "POST /agents/mcp quote_donation 990000001 → invalid_input",
+        "nonprofits stub logged /v1/search",
+      ];
+    },
+  },
 };
 
 const args = process.argv.slice(2);

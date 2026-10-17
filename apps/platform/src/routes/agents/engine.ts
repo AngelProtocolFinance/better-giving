@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { href } from "react-router";
 import * as v from "valibot";
-import { client_ip } from "#/.server/auth/rate-limit";
+import { client_ip, reserve } from "#/.server/auth/rate-limit";
 import { to_fn } from "#/.server/donation-recipient";
 import { get_npos } from "#/.server/npos";
 import { stripe_amounts } from "#/components/donation/common/amounts";
@@ -15,18 +15,29 @@ import { donor_refusal } from "#/routes/api.donation-intents/stripe/donor-refusa
 import { MIN_DONATION_USD } from "@/constants/common";
 import type { IDonation, IDonor, IProgram } from "@/donations";
 import { to_from } from "@/donations/helpers";
-import { app } from "$/env";
+import { app, base_url } from "$/env";
+import {
+  type INonprofitOrg,
+  nonprofits_cancel_fetch,
+  nonprofits_org,
+  nonprofits_search,
+  nonprofits_will_fetch,
+  type TNonprofitsFailure,
+  type TNonprofitsOrg,
+  type TNonprofitsSearch,
+} from "$/nonprofits-api";
 import {
   agent_checkout_save,
   agent_donation_expire,
   agent_donation_reserve,
   donation_get,
 } from "$/pg/queries/donation";
-import { npo_by_regnum, npo_get } from "$/pg/queries/npo";
+import { npo_get, npos_by_regnums } from "$/pg/queries/npo";
 import { npo_program_get } from "$/pg/queries/program";
 
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT = 5;
+const NONPROFITS_QUOTA = { max: 20, window_s: 10 * 60 };
 const QUOTE_TTL_S = 60 * 60;
 const tip_percent = v.picklist(["none", "10", "15", "20"]);
 const to_id = v.union([
@@ -165,17 +176,185 @@ function quote_amount(
   return { ...parts, total: parts.base + parts.tip + parts.fee_allowance };
 }
 
-export async function find_nonprofit(input: unknown) {
-  const args = parsed(find_input, input);
-  if (args.ein) {
-    const item = await npo_by_regnum(args.ein);
-    return { items: item ? [item] : [] };
+const EIN_DIGITS = 9;
+
+type TExternalLookup = TNonprofitsFailure | "ok" | "skipped";
+
+interface INotOnBetterGiving {
+  ein: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  donatable: false;
+  status: "not_on_better_giving";
+  onboarding_url: string;
+  message: string;
+}
+
+function ein_digits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function eligible(org: INonprofitOrg): boolean {
+  return (
+    org.is501c3 === true && org.deductible === true && org.revoked === false
+  );
+}
+
+function external_entry(org: INonprofitOrg): INotOnBetterGiving {
+  const onboarding_url = `${base_url}/register`;
+  return {
+    ein: org.ein,
+    name: org.name,
+    city: org.city,
+    state: org.state,
+    donatable: false,
+    status: "not_on_better_giving",
+    onboarding_url,
+    message: `Not on Better Giving yet, so it can't take a donation here. The nonprofit can join at ${onboarding_url}.`,
+  };
+}
+
+function listed_eins(
+  items: readonly {
+    registration_number?: string | null;
+    hq_country?: string | null;
+  }[]
+): Set<string> {
+  const eins = new Set<string>();
+  for (const item of items) {
+    if (item.hq_country !== "United States") continue;
+    const ein = ein_digits(item.registration_number ?? "");
+    if (ein.length === EIN_DIGITS) eins.add(ein);
   }
-  return get_npos({
-    query: args.query,
-    page: 1,
-    fields: ["name", "registration_number", "hq_country", "tagline", "active"],
-  });
+  return eins;
+}
+
+async function offer(
+  orgs: readonly INonprofitOrg[],
+  already: Set<string>
+): Promise<INotOnBetterGiving[]> {
+  const eligible_orgs = orgs.filter(eligible);
+  const known = eligible_orgs.length
+    ? await npos_by_regnums(eligible_orgs.map((org) => org.ein))
+    : [];
+  const taken = new Set(already);
+  for (const row of known) taken.add(ein_digits(row.registration_number));
+  return eligible_orgs.filter((org) => !taken.has(org.ein)).map(external_entry);
+}
+
+async function allow_fetch(
+  request: Request,
+  kind: "search" | "org",
+  raw: string
+): Promise<boolean> {
+  if (!nonprofits_will_fetch(kind, raw)) return true;
+  const reserved =
+    reserve(`nonprofits:${caller_id(request)}`, NONPROFITS_QUOTA) !== null;
+  if (!reserved) nonprofits_cancel_fetch(kind, raw);
+  return reserved;
+}
+
+export async function find_nonprofit(input: unknown, request: Request) {
+  const args = parsed(find_input, input);
+  if (args.ein) return find_by_ein(args.ein, request);
+  return find_by_query(args.query ?? "", request);
+}
+
+async function find_by_ein(raw: string, request: Request) {
+  const ein = ein_digits(raw);
+  if (ein.length !== EIN_DIGITS) {
+    throw new AgentDonationError("invalid_input", "ein must be 9 digits");
+  }
+  const items = await npos_by_regnums([ein]);
+  if (items.length) {
+    return {
+      items,
+      not_on_better_giving: [],
+      external_lookup: (app.nonprofits_api_key?.trim()
+        ? "ok"
+        : "disabled") as TExternalLookup,
+    };
+  }
+  if (!(await allow_fetch(request, "org", ein))) {
+    return {
+      items: [],
+      not_on_better_giving: [],
+      external_lookup: "skipped",
+    };
+  }
+  const remote = await nonprofits_org(ein).catch(
+    (): TNonprofitsOrg => ({ status: "unavailable" })
+  );
+  if (remote.status !== "ok") {
+    return {
+      items: [],
+      not_on_better_giving: [],
+      external_lookup: remote.status,
+    };
+  }
+  try {
+    return {
+      items: [],
+      not_on_better_giving: await offer([remote.org], new Set()),
+      external_lookup: "ok" as const,
+    };
+  } catch {
+    return {
+      items: [],
+      not_on_better_giving: [],
+      external_lookup: "unavailable" as const,
+    };
+  }
+}
+
+async function remote_search(
+  request: Request,
+  query: string
+): Promise<TNonprofitsSearch | { status: "skipped" }> {
+  if (!(await allow_fetch(request, "search", query))) {
+    return { status: "skipped" };
+  }
+  return nonprofits_search(query).catch(
+    (): TNonprofitsSearch => ({ status: "unavailable" })
+  );
+}
+
+async function find_by_query(query: string, request: Request) {
+  const [page, remote] = await Promise.all([
+    get_npos({
+      query,
+      page: 1,
+      fields: [
+        "name",
+        "registration_number",
+        "hq_country",
+        "tagline",
+        "active",
+      ],
+    }),
+    remote_search(request, query),
+  ]);
+  if (remote.status !== "ok") {
+    return {
+      ...page,
+      not_on_better_giving: [],
+      external_lookup: remote.status,
+    };
+  }
+  try {
+    return {
+      ...page,
+      not_on_better_giving: await offer(remote.orgs, listed_eins(page.items)),
+      external_lookup: "ok" as const,
+    };
+  } catch {
+    return {
+      ...page,
+      not_on_better_giving: [],
+      external_lookup: "unavailable" as const,
+    };
+  }
 }
 
 async function assert_address_optional(recipient_id: number | string) {

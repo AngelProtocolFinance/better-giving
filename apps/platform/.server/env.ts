@@ -39,6 +39,9 @@ export const app = {
   // optional shared credential for agent donate calls. when a request presents
   // it, the hourly cap is per token; otherwise it is per trusted client address.
   agent_donation_token: process.env.AGENT_DONATION_TOKEN,
+  // optional. absent (or blank) leaves the agent IRS fallback off. never call
+  // the Nonprofits API without it — a missing key is not an anonymous client.
+  nonprofits_api_key: process.env.NONPROFITS_API_KEY,
 } as const;
 
 export const ai_gateway = {
