@@ -17,5 +17,5 @@
 - While `NONPROFITS_API_KEY` is the `.env.test` filler, `scripts/nonprofits-stub.mjs` answers `nonprofits.better.giving` in-process. Any other key leaves that host alone.
 
 ## Gotchas
-- The seeded nonprofit is `Verify Test Nonprofit` (`registration_number` `VERIFY-0001`). The query has to match that name.
+- The seeded nonprofit is `Verify Test Nonprofit` (`registration_number` `VERIFY0001`). The query has to match that name.
 - The stub's eligible EIN is `990000001` and its revoked EIN is `990000002`. A real key makes the stub inert, so this flow only proves the fallback with the filler key.

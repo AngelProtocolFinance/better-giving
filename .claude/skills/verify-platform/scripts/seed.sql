@@ -1,12 +1,12 @@
 -- verification fixture: one published nonprofit for the donate flows.
--- idempotent; registration_number 'VERIFY-0001' marks it.
+-- idempotent; registration_number 'VERIFY0001' marks it.
 insert into npos (registration_number, name, endow_designation, hq_country, overview_pt, tagline, published, active)
-select 'VERIFY-0001', 'Verify Test Nonprofit', 'Charity', 'United States',
+select 'VERIFY0001', 'Verify Test Nonprofit', 'Charity', 'United States',
        'Fixture nonprofit for verify-platform.', 'Fixture nonprofit used by the verify skill', true, true
-where not exists (select 1 from npos where registration_number = 'VERIFY-0001');
+where not exists (select 1 from npos where registration_number = 'VERIFY0001');
 -- logo so the organization form's required logo is already filled
 update npos set logo = 'https://example.com/verify-logo.png'
-where registration_number = 'VERIFY-0001' and logo is null;
+where registration_number = 'VERIFY0001' and logo is null;
 -- unpublished nonprofit that already has an org slug
 insert into npos (
   registration_number, name, endow_designation, hq_country, overview_pt,
@@ -38,7 +38,7 @@ where not exists (
 insert into user_npo_memberships (user_id, npo_id)
 select 'verify-npo-admin', n.id
 from npos n
-where n.registration_number = 'VERIFY-0001'
+where n.registration_number = 'VERIFY0001'
   and not exists (
     select 1 from user_npo_memberships m
     where m.user_id = 'verify-npo-admin' and m.npo_id = n.id
@@ -47,4 +47,4 @@ where n.registration_number = 'VERIFY-0001'
 insert into currency_rates (base_currency, rates, updated_at)
 values ('USD', '{"USD":1,"EUR":0.92,"GBP":0.79,"PHP":56.5,"AUD":1.52,"CAD":1.37}', now())
 on conflict (base_currency) do nothing;
-select id from npos where registration_number = 'VERIFY-0001';
+select id from npos where registration_number = 'VERIFY0001';
