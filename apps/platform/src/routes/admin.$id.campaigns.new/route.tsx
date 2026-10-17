@@ -1,7 +1,7 @@
 import { Link, type LinksFunction } from "react-router";
 import { richtext_styles } from "#/components/rich-text";
+import { ORG_SLUG_PROMPT } from "../admin.$id.campaigns/copy";
 import { blank_init, CampaignForm } from "../admin.$id.campaigns/form";
-import { ORG_SLUG_PROMPT } from "../admin.$id.campaigns/persist";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";
