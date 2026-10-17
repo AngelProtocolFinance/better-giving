@@ -13,6 +13,7 @@ import {
   draw_text,
   draw_text_center,
   draw_text_right,
+  draw_wrapped,
   y_pdf,
 } from "./layout";
 import type { Fonts, Images } from "./types";
@@ -420,7 +421,7 @@ export function draw_page1(
   );
   draw_text(
     page,
-    " to High-Yield Savings Account (4% annual yield, illustrative example)",
+    " to High-Yield Savings Account (4% Annual Yield)",
     alloc_x + w["2"] + sr_w,
     y + fs.base,
     fonts.regular,
@@ -441,12 +442,24 @@ export function draw_page1(
   );
   draw_text(
     page,
-    " to Sustainability Fund (20% average annual return, illustrative example)",
+    " to Sustainability Fund (20% Average Annual Return)",
     alloc_x + w["2"] + ir_w,
     y + fs.base,
     fonts.regular,
     fs.base
   );
+  y += fs.base + w["8"];
+  const note_h = draw_wrapped(
+    page,
+    "These rates are an illustrative example. Returns vary, and past performance isn't a guarantee.",
+    px,
+    y,
+    fonts.regular,
+    fs.sm,
+    content_w,
+    { color: gray["11"] }
+  );
+  y += note_h;
 
   // === impact cards (1yr, 5yr, 10yr) ===
   y += fs.base + w["24"];
@@ -539,7 +552,7 @@ function draw_impact_card(
   // savings account (4%)
   draw_text_right(
     page,
-    "Savings Account (4%, illustrative example)",
+    "Savings Account (4%)",
     x + width - pad,
     y + fs.base,
     fonts.semibold,
