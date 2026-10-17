@@ -7,6 +7,7 @@ import type {
   IUserRow,
   IUserXNpoUpdate,
 } from "@/users/schema";
+import { revoke_member_keys } from "../../connector/keys";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import {
@@ -279,15 +280,27 @@ export async function npo_admin_tx(
   });
 }
 
-export async function userxnpo_del(npo_id: number, user_id: string) {
-  await db
-    .delete(user_npo_memberships)
-    .where(
-      and(
-        eq(user_npo_memberships.user_id, user_id),
-        eq(user_npo_memberships.npo_id, npo_id)
-      )
-    );
+export async function userxnpo_del(
+  npo_id: number,
+  user_id: string,
+  revoked_by: string | null = null
+) {
+  // one transaction: a thrown revoke rolls the membership delete back
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(user_npo_memberships)
+      .where(
+        and(
+          eq(user_npo_memberships.user_id, user_id),
+          eq(user_npo_memberships.npo_id, npo_id)
+        )
+      );
+    await revoke_member_keys(tx, {
+      npo_id,
+      user_id,
+      revoked_by,
+    });
+  });
 }
 
 export async function npo_invite_del(npo_id: number, invitee: string) {
