@@ -807,6 +807,9 @@ const FLOWS = {
   "campaign-admin": {
     desc: "signed-in npo admin publishes a campaign from the sidebar and the list shows it live at $0",
     async run({ page, shot, entry }) {
+      // the cropper and the first admin documents compile on demand
+      page.setDefaultTimeout(120_000);
+      page.setDefaultNavigationTimeout(120_000);
       await sign_in_admin(page, entry);
       await page.getByRole("heading", { name: "Verify Admin" }).waitFor({
         timeout: T,
