@@ -38,6 +38,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
       id: npo.id,
       name: npo.name,
       donor_address_required: npo.donor_address_required ?? false,
+      hide_bg_tip: npo.hide_bg_tip,
     },
     closed: !campaign_accepts(campaign, now),
     now: now.toISOString(),

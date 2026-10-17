@@ -46,7 +46,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
     );
   }
   const body = read.body;
-  const fields = await to_fields(id, body);
+  const fields = await to_fields(id, body, endow.hide_bg_tip);
   if ("error" in fields) return data({ error: fields.error }, { status: 400 });
   if (await campaign_slug_taken(id, fields.slug)) {
     return data({ error: slug_taken_message() }, { status: 400 });

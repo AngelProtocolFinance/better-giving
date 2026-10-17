@@ -18,6 +18,8 @@ export interface IData {
   recipient_url: string;
   donor_email: string;
   details: IStocksDetails | IIraQcdDetails;
+  campaign_name?: string;
+  campaign_url?: string;
 }
 
 function is_stocks(
@@ -36,6 +38,10 @@ function Jsx(d: IData) {
       />
       <KeyValue label="Recipient" value={d.recipient_name} />
       <KeyValue label="Recipient URL" value={d.recipient_url} />
+      {d.campaign_name && <KeyValue label="Campaign" value={d.campaign_name} />}
+      {d.campaign_url && (
+        <KeyValue label="Campaign URL" value={d.campaign_url} />
+      )}
       {is_stocks(d.type, d.details) ? (
         <>
           <KeyValue label="Ticker" value={d.details.ticker} />

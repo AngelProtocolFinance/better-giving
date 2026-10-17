@@ -27,7 +27,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           increments: campaign.increments ?? [],
           donate_methods: campaign.donate_methods,
           donate_frequencies: campaign.donate_frequencies,
-          hide_bg_tip: campaign.hide_bg_tip,
+          hide_bg_tip: endow.hide_bg_tip,
           program_id: campaign.program_id,
         }}
         programs={programs}

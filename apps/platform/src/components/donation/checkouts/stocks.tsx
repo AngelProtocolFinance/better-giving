@@ -25,6 +25,7 @@ export function Stocks(props: StocksDonationDetails) {
   const tipv = tip_val(props.tip_format, props.tip, +props.ticker.amount);
   const shares = ru_vdec(tipv + +props.ticker.amount, props.ticker.usdpu);
   const url = `${don.base_url}${path}`;
+  const project = don.config?.campaign_url ?? url;
   const name = don.recipient.name;
 
   const instructions_text = [
@@ -35,7 +36,7 @@ export function Stocks(props: StocksDonationDetails) {
     `Account number: ${BROKERAGE.account_no}`,
     `Account name: ${LEGAL_NAME}`,
     `Reference: ${name}`,
-    `Project URL: ${url}`,
+    `Project URL: ${project}`,
   ].join("\n");
 
   const [status, set_status] = useState<"idle" | "loading" | "ok" | "error">(
@@ -76,7 +77,7 @@ export function Stocks(props: StocksDonationDetails) {
 
       <div className="flex justify-center gap-4 mt-6">
         <a
-          href={email_link(name, url, shares, props.ticker.symbol)}
+          href={email_link(name, project, shares, props.ticker.symbol)}
           className="btn btn-sm btn-secondary font-normal"
         >
           Generate Email
@@ -118,6 +119,9 @@ export function Stocks(props: StocksDonationDetails) {
                 body: JSON.stringify({
                   type: "stocks",
                   recipient_id: id,
+                  ...(don.config?.campaign_id
+                    ? { campaign_id: don.config.campaign_id }
+                    : {}),
                   details: {
                     ticker: props.ticker.symbol,
                     shares,

@@ -39,6 +39,7 @@ vi.mock("#/.server/toast", async () => {
 
 const { admin_ctx, user_ctx } = await import("$/auth/test-utils");
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
+const { campaign_update } = await import("$/pg/queries/campaign");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { action: create_action } = await import(
   "../admin.$id.campaigns_.new/api"
@@ -286,5 +287,57 @@ describe("campaign slug", () => {
       .where(eq(campaigns.id, campaign_id));
     expect(after?.slug).toBe("open-slug");
     expect(after?.status).toBe("live");
+  });
+
+  it("keeps a published address when the write lands after publish", async () => {
+    const org = await npo("EIN-RACE", "race-org");
+    const created = outcome(
+      await create_action({
+        request: post(org.id, body("first-slug")),
+        params: { id: String(org.id) },
+        context: ctx(org.id),
+      } as any)
+    );
+    const campaign_id = created.location!.split("/").pop()!;
+    await db()
+      .update(campaigns)
+      .set({
+        status: "live",
+        published_at: new Date().toISOString(),
+      })
+      .where(eq(campaigns.id, campaign_id));
+    const wrote = await campaign_update(org.id, campaign_id, {
+      slug: "after-publish",
+      name: "Still the same address",
+    });
+    expect(wrote).toBe("slug_locked");
+    const [row] = await db()
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, campaign_id));
+    expect(row?.slug).toBe("first-slug");
+    expect(row?.name).toBe("Winter drive");
+  });
+
+  it("stores the organization's tip setting", async () => {
+    const org = await npo("EIN-TIP", "tip-org");
+    await db()
+      .update(npos)
+      .set({ hide_bg_tip: true })
+      .where(eq(npos.id, org.id));
+    const created = outcome(
+      await create_action({
+        request: post(org.id, { ...body("tipped"), hide_bg_tip: false }),
+        params: { id: String(org.id) },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(created.status).toBe(302);
+    const campaign_id = created.location!.split("/").pop()!;
+    const [row] = await db()
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, campaign_id));
+    expect(row?.hide_bg_tip).toBe(true);
   });
 });
