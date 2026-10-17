@@ -1,4 +1,17 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+
+const KEY = "test-only-not-a-real-nonprofits-key";
+
+const env = vi.hoisted(() => ({
+  app: {
+    api_encryption_key: "test-quote-key",
+    agent_donation_token: "agent-token-test",
+    nonprofits_api_key: "test-only-not-a-real-nonprofits-key" as
+      | string
+      | undefined,
+  },
+  base_url: "https://better.giving",
+}));
 
 const mocks = vi.hoisted(() => ({
   get_npos: vi.fn(),
@@ -8,19 +21,16 @@ const mocks = vi.hoisted(() => ({
   checkout_save: vi.fn(),
   npo_get: vi.fn(),
   npo_by_regnum: vi.fn(),
+  npos_by_regnums: vi.fn(),
   npo_program_get: vi.fn(),
   checkout_session: vi.fn(),
   checkout_session_state: vi.fn(),
   descriptor: vi.fn(),
   expire: vi.fn(),
+  report_error: vi.fn(),
 }));
 
-vi.mock("$/env", () => ({
-  app: {
-    api_encryption_key: "test-quote-key",
-    agent_donation_token: "agent-token-test",
-  },
-}));
+vi.mock("$/env", () => env);
 
 vi.mock("#/.server/npos", () => ({ get_npos: mocks.get_npos }));
 vi.mock("#/.server/donation-recipient", () => ({ to_fn: mocks.to_fn }));
@@ -32,8 +42,10 @@ vi.mock("$/pg/queries/donation", () => ({
 }));
 vi.mock("$/pg/queries/npo", () => ({
   npo_by_regnum: mocks.npo_by_regnum,
+  npos_by_regnums: mocks.npos_by_regnums,
   npo_get: mocks.npo_get,
 }));
+vi.mock("#/errors/report", () => ({ report_error: mocks.report_error }));
 vi.mock("$/pg/queries/program", () => ({
   npo_program_get: mocks.npo_program_get,
 }));
@@ -45,8 +57,14 @@ vi.mock("#/routes/api.donation-intents/stripe/descriptor-suffix", () => ({
   npo_descriptor_suffix: mocks.descriptor,
 }));
 
-const { AgentDonationError, create_quote, donate, donation_status } =
-  await import("./engine");
+const { reset_nonprofits_client } = await import("$/nonprofits-api");
+const {
+  AgentDonationError,
+  create_quote,
+  donate,
+  donation_status,
+  find_nonprofit,
+} = await import("./engine");
 
 const recipient = {
   to_id: "7",
@@ -61,8 +79,23 @@ const donor = {
   last_name: "Lovelace",
 };
 
+let caller_n = 0;
+
+function caller(ip?: string): Request {
+  caller_n += 1;
+  return new Request("https://better.giving/agents/mcp", {
+    headers: { "x-forwarded-for": ip ?? `192.0.2.${caller_n}` },
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  env.app.nonprofits_api_key = KEY;
+  reset_nonprofits_client();
+  vi.stubGlobal("fetch", () => {
+    throw new Error("unexpected nonprofits fetch");
+  });
+  mocks.npos_by_regnums.mockResolvedValue([]);
   mocks.to_fn.mockResolvedValue(recipient);
   mocks.reserve.mockResolvedValue("created");
   mocks.donation_get.mockResolvedValue(undefined);
@@ -494,5 +527,466 @@ describe("agent status", () => {
 
     expect(result.status).toBe("created");
     expect(mocks.expire).not.toHaveBeenCalled();
+  });
+});
+
+const ELIGIBLE_EIN = "131624082";
+
+function search_org(patch: Record<string, unknown> = {}) {
+  return {
+    ein: ELIGIBLE_EIN,
+    name: "Off Market Charity",
+    city: "New York",
+    state: "NY",
+    is501c3: true,
+    deductible: true,
+    revoked: false,
+    revocationDate: null,
+    provenance: "irs",
+    mission: "secret mission",
+    finances: { revenue: 1 },
+    ...patch,
+  };
+}
+
+function org_detail(patch: Record<string, unknown> = {}) {
+  const row = search_org(patch);
+  return {
+    ...row,
+    address: {
+      street: "1 Main",
+      city: row.city,
+      state: row.state,
+      zip: "10001",
+    },
+  };
+}
+
+function http(
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {}
+) {
+  return new Response(typeof body === "string" ? body : JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json", ...headers },
+  });
+}
+
+function stub_fetch(
+  handler: (url: string, init?: RequestInit) => Response | Promise<Response>
+) {
+  const fn = vi.fn(async (url: string, init?: RequestInit) =>
+    handler(url, init)
+  );
+  vi.stubGlobal("fetch", fn);
+  return fn;
+}
+
+const local_page = {
+  items: [
+    {
+      id: 7,
+      name: "Verify Test Nonprofit",
+      registration_number: "VERIFY-0001",
+      hq_country: "United States",
+    },
+  ],
+  page: 1,
+  pages: 3,
+};
+
+describe("find_nonprofit IRS fallback", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test("an eligible off-marketplace EIN is flagged and has no id", async () => {
+    const fetch = stub_fetch((url, init) => {
+      expect(url).toBe(
+        `https://nonprofits.better.giving/v1/orgs/${ELIGIBLE_EIN}`
+      );
+      expect(new Headers(init?.headers).get("authorization")).toBe(
+        `Bearer ${KEY}`
+      );
+      return http(200, org_detail());
+    });
+
+    const result = await find_nonprofit({ ein: ELIGIBLE_EIN }, caller());
+
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(result.items).toEqual([]);
+    expect(result.external_lookup).toBe("ok");
+    expect(result.not_on_better_giving).toEqual([
+      {
+        ein: ELIGIBLE_EIN,
+        name: "Off Market Charity",
+        city: "New York",
+        state: "NY",
+        donatable: false,
+        status: "not_on_better_giving",
+        onboarding_url: "https://better.giving/register",
+        message:
+          "Not on Better Giving yet, so it can't take a donation here. The nonprofit can join at https://better.giving/register.",
+      },
+    ]);
+    const entry = result.not_on_better_giving[0];
+    expect(entry).not.toHaveProperty("id");
+    expect(entry).not.toHaveProperty("recipient_id");
+    expect(entry).not.toHaveProperty("mission");
+    expect(entry).not.toHaveProperty("finances");
+    expect(entry).not.toHaveProperty("provenance");
+    expect(JSON.stringify(result)).not.toContain(KEY);
+    expect(JSON.stringify(result)).not.toContain("secret mission");
+  });
+
+  test("a marketplace EIN, dashed or not, is local and does not fetch", async () => {
+    const row = {
+      id: 7,
+      name: "ACME",
+      hq_country: "United States",
+      registration_number: "13-1624082",
+    };
+    mocks.npos_by_regnums.mockResolvedValue([row]);
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const dashed = await find_nonprofit({ ein: "13-1624082" }, caller());
+    const plain = await find_nonprofit({ ein: ELIGIBLE_EIN }, caller());
+
+    expect(dashed.items).toEqual([row]);
+    expect(plain.items).toEqual([row]);
+    expect(dashed.not_on_better_giving).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.npos_by_regnums).toHaveBeenCalledWith([ELIGIBLE_EIN]);
+  });
+
+  test("a query keeps local items and drops ineligible or already-listed EINs", async () => {
+    const on_page = {
+      ...local_page.items[0],
+      registration_number: "88-8888888",
+    };
+    mocks.get_npos.mockResolvedValue({
+      items: [on_page],
+      page: 1,
+      pages: 3,
+    });
+    mocks.npos_by_regnums.mockImplementation(async (eins: string[]) =>
+      eins.includes("999999999")
+        ? [
+            {
+              id: 9,
+              name: "In table",
+              hq_country: "United States",
+              registration_number: "999999999",
+            },
+          ]
+        : []
+    );
+    stub_fetch((url) => {
+      expect(url).toContain("https://nonprofits.better.giving/v1/search?");
+      expect(url).toContain("limit=10");
+      return http(200, {
+        query: "charity",
+        limit: 10,
+        results: [
+          search_org({ ein: "111111111", name: "Eligible" }),
+          search_org({ ein: "222222222", name: "Not c3", is501c3: false }),
+          search_org({ ein: "333333333", name: "Unknown c3", is501c3: null }),
+          search_org({
+            ein: "444444444",
+            name: "Not deductible",
+            deductible: false,
+          }),
+          search_org({
+            ein: "555555555",
+            name: "Unknown deductible",
+            deductible: null,
+          }),
+          search_org({ ein: "666666666", name: "Revoked", revoked: true }),
+          search_org({
+            ein: "777777777",
+            name: "Unknown revoked",
+            revoked: null,
+          }),
+          search_org({ ein: "888888888", name: "On page" }),
+          search_org({ ein: "999999999", name: "In table" }),
+        ],
+      });
+    });
+
+    const result = await find_nonprofit({ query: "charity" }, caller());
+
+    expect(result.items).toEqual([on_page]);
+    expect(result).toEqual(expect.objectContaining({ page: 1, pages: 3 }));
+    expect(result.external_lookup).toBe("ok");
+    expect(result.not_on_better_giving.map((entry) => entry.name)).toEqual([
+      "Eligible",
+    ]);
+    expect(JSON.stringify(result)).not.toContain("Revoked");
+    expect(JSON.stringify(result)).not.toContain("222222222");
+    expect(JSON.stringify(result)).not.toContain("999999999");
+  });
+
+  test.each([500, 503])(
+    "HTTP %s returns local results and external_lookup unavailable",
+    async (status) => {
+      stub_fetch(() => http(status, { code: "data_unavailable" }));
+      mocks.get_npos.mockResolvedValue(local_page);
+
+      const result = await find_nonprofit({ query: "acme" }, caller());
+
+      expect(result.items).toEqual(local_page.items);
+      expect(result.not_on_better_giving).toEqual([]);
+      expect(result.external_lookup).toBe("unavailable");
+    }
+  );
+
+  test("an unknown EIN is not_found and the miss is cached", async () => {
+    const fetch = stub_fetch(() => http(404, { code: "not_found" }));
+
+    const first = await find_nonprofit({ ein: "123456789" }, caller());
+    const second = await find_nonprofit({ ein: "12-3456789" }, caller());
+
+    expect(first).toMatchObject({
+      items: [],
+      not_on_better_giving: [],
+      external_lookup: "not_found",
+    });
+    expect(second.external_lookup).toBe("not_found");
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  test("an unexpected payload is unavailable and is not cached", async () => {
+    let calls = 0;
+    const fetch = stub_fetch(() => {
+      calls += 1;
+      return calls === 1
+        ? http(200, { ein: "123456789", name: "Missing flags" })
+        : http(200, org_detail({ ein: "123456789", name: "Missing flags" }));
+    });
+
+    const first = await find_nonprofit({ ein: "123456789" }, caller());
+    const second = await find_nonprofit({ ein: "123456789" }, caller());
+
+    expect(first.external_lookup).toBe("unavailable");
+    expect(first.not_on_better_giving).toEqual([]);
+    expect(second.external_lookup).toBe("ok");
+    expect(second.not_on_better_giving[0]?.name).toBe("Missing flags");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("a timeout returns local results and does not throw", async () => {
+    stub_fetch(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) {
+            reject(new Error("missing timeout"));
+            return;
+          }
+          signal.addEventListener("abort", () => reject(signal.reason));
+        })
+    );
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    const result = await find_nonprofit({ query: "acme" }, caller());
+
+    expect(result.items).toEqual(local_page.items);
+    expect(result.external_lookup).toBe("unavailable");
+  });
+
+  test("a 401 is reported once, without the key, and local results stay", async () => {
+    const fetch = stub_fetch(() =>
+      http(401, { code: "revoked_api_key", token: KEY })
+    );
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    const first = await find_nonprofit({ query: "one" }, caller());
+    const second = await find_nonprofit({ query: "two" }, caller());
+
+    expect(first.items).toEqual(local_page.items);
+    expect(first.external_lookup).toBe("unavailable");
+    expect(second.external_lookup).toBe("unavailable");
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mocks.report_error).toHaveBeenCalledOnce();
+    expect(mocks.report_error.mock.calls[0]?.[1]).toEqual({
+      code: "revoked_api_key",
+    });
+    const reported = JSON.stringify(mocks.report_error.mock.calls);
+    expect(reported).not.toContain(KEY);
+    expect(JSON.stringify(first)).not.toContain(KEY);
+  });
+
+  test("a 429 cooldown skips the next fetch and keeps local results", async () => {
+    const fetch = stub_fetch(() =>
+      http(429, { code: "per_minute_limit_exceeded" }, { "retry-after": "120" })
+    );
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    const first = await find_nonprofit({ query: "acme" }, caller());
+    const second = await find_nonprofit({ query: "other" }, caller());
+
+    expect(first.external_lookup).toBe("rate_limited");
+    expect(first.items).toEqual(local_page.items);
+    expect(second.external_lookup).toBe("rate_limited");
+    expect(second.items).toEqual(local_page.items);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  test("a 429 without Retry-After cools down for 60 seconds", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-17T12:00:00.000Z"));
+    const fetch = stub_fetch(() =>
+      http(429, { code: "per_minute_limit_exceeded" })
+    );
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    await find_nonprofit({ query: "first" }, caller());
+    vi.setSystemTime(new Date("2026-10-17T12:00:59.000Z"));
+    await find_nonprofit({ query: "still" }, caller());
+    expect(fetch).toHaveBeenCalledOnce();
+
+    vi.setSystemTime(new Date("2026-10-17T12:01:00.000Z"));
+    await find_nonprofit({ query: "after" }, caller());
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("a daily quota cooldown lasts until the next UTC midnight", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-17T23:00:00.000Z"));
+    const fetch = stub_fetch(() => http(429, { code: "daily_quota_exceeded" }));
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    await find_nonprofit({ query: "day" }, caller());
+    vi.setSystemTime(new Date("2026-10-17T23:30:00.000Z"));
+    await find_nonprofit({ query: "later" }, caller());
+    expect(fetch).toHaveBeenCalledOnce();
+
+    vi.setSystemTime(new Date("2026-10-18T00:00:00.000Z"));
+    await find_nonprofit({ query: "tomorrow" }, caller());
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("a malformed body is unavailable and is not cached", async () => {
+    const fetch = stub_fetch(() => http(200, "not-json"));
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    const first = await find_nonprofit({ query: "acme" }, caller());
+    const second = await find_nonprofit({ query: "acme" }, caller());
+
+    expect(first.external_lookup).toBe("unavailable");
+    expect(first.items).toEqual(local_page.items);
+    expect(second.external_lookup).toBe("unavailable");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("no key means no fetch and external_lookup disabled", async () => {
+    env.app.nonprofits_api_key = undefined;
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    const by_query = await find_nonprofit({ query: "acme" }, caller());
+    const by_ein = await find_nonprofit({ ein: ELIGIBLE_EIN }, caller());
+
+    expect(by_query.items).toEqual(local_page.items);
+    expect(by_query.external_lookup).toBe("disabled");
+    expect(by_query.not_on_better_giving).toEqual([]);
+    expect(by_ein).toMatchObject({
+      items: [],
+      external_lookup: "disabled",
+      not_on_better_giving: [],
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  test("a repeat query or EIN is served from cache", async () => {
+    const fetch = stub_fetch((url) =>
+      String(url).includes("/v1/orgs/")
+        ? http(200, org_detail())
+        : http(200, { query: "red cross", limit: 10, results: [search_org()] })
+    );
+
+    await find_nonprofit({ query: "Red  Cross" }, caller());
+    await find_nonprofit({ query: "red cross" }, caller());
+    await find_nonprofit({ ein: ELIGIBLE_EIN }, caller());
+    await find_nonprofit({ ein: "13-1624082" }, caller());
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("a failed lookup is not cached", async () => {
+    let calls = 0;
+    const fetch = stub_fetch(() => {
+      calls += 1;
+      return calls === 1
+        ? http(500, { code: "data_unavailable" })
+        : http(200, { query: "once", limit: 10, results: [] });
+    });
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    const failed = await find_nonprofit({ query: "once" }, caller());
+    const retried = await find_nonprofit({ query: "once" }, caller());
+
+    expect(failed.external_lookup).toBe("unavailable");
+    expect(retried.external_lookup).toBe("ok");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test("a spent per-caller cap skips the remote lookup and keeps local results", async () => {
+    const fetch = stub_fetch(() =>
+      http(200, { query: "q", limit: 10, results: [] })
+    );
+    mocks.get_npos.mockResolvedValue(local_page);
+    const req = caller("192.0.2.250");
+
+    for (let i = 0; i < 20; i++) {
+      const result = await find_nonprofit({ query: `name ${i}` }, req);
+      expect(result.external_lookup).toBe("ok");
+    }
+    const skipped = await find_nonprofit({ query: "name 21" }, req);
+    expect(skipped.external_lookup).toBe("skipped");
+    expect(skipped.items).toEqual(local_page.items);
+    expect(skipped.not_on_better_giving).toEqual([]);
+    expect(fetch).toHaveBeenCalledTimes(20);
+
+    const cached = await find_nonprofit({ query: "name 0" }, req);
+    expect(cached.external_lookup).toBe("ok");
+    expect(fetch).toHaveBeenCalledTimes(20);
+  });
+
+  test("an EIN that is not 9 digits is invalid_input before any lookup", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(
+      find_nonprofit({ ein: "12-345" }, caller())
+    ).rejects.toMatchObject({ code: "invalid_input" });
+    expect(mocks.npos_by_regnums).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("quote_donation refuses an EIN", () => {
+  test("an EIN string is refused before any write", async () => {
+    await expect(
+      create_quote({ recipient_id: ELIGIBLE_EIN, amount: 10 })
+    ).rejects.toMatchObject({ code: "invalid_input" });
+    expect(mocks.to_fn).not.toHaveBeenCalled();
+    expect(mocks.reserve).not.toHaveBeenCalled();
+  });
+
+  test("an EIN taken from not_on_better_giving is refused before any write", async () => {
+    stub_fetch(() => http(200, org_detail()));
+    const found = await find_nonprofit({ ein: ELIGIBLE_EIN }, caller());
+    const ein = found.not_on_better_giving[0]?.ein;
+
+    await expect(
+      create_quote({ recipient_id: ein, amount: 10 })
+    ).rejects.toMatchObject({ code: "invalid_input" });
+    expect(mocks.to_fn).not.toHaveBeenCalled();
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(JSON.stringify(found)).not.toContain(KEY);
   });
 });

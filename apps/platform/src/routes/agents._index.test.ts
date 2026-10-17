@@ -41,6 +41,8 @@ describe("/agents MCP endpoint", () => {
     const text = await response.text();
     expect(text).toContain("Laira skill");
     expect(text).toContain("Stripe-hosted checkout link");
+    expect(text).toContain("not_on_better_giving");
+    expect(text).toContain("onboarding_url");
   });
 
   test("initialize advertises MCP tools", async () => {
@@ -79,6 +81,9 @@ describe("/agents MCP endpoint", () => {
         structuredContent: { items: [{ id: 7, name: "ACME" }] },
       },
     });
-    expect(mocks.find_nonprofit).toHaveBeenCalledWith({ query: "ACME" });
+    expect(mocks.find_nonprofit).toHaveBeenCalledWith(
+      { query: "ACME" },
+      expect.any(Request)
+    );
   });
 });

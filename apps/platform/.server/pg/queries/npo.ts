@@ -258,6 +258,36 @@ export async function npo_by_regnum(
   return row;
 }
 
+const regnum_cols = {
+  id: npos.id,
+  name: npos.name,
+  hq_country: npos.hq_country,
+  registration_number: npos.registration_number,
+};
+
+/** US npos whose registration number has the same digits as one of `eins`.
+ * stored values keep their dashes; `12-3456789` and `123456789` are one EIN. */
+export async function npos_by_regnums(
+  eins: string[]
+): Promise<INpoWithRegNum[]> {
+  const digits = [
+    ...new Set(eins.map((ein) => ein.replace(/\D/g, "")).filter(Boolean)),
+  ];
+  if (digits.length === 0) return [];
+  return db
+    .select(regnum_cols)
+    .from(npos)
+    .where(
+      and(
+        eq(npos.hq_country, "United States"),
+        sql`regexp_replace(${npos.registration_number}, '[^0-9]', '', 'g') in (${sql.join(
+          digits.map((ein) => sql`${ein}`),
+          sql`, `
+        )})`
+      )
+    );
+}
+
 /**
  * the listing a would-be registrant would collide with: same registration
  * number + country AND at least one member behind it.
