@@ -15,6 +15,7 @@ where registration_number = 'VERIFY-0001';
 
 -- npo admin. password is the local fixture Verify-password-123!
 -- (better-auth scrypt, salt:hash). email_verified so sign-in does not mail a link.
+-- the id is a uuid: the listing page accepts a creator id that is an email, a uuid, or a number.
 insert into "user" (id, name, email, email_verified, first_name, last_name, updated_at)
 values (
   'a0000000-0000-4000-8000-0000000000aa', 'Verify Admin', 'verify-admin@example.com', true,
