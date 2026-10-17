@@ -56,17 +56,17 @@ where registration_number = 'VERIFY0001';
 -- (better-auth scrypt, salt:hash). email_verified so sign-in does not mail a link.
 insert into "user" (id, name, email, email_verified, first_name, last_name, updated_at)
 values (
-  'verify-admin', 'Verify Admin', 'verify-admin@example.com', true,
+  'a0000000-0000-4000-8000-0000000000aa', 'Verify Admin', 'verify-admin@example.com', true,
   'Verify', 'Admin', now()
 );
 insert into account (id, account_id, provider_id, user_id, password, updated_at)
 values (
-  'verify-admin-credential', 'verify-admin', 'credential', 'verify-admin',
+  'verify-admin-credential', 'a0000000-0000-4000-8000-0000000000aa', 'credential', 'a0000000-0000-4000-8000-0000000000aa',
   '5f1bf4d4d2e746191078f7c4b3cffc4a:9b7510ab1ac1d2ccdf0dbf937d0454f0687aabf44e0fb2e1fb3d401c35f6f9920bfdf62636053bd885f29e5a4445a1b2cd4dbffe7f80ffa242867ee508e49de1',
   now()
 );
 insert into user_npo_memberships (user_id, npo_id)
-select 'verify-admin', id from npos where registration_number = 'VERIFY0001';
+select 'a0000000-0000-4000-8000-0000000000aa', id from npos where registration_number = 'VERIFY0001';
 
 -- an existing npo-owned fund. the campaigns list shows it as a campaign.
 insert into funds (
@@ -84,7 +84,7 @@ select
   true,
   '9999-12-31T23:59:59Z',
   id,
-  'verify-admin'
+  'a0000000-0000-4000-8000-0000000000aa'
 from npos where registration_number = 'VERIFY0001';
 insert into fund_members (fund_id, npo_id)
 select 'f0000000-0000-4000-8000-000000000001', id
@@ -99,7 +99,7 @@ insert into campaigns (
 select
   'c0ffee00-0000-4000-8000-000000000001',
   id,
-  'verify-admin',
+  'a0000000-0000-4000-8000-0000000000aa',
   'Winter Drive',
   'winter',
   '[{"_key":"w1","_type":"block","style":"normal","markDefs":[],"children":[{"_key":"w2","_type":"span","text":"A winter story for the seeded campaign.","marks":[]}]}]',
@@ -124,7 +124,7 @@ insert into campaigns (
 select
   'c0ffee00-0000-4000-8000-000000000002',
   id,
-  'verify-admin',
+  'a0000000-0000-4000-8000-0000000000aa',
   'Hidden Draft',
   'draft-hidden',
   '[]',
