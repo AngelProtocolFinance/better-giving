@@ -9,9 +9,11 @@
 // exit 0 = every selected flow passed; 1 = a flow failed, or the feature map
 // disagrees; 2 = a flow was blocked (needs secrets) and nothing failed.
 // run from anywhere; resolves playwright from apps/platform.
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
+import zlib from "node:zlib";
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const APP = path.resolve(HERE, "../../../../apps/platform");
@@ -31,6 +33,13 @@ const NPO =
     : "1");
 const T = 60_000;
 const HOME_TITLE = "Fundraising Platform for Nonprofits - Better Giving";
+// these match scripts/seed.sql. the password is a local fixture, not a credential.
+const ORG = "verify-test";
+const SEEDED_CAMPAIGN = "winter";
+const SEEDED_CAMPAIGN_ID = "c0ffee00-0000-4000-8000-000000000001";
+const SEEDED_FUND = "f0000000-0000-4000-8000-000000000001";
+const ADMIN_EMAIL = "verify-admin@example.com";
+const ADMIN_PASSWORD = "Verify-password-123!";
 
 class Blocked extends Error {}
 const expect_ok = (cond, msg) => {
@@ -122,6 +131,81 @@ const click_after_reload = async (page, locate) => {
     }
   }
   return 3;
+};
+
+const assert_no_fundraiser = async (page, where) => {
+  const text = await page.locator("body").innerText();
+  expect_ok(!/fundraiser/i.test(text), `${where} shows the word fundraiser`);
+};
+
+const sign_in_admin = async (page, entry) => {
+  const dest = "/dashboard";
+  const r = await page.goto(
+    `${BASE}/login?redirect=${encodeURIComponent(dest)}`,
+    { waitUntil: "load", timeout: 120_000 }
+  );
+  entry.loaded.push("GET /login?redirect=/dashboard");
+  expect_ok(r.status() === 200, `GET /login → ${r.status()}`);
+  await page.locator('input[name="email"]').fill(ADMIN_EMAIL);
+  await page.locator('input[name="password"]').fill(ADMIN_PASSWORD);
+  await page.getByRole("button", { name: "Log In", exact: true }).click();
+  entry.clicked.push("Log In");
+  await page.waitForURL(/\/dashboard(?:\?|$)/, { timeout: T });
+};
+
+// uncompressed RGB png. the hero cropper needs a real file, not a placeholder.
+const png_rgb = (w, h, rgb) => {
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) {
+    const row = y * (w * 3 + 1);
+    raw[row] = 0;
+    for (let x = 0; x < w; x++) {
+      raw[row + 1 + x * 3] = rgb[0];
+      raw[row + 2 + x * 3] = rgb[1];
+      raw[row + 3 + x * 3] = rgb[2];
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  const chunk = (type, data) => {
+    const name = Buffer.from(type);
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(zlib.crc32(Buffer.concat([name, data])) >>> 0);
+    return Buffer.concat([len, name, data, crc]);
+  };
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", zlib.deflateSync(raw)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+};
+
+const decode_qr = (png) => {
+  try {
+    return execFileSync("zbarimg", ["--quiet", "--raw", png], {
+      encoding: "utf8",
+    }).trim();
+  } catch (err) {
+    const detail = err.stderr?.toString?.() || err.message;
+    throw new Error(`could not decode the QR (${detail.trim()})`);
+  }
+};
+
+const payment_blocked = (body, ctx) => {
+  const pay_err = /couldn.t start the payment[^\n]*/i.exec(body)?.[0];
+  const stub = fs.existsSync(`${STATE}/stripe-stub.log`)
+    ? fs.readFileSync(`${STATE}/stripe-stub.log`, "utf8")
+    : "";
+  const stubbed = [...stub.matchAll(/ (GET|POST|DELETE) (\S+) → 400/g)].map(
+    (m) => `${m[1]} ${m[2].split("?")[0]}`
+  );
+  return { pay_err, stubbed, filler: ctx.pk.includes("test-only") };
 };
 
 // each flow: ({page, log, shot, entry, ctx}) → string[] of observed facts.
@@ -421,6 +505,362 @@ const FLOWS = {
         "POST /agents/mcp quote_donation 990000001 → invalid_input",
         "nonprofits stub logged /v1/search",
       ];
+    },
+  },
+  "campaign-admin": {
+    desc: "signed-in npo admin publishes a campaign from the sidebar and the list shows it live at $0",
+    async run({ page, shot, entry }) {
+      await sign_in_admin(page, entry);
+      await page.getByRole("heading", { name: "Verify Admin" }).waitFor({
+        timeout: T,
+      });
+      await assert_no_fundraiser(page, "donor dashboard");
+      await shot("donor-dashboard");
+
+      await page.getByRole("link", { name: "Verify Test Nonprofit" }).click();
+      entry.clicked.push("My Organizations → Verify Test Nonprofit");
+      await page.waitForURL(/\/admin\/\d+\/dashboard(?:\?|$)/, { timeout: T });
+      const campaigns = () =>
+        page.getByRole("link", { name: "Campaigns", exact: true });
+      await campaigns().click();
+      entry.clicked.push("sidebar Campaigns");
+      await page.waitForURL(/\/admin\/\d+\/campaigns(?:\?|$)/, { timeout: T });
+      await page
+        .getByRole("heading", { name: "Campaigns", exact: true })
+        .waitFor({
+          timeout: T,
+        });
+
+      const profile = page.getByRole("link", { name: /Better Giving profile/ });
+      await profile.waitFor({ timeout: T });
+      const list_text = await page.locator("main").innerText();
+      const profile_at = list_text.indexOf("Better Giving profile");
+      const fund_at = list_text.indexOf("Harbor Listing");
+      expect_ok(
+        profile_at >= 0 && fund_at > profile_at,
+        "profile card is not first"
+      );
+      expect_ok(
+        list_text.indexOf("Winter Drive") > profile_at,
+        "seeded campaign is not below the profile card"
+      );
+      await assert_no_fundraiser(page, "campaigns list");
+      await shot("list");
+
+      await profile.click();
+      entry.clicked.push("Better Giving profile");
+      await page
+        .getByRole("heading", { name: "Public profile information" })
+        .waitFor({ timeout: T });
+      await shot("edit-profile");
+      await page.goBack({ waitUntil: "load", timeout: 120_000 });
+      await page
+        .getByRole("heading", { name: "Campaigns", exact: true })
+        .waitFor({
+          timeout: T,
+        });
+
+      await page.getByRole("link", { name: "New campaign" }).click();
+      entry.clicked.push("New campaign");
+      await page.getByRole("heading", { name: "New campaign" }).waitFor({
+        timeout: T,
+      });
+      await page.getByLabel("Name", { exact: true }).fill("Spring Drive");
+      await page.getByLabel("Address", { exact: true }).fill("spring-drive");
+      const story = page.locator('[contenteditable="true"]').first();
+      await story.click();
+      await story.pressSequentially("Neighbors funding a spring drive.");
+      const hero = path.join(OUT, "campaign-hero.png");
+      fs.writeFileSync(hero, png_rgb(400, 100, [20, 90, 140]));
+      const uploaded = page.waitForResponse(
+        (r) =>
+          r.url().includes("/api/file-upload") &&
+          r.request().method() === "POST",
+        { timeout: T }
+      );
+      await page.locator("#campaign-banner").setInputFiles(hero);
+      await page.getByRole("button", { name: "Save cropped image" }).click();
+      const upload = await uploaded;
+      expect_ok(upload.status() === 200, `hero upload → ${upload.status()}`);
+      await page.getByRole("radio", { name: "Set my own goal" }).click();
+      await page.getByLabel("Amount to raise").fill("2500");
+      const segments = page.getByRole("spinbutton");
+      const type_date = async (index, digits) => {
+        await segments.nth(index).click();
+        await page.keyboard.type(digits);
+      };
+      await type_date(2, "2027");
+      await type_date(0, "06");
+      await type_date(1, "30");
+      await page.keyboard.press("Tab");
+      const card = page.getByRole("checkbox", { name: "Card" });
+      expect_ok(await card.isChecked(), "Card method is off");
+      await page
+        .getByRole("button", { name: "Add donation increment" })
+        .click();
+      await page.locator('input[type="number"]').first().fill("100");
+      await shot("form");
+      await page.getByRole("button", { name: "Publish" }).click();
+      await page.waitForURL(/\/admin\/\d+\/campaigns\/(?!new$)[^/]+$/, {
+        timeout: T,
+      });
+      await page
+        .getByRole("heading", { name: "QR Code" })
+        .waitFor({ timeout: T });
+      const qr_tab = page.getByRole("tab", { name: "Campaign" });
+      if ((await qr_tab.count()) > 0) await qr_tab.click();
+      const logo_box = page.locator("#show-logo");
+      if (await logo_box.isChecked()) await logo_box.uncheck();
+      const shown = (
+        await page.locator("span.font-mono").first().innerText()
+      ).trim();
+      const qr_png = path.join(OUT, "campaign-admin-qr-code.png");
+      await page.locator("#qr-code-svg").screenshot({ path: qr_png });
+      const decoded = decode_qr(qr_png);
+      const expected = `${BASE}/org/${ORG}/spring-drive`;
+      expect_ok(
+        decoded === expected,
+        `QR decoded ${decoded}, expected ${expected}`
+      );
+      expect_ok(
+        shown === expected,
+        `QR caption ${shown}, expected ${expected}`
+      );
+      await shot("qr");
+
+      await page.goBack({ waitUntil: "load", timeout: 120_000 });
+      const on_list = () =>
+        /\/admin\/\d+\/campaigns\/?$/.test(new URL(page.url()).pathname);
+      if (!on_list()) {
+        await page.goBack({ waitUntil: "load", timeout: 120_000 });
+      }
+      await page
+        .getByRole("heading", { name: "Campaigns", exact: true })
+        .waitFor({
+          timeout: T,
+        });
+      const after = await page.locator("main").innerText();
+      expect_ok(
+        /Spring Drive[\s\S]*live · \$0 raised/.test(after),
+        "published campaign is not live at $0"
+      );
+      expect_ok(
+        after.includes("Harbor Listing"),
+        "existing listing is missing"
+      );
+      await assert_no_fundraiser(page, "campaigns list after publish");
+      await shot("published");
+
+      const fund = await page.goto(`${BASE}/fundraisers/${SEEDED_FUND}`, {
+        waitUntil: "load",
+        timeout: 120_000,
+      });
+      entry.loaded.push("GET /fundraisers/:id");
+      expect_ok(
+        fund.status() === 200,
+        `GET /fundraisers/${SEEDED_FUND} → ${fund.status()}`
+      );
+      await page.getByText("Harbor Listing").first().waitFor({ timeout: T });
+      await assert_no_fundraiser(page, "/fundraisers/:id");
+      await shot("fund-page");
+      return [
+        "signed in, clicked sidebar Campaigns",
+        "pinned profile card opened Edit Profile",
+        "published Spring Drive, live · $0 raised, Harbor Listing on the list",
+        `QR decoded ${decoded}`,
+        "donor dashboard, campaigns list, and /fundraisers/:id do not show fundraiser",
+      ];
+    },
+  },
+  "campaign-page": {
+    desc: "public campaign page, org redirect, and draft/unknown 404s",
+    async run({ page, shot, entry }) {
+      const url = `${BASE}/org/${ORG}/${SEEDED_CAMPAIGN}`;
+      const r = await page.goto(url, { waitUntil: "load", timeout: 120_000 });
+      entry.loaded.push("GET /org/:org/:campaign");
+      expect_ok(
+        r.status() === 200,
+        `GET /org/${ORG}/${SEEDED_CAMPAIGN} → ${r.status()}`
+      );
+      await page.getByRole("heading", { name: "Winter Drive" }).waitFor({
+        timeout: T,
+      });
+      const hero = await page
+        .locator("header div")
+        .first()
+        .evaluate((el) => el.style.backgroundImage);
+      expect_ok(hero.includes("logo.png"), `hero style ${hero}`);
+      await page.getByText("A winter story for the seeded campaign.").waitFor({
+        timeout: T,
+      });
+      const body = await page.locator("body").innerText();
+      expect_ok(
+        body.includes("$0") && body.includes("$5,000"),
+        "progress/goal missing"
+      );
+      expect_ok(body.includes("Goal"), "goal label missing");
+      await page
+        .getByRole("button", { name: "+100 USD" })
+        .waitFor({ timeout: T });
+      await page.getByRole("button", { name: /Continue with Card/ }).waitFor({
+        timeout: T,
+      });
+      await page.getByRole("button", { name: "Share on LinkedIn" }).waitFor({
+        timeout: T,
+      });
+      await page.getByText("Seeded campaign thanks").waitFor({ timeout: T });
+      expect_ok(
+        !(await page.locator("body").innerText()).includes(
+          "Profile only gift note"
+        ),
+        "profile-only gift is on the campaign wall"
+      );
+      await page.getByText("Better Giving", { exact: true }).last().waitFor({
+        timeout: T,
+      });
+      expect_ok(
+        (await page
+          .getByRole("link", { name: "Log In", exact: true })
+          .count()) === 0,
+        "platform Log In is on the campaign page"
+      );
+      await assert_no_fundraiser(page, "campaign page");
+      const title = await page.title();
+      expect_ok(title === "Winter Drive - Better Giving", `title "${title}"`);
+      const description = await page
+        .locator('meta[name="description"]')
+        .getAttribute("content");
+      expect_ok(
+        (description ?? "").includes("A winter story for the seeded campaign."),
+        `description "${description}"`
+      );
+      const image = await page
+        .locator('meta[property="og:image"]')
+        .getAttribute("content");
+      expect_ok((image ?? "").includes("logo.png"), `og:image "${image}"`);
+      await shot();
+
+      const org = await page.request.get(`${BASE}/org/${ORG}`, {
+        maxRedirects: 0,
+        timeout: 120_000,
+      });
+      entry.loaded.push("GET /org/:org");
+      expect_ok(org.status() === 302, `GET /org/${ORG} → ${org.status()}`);
+      const location = org.headers().location ?? "";
+      expect_ok(
+        location.endsWith(`/marketplace/${ORG}`),
+        `Location ${location}`
+      );
+      for (const slug of ["draft-hidden", "no-such-campaign"]) {
+        const missing = await page.request.get(`${BASE}/org/${ORG}/${slug}`, {
+          timeout: 120_000,
+        });
+        entry.loaded.push(`GET /org/:org/${slug}`);
+        expect_ok(
+          missing.status() === 404,
+          `GET /org/${ORG}/${slug} → ${missing.status()}`
+        );
+      }
+      return [
+        `GET /org/${ORG}/${SEEDED_CAMPAIGN} → 200, hero, story, goal, donate box, Share, wall, badge, no Log In`,
+        `title "${title}", description and og:image set`,
+        `GET /org/${ORG} → 302 ${location}`,
+        "draft-hidden and no-such-campaign → 404",
+        "profile-only gift is not on the wall",
+      ];
+    },
+  },
+  "campaign-donate": {
+    desc: "campaign donate box presets a query, then a card gift of $100 carries campaign_id",
+    async run({ page, shot, ctx, entry }) {
+      const preset_url = `${BASE}/org/${ORG}/${SEEDED_CAMPAIGN}?amount=50&frequency=monthly`;
+      const preset = await page.goto(preset_url, {
+        waitUntil: "load",
+        timeout: 120_000,
+      });
+      entry.loaded.push("GET /org/:org/:campaign?amount=50&frequency=monthly");
+      expect_ok(preset.status() === 200, `preset GET → ${preset.status()}`);
+      await page.locator("#amount").waitFor({ timeout: T });
+      const preset_amount = await page.locator("#amount").inputValue();
+      expect_ok(preset_amount === "50", `amount preset "${preset_amount}"`);
+      const monthly = page.getByRole("radio", { name: "Give Monthly" });
+      await monthly.waitFor({ timeout: T });
+      expect_ok(await monthly.isChecked(), "Give Monthly is not selected");
+      await shot("1-preset");
+
+      const plain = await page.goto(`${BASE}/org/${ORG}/${SEEDED_CAMPAIGN}`, {
+        waitUntil: "load",
+        timeout: 120_000,
+      });
+      entry.loaded.push("GET /org/:org/:campaign");
+      expect_ok(plain.status() === 200, `GET campaign → ${plain.status()}`);
+      const intents = [];
+      page.on("request", (req) => {
+        const path = new URL(req.url()).pathname;
+        if (req.method() === "POST" && path === "/api/donation-intents") {
+          intents.push(req.postData() ?? "");
+        }
+      });
+      const amount_tries = await click_after_reload(page, () =>
+        page.getByRole("button", { name: "+100 USD" })
+      );
+      await shot("2-amount");
+      await page.getByRole("button", { name: /Continue with Card/ }).click();
+      await page.getByText("Payment information").waitFor({ timeout: T });
+      await page.locator('input[name="email"]').fill("donor@example.com");
+      await page.locator('input[name="first_name"]').fill("Verify");
+      await page.locator('input[name="last_name"]').fill("Donor");
+      await shot("3-donor");
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+      await page.getByText("Your donation summary").waitFor({ timeout: T });
+      await page.waitForTimeout(8000);
+      await shot("4-payment");
+      const body = await page.locator("body").innerText();
+      expect_ok(
+        /Total donation\s*\$100\.00/.test(body),
+        "summary doesn't show Total donation $100.00"
+      );
+      const carried = intents.some((raw) => {
+        try {
+          return JSON.parse(raw).campaign_id === SEEDED_CAMPAIGN_ID;
+        } catch {
+          return false;
+        }
+      });
+      expect_ok(
+        carried,
+        `intent did not carry campaign_id ${SEEDED_CAMPAIGN_ID}`
+      );
+      const facts = [
+        "amount=50 and frequency=monthly preset the box",
+        click_fact(
+          "+100 USD → Continue with Card → donor info → Continue",
+          amount_tries
+        ),
+        "payment step: Total donation $100.00",
+        `POST /api/donation-intents carries campaign_id ${SEEDED_CAMPAIGN_ID}`,
+      ];
+      const { pay_err, stubbed, filler } = payment_blocked(body, ctx);
+      if (pay_err && (filler || stubbed.length > 0)) {
+        facts.push(`shows "${pay_err.trim()}"`);
+        if (stubbed.length)
+          facts.push(
+            `server stripe calls refused by the local stub (filler STRIPE_SECRET_KEY): ${[...new Set(stubbed)].join(", ")}`
+          );
+        throw new Blocked(
+          `payment step reached; card entry needs a real pk_test_/sk_test_ pair\n  ${facts.join("\n  ")}`
+        );
+      }
+      expect_ok(!pay_err, `payment failed to start with real keys: ${pay_err}`);
+      const card = page
+        .frameLocator('iframe[title*="Secure payment input"]')
+        .first();
+      await card
+        .locator('input[name="number"]')
+        .fill("4242424242424242", { timeout: T });
+      await shot("5-card");
+      facts.push("stripe payment element accepted test card 4242…");
+      return facts;
     },
   },
 };
