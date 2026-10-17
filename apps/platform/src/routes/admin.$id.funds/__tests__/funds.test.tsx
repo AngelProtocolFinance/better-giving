@@ -221,7 +221,7 @@ describe("funds — filter and display", () => {
     });
 
     await expect
-      .element(screen.getByRole("heading", { name: /fundraisers/i }))
+      .element(screen.getByRole("heading", { name: /campaign opt-outs/i }))
       .toBeInTheDocument();
 
     // default "All" shows both
@@ -230,10 +230,9 @@ describe("funds — filter and display", () => {
       .element(screen.getByText("Supporter Drive"))
       .toBeInTheDocument();
 
-    // create link visible when not filtered to "others"
     await expect
       .element(screen.getByRole("link", { name: /\+ create/i }))
-      .toBeInTheDocument();
+      .not.toBeInTheDocument();
   });
 
   it("filters to own funds with ?creator=ours", async () => {
@@ -340,7 +339,7 @@ describe("funds — filter and display", () => {
     const screen = await render_funds(npo.id);
 
     await expect
-      .element(screen.getByText(/no fundraisers found/i))
+      .element(screen.getByText(/no campaigns found/i))
       .toBeInTheDocument();
   });
 });
