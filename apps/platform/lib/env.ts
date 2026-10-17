@@ -68,6 +68,8 @@ export const SERVER_KEYS = [
   "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
   "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
   "OWED_DEDUCTIONS",
+  "CONNECTOR_RETURN_URL",
+  "CONNECTOR_ORIGINS",
 ] as const;
 
 export const CLIENT_KEYS = [
@@ -108,6 +110,10 @@ export const OPTIONAL_KEYS = [
   "STRIPE_CONNECT_WEBHOOK_SECRET",
   // the routing switch, off unless "on"
   "STRIPE_CONNECT_ROUTING",
+  // connector allow screen: production ignores the return URL, and the origin
+  // list may be empty
+  "CONNECTOR_RETURN_URL",
+  "CONNECTOR_ORIGINS",
 ] as const satisfies readonly ServerKey[];
 
 export type OptionalKey = (typeof OPTIONAL_KEYS)[number];
