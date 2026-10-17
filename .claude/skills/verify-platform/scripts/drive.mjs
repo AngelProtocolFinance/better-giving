@@ -616,7 +616,13 @@ const FLOWS = {
         .getByRole("heading", { name: "Public profile information" })
         .waitFor({ timeout: 120_000 });
       await shot("edit-profile");
-      await page.goBack({ waitUntil: "load", timeout: 120_000 });
+      // History back races a Vite reload and aborts. The sidebar link is live
+      // on Edit Profile, so use it to return to the list.
+      const back_tries = await open_cold(
+        page,
+        () => page.getByRole("link", { name: "Campaigns", exact: true }),
+        /\/admin\/\d+\/campaigns(?:\?|$)/
+      );
       await page
         .getByRole("heading", { name: "Campaigns", exact: true })
         .waitFor({
@@ -695,12 +701,24 @@ const FLOWS = {
       );
       await shot("qr");
 
-      await page.goBack({ waitUntil: "load", timeout: 120_000 });
       const on_list = () =>
         /\/admin\/\d+\/campaigns\/?$/.test(new URL(page.url()).pathname);
-      if (!on_list()) {
-        await page.goBack({ waitUntil: "load", timeout: 120_000 });
-      }
+      const back_to_list = async () => {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await page.goBack({ waitUntil: "load", timeout: 120_000 });
+            return;
+          } catch (err) {
+            if (on_list()) return;
+            if (attempt === 3) throw err;
+            await page
+              .waitForLoadState("load", { timeout: 30_000 })
+              .catch(() => {});
+          }
+        }
+      };
+      await back_to_list();
+      if (!on_list()) await back_to_list();
       await page
         .getByRole("heading", { name: "Campaigns", exact: true })
         .waitFor({
@@ -734,6 +752,7 @@ const FLOWS = {
         click_fact("organization card → /admin", org_tries),
         click_fact("sidebar Campaigns", campaign_tries),
         click_fact("Better Giving profile → Edit Profile", profile_tries),
+        click_fact("sidebar Campaigns, back to the list", back_tries),
         click_fact("New campaign", new_tries),
         "signed in, clicked sidebar Campaigns",
         "pinned profile card opened Edit Profile",
