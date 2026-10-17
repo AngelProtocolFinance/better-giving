@@ -1,7 +1,7 @@
-import { desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { db } from "../db";
 import { user } from "../schema/auth";
-import { donation_donors } from "../schema/donation";
+import { donation_donors, donations } from "../schema/donation";
 import { donation_messages } from "../schema/donation-message";
 import type { DbOrTx, IPage } from "./helpers";
 import { decode_date_cursor, encode_date_cursor } from "./helpers";
@@ -24,9 +24,9 @@ type DonationMessageRow = typeof donation_messages.$inferSelect & {
 
 export async function donation_message_list(
   npo_id: string,
-  opts?: { limit?: number; next?: string }
+  opts?: { limit?: number; next?: string; campaign_id?: string }
 ): Promise<IPage<DonationMessageRow>> {
-  const { limit = 10, next } = opts || {};
+  const { limit = 10, next, campaign_id } = opts || {};
   const cursor = decode_date_cursor(next);
 
   const rows = await db
@@ -41,8 +41,13 @@ export async function donation_message_list(
       eq(donation_messages.donation_id, donation_donors.donation_id)
     )
     .leftJoin(user, eq(donation_donors.email, user.email))
+    .leftJoin(donations, eq(donation_messages.donation_id, donations.id))
     .where(
-      sql`${donation_messages.npo_id} = ${npo_id}${cursor ? sql` AND ${donation_messages.date} < ${cursor}` : sql``}`
+      and(
+        eq(donation_messages.npo_id, npo_id),
+        campaign_id ? eq(donations.campaign_id, campaign_id) : undefined,
+        cursor ? sql`${donation_messages.date} < ${cursor}` : undefined
+      )
     )
     .orderBy(desc(donation_messages.date))
     .limit(limit + 1);

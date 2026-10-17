@@ -24,6 +24,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
   const tipv = tip_val(props.tip_format, props.tip, +props.amount);
   const total = +props.amount + tipv;
   const url = `${don.base_url}${path}`;
+  const project = don.config?.campaign_url ?? url;
   const name = don.recipient.name;
 
   const instructions_text = [
@@ -31,7 +32,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
     `EIN: ${EIN}`,
     `Mailing address: ${ADDRESS}`,
     `Reference: ${name}`,
-    `Project URL: ${url}`,
+    `Project URL: ${project}`,
     `Amount: $${total.toFixed(2)}`,
     ...(props.custodian ? [`Custodian: ${props.custodian}`] : []),
   ].join("\n");
@@ -85,7 +86,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
 
       <div className="flex justify-center gap-4 mt-6">
         <a
-          href={email_link(name, url, total)}
+          href={email_link(name, project, total)}
           className="btn btn-sm btn-secondary font-normal"
         >
           Generate Email
@@ -145,6 +146,9 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
                 body: JSON.stringify({
                   type: "ira_qcd",
                   recipient_id: id,
+                  ...(don.config?.campaign_id
+                    ? { campaign_id: don.config.campaign_id }
+                    : {}),
                   details: {
                     amount: String(total),
                     ...(props.custodian ? { custodian: props.custodian } : {}),

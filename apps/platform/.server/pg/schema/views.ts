@@ -26,6 +26,15 @@ export const v_contributions = pgView("v_contributions", {
   sql`SELECT to_id as npo_id, COALESCE(SUM(amount_usd), 0) as total, COUNT(*) as count FROM dists WHERE status = 'settled' GROUP BY to_id`
 );
 
+// per-campaign settled donation total, net (after fees). the gift stays an
+// npo dist; the campaign is only the donation that produced it
+export const v_campaign_total_usd = pgView("v_campaign_total_usd", {
+  campaign_id: text("campaign_id"),
+  total: numeric_as_number("total", { precision: 38, scale: 18 }),
+}).as(
+  sql`SELECT d.campaign_id, COALESCE(SUM(dists.net), 0) as total FROM donations d INNER JOIN dists ON dists.donation_id = d.id WHERE d.campaign_id IS NOT NULL AND dists.status = 'settled' GROUP BY d.campaign_id`
+);
+
 // per-fund settled donation total, net (after fees)
 export const v_donation_total_usd = pgView("v_donation_total_usd", {
   fund_id: text("fund_id"),

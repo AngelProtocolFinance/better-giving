@@ -7,6 +7,7 @@ import type { Payment } from "#/types/crypto";
 import type { IDonationIntent, IDonorFv } from "@/donations/schema";
 import { ru_vdec } from "@/helpers/decimal";
 import { HttpError, json_ok } from "@/helpers/https";
+import { apply_campaign } from "../../apply-campaign";
 import { ContinueBtn } from "../../common/continue-btn";
 import { use_donation_redirect } from "../../common/redirect";
 import { donation_return_url } from "../../common/return-url";
@@ -113,6 +114,7 @@ export function DirectMode({
 
   if (init.program) intent.program = init.program;
   if (init.config?.id) intent.form_id = init.config.id;
+  apply_campaign(intent, init.config);
 
   const { data, isLoading, error } = use_swr(intent, fetcher);
 

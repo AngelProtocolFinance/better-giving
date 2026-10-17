@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import type { ChangeEventHandler } from "react";
-import { href, NavLink, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { metas } from "#/helpers/seo";
 import { use_debounce } from "#/hooks/use-debounce";
@@ -17,9 +17,9 @@ export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const meta: Route.MetaFunction = () =>
   metas({
     image: hero,
-    title: "Fundraisers",
+    title: "Campaigns",
     description:
-      "Fundraisers that Support One or Several Nonprofits. Every Donation goes where you want it to.",
+      "Campaigns that support one or several nonprofits. Every donation goes where you want it to.",
   });
 
 export { ErrorBoundary } from "#/components/error";
@@ -62,12 +62,9 @@ function Funds({ loaderData: page1 }: Route.ComponentProps) {
               name="query"
               onChange={debounced_change}
               className="field-input rounded h-full pl-12"
-              placeholder="Search fundraiser"
+              placeholder="Search campaigns"
             />
           </div>
-          <NavLink to={href("/fundraisers/new")} className="btn btn-primary">
-            Create Fundraiser
-          </NavLink>
         </div>
 
         {node}

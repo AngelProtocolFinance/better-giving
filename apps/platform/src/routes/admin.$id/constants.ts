@@ -41,6 +41,14 @@ const group1: LinkGroup = {
       },
     },
     {
+      title: "Campaigns",
+      to: sidebar_routes.campaigns,
+      icon: {
+        fn: MegaphoneIcon,
+        size: 22,
+      },
+    },
+    {
       title: "Donation Forms",
       to: sidebar_routes.forms,
       icon: {
@@ -57,7 +65,7 @@ const group1: LinkGroup = {
       },
     },
     {
-      title: "Fundraisers",
+      title: "Campaign opt-outs",
       to: sidebar_routes.funds,
       icon: {
         fn: Flag,

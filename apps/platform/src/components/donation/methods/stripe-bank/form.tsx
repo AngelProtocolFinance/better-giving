@@ -15,7 +15,11 @@ import { json_ok } from "@/helpers/https";
 import { btn_disp, TokenField } from "../../../token-field";
 import { usd_option } from "../../common/constants";
 import { CpfToggle } from "../../common/cpf-toggle";
-import { Frequency, freqs_shown } from "../../common/frequency";
+import {
+  Frequency,
+  freqs_shown,
+  opening_frequency,
+} from "../../common/frequency";
 import { Incrementers } from "../../common/incrementers";
 import { TipField } from "../../common/tip-field";
 import { tip_handlers } from "../../common/tip-handlers";
@@ -33,7 +37,10 @@ export function Form(props: TMethodState<"stripe_bank">) {
   const fv = props.fv || {
     amount: don.config?.prefill_amount_usd || "",
     currency: usd_option,
-    frequency: "one-time",
+    frequency: opening_frequency(
+      don.config?.freq_opts,
+      don.config?.prefill_frequency
+    ),
     tip: "",
     cover_processing_fee: false,
     tip_format: "none",

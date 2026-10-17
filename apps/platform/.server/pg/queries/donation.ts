@@ -71,6 +71,7 @@ function to_donation(
     program: don.program_id
       ? { id: don.program_id, name: don.program_name ?? "" }
       : undefined,
+    campaign_id: don.campaign_id ?? undefined,
 
     // recipient → ITo
     to_id: recipient ? String(recipient.npo_id ?? recipient.fund_id ?? "") : "",
@@ -235,6 +236,7 @@ export async function donation_put(
       via_extra: data.via_extra,
       program_id: data.program?.id,
       program_name: data.program?.name,
+      campaign_id: data.campaign_id,
       created_at: data.created_at,
       updated_at: data.updated_at,
     };

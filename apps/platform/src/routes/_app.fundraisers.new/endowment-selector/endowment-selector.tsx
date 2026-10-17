@@ -179,7 +179,7 @@ export function EndowmentSelector(props: Props) {
       </Combobox.Root>
       <p className="field-err mt-1 empty:hidden">{props.error}</p>
       <p className="text-sm text-gray-11 mt-1">
-        You may include more than one nonprofit in a joint fundraiser, if those
+        You may include more than one nonprofit in a joint campaign, if those
         nonprofits have opted in to fundraising functionality. Raised funds will
         be split equally between the nonprofits.
       </p>

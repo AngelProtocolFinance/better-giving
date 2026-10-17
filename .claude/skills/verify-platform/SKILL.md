@@ -37,6 +37,7 @@ Preloads (verification scaffolding — **no product code is changed**):
 - `neon-local.mjs`: points the `@neondatabase/serverless` driver at local Postgres — HTTP queries via `fetchFunction` run through `pg`; transactions go over a ws→tcp pipe on `:5488`, which only dials `DATABASE_URL`'s own port and refuses any request carrying an `Origin` header (i.e. any browser).
 - `stripe-stub.mjs`: while `STRIPE_SECRET_KEY` is filler, server-side `api.stripe.com` calls hit an in-process stub: `GET /v1/country_specs/:cc` is answered, everything else gets a Stripe-shaped 400 and is logged. With real test keys it is inert.
 - `nonprofits-stub.mjs`: while `NONPROFITS_API_KEY` is the `.env.test` filler, `fetch` to `nonprofits.better.giving` is answered in-process (one eligible off-marketplace EIN, one revoked org, one search) and logged. Any other key leaves `fetch` alone.
+- `blob-stub.mjs`: while `BLOB_READ_WRITE_TOKEN` is filler, `@vercel/blob` `put()` is answered by a local server (the sdk honors `VERCEL_BLOB_API_URL`) and the stored URL is the app's `/logo.png`. A real token leaves the sdk pointed at Vercel. Logged to `blob-stub.log`.
 
 Full card flow: `VERIFY_STRIPE_SK=sk_test_… VERIFY_STRIPE_PK=pk_test_… scripts/run.sh donate-card` (live keys are refused). Never paste keys into files.
 
@@ -64,6 +65,9 @@ A listed entry point the drive did not take is not verified. `results.json` reco
 | `donate-card` | direct `GET /donate/:id` → +100 USD → Continue with Card → donor info → payment step with summary $100.00; with real test keys, types 4242… into the Stripe Payment Element (`donate-card-4-card.png`). The marketplace-card Donate link is not clicked, so it is not verified. |
 | `smoke-paths` | smoke.yml's direct `GET /`, `GET /api/currencies`, `GET /form-embed.js` each < 400. No screenshot. |
 | `agents-find` | direct `POST /agents/mcp` `find_nonprofit` for the seeded nonprofit, plus a flagged off-marketplace EIN from the nonprofits stub, and `quote_donation` refuses that EIN. No screenshot. |
+| `campaign-admin` | sign in as the seeded npo admin, click sidebar Campaigns, open the pinned profile card, publish a new campaign, see it live at $0 next to the existing listing, decode the campaign QR. Screenshots of the donor dashboard, the list, and `/fundraisers/<id>` contain no "fundraiser". |
+| `campaign-page` | direct `GET /org/<org>/<campaign>` 200 with hero, story, goal, donate box, Share, supporter wall, and badge, and no Log In. Head title, description, and hero. `GET /org/<org>` 302 to `/marketplace/<org>`. Draft and unknown slugs 404. |
+| `campaign-donate` | on the campaign page, `?amount=50&frequency=monthly` presets those values; +100 USD → card → donor info → summary $100.00; the intent POST carries `campaign_id`. With filler keys the card step is blocked; with test keys, types 4242…. |
 
 On a cold dev server, scrolling the footer into view prefetches `/donate/1`. Vite reloads and cancels the click. `open_link` retries that same click (header `Log In` and footer `Marketplace`). It does not switch to `goto`. That prefetch can also leave the next direct `/donate/:id` load with a 504 on optimized dependencies, so the amount buttons stay disabled. The donate flow reloads that same URL and clicks `+100 USD` again.
 

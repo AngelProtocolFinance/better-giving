@@ -30,7 +30,7 @@ const platform = [
   { label: "Open Source", to: href("/open-source") },
   { label: "Pricing", to: href("/pricing") },
   { label: "Marketplace", to: href("/marketplace") },
-  { label: "Fundraisers", to: href("/fundraisers") },
+  { label: "Campaigns", to: href("/fundraisers") },
   { label: "Referral Program", to: href("/referral-program") },
 ] as const;
 

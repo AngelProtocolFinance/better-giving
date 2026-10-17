@@ -202,7 +202,7 @@ describe("funds — search", () => {
       .toBeInTheDocument();
 
     // type in search bar -- 500ms debounce then fetcher.load
-    await screen.getByPlaceholder("Search fundraiser").fill("Ocean");
+    await screen.getByPlaceholder("Search campaigns").fill("Ocean");
 
     await expect
       .element(screen.getByText("Forest Restoration"))
