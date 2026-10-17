@@ -13,7 +13,7 @@ export { ErrorBoundary } from "#/components/error";
 
 export default function Page() {
   return (
-    <article className="page grid gap-6 py-10 max-w-3xl">
+    <article className="page prose py-10">
       <p>
         <Link to={href("/resources")} className="link text-sm">
           Resources
