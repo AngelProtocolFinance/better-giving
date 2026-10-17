@@ -666,8 +666,14 @@ describe("find_nonprofit IRS fallback", () => {
       ...local_page.items[0],
       registration_number: "88-8888888",
     };
+    const canada = {
+      id: 8,
+      name: "Canadian Twin",
+      registration_number: "111111111",
+      hq_country: "Canada",
+    };
     mocks.get_npos.mockResolvedValue({
-      items: [on_page],
+      items: [on_page, canada],
       page: 1,
       pages: 3,
     });
@@ -717,7 +723,7 @@ describe("find_nonprofit IRS fallback", () => {
 
     const result = await find_nonprofit({ query: "charity" }, caller());
 
-    expect(result.items).toEqual([on_page]);
+    expect(result.items).toEqual([on_page, canada]);
     expect(result).toEqual(expect.objectContaining({ page: 1, pages: 3 }));
     expect(result.external_lookup).toBe("ok");
     expect(result.not_on_better_giving.map((entry) => entry.name)).toEqual([
@@ -954,6 +960,78 @@ describe("find_nonprofit IRS fallback", () => {
     const cached = await find_nonprofit({ query: "name 0" }, req);
     expect(cached.external_lookup).toBe("ok");
     expect(fetch).toHaveBeenCalledTimes(20);
+  });
+
+  test("concurrent identical searches share one fetch and one quota slot", async () => {
+    let entered = 0;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetch = stub_fetch(async () => {
+      entered += 1;
+      await gate;
+      return http(200, {
+        query: "same",
+        limit: 10,
+        results: [search_org({ ein: "111111111", name: "Eligible" })],
+      });
+    });
+    mocks.get_npos.mockResolvedValue(local_page);
+    const req = caller("192.0.2.251");
+
+    const pending = Promise.all([
+      find_nonprofit({ query: "Same" }, req),
+      find_nonprofit({ query: "  same  " }, req),
+    ]);
+    for (let i = 0; i < 10 && entered < 1; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(entered).toBe(1);
+    release();
+    const [first, second] = await pending;
+
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(first.external_lookup).toBe("ok");
+    expect(second.external_lookup).toBe("ok");
+    expect(second.not_on_better_giving).toEqual(first.not_on_better_giving);
+
+    for (let i = 0; i < 19; i++) {
+      const result = await find_nonprofit({ query: `other ${i}` }, req);
+      expect(result.external_lookup).toBe("ok");
+    }
+    const skipped = await find_nonprofit({ query: "over the cap" }, req);
+    expect(skipped.external_lookup).toBe("skipped");
+    expect(skipped.items).toEqual(local_page.items);
+    expect(fetch).toHaveBeenCalledTimes(20);
+  });
+
+  test("concurrent EIN lookups share one fetch", async () => {
+    let entered = 0;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetch = stub_fetch(async () => {
+      entered += 1;
+      await gate;
+      return http(200, org_detail());
+    });
+
+    const pending = Promise.all([
+      find_nonprofit({ ein: ELIGIBLE_EIN }, caller("192.0.2.252")),
+      find_nonprofit({ ein: "13-1624082" }, caller("192.0.2.253")),
+    ]);
+    for (let i = 0; i < 10 && entered < 1; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(entered).toBe(1);
+    release();
+    const [first, second] = await pending;
+
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(first.not_on_better_giving).toEqual(second.not_on_better_giving);
+    expect(first.external_lookup).toBe("ok");
   });
 
   test("an EIN that is not 9 digits is invalid_input before any lookup", async () => {

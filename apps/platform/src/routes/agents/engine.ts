@@ -18,6 +18,7 @@ import { to_from } from "@/donations/helpers";
 import { app, base_url } from "$/env";
 import {
   type INonprofitOrg,
+  nonprofits_cancel_fetch,
   nonprofits_org,
   nonprofits_search,
   nonprofits_will_fetch,
@@ -215,12 +216,16 @@ function external_entry(org: INonprofitOrg): INotOnBetterGiving {
 }
 
 function listed_eins(
-  items: readonly { registration_number?: string | null }[]
+  items: readonly {
+    registration_number?: string | null;
+    hq_country?: string | null;
+  }[]
 ): Set<string> {
   const eins = new Set<string>();
   for (const item of items) {
+    if (item.hq_country !== "United States") continue;
     const ein = ein_digits(item.registration_number ?? "");
-    if (ein) eins.add(ein);
+    if (ein.length === EIN_DIGITS) eins.add(ein);
   }
   return eins;
 }
@@ -244,7 +249,10 @@ async function allow_fetch(
   raw: string
 ): Promise<boolean> {
   if (!nonprofits_will_fetch(kind, raw)) return true;
-  return reserve(`nonprofits:${caller_id(request)}`, NONPROFITS_QUOTA) !== null;
+  const reserved =
+    reserve(`nonprofits:${caller_id(request)}`, NONPROFITS_QUOTA) !== null;
+  if (!reserved) nonprofits_cancel_fetch(kind, raw);
+  return reserved;
 }
 
 export async function find_nonprofit(input: unknown, request: Request) {

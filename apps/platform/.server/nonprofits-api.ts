@@ -1,5 +1,5 @@
 import { report_error } from "#/errors/report";
-import { app } from "$/env";
+import { app } from "./env";
 
 /** public IRS directory. not configurable: every caller shares this host. */
 export const NONPROFITS_API_ORIGIN = "https://nonprofits.better.giving";
@@ -47,8 +47,23 @@ const cache = new Map<string, ICacheEntry>();
 let cooldown_until = 0;
 let auth_reported = false;
 
+const ABORTED = Symbol("nonprofits-flight-aborted");
+
+interface IFlight {
+  promise: Promise<unknown>;
+  resolve: (value: unknown) => void;
+  started: boolean;
+}
+
+/** one shared request per cache key. the caller that claims it is the only one that fetches. */
+const flights = new Map<string, IFlight>();
+
 /** tests drop the process-local cache, cooldown, and the one-time auth report */
 export function reset_nonprofits_client(): void {
+  for (const flight of flights.values()) {
+    if (!flight.started) flight.resolve(ABORTED);
+  }
+  flights.clear();
   cache.clear();
   cooldown_until = 0;
   auth_reported = false;
@@ -69,6 +84,22 @@ export function nonprofits_query_key(q: string): string {
 
 function org_cache_key(ein: string): string {
   return `e:${digits(ein)}`;
+}
+
+function cache_key(kind: "search" | "org", raw: string): string {
+  return kind === "search" ? nonprofits_query_key(raw) : org_cache_key(raw);
+}
+
+function claim_flight(key: string): IFlight {
+  const existing = flights.get(key);
+  if (existing) return existing;
+  let resolve!: (value: unknown) => void;
+  const promise = new Promise<unknown>((res) => {
+    resolve = res;
+  });
+  const flight: IFlight = { promise, resolve, started: false };
+  flights.set(key, flight);
+  return flight;
 }
 
 function in_cooldown(): boolean {
@@ -100,16 +131,52 @@ function cache_set(key: string, entry: Omit<ICacheEntry, "exp">, ttl: number) {
   cache.set(key, { ...entry, exp: Date.now() + ttl });
 }
 
-/** true only when the next call would open a connection. cache hits, an
- * active cooldown, and a missing key do not. */
+/** true only when this caller claims the fetch. cache hits, an in-flight
+ * request, an active cooldown, and a missing key do not. a true result holds
+ * the key until the lookup runs or `nonprofits_cancel_fetch` drops it. */
 export function nonprofits_will_fetch(
   kind: "search" | "org",
   raw: string
 ): boolean {
   if (!api_key() || in_cooldown()) return false;
-  const key =
-    kind === "search" ? nonprofits_query_key(raw) : org_cache_key(raw);
-  return cache_get(key) === undefined;
+  const key = cache_key(kind, raw);
+  if (cache_get(key) || flights.has(key)) return false;
+  claim_flight(key);
+  return true;
+}
+
+/** drops a claim that never started, so a refused quota slot does not stick. */
+export function nonprofits_cancel_fetch(
+  kind: "search" | "org",
+  raw: string
+): void {
+  const flight = flights.get(cache_key(kind, raw));
+  if (!flight || flight.started) return;
+  flights.delete(cache_key(kind, raw));
+  flight.resolve(ABORTED);
+}
+
+async function share<T>(
+  key: string,
+  run: () => Promise<T>,
+  aborted: T
+): Promise<T> {
+  const flight = claim_flight(key);
+  if (flight.started) {
+    const result = await flight.promise;
+    return result === ABORTED ? aborted : (result as T);
+  }
+  flight.started = true;
+  try {
+    const result = await run();
+    flight.resolve(result);
+    return result;
+  } catch {
+    flight.resolve(ABORTED);
+    return aborted;
+  } finally {
+    if (flights.get(key) === flight) flights.delete(key);
+  }
 }
 
 function next_utc_midnight(now = Date.now()): number {
@@ -272,11 +339,10 @@ function cached_org(key: string): TNonprofitsOrg | undefined {
   return { status: "ok", org: hit.org };
 }
 
-export async function nonprofits_search(q: string): Promise<TNonprofitsSearch> {
-  if (!api_key()) return { status: "disabled" };
-  const key = nonprofits_query_key(q);
-  const cached = cached_search(key);
-  if (cached) return cached;
+async function fetch_search(
+  q: string,
+  key: string
+): Promise<TNonprofitsSearch> {
   const params = new URLSearchParams({ q, limit: "10" });
   const fetched = await call_api(`/v1/search?${params}`);
   if (fetched.kind === "json") {
@@ -292,12 +358,10 @@ export async function nonprofits_search(q: string): Promise<TNonprofitsSearch> {
   return { status: fetched.kind };
 }
 
-export async function nonprofits_org(ein: string): Promise<TNonprofitsOrg> {
-  if (!api_key()) return { status: "disabled" };
-  const normalized = digits(ein);
-  const key = org_cache_key(normalized);
-  const cached = cached_org(key);
-  if (cached) return cached;
+async function fetch_org(
+  normalized: string,
+  key: string
+): Promise<TNonprofitsOrg> {
   const fetched = await call_api(`/v1/orgs/${normalized}`);
   if (fetched.kind === "json") {
     const org = parse_detail(fetched.body);
@@ -310,4 +374,25 @@ export async function nonprofits_org(ein: string): Promise<TNonprofitsOrg> {
     return { status: "not_found" };
   }
   return { status: fetched.kind };
+}
+
+export async function nonprofits_search(q: string): Promise<TNonprofitsSearch> {
+  if (!api_key()) return { status: "disabled" };
+  const key = nonprofits_query_key(q);
+  const cached = cached_search(key);
+  if (cached) return cached;
+  if (!flights.has(key) && in_cooldown()) return { status: "rate_limited" };
+  return share(key, () => fetch_search(q, key), { status: "unavailable" });
+}
+
+export async function nonprofits_org(ein: string): Promise<TNonprofitsOrg> {
+  if (!api_key()) return { status: "disabled" };
+  const normalized = digits(ein);
+  const key = org_cache_key(normalized);
+  const cached = cached_org(key);
+  if (cached) return cached;
+  if (!flights.has(key) && in_cooldown()) return { status: "rate_limited" };
+  return share(key, () => fetch_org(normalized, key), {
+    status: "unavailable",
+  });
 }
