@@ -229,7 +229,7 @@ describe("api.donation-intents action", () => {
         "This campaign isn't accepting donations right now."
       );
       expect(info).toHaveBeenCalledWith(
-        expect.stringContaining(`fundraiser:${fund_id}`)
+        expect.stringContaining(`campaign:${fund_id}`)
       );
       expect(stripe_intent_mock).not.toHaveBeenCalled();
     });
@@ -626,7 +626,8 @@ describe("campaign attribution", () => {
         program_name: "Stored",
       })
     );
-    npo_program_get_mock.mockResolvedValueOnce({
+    npo_program_get_mock.mockReset();
+    npo_program_get_mock.mockResolvedValue({
       id: PROGRAM,
       title: "Youth Literacy",
     });
