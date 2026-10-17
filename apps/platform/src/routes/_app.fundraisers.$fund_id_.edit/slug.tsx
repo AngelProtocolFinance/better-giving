@@ -33,8 +33,7 @@ export function Slug({
         Change your fundraiser's profile URL ending segment from the default
         alphanumeric ID to a more human-readable value for better SEO and donor
         recognition. Only numbers and letters are permitted! Your alphanumeric
-        ID URL will continue to work. There is no risk of breaking existing
-        links that have been shared.
+        ID URL will continue to work.
       </p>
 
       <p className="text-xs sm:text-sm text-gray-11 italic mt-2">

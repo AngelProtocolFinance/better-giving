@@ -25,6 +25,7 @@ import {
   union,
   url,
 } from "valibot";
+import { segment_block } from "./route-segments";
 
 export const file_obj = object({
   name: string(),
@@ -107,7 +108,9 @@ export const https_url = (opts?: { required?: boolean }) => {
 };
 
 const segment_max_chars = 30;
-export const segment = pipe(
+// charset and length only. a stored slug may already equal a route segment,
+// and lookup still has to resolve it. `segment` adds that reservation.
+export const segment_shape = pipe(
   $,
   maxLength(
     segment_max_chars,
@@ -122,7 +125,17 @@ export const segment = pipe(
   custom((x) => !(x as string).endsWith("."), "should not end with dot")
 );
 
-export const slug = lazy((x) => (x ? segment : $));
+export const segment = pipe(
+  segment_shape,
+  custom(
+    (x) => segment_block(x as string) === undefined,
+    (issue) => segment_block(String(issue.input)) ?? "invalid segment"
+  )
+);
+
+// shared with fund slugs. the route reservation is `org_slug` only.
+export const slug = lazy((x) => (x ? segment_shape : $));
+export const org_slug = lazy((x) => (x ? segment : $));
 
 export const increment_label_max_chars = 60;
 export const MAX_NUM_INCREMENTS = 4;

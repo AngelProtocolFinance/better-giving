@@ -7,6 +7,7 @@ export const routes = {
   forms: "forms",
   donations: "donations",
   settings: "settings",
+  organization: "organization",
   members: "members",
   media: "media",
   funds: "funds",

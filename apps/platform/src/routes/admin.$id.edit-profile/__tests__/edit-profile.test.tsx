@@ -61,7 +61,6 @@ vi.mock("#/.server/funds", () => ({
 // --- imports (after mocks hoisted) ---
 
 import { Target, to_target } from "@better-giving/ui";
-import { dataWithError } from "#/.server/toast";
 import MarketplacePage, {
   loader as marketplace_loader,
 } from "#/routes/_app.marketplace/route";
@@ -73,7 +72,6 @@ import { npo_get } from "$/pg/queries/npo";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { action, loader } from "../api";
 import EditProfilePage from "../route";
-import { slug_notes } from "../slug";
 
 // --- setup ---
 
@@ -224,9 +222,10 @@ describe("edit profile — renders pre-filled", () => {
       .element(screen.getByLabelText(/tagline/i))
       .toHaveDisplayValue("Helping the world");
 
+    await expect.element(screen.getByText(/\/marketplace\/\d+$/)).toBeVisible();
     await expect
-      .element(screen.getByLabelText(/ein.*registration/i))
-      .toHaveDisplayValue("EIN123456");
+      .element(screen.getByRole("link", { name: "Manage → Organization" }))
+      .toHaveAttribute("href", `/admin/${npo.id}/organization`);
     await expect
       .element(screen.getByLabelText(/address/i))
       .toHaveDisplayValue("123 Main St");
@@ -244,32 +243,28 @@ describe("edit profile — renders pre-filled", () => {
 
 describe("edit profile — text fields", () => {
   it("edits tagline, registration, address → DB + profile", async () => {
-    const npo = await seed_npo();
+    const npo = await seed_npo({ slug: "kept-slug" });
     const screen = await render_edit(npo.id);
 
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+    expect(screen.getByLabelText(/ein.*registration/i).query()).toBeNull();
+    expect(
+      screen.getByLabelText(/logo of your organization/i).query()
+    ).toBeNull();
 
-    // edit fields
     const tagline = screen.getByLabelText(/tagline/i);
     await tagline.clear();
     await tagline.fill("New tagline");
-
-    const regnum = screen.getByLabelText(/ein.*registration/i);
-    await regnum.clear();
-    await regnum.fill("NEW999");
 
     const address = screen.getByLabelText(/address/i);
     await address.clear();
     await address.fill("456 New Ave");
 
-    // tagline + registration are general's, address is organization's
     const general = screen.getByRole("button", { name: "Save general" });
     await general.click();
     const organization = screen.getByRole("button", {
       name: "Save organization",
     });
-    // both hold only once general has settled: before the save its button is
-    // still enabled, and in flight the fieldset disables the tagline
     await vi.waitFor(() => {
       expect(general.element()).toBeDisabled();
       expect(tagline.element()).toBeEnabled();
@@ -279,12 +274,19 @@ describe("edit profile — text fields", () => {
     await expect.element(organization).toBeDisabled();
     await expect.element(tagline).toHaveDisplayValue("New tagline");
 
-    // verify on profile page
+    const saved = await npo_get(npo.id);
+    expect(saved?.registration_number).toBe("EIN123456");
+    expect(saved?.name).toBe("Test Charity");
+    expect(saved?.logo).toBe("https://example.com/logo.jpg");
+    expect(saved?.endow_designation).toBe("Charity");
+    expect(saved?.hq_country).toBe("United States");
+    expect(saved?.slug).toBe("kept-slug");
+
     await screen.unmount();
     const profile = await render_profile(npo.id);
 
     await expect.element(profile.getByText("New tagline")).toBeInTheDocument();
-    await expect.element(profile.getByText("NEW999")).toBeInTheDocument();
+    await expect.element(profile.getByText("EIN123456")).toBeInTheDocument();
     await expect.element(profile.getByText("456 New Ave")).toBeInTheDocument();
   });
 });
@@ -295,46 +297,31 @@ describe("edit profile — organization fields", () => {
     const screen = await render_edit(npo.id);
 
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+    expect(
+      screen
+        .getByRole("combobox", { name: /organization designation/i })
+        .query()
+    ).toBeNull();
+    expect(screen.getByPlaceholder("Select a country").query()).toBeNull();
 
-    // change designation: click select trigger, pick new
-    await screen
-      .getByRole("combobox", { name: /organization designation/i })
-      .click();
-    await expect
-      .element(screen.getByRole("option", { name: "University" }))
-      .toBeVisible();
-    await screen.getByRole("option", { name: "University" }).click();
-
-    // change hq_country
-    const country_input = screen.getByPlaceholder("Select a country");
-    await country_input.clear();
-    await country_input.fill("Canada");
-    await expect
-      .element(screen.getByRole("option", { name: /Canada/i }))
-      .toBeVisible();
-    await screen.getByRole("option", { name: /Canada/i }).click();
-
-    // submit
+    await screen.getByLabelText(/address/i).fill("456 New Ave");
     await screen.getByRole("button", { name: "Save organization" }).click();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.street_address).toBe("456 New Ave")
+    );
 
-    // revalidation completes → form resets dirty
-    // combo display value + isDirty reset async after revalidation
-    await expect
-      .element(screen.getByPlaceholder("Select a country"))
-      .toHaveDisplayValue("Canada");
-    // isDirty resets async after values sync
-    await expect
-      .element(screen.getByRole("button", { name: "Save organization" }))
-      .toBeDisabled();
+    const saved = await npo_get(npo.id);
+    expect(saved?.endow_designation).toBe("Charity");
+    expect(saved?.hq_country).toBe("United States");
 
-    // verify on profile page
     await screen.unmount();
     const profile = await render_profile(npo.id);
-
     await expect
       .element(profile.getByText("Test Charity").first())
       .toBeVisible();
-    await expect.element(profile.getByText(/canada/i).first()).toBeVisible();
+    await expect
+      .element(profile.getByText(/united states/i).first())
+      .toBeVisible();
   });
 
   it("hq_country combo: clear → required error blocks submit; refill → submit succeeds", async () => {
@@ -342,67 +329,23 @@ describe("edit profile — organization fields", () => {
     const screen = await render_edit(npo.id);
 
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+    expect(screen.getByLabelText(/headquarters/i).query()).toBeNull();
 
-    const country_input = screen.getByPlaceholder("Select a country");
-    await expect.element(country_input).toHaveDisplayValue("United States");
-
-    // click the X clear button — combo row has 2 buttons: trigger (flag) then X
-    const combo_row = (country_input.element() as HTMLInputElement)
-      .parentElement!;
-    const buttons = page.elementLocator(combo_row).getByRole("button");
-    await buttons.nth(1).click();
-
-    // submit empty → required error renders, form does not persist. clearing
-    // reopens the country popup over the save — native click bypasses it
-    (
-      screen
-        .getByRole("button", { name: "Save organization" })
-        .element() as HTMLElement
-    ).click();
-    await expect.element(screen.getByText(/required/i).first()).toBeVisible();
-
-    const reloaded = await npo_get(npo.id);
-    expect(reloaded?.hq_country).toBe("United States"); // unchanged
-
-    // refill via filter + select → submit succeeds
-    await country_input.fill("Fran");
-    await expect
-      .element(screen.getByRole("option", { name: /France/i }))
-      .toBeVisible();
-    await screen.getByRole("option", { name: /France/i }).click();
-
+    await screen.getByLabelText(/address/i).fill("456 New Ave");
     await screen.getByRole("button", { name: "Save organization" }).click();
-
-    await expect
-      .element(screen.getByPlaceholder("Select a country"))
-      .toHaveDisplayValue("France");
     await vi.waitFor(async () =>
-      expect((await npo_get(npo.id))?.hq_country).toBe("France")
+      expect((await npo_get(npo.id))?.street_address).toBe("456 New Ave")
     );
+    expect((await npo_get(npo.id))?.hq_country).toBe("United States");
   });
 
   it("hq_country combo: clear button refocuses input and reopens dropdown", async () => {
     const npo = await seed_npo();
     const screen = await render_edit(npo.id);
 
-    const country_input = screen.getByPlaceholder("Select a country");
-    await expect.element(country_input).toHaveDisplayValue("United States");
-
-    // before clear: dropdown closed (no options rendered)
-    expect(screen.getByRole("option").query()).toBeNull();
-
-    // click the X clear button — combo row has 2 buttons: trigger (flag) then X
-    const combo_row = (country_input.element() as HTMLInputElement)
-      .parentElement!;
-    const buttons = page.elementLocator(combo_row).getByRole("button");
-    await buttons.nth(1).click();
-
-    // input cleared + focused + dropdown re-opens with options
-    await expect.element(country_input).toHaveDisplayValue("");
-    expect(document.activeElement).toBe(country_input.element());
-    await expect
-      .element(screen.getByRole("option", { name: /Afghanistan/i }))
-      .toBeVisible();
+    await expect.element(screen.getByLabelText(/address/i)).toBeVisible();
+    expect(screen.getByPlaceholder("Select a country").query()).toBeNull();
+    expect((await npo_get(npo.id))?.hq_country).toBe("United States");
   });
 });
 
@@ -599,84 +542,54 @@ describe("edit profile — published toggle", () => {
 
 describe("edit profile — slug taken", () => {
   it("shows error prompt when slug is already taken", async () => {
-    // seed two NPOs — one owns the slug
     const npo = await seed_npo();
-    const other = await seed_npo({
+    await seed_npo({
       registration_number: "OTHER789",
       slug: "taken-slug",
     });
 
-    // browser-mode msw worker.use() doesn't relay responses through
-    // the service worker, so spy on fetch for the slug-check endpoint
-    const og_fetch = globalThis.fetch;
-    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
-      const url = typeof input === "string" ? input : input.toString();
-      if (url.startsWith("/api/npos/")) {
-        const slug = url.split("/api/npos/")[1]?.split("?")[0];
-        if (slug === "taken-slug") {
-          return Promise.resolve(
-            new Response(JSON.stringify({ id: other.id }), { status: 200 })
-          );
-        }
-        return Promise.resolve(new Response(null, { status: 404 }));
-      }
-      return og_fetch(input, init as RequestInit);
-    });
-
     const screen = await render_edit(npo.id);
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
-
-    const slug_input = screen.getByLabelText(/custom profile url/i);
-    await slug_input.fill("taken-slug");
-
-    await screen.getByRole("button", { name: "Save general" }).click();
-
-    // error prompt appears → action was blocked, no DB write
+    expect(screen.getByLabelText(/org slug/i).query()).toBeNull();
+    expect(screen.getByLabelText(/custom profile url/i).query()).toBeNull();
     await expect
-      .element(screen.getByText(/taken-slug.*already taken/i))
-      .toBeInTheDocument();
+      .element(screen.getByRole("link", { name: "Manage → Organization" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText(new RegExp(`/marketplace/${npo.id}$`)))
+      .toBeVisible();
 
-    vi.restoreAllMocks();
+    const tagline = screen.getByLabelText(/tagline/i);
+    await tagline.fill("New tagline");
+    await screen.getByRole("button", { name: "Save general" }).click();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.tagline).toBe("New tagline")
+    );
+    expect((await npo_get(npo.id))?.slug).toBeFalsy();
   });
 
   it("a slug the action refuses stays unsaved: save re-arms, value kept", async () => {
-    const npo = await seed_npo();
+    const npo = await seed_npo({ slug: "kept-slug" });
     await seed_npo({ registration_number: "OTHER789", slug: "server-taken" });
-
-    // the client check misses (claimed between check and save), so only the
-    // action catches it
-    const og_fetch = globalThis.fetch;
-    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
-      const url = typeof input === "string" ? input : input.toString();
-      if (url.startsWith("/api/npos/")) {
-        return Promise.resolve(new Response(null, { status: 404 }));
-      }
-      return og_fetch(input, init as RequestInit);
-    });
 
     const screen = await render_edit(npo.id);
     const tagline = screen.getByLabelText(/tagline/i);
     await expect.element(tagline).toBeVisible();
+    expect(screen.getByLabelText(/org slug/i).query()).toBeNull();
+    await expect
+      .element(screen.getByText(/\/marketplace\/kept-slug$/))
+      .toBeVisible();
 
-    const slug_input = screen.getByLabelText(/custom profile url/i);
-    await slug_input.fill("server-taken");
+    await tagline.fill("New tagline");
     await screen.getByRole("button", { name: "Save general" }).click();
-
-    await vi.waitFor(() =>
-      expect(dataWithError).toHaveBeenCalledWith(
-        { ok: false },
-        expect.stringMatching(/server-taken/)
-      )
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.tagline).toBe("New tagline")
     );
-    // the fieldset re-enables once the save settles
     await expect.element(tagline).toBeEnabled();
     await expect
       .element(screen.getByRole("button", { name: "Save general" }))
-      .toBeEnabled();
-    await expect.element(slug_input).toHaveDisplayValue("server-taken");
-    expect((await npo_get(npo.id))?.slug).toBeFalsy();
-
-    vi.restoreAllMocks();
+      .toBeDisabled();
+    expect((await npo_get(npo.id))?.slug).toBe("kept-slug");
   });
 });
 
@@ -998,12 +911,9 @@ describe("edit profile — validation", () => {
 
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
 
-    // clear required fields
     const tagline = screen.getByLabelText(/tagline/i);
     await tagline.clear();
-
-    const regnum = screen.getByLabelText(/ein.*registration/i);
-    await regnum.clear();
+    expect(screen.getByLabelText(/ein.*registration/i).query()).toBeNull();
 
     // submit — client-side validation blocks the action
     await screen.getByRole("button", { name: "Save general" }).click();
@@ -1080,7 +990,7 @@ describe("edit profile — focus on error", () => {
   it("all three images missing → the banner wins, not the card image", async () => {
     // focus on error follows the general group's field list passed to
     // `trigger` — which has to match DOM order or the user is sent to the card
-    // image at the bottom of the group
+    // image at the bottom of the group. the logo lives on Organization.
     const npo = await seed_npo({ image: "", logo: "", card_img: "" });
     const screen = await render_edit(npo.id);
 
@@ -1105,9 +1015,11 @@ describe("edit profile — image fields", () => {
     const npo = await seed_npo({ image: "", logo: "", card_img: "" });
     const screen = await render_edit(npo.id);
 
+    expect(
+      screen.getByLabelText("Logo of your organization").query()
+    ).toBeNull();
     const captions = [
       "Banner image of your organization",
-      "Logo of your organization",
       "Marketplace Card image for your organization",
     ];
     const inputs = captions.map((c) => screen.getByLabelText(c));
@@ -1259,11 +1171,9 @@ describe("edit profile — every caption names something", () => {
     await expect
       .element(screen.getByRole("combobox", { name: "Active countries" }))
       .toBeVisible();
-    await expect
-      .element(
-        screen.getByRole("combobox", { name: "Organization Designation" })
-      )
-      .toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "Organization Designation" }).query()
+    ).toBeNull();
   });
 
   it("has no <label> pointing at a control that does not exist", async () => {
@@ -1284,15 +1194,18 @@ describe("edit profile — every caption names something", () => {
   });
 
   it("describes the slug input by both of the Slug notes", async () => {
-    const npo = await seed_npo();
+    const npo = await seed_npo({ slug: "kept-slug" });
     const screen = await render_edit(npo.id);
 
-    const slug = screen.getByLabelText("Custom Profile URL");
-    await expect.element(slug).toBeVisible();
-
-    expect(slug.element().getAttribute("aria-describedby")).toBe(slug_notes);
+    expect(screen.getByLabelText("Custom Profile URL").query()).toBeNull();
+    expect(screen.getByLabelText("Org slug").query()).toBeNull();
+    const url = screen.getByRole("link", { name: /\/marketplace\/kept-slug$/ });
+    await expect.element(url).toBeVisible();
     await expect
-      .element(slug)
-      .toHaveAccessibleDescription(/human-readable value.*Example:/s);
+      .element(screen.getByRole("link", { name: "Manage → Organization" }))
+      .toHaveAttribute("href", `/admin/${npo.id}/organization`);
+    expect(
+      screen.getByText(/no risk of breaking existing links/i).query()
+    ).toBeNull();
   });
 });

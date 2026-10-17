@@ -1,12 +1,18 @@
+import { eq } from "drizzle-orm";
 import { type ActionFunction, data, redirect } from "react-router";
 import { safeParse } from "valibot";
 import { admin_ctx } from "#/.server/auth";
-import { dataWithError, dataWithSuccess } from "#/.server/toast";
+import { dataWithSuccess } from "#/.server/toast";
 import type { INpoUpdate } from "@/npo";
 import { npo_update } from "@/npo/schema";
 import { db } from "$/pg/db";
 import { from_target } from "$/pg/queries/fmt";
-import { npo_by_slug, npo_update as npo_update_db } from "$/pg/queries/npo";
+import {
+  npo_by_slug,
+  npo_update as npo_update_db,
+  slug_change_refused,
+} from "$/pg/queries/npo";
+import { npos } from "$/pg/schema/npo";
 
 type Next = { success: string } | { redirect: string };
 
@@ -16,6 +22,19 @@ export const endowUpdate =
     const id = args.context.get(admin_ctx);
 
     const update: INpoUpdate = await args.request.json();
+    // a repeated stored slug is not a new assignment, so a value that now
+    // fails `segment` still lets the other columns through
+    if (typeof update.slug === "string") {
+      const [row] = await db
+        .select({ slug: npos.slug })
+        .from(npos)
+        .where(eq(npos.id, id));
+      if (row?.slug && update.slug === row.slug) delete update.slug;
+    }
+    if (Object.keys(update).length === 0) {
+      if ("success" in next) return dataWithSuccess({ ok: true }, next.success);
+      return redirect(next.redirect);
+    }
     const p = safeParse(npo_update, update);
     if (p.issues) {
       return data({ ok: false, error: p.issues[0].message }, { status: 400 });
@@ -26,9 +45,9 @@ export const endowUpdate =
     if (rest.slug) {
       const res = await npo_by_slug(rest.slug);
       if (res && res.id !== id) {
-        return dataWithError(
-          { ok: false },
-          `Slug ${rest.slug} is already taken`
+        return data(
+          { ok: false, error: `Slug ${rest.slug} is already taken` },
+          { status: 400 }
         );
       }
     }
@@ -36,10 +55,17 @@ export const endowUpdate =
     // transport is json, so an absent key is a form that does not manage the
     // goal — never a clear. clearing sends target "0" (goal-selector's
     // to_target), which still writes.
-    await npo_update_db(db, id, {
-      ...rest,
-      ...(target !== undefined && from_target(target)),
-    });
+    try {
+      await npo_update_db(db, id, {
+        ...rest,
+        ...(target !== undefined && from_target(target)),
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === slug_change_refused) {
+        return data({ ok: false, error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
 
     if ("success" in next) {
       return dataWithSuccess({ ok: true }, next.success);
