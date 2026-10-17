@@ -10,7 +10,7 @@ import {
 import type { IDonation } from "@/donations";
 import { donations } from "../schema/donation";
 import { create_test_db, type TestDb } from "../test-utils/pglite";
-import { agent_donation_expire } from "./donation";
+import { agent_checkout_save, agent_donation_expire } from "./donation";
 import type { DbOrTx } from "./helpers";
 
 const as_db = (x: unknown) => x as DbOrTx;
@@ -32,7 +32,8 @@ beforeEach(async () => {
 async function seed(
   id: string,
   status: IDonation["status"],
-  source: IDonation["source"] = "bg-agent"
+  source: IDonation["source"] = "bg-agent",
+  via_extra = "cs_test_open"
 ) {
   const now = new Date().toISOString();
   await test_db.db.insert(donations).values({
@@ -46,6 +47,7 @@ async function seed(
     frequency: "one-time",
     source,
     via: "stripe",
+    via_extra,
     created_at: now,
     updated_at: now,
   });
@@ -63,9 +65,9 @@ describe("agent_donation_expire", () => {
   test("expires an unpaid agent checkout", async () => {
     await seed("don-open", "created");
 
-    expect(await agent_donation_expire("don-open", as_db(test_db.db))).toBe(
-      true
-    );
+    expect(
+      await agent_donation_expire("don-open", "cs_test_open", as_db(test_db.db))
+    ).toBe(true);
     expect(await status_of("don-open")).toBe("expired");
   });
 
@@ -74,9 +76,13 @@ describe("agent_donation_expire", () => {
     async (status) => {
       await seed("don-done", status);
 
-      expect(await agent_donation_expire("don-done", as_db(test_db.db))).toBe(
-        false
-      );
+      expect(
+        await agent_donation_expire(
+          "don-done",
+          "cs_test_open",
+          as_db(test_db.db)
+        )
+      ).toBe(false);
       expect(await status_of("don-done")).toBe(status);
     }
   );
@@ -84,9 +90,42 @@ describe("agent_donation_expire", () => {
   test("never touches a donation from another source", async () => {
     await seed("don-form", "created", "bg-marketplace");
 
-    expect(await agent_donation_expire("don-form", as_db(test_db.db))).toBe(
-      false
-    );
+    expect(
+      await agent_donation_expire("don-form", "cs_test_open", as_db(test_db.db))
+    ).toBe(false);
     expect(await status_of("don-form")).toBe("created");
+  });
+
+  test("a replaced session's expiry does not expire the new checkout", async () => {
+    await seed("don-replaced", "created", "bg-agent", "cs_test_new");
+
+    expect(
+      await agent_donation_expire(
+        "don-replaced",
+        "cs_test_old",
+        as_db(test_db.db)
+      )
+    ).toBe(false);
+    expect(await status_of("don-replaced")).toBe("created");
+  });
+});
+
+describe("agent_checkout_save", () => {
+  test("records the session while the gift is unpaid", async () => {
+    await seed("don-open", "expired");
+
+    expect(
+      await agent_checkout_save("don-open", "cs_test_new", as_db(test_db.db))
+    ).toBe(true);
+    expect(await status_of("don-open")).toBe("created");
+  });
+
+  test("does not move a settled gift back to created", async () => {
+    await seed("don-paid", "settled");
+
+    expect(
+      await agent_checkout_save("don-paid", "cs_test_late", as_db(test_db.db))
+    ).toBe(false);
+    expect(await status_of("don-paid")).toBe("settled");
   });
 });

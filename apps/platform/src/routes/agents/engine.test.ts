@@ -5,7 +5,8 @@ const mocks = vi.hoisted(() => ({
   to_fn: vi.fn(),
   reserve: vi.fn(),
   donation_get: vi.fn(),
-  donation_update: vi.fn(),
+  checkout_save: vi.fn(),
+  npo_get: vi.fn(),
   npo_by_regnum: vi.fn(),
   npo_program_get: vi.fn(),
   checkout_session: vi.fn(),
@@ -23,15 +24,15 @@ vi.mock("$/env", () => ({
 
 vi.mock("#/.server/npos", () => ({ get_npos: mocks.get_npos }));
 vi.mock("#/.server/donation-recipient", () => ({ to_fn: mocks.to_fn }));
-vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/donation", () => ({
+  agent_checkout_save: mocks.checkout_save,
   agent_donation_expire: mocks.expire,
   agent_donation_reserve: mocks.reserve,
   donation_get: mocks.donation_get,
-  donation_update: mocks.donation_update,
 }));
 vi.mock("$/pg/queries/npo", () => ({
   npo_by_regnum: mocks.npo_by_regnum,
+  npo_get: mocks.npo_get,
 }));
 vi.mock("$/pg/queries/program", () => ({
   npo_program_get: mocks.npo_program_get,
@@ -65,7 +66,8 @@ beforeEach(() => {
   mocks.to_fn.mockResolvedValue(recipient);
   mocks.reserve.mockResolvedValue("created");
   mocks.donation_get.mockResolvedValue(undefined);
-  mocks.donation_update.mockResolvedValue(undefined);
+  mocks.checkout_save.mockResolvedValue(true);
+  mocks.npo_get.mockResolvedValue({ donor_address_required: false });
   mocks.descriptor.mockResolvedValue("ACME");
   mocks.expire.mockResolvedValue(true);
   mocks.checkout_session.mockResolvedValue({
@@ -117,6 +119,12 @@ describe("agent quote", () => {
       frequency: "one-time",
       amount: { base: 10, tip: 1, fee_allowance: 0.56, total: 11.56 },
     });
+  });
+
+  test("refuses a nonprofit that requires a donor address", async () => {
+    mocks.npo_get.mockResolvedValue({ donor_address_required: true });
+
+    await expect(quote()).rejects.toMatchObject({ code: "address_required" });
   });
 
   test("refuses a tip when the recipient hides Better Giving tips", async () => {
@@ -190,10 +198,10 @@ describe("agent donate", () => {
         recipient_name: "ACME",
       })
     );
-    expect(mocks.donation_update).toHaveBeenCalledWith({}, quoted.quote_id, {
-      via_extra: "cs_test_1",
-      status: "created",
-    });
+    expect(mocks.checkout_save).toHaveBeenCalledWith(
+      quoted.quote_id,
+      "cs_test_1"
+    );
   });
 
   test("same quote returns the existing session without another charge", async () => {
@@ -298,7 +306,7 @@ describe("agent donate", () => {
       donation_id: quoted.quote_id,
       checkout_url: "https://checkout.stripe.com/c/pay/cs_test_new",
     });
-    expect(mocks.expire).toHaveBeenCalledWith(quoted.quote_id);
+    expect(mocks.expire).toHaveBeenCalledWith(quoted.quote_id, "cs_test_old");
     expect(mocks.checkout_session).toHaveBeenCalledWith(
       expect.objectContaining({
         order_id: quoted.quote_id,
@@ -306,6 +314,18 @@ describe("agent donate", () => {
       })
     );
     expect(mocks.reserve).not.toHaveBeenCalled();
+  });
+
+  test("a save that loses to a paid gift does not report a new checkout", async () => {
+    const quoted = await quote();
+    mocks.checkout_save.mockResolvedValue(false);
+
+    await expect(
+      donate(
+        { quote_token: quoted.quote_token, donor },
+        new Request("https://better.giving/agents")
+      )
+    ).rejects.toMatchObject({ code: "quote_used" });
   });
 
   test("an expired quote is rejected before anything is written", async () => {
@@ -456,7 +476,7 @@ describe("agent status", () => {
     const result = await donation_status({ donation_id: id });
 
     expect(result.status).toBe("expired");
-    expect(mocks.expire).toHaveBeenCalledWith(id);
+    expect(mocks.expire).toHaveBeenCalledWith(id, "cs_test_old");
   });
 
   test("an open Checkout stays created", async () => {

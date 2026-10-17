@@ -188,8 +188,9 @@ export async function action({ request }: Route.ActionArgs) {
         break;
       }
       case "checkout.session.expired": {
-        const order_id = stripe_event.data.object.metadata?.order_id;
-        if (order_id) await agent_donation_expire(order_id);
+        const session = stripe_event.data.object;
+        const order_id = session.metadata?.order_id;
+        if (order_id) await agent_donation_expire(order_id, session.id);
         break;
       }
       case "charge.refunded":

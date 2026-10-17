@@ -831,11 +831,13 @@ export async function agent_donation_reserve(
 }
 
 /**
- * marks an agent checkout expired while it is still `created`. the status
- * guard keeps a late expiry from overwriting a payment that already landed.
+ * marks an agent checkout expired while it is still `created` and still points
+ * at `session_id`. a late expiry for a session that was already replaced does
+ * not touch the replacement.
  */
 export async function agent_donation_expire(
   donation_id: string,
+  session_id: string,
   tx: DbOrTx = db
 ): Promise<boolean> {
   const [row] = await tx
@@ -845,7 +847,36 @@ export async function agent_donation_expire(
       and(
         eq(donations.id, donation_id),
         eq(donations.source, "bg-agent"),
-        eq(donations.status, "created")
+        eq(donations.status, "created"),
+        eq(donations.via_extra, session_id)
+      )
+    )
+    .returning({ id: donations.id });
+  return !!row;
+}
+
+/**
+ * records the Checkout Session on an agent donation that is still unpaid.
+ * a `settled` or otherwise finished row is left alone, so a slow retry cannot
+ * move a paid gift back to `created`.
+ */
+export async function agent_checkout_save(
+  donation_id: string,
+  session_id: string,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  const [row] = await tx
+    .update(donations)
+    .set({
+      via_extra: session_id,
+      status: "created",
+      updated_at: new Date().toISOString(),
+    })
+    .where(
+      and(
+        eq(donations.id, donation_id),
+        eq(donations.source, "bg-agent"),
+        inArray(donations.status, ["created", "expired"])
       )
     )
     .returning({ id: donations.id });

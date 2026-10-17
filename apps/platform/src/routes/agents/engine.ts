@@ -16,14 +16,13 @@ import { MIN_DONATION_USD } from "@/constants/common";
 import type { IDonation, IDonor, IProgram } from "@/donations";
 import { to_from } from "@/donations/helpers";
 import { app } from "$/env";
-import { db } from "$/pg/db";
 import {
+  agent_checkout_save,
   agent_donation_expire,
   agent_donation_reserve,
   donation_get,
-  donation_update,
 } from "$/pg/queries/donation";
-import { npo_by_regnum } from "$/pg/queries/npo";
+import { npo_by_regnum, npo_get } from "$/pg/queries/npo";
 import { npo_program_get } from "$/pg/queries/program";
 
 const RATE_WINDOW_MS = 60 * 60 * 1000;
@@ -179,6 +178,16 @@ export async function find_nonprofit(input: unknown) {
   });
 }
 
+async function assert_address_optional(recipient_id: number | string) {
+  if (typeof recipient_id !== "number") return;
+  const npo = await npo_get(recipient_id);
+  if (!npo?.donor_address_required) return;
+  throw new AgentDonationError(
+    "address_required",
+    "This nonprofit requires a donor address, which this checkout does not collect."
+  );
+}
+
 export async function create_quote(input: unknown): Promise<IAgentQuote> {
   const args = parsed(quote_input, input);
   const recipient = await to_fn(args.recipient_id, { open_at: new Date() });
@@ -188,6 +197,7 @@ export async function create_quote(input: unknown): Promise<IAgentQuote> {
       "This recipient is not accepting donations."
     );
   }
+  await assert_address_optional(args.recipient_id);
   if (!recipient.to_tip_allowed && args.tip_percent !== "none") {
     throw new AgentDonationError(
       "tip_not_allowed",
@@ -287,10 +297,13 @@ async function open_checkout(don: IDonation, idempotency_key?: string) {
       descriptor_suffix,
       idempotency_key,
     });
-    await donation_update(db, don.id, {
-      via_extra: session.id,
-      status: "created",
-    });
+    const saved = await agent_checkout_save(don.id, session.id);
+    if (!saved) {
+      throw new AgentDonationError(
+        "quote_used",
+        "This quote was already paid. Check donation_status."
+      );
+    }
     return { donation_id: don.id, checkout_url: session.url };
   } catch (error) {
     const refusal = donor_refusal(error);
@@ -333,7 +346,7 @@ async function resume_checkout(don: IDonation | undefined, donor: IDonor) {
     return { donation_id: don.id, checkout_url: session.url };
   }
   if (session.status === "expired") {
-    await agent_donation_expire(don.id);
+    await agent_donation_expire(don.id, don.via_extra);
     return open_checkout(
       don,
       `agent-checkout:${don.id}:after:${don.via_extra}`
@@ -359,6 +372,7 @@ export async function donate(input: unknown, request: Request) {
       "This recipient is not accepting donations."
     );
   }
+  await assert_address_optional(quote.recipient_id);
   if (!recipient.to_tip_allowed && quote.tip_percent !== "none") {
     throw new AgentDonationError(
       "tip_not_allowed",
@@ -424,7 +438,7 @@ async function current_status(don: IDonation): Promise<IDonation["status"]> {
   if (don.status !== "created" || !don.via_extra) return don.status;
   const session = await checkout_session_state(don.via_extra);
   if (session.status !== "expired") return don.status;
-  await agent_donation_expire(don.id);
+  await agent_donation_expire(don.id, don.via_extra);
   return "expired";
 }
 
