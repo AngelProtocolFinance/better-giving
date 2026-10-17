@@ -66,14 +66,18 @@ async function seed_program(npo_id: number, title: string) {
   return id;
 }
 
-async function load(npo_id: number, program_id?: string) {
+async function load_key(id: string, program_id?: string) {
   const qs = program_id ? `?programId=${program_id}` : "";
-  const request = new Request(`https://x/donate/${npo_id}${qs}`);
+  const request = new Request(`https://x/donate/${id}${qs}`);
   const res: any = await loader({
     request,
-    params: { id: String(npo_id) },
+    params: { id },
   } as any);
   return res.data;
+}
+
+async function load(npo_id: number, program_id?: string) {
+  return load_key(String(npo_id), program_id);
 }
 
 beforeAll(async () => {
@@ -130,6 +134,61 @@ describe("donate loader npo", () => {
 
     expect(d.endow).toMatchObject({ id: npo.id, name: "Recipient" });
     expect(Object.keys(d.endow).sort()).toEqual([...NPO_PUBLIC_KEYS].sort());
+  });
+});
+
+describe("donate loader org slug", () => {
+  it("renders the same page for the slug as for the numeric id", async () => {
+    const npo = await seed_npo("Recipient");
+    await test_db
+      .current!.db.update(npos)
+      .set({ slug: "helping-hands" })
+      .where(eq(npos.id, npo.id));
+
+    const by_slug = await load_key("helping-hands");
+    const by_id = await load(npo.id);
+
+    expect(by_slug.endow).toEqual(by_id.endow);
+    expect(by_slug.id).toBe(npo.id);
+    expect(by_slug.arrived).toBe("helping-hands");
+    expect(by_id.arrived).toBe(String(npo.id));
+  });
+
+  it("keeps a program query on a numeric id", async () => {
+    const npo = await seed_npo("Recipient");
+    const own = await seed_program(npo.id, "Own Program");
+
+    const d = await load(npo.id, own);
+
+    expect(d.program).toMatchObject({ id: own, title: "Own Program" });
+    expect(d.arrived).toBe(String(npo.id));
+  });
+
+  it("is not found for an unknown slug or id", async () => {
+    const slug = await load_key("no-such-slug").catch((e: unknown) => e);
+    const id = await load_key("404000").catch((e: unknown) => e);
+
+    expect(slug).toBeInstanceOf(Response);
+    expect((slug as Response).status).toBe(404);
+    expect(id).toBeInstanceOf(Response);
+    expect((id as Response).status).toBe(404);
+  });
+
+  it("resolves a number-like value as an id", async () => {
+    const npo = await seed_npo("Numbered");
+    expect(npo.id).not.toBe(999001);
+    await test_db
+      .current!.db.update(npos)
+      .set({ slug: "999001" })
+      .where(eq(npos.id, npo.id));
+
+    const as_id = await load_key("999001").catch((e: unknown) => e);
+    const by_real_id = await load(npo.id);
+
+    expect(as_id).toBeInstanceOf(Response);
+    expect((as_id as Response).status).toBe(404);
+    expect(by_real_id.endow.id).toBe(npo.id);
+    expect(by_real_id.endow.name).toBe("Numbered");
   });
 });
 

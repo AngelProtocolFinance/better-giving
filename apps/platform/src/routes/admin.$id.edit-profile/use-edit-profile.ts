@@ -7,7 +7,6 @@ import {
   type UseFormReturn,
   useController,
   useForm,
-  useWatch,
 } from "react-hook-form";
 import * as v from "valibot";
 import { to_text } from "#/components/rich-text";
@@ -19,20 +18,14 @@ type SetPrompt = (p: IPrompt) => void;
 /** each group's fields in the order the form renders them — `trigger`'s
  * focus-on-error walks this order, not the order they register in */
 const general_fields = [
-  "name",
   "tagline",
-  "registration_number",
   "image",
-  "logo",
   "card_img",
   "overview",
   "url",
-  "slug",
 ] as const satisfies (keyof FV)[];
 
 const organization_fields = [
-  "endow_designation",
-  "hq_country",
   "active_in_countries",
   "street_address",
 ] as const satisfies (keyof FV)[];
@@ -100,20 +93,16 @@ function use_group<T extends FieldValues>(
   return { submit, busy };
 }
 
-export function use_general(init: FV, npo_id: number, set_prompt: SetPrompt) {
+export function use_general(init: FV, set_prompt: SetPrompt) {
   const form = useForm<General>({
     // seeded once, never from `values`: another group's save revalidates the
     // loader, and a re-seed would wipe unsaved edits here
     defaultValues: {
-      name: init.name,
       tagline: init.tagline,
-      registration_number: init.registration_number,
       image: init.image,
-      logo: init.logo,
       card_img: init.card_img,
       overview: init.overview,
       url: init.url,
-      slug: init.slug,
     },
     resolver: valibotResolver(general_schema),
   });
@@ -124,37 +113,14 @@ export function use_general(init: FV, npo_id: number, set_prompt: SetPrompt) {
   const dirty = (name: keyof General) => is_marked(dirtyFields[name]);
 
   const { field: banner } = useController({ control, name: "image" });
-  const { field: logo } = useController({ control, name: "logo" });
   const { field: card_img } = useController({ control, name: "card_img" });
   const { field: overview } = useController({ control, name: "overview" });
-  const slug = useWatch({ control, name: "slug" });
 
   const save = () =>
-    submit([...general_fields], async (values) => {
+    submit([...general_fields], (values) => {
       const fv = v.parse(general_schema, values);
       const update: Update = {};
-      if (dirty("slug")) {
-        if (fv.slug !== "") {
-          const npo = await fetch(`/api/npos/${fv.slug}?fields=id`).then((r) =>
-            r.status === 404 ? undefined : r.json()
-          );
-
-          if (npo?.id && npo.id !== npo_id) {
-            set_prompt({
-              type: "error",
-              children: `Slug "${fv.slug}" is already taken`,
-            });
-            return;
-          }
-        }
-        update.slug = fv.slug;
-      }
-      if (dirty("name")) update.name = fv.name;
       if (dirty("tagline")) update.tagline = fv.tagline;
-      if (dirty("registration_number")) {
-        update.registration_number = fv.registration_number;
-      }
-      if (dirty("logo")) update.logo = fv.logo;
       if (dirty("image")) update.image = fv.image;
       if (dirty("card_img")) update.card_img = fv.card_img;
       if (dirty("overview")) {
@@ -172,18 +138,14 @@ export function use_general(init: FV, npo_id: number, set_prompt: SetPrompt) {
     busy,
     save,
     banner,
-    logo,
     card_img,
     overview,
-    slug,
   };
 }
 
 export function use_organization(init: FV, set_prompt: SetPrompt) {
   const form = useForm<Organization>({
     defaultValues: {
-      endow_designation: init.endow_designation,
-      hq_country: init.hq_country,
       active_in_countries: init.active_in_countries,
       street_address: init.street_address,
     },
@@ -195,11 +157,6 @@ export function use_organization(init: FV, set_prompt: SetPrompt) {
   const { submit, busy } = use_group(form, set_prompt);
   const dirty = (name: keyof Organization) => is_marked(dirtyFields[name]);
 
-  const { field: designation } = useController({
-    control,
-    name: "endow_designation",
-  });
-  const { field: hq_country } = useController({ control, name: "hq_country" });
   const { field: active_in_countries } = useController({
     control,
     name: "active_in_countries",
@@ -209,10 +166,6 @@ export function use_organization(init: FV, set_prompt: SetPrompt) {
     submit([...organization_fields], (values) => {
       const fv = v.parse(organization_schema, values);
       const update: Update = {};
-      if (dirty("endow_designation")) {
-        update.endow_designation = fv.endow_designation;
-      }
-      if (dirty("hq_country")) update.hq_country = fv.hq_country;
       if (dirty("active_in_countries")) {
         update.active_in_countries = fv.active_in_countries;
       }
@@ -226,8 +179,6 @@ export function use_organization(init: FV, set_prompt: SetPrompt) {
     is_dirty: isDirty,
     busy,
     save,
-    designation,
-    hq_country,
     active_in_countries,
   };
 }

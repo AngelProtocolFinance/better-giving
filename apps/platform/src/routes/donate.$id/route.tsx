@@ -23,7 +23,7 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
     description: endow.tagline?.slice(0, 140),
     name: endow.name,
     image: endow.logo,
-    url: `${base_url}/donate/${endow.id}`,
+    url: `${base_url}/donate/${d.arrived || endow.id}`,
   });
 };
 export default CacheRoute(Page);

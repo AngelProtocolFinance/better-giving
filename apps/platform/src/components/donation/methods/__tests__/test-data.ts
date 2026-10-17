@@ -24,6 +24,7 @@ const test_donate_data: DonateData = {
   id: 1,
   endow,
   base_url: "",
+  arrived: "1",
 };
 
 interface Data {

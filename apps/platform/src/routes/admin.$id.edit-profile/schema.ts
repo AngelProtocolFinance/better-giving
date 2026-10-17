@@ -2,15 +2,7 @@ import type { ImageMIMEType } from "@better-giving/ui";
 import * as v from "valibot";
 import { type ImgSpec, img_output } from "#/components/img-editor";
 import { richtext_content } from "#/types/components";
-import {
-  $,
-  $req,
-  https_url,
-  org_designation,
-  reg_number,
-  slug,
-  social_media_urls,
-} from "@/npo/schema";
+import { $, $req, https_url, social_media_urls } from "@/npo/schema";
 
 export const VALID_MIME_TYPES: ImageMIMEType[] = [
   "image/jpeg",
@@ -38,16 +30,10 @@ export const bannerSpec: ImgSpec = {
 };
 
 export const schema = v.object({
-  slug,
-  registration_number: reg_number,
-  name: $req,
-  endow_designation: org_designation,
   overview: richtext_content({ maxChars: MAX_CHARS, required: true }),
   tagline: v.pipe($req, v.maxLength(140, "max length is 140 chars")),
   image: img_output({ required: true }),
-  logo: img_output({ required: true }),
   card_img: img_output({ required: true }),
-  hq_country: $req,
   active_in_countries: v.array($),
   street_address: v.optional($),
   social_media_urls: social_media_urls,

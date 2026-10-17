@@ -340,12 +340,26 @@ export async function npo_put(db: DbOrTx, data: NpoInsert) {
   await db.insert(npos).values(data);
 }
 
-// no lookup sync needed — UNIQUE constraints handle slug/keyword/regnum
+export const slug_change_refused =
+  "The org slug is already set and cannot be changed";
+
+// no lookup sync needed — UNIQUE constraints handle slug/keyword/regnum.
+// a slug, once stored, is permanent: campaign and donate links depend on it.
 export async function npo_update(
   db: DbOrTx,
   id: number,
   update: Partial<Omit<NpoInsert, "id">>
 ): Promise<void> {
+  if ("slug" in update) {
+    const [row] = await db
+      .select({ slug: npos.slug })
+      .from(npos)
+      .where(eq(npos.id, id));
+    const current = row?.slug;
+    if (current && update.slug !== current) {
+      throw new Error(slug_change_refused);
+    }
+  }
   await db.update(npos).set(update).where(eq(npos.id, id));
 }
 

@@ -25,6 +25,7 @@ import {
   union,
   url,
 } from "valibot";
+import { segment_block } from "./route-segments";
 
 export const file_obj = object({
   name: string(),
@@ -119,7 +120,11 @@ export const segment = pipe(
   regex(/^[a-zA-Z0-9-._~]+$/, "allowed: numbers | letters | - | . | _ | ~"),
   excludes("..", "should not contain double periods"),
   custom((x) => !(x as string).startsWith("."), "should not start with dot"),
-  custom((x) => !(x as string).endsWith("."), "should not end with dot")
+  custom((x) => !(x as string).endsWith("."), "should not end with dot"),
+  custom(
+    (x) => segment_block(x as string) === undefined,
+    (issue) => segment_block(String(issue.input)) ?? "invalid segment"
+  )
 );
 
 export const slug = lazy((x) => (x ? segment : $));
