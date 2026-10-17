@@ -340,13 +340,38 @@ export async function npo_put(db: DbOrTx, data: NpoInsert) {
   await db.insert(npos).values(data);
 }
 
-// no lookup sync needed — UNIQUE constraints handle slug/keyword/regnum
+export const slug_change_refused =
+  "The org slug is already set and cannot be changed";
+
+// no lookup sync needed — UNIQUE constraints handle slug/keyword/regnum.
+// a slug, once stored, is permanent: campaign and donate links depend on it.
+// the predicate and the write are one statement, so a concurrent first write
+// rechecks the row after it takes the lock and matches nothing.
 export async function npo_update(
   db: DbOrTx,
   id: number,
   update: Partial<Omit<NpoInsert, "id">>
 ): Promise<void> {
-  await db.update(npos).set(update).where(eq(npos.id, id));
+  const same_or_unset =
+    "slug" in update
+      ? or(
+          isNull(npos.slug),
+          eq(npos.slug, ""),
+          ...(typeof update.slug === "string" && update.slug !== ""
+            ? [eq(npos.slug, update.slug)]
+            : [])
+        )
+      : undefined;
+  const written = await db
+    .update(npos)
+    .set(update)
+    .where(
+      same_or_unset ? and(eq(npos.id, id), same_or_unset) : eq(npos.id, id)
+    )
+    .returning({ id: npos.id });
+  if ("slug" in update && written.length === 0) {
+    throw new Error(slug_change_refused);
+  }
 }
 
 // balance-only adjustment — values are signed

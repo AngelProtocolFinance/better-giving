@@ -423,6 +423,113 @@ const FLOWS = {
       ];
     },
   },
+  "org-slug": {
+    desc: "npo admin sets an org slug once under Manage → Organization; donate and marketplace resolve it",
+    async run({ page, shot, entry }) {
+      const admin_email = "verify-npo-admin@example.com";
+      const admin_password = "Verify-password-123!";
+      const slug = "verify-test";
+      const note =
+        "Changing your org slug would make any links that depend on it stale";
+      const login = await page.goto(
+        `${BASE}/login?redirect=${encodeURIComponent(`/admin/${NPO}/dashboard`)}`,
+        { waitUntil: "load", timeout: 120_000 }
+      );
+      entry.loaded.push("GET /login?redirect=/admin/:id/dashboard");
+      expect_ok(login.status() === 200, `GET /login → ${login.status()}`);
+      await page.locator('input[name="email"]').fill(admin_email);
+      await page.locator('input[name="password"]').fill(admin_password);
+      await page.getByRole("button", { name: "Log In", exact: true }).click();
+      await page.waitForURL(new RegExp(`/admin/${NPO}/`), { timeout: T });
+      const org = page.getByRole("link", { name: "Organization", exact: true });
+      await org.waitFor({ timeout: T });
+      await org.click();
+      entry.clicked.push("sidebar Organization");
+      await page.waitForURL(new RegExp(`/admin/${NPO}/organization`), {
+        timeout: T,
+      });
+      // A cold dev server reloads this page while Vite finishes optimizing
+      // dependencies. The reload wipes a slug typed into the previous
+      // document, and Save stays disabled because the new form is clean.
+      // Wait until the legal name is on screen, then fill and click. If
+      // Save never enables, reload and repeat that same fill.
+      const save_slug = async () => {
+        await page.waitForFunction(
+          () => {
+            const name = document.querySelector('input[name="name"]');
+            return name instanceof HTMLInputElement && name.value.length > 0;
+          },
+          null,
+          { timeout: T }
+        );
+        const field = page.getByLabel("Org slug");
+        await field.waitFor({ timeout: T });
+        expect_ok(
+          await field.isEnabled(),
+          "slug field is disabled before it is set"
+        );
+        await field.fill(slug);
+        await shot("filled");
+        await page
+          .getByRole("button", { name: "Save organization" })
+          .click({ timeout: 20_000 });
+      };
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await save_slug();
+          break;
+        } catch (err) {
+          if (attempt === 3) throw err;
+          await page.reload({ waitUntil: "load", timeout: 120_000 });
+        }
+      }
+      await page.getByText(note).waitFor({ timeout: T });
+      await page.reload({ waitUntil: "load", timeout: 120_000 });
+      const locked = page.getByLabel("Org slug");
+      await locked.waitFor({ timeout: T });
+      expect_ok(
+        await locked.isDisabled(),
+        "slug field is still editable after reload"
+      );
+      await page.getByText(note).waitFor({ timeout: T });
+      await shot("locked");
+      const donate = await page.goto(`${BASE}/donate/${slug}`, {
+        waitUntil: "load",
+        timeout: 120_000,
+      });
+      entry.loaded.push("GET /donate/:slug");
+      expect_ok(
+        donate.status() === 200,
+        `GET /donate/${slug} → ${donate.status()}`
+      );
+      await page
+        .getByText("Verify Test Nonprofit")
+        .first()
+        .waitFor({ timeout: T });
+      await shot("donate");
+      const market = await page.goto(`${BASE}/marketplace/${slug}`, {
+        waitUntil: "load",
+        timeout: 120_000,
+      });
+      entry.loaded.push("GET /marketplace/:slug");
+      expect_ok(
+        market.status() === 200,
+        `GET /marketplace/${slug} → ${market.status()}`
+      );
+      await page
+        .getByText("Verify Test Nonprofit")
+        .first()
+        .waitFor({ timeout: T });
+      await shot("marketplace");
+      return [
+        "signed in as the seeded npo admin",
+        "sidebar Organization click → organization page",
+        `set slug ${slug}, reload, field disabled, set-once note visible`,
+        `GET /donate/${slug} → 200, Verify Test Nonprofit`,
+        `GET /marketplace/${slug} → 200, Verify Test Nonprofit`,
+      ];
+    },
+  },
 };
 
 const args = process.argv.slice(2);

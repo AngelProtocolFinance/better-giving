@@ -14,9 +14,7 @@ export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Page);
 function Page({ loaderData: endow }: Route.ComponentProps) {
   const defaults: FV = {
-    name: endow.name,
     published: !!endow.published,
-    registration_number: endow.registration_number ?? "",
     social_media_urls: {
       facebook: sans_https(endow.social_media_urls?.facebook) ?? undefined,
       instagram: sans_https(endow.social_media_urls?.instagram) ?? undefined,
@@ -26,15 +24,11 @@ function Page({ loaderData: endow }: Route.ComponentProps) {
       youtube: sans_https(endow.social_media_urls?.youtube) ?? undefined,
       tiktok: sans_https(endow.social_media_urls?.tiktok) ?? undefined,
     },
-    slug: endow.slug ?? "",
     street_address: endow.street_address ?? "",
     tagline: endow.tagline ?? "",
     url: sans_https(endow.url) ?? "",
     image: endow.image ?? "",
-    logo: endow.logo ?? "",
     card_img: endow.card_img ?? "",
-    endow_designation: endow.endow_designation,
-    hq_country: endow.hq_country,
     active_in_countries: endow.active_in_countries,
     overview: to_content(endow.overview_pt),
   };
@@ -43,7 +37,7 @@ function Page({ loaderData: endow }: Route.ComponentProps) {
   return (
     <Form
       key={endow.id}
-      init_slug={endow.slug ?? undefined}
+      profile_slug={endow.slug ?? undefined}
       init={defaults}
       id={endow.id}
       base_url={endow.base_url}

@@ -18,7 +18,10 @@ interface Flight {
 
 /** one group's save over its own fetcher. `work` builds the PATCH, or returns
  * undefined to call the save off; `on_saved` runs only on a confirmed write */
-export function use_save(set_prompt: (p: IPrompt) => void) {
+export function use_save(
+  set_prompt: (p: IPrompt) => void,
+  context = "applying profile changes"
+) {
   const fetcher = useFetcher<Result>();
   const flight = useRef<Flight>(undefined);
   // covers the gap before `fetcher.state` leaves idle: `work` can await, and
@@ -61,7 +64,7 @@ export function use_save(set_prompt: (p: IPrompt) => void) {
       });
     } catch (err) {
       release();
-      set_prompt(error_prompt(err, { context: "applying profile changes" }));
+      set_prompt(error_prompt(err, { context }));
     }
   };
 

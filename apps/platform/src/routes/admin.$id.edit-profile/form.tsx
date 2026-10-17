@@ -8,22 +8,16 @@ import {
   type IPrompt,
   MultiCombo,
   Prompt,
-  Select,
   Toggle,
   UrlInput,
 } from "@better-giving/ui";
 import { useState } from "react";
 import { href, Link, Outlet } from "react-router";
-import { CountryCombo } from "#/components/country-combo";
 import { ImgEditor } from "#/components/img-editor";
 import { RichText } from "#/components/rich-text";
-import { emails } from "@/constants/common";
 import { country_names } from "@/constants/countries";
-import type { EndowDesignation } from "@/npo";
-import type { OrgDesignation } from "@/schemas";
 import type { FV } from "./schema";
-import { bannerSpec, cardImgSpec, logoSpec, MAX_CHARS } from "./schema";
-import { Slug, slug_notes } from "./slug";
+import { bannerSpec, cardImgSpec, MAX_CHARS } from "./schema";
 import {
   use_general,
   use_organization,
@@ -31,24 +25,16 @@ import {
   use_social_media,
 } from "./use-edit-profile";
 
-const endowDesignations: EndowDesignation[] = [
-  "Charity",
-  "Religious Organization",
-  "University",
-  "Hospital",
-  "Other",
-];
-
 interface Props {
-  init_slug?: string;
+  profile_slug?: string;
   init: FV;
   id: number;
   base_url: string;
 }
 
-export function Form({ init_slug = "", init, id, base_url }: Props) {
+export function Form({ profile_slug = "", init, id, base_url }: Props) {
   const [prompt, set_prompt] = useState<IPrompt>();
-  const general = use_general(init, id, set_prompt);
+  const general = use_general(init, set_prompt);
   const organization = use_organization(init, set_prompt);
   const social_media = use_social_media(init, set_prompt);
   const {
@@ -56,11 +42,11 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
     publish,
     busy: publishing,
   } = use_publish(init, set_prompt);
-  const isUploading = [
-    general.logo.value,
-    general.card_img.value,
-    general.banner.value,
-  ].some((v) => v === "loading");
+  const isUploading = [general.card_img.value, general.banner.value].some(
+    (v) => v === "loading"
+  );
+  const profile_id = profile_slug || String(id);
+  const profile_url = `${base_url}${href("/marketplace/:id", { id: profile_id })}`;
 
   const save_button = (
     group: { is_dirty: boolean; save: () => void },
@@ -92,26 +78,11 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
       <Fieldset disabled={general.busy} className="contents">
         <Group title="General" hide_title>
           <Field
-            {...general.register("name")}
-            label="Name of your organization"
-            disabled
-            tooltip={`The name field reflects your organization's legal name as provided on your initial application. If you need to change your name please contact ${emails.hi} and provide documentation supporting the legal name change or D.B.A. records.`}
-            error={general.errors.name?.message}
-            required
-          />
-          <Field
             {...general.register("tagline")}
             name="tagline"
             label="Tagline of your organization"
             required
             error={general.errors.tagline?.message}
-          />
-          <Field
-            {...general.register("registration_number")}
-            name="registration_number"
-            label="EIN / Registration#"
-            error={general.errors.registration_number?.message}
-            required
           />
           <label htmlFor="npo-banner" className="label -mb-4">
             Banner image of your organization
@@ -132,28 +103,6 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
             spec={bannerSpec}
             classes={{ container: "mb-4", dropzone: "w-full aspect-4/1" }}
             error={general.errors.image?.message}
-          />
-          <label htmlFor="npo-logo" className="label -mb-4">
-            Logo of your organization
-          </label>
-          <ImgEditor
-            id="npo-logo"
-            ref={general.logo.ref}
-            value={general.logo.value}
-            on_change={(val) => {
-              general.logo.onChange(val);
-              general.trigger("logo");
-            }}
-            on_undo={(e) => {
-              e.stopPropagation();
-              general.resetField("logo");
-            }}
-            spec={logoSpec}
-            classes={{
-              container: "mb-4",
-              dropzone: "w-28 sm:w-48 aspect-square",
-            }}
-            error={general.errors.logo?.message}
           />
           <label htmlFor="npo-card-img" className="label -mb-4">
             Marketplace Card image for your organization
@@ -206,47 +155,26 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
             error={general.errors.url?.message}
           />
 
-          <Slug
-            base_url={base_url}
-            init_slug={init_slug}
-            new_slug={general.slug}
-            slug_field={
-              <Field
-                {...general.register("slug")}
-                label="Custom Profile URL"
-                describedby={slug_notes}
-                placeholder="myNonprofit"
-                error={general.errors.slug?.message}
-              />
-            }
-          />
+          <div>
+            <p className="label">Profile URL</p>
+            <Link to={profile_url} className="link break-all text-sm">
+              {profile_url}
+            </Link>
+            <p className="mt-2">
+              <Link
+                to={href("/admin/:id/organization", { id: String(id) })}
+                className="link text-sm"
+              >
+                Manage → Organization
+              </Link>
+            </p>
+          </div>
           {save_button(general, "Save general", isUploading)}
         </Group>
       </Fieldset>
 
       <Fieldset disabled={organization.busy} className="contents">
         <Group title="Organization">
-          <Select<OrgDesignation>
-            required
-            label="Organization Designation"
-            value={organization.designation.value}
-            onChange={organization.designation.onChange}
-            classes={{ options: "text-sm" }}
-            options={endowDesignations}
-            error={organization.errors.endow_designation?.message}
-            ref={organization.designation.ref}
-            option_disp={(v) => v}
-          />
-
-          <CountryCombo
-            required
-            clearable
-            label="Headquarters"
-            value={organization.hq_country.value || undefined}
-            on_change={(c) => organization.hq_country.onChange(c ?? "")}
-            error={organization.errors.hq_country?.message}
-            ref={organization.hq_country.ref}
-          />
           <MultiCombo
             label="Active countries"
             values={organization.active_in_countries.value}

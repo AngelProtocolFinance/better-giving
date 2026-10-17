@@ -1,6 +1,7 @@
 import {
   Blocks,
   BoxIcon,
+  Building2,
   CircleDollarSign,
   CircleUserRound,
   Flag,
@@ -130,6 +131,14 @@ const group3: LinkGroup = {
 const group4: LinkGroup = {
   title: "Manage",
   links: [
+    {
+      title: "Organization",
+      to: sidebar_routes.organization,
+      icon: {
+        fn: Building2,
+        size: 21,
+      },
+    },
     {
       title: "Settings",
       to: "settings",
