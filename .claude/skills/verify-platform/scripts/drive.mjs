@@ -448,15 +448,41 @@ const FLOWS = {
       await page.waitForURL(new RegExp(`/admin/${NPO}/organization`), {
         timeout: T,
       });
-      const field = page.getByLabel("Org slug");
-      await field.waitFor({ timeout: T });
-      expect_ok(
-        await field.isEnabled(),
-        "slug field is disabled before it is set"
-      );
-      await field.fill(slug);
-      await shot("filled");
-      await page.getByRole("button", { name: "Save organization" }).click();
+      // A cold dev server reloads this page while Vite finishes optimizing
+      // dependencies. The reload wipes a slug typed into the previous
+      // document, and Save stays disabled because the new form is clean.
+      // Wait until the legal name is on screen, then fill and click. If
+      // Save never enables, reload and repeat that same fill.
+      const save_slug = async () => {
+        await page.waitForFunction(
+          () => {
+            const name = document.querySelector('input[name="name"]');
+            return name instanceof HTMLInputElement && name.value.length > 0;
+          },
+          null,
+          { timeout: T }
+        );
+        const field = page.getByLabel("Org slug");
+        await field.waitFor({ timeout: T });
+        expect_ok(
+          await field.isEnabled(),
+          "slug field is disabled before it is set"
+        );
+        await field.fill(slug);
+        await shot("filled");
+        await page
+          .getByRole("button", { name: "Save organization" })
+          .click({ timeout: 20_000 });
+      };
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await save_slug();
+          break;
+        } catch (err) {
+          if (attempt === 3) throw err;
+          await page.reload({ waitUntil: "load", timeout: 120_000 });
+        }
+      }
       await page.getByText(note).waitFor({ timeout: T });
       await page.reload({ waitUntil: "load", timeout: 120_000 });
       const locked = page.getByLabel("Org slug");
