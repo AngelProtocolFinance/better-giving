@@ -105,7 +105,7 @@ describe("handle_fund_member_removed", () => {
     expect(subject).toMatch(/Save the Whales/);
     const text = await render(node, { plainText: true });
     expect(text).toMatch(/Hello Ada,/);
-    expect(text).toMatch(/Save the Whales has opted out of your fundraiser/);
+    expect(text).toMatch(/Save the Whales has opted out of your campaign/);
   });
 
   test("a retry after a failed send mails the one nonprofit its message names, once", async () => {

@@ -11,6 +11,7 @@ const npo_get_mock = vi.hoisted(() => vi.fn());
 const fund_get_mock = vi.hoisted(() => vi.fn());
 const npo_program_get_mock = vi.hoisted(() => vi.fn());
 const form_get_mock = vi.hoisted(() => vi.fn());
+const campaign_by_id_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("./stripe", () => ({ stripe_intent: stripe_intent_mock }));
 vi.mock("./paypal", () => ({ paypal_intent: paypal_intent_mock }));
@@ -31,6 +32,19 @@ vi.mock("$/pg/queries/program", () => ({
   npo_program_get: npo_program_get_mock,
 }));
 vi.mock("$/pg/queries/form", () => ({ form_get: form_get_mock }));
+vi.mock("$/pg/queries/campaign", () => ({
+  campaign_by_id: campaign_by_id_mock,
+  campaign_accepts: (
+    row: { status: string; ends_at: string | null },
+    now: Date
+  ) => {
+    if (row.status !== "live") return false;
+    if (row.ends_at && new Date(row.ends_at).getTime() <= now.getTime()) {
+      return false;
+    }
+    return true;
+  },
+}));
 vi.mock("#/.server/cookie", () => ({
   donations_cookie: {
     parse: cookie_parse_mock,
@@ -184,7 +198,7 @@ describe("api.donation-intents action", () => {
       expect(res.status).toBe(404);
       expect(res.headers.get("x-refusal")).toBe("1");
       await expect(res.text()).resolves.toBe(
-        "This fundraiser isn't accepting donations right now."
+        "This campaign isn't accepting donations right now."
       );
       expect(stripe_intent_mock).not.toHaveBeenCalled();
       expect(cookie_serialize_mock).not.toHaveBeenCalled();
@@ -199,7 +213,7 @@ describe("api.donation-intents action", () => {
       expect(res.status).toBe(404);
       expect(res.headers.get("x-refusal")).toBe("1");
       await expect(res.text()).resolves.toBe(
-        "This fundraiser isn't accepting donations right now."
+        "This campaign isn't accepting donations right now."
       );
       expect(stripe_intent_mock).not.toHaveBeenCalled();
     });
@@ -212,7 +226,7 @@ describe("api.donation-intents action", () => {
       expect(res.status).toBe(404);
       expect(res.headers.get("x-refusal")).toBe("1");
       await expect(res.text()).resolves.toBe(
-        "This fundraiser isn't accepting donations right now."
+        "This campaign isn't accepting donations right now."
       );
       expect(info).toHaveBeenCalledWith(
         expect.stringContaining(`fundraiser:${fund_id}`)
@@ -539,5 +553,112 @@ describe("api.donation-intents action", () => {
     expect(res.status).toBe(400);
     expect(res.headers.get("x-refusal")).toBe("1");
     expect(capture_order_mock).not.toHaveBeenCalled();
+  });
+});
+
+const CAMPAIGN = "4f3b2a10-9c8d-4e7f-a6b5-c4d3e2f1a0b9";
+const PROGRAM = "0b6f1c2e-3d4a-4b5c-8d9e-0f1a2b3c4d5e";
+
+describe("campaign attribution", () => {
+  const row = (o: {
+    status: string;
+    ends_at?: string | null;
+    owner_npo_id?: number;
+    program_id?: string | null;
+    program_name?: string | null;
+  }) => ({
+    id: CAMPAIGN,
+    owner_npo_id: o.owner_npo_id ?? 1,
+    status: o.status,
+    ends_at: o.ends_at ?? null,
+    program_id: o.program_id ?? null,
+    program_name: o.program_name ?? null,
+  });
+
+  const with_campaign = (extra: object = {}) =>
+    post({
+      ...(valid_body("card") as object),
+      campaign_id: CAMPAIGN,
+      ...extra,
+    });
+
+  it("refuses a draft, an ended campaign, and one past its end", async () => {
+    for (const campaign of [
+      row({ status: "draft" }),
+      row({ status: "ended" }),
+      row({ status: "live", ends_at: "2020-01-01T00:00:00.000Z" }),
+    ]) {
+      campaign_by_id_mock.mockResolvedValueOnce(campaign);
+      const res = await invoke(with_campaign());
+      expect(res.status).toBe(400);
+      await expect(res.text()).resolves.toBe(
+        "This campaign isn't accepting donations right now."
+      );
+    }
+    expect(stripe_intent_mock).not.toHaveBeenCalled();
+  });
+
+  it("drops a campaign owned by someone else and still takes the gift", async () => {
+    campaign_by_id_mock.mockResolvedValueOnce(
+      row({ status: "live", owner_npo_id: 99 })
+    );
+    stripe_intent_mock.mockResolvedValueOnce(ok_result("don-c", { ok: 1 }));
+    const res = await invoke(with_campaign());
+    expect(res.status).toBe(200);
+    const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+    expect(ctx.intent.campaign_id).toBeUndefined();
+  });
+
+  it("drops an unknown campaign and still takes the gift", async () => {
+    campaign_by_id_mock.mockResolvedValueOnce(undefined);
+    stripe_intent_mock.mockResolvedValueOnce(ok_result("don-c", { ok: 1 }));
+    const res = await invoke(with_campaign());
+    expect(res.status).toBe(200);
+    const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+    expect(ctx.intent.campaign_id).toBeUndefined();
+  });
+
+  it("uses the campaign program and drops the one on the request", async () => {
+    campaign_by_id_mock.mockResolvedValueOnce(
+      row({
+        status: "live",
+        program_id: PROGRAM,
+        program_name: "Stored",
+      })
+    );
+    npo_program_get_mock.mockResolvedValueOnce({
+      id: PROGRAM,
+      title: "Youth Literacy",
+    });
+    stripe_intent_mock.mockResolvedValueOnce(ok_result("don-c", { ok: 1 }));
+    await invoke(
+      with_campaign({
+        program: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "Request",
+        },
+      })
+    );
+    expect(npo_program_get_mock).toHaveBeenCalledWith(PROGRAM, 1);
+    const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+    expect(ctx.intent.campaign_id).toBe(CAMPAIGN);
+    expect(ctx.intent.program).toEqual({
+      id: PROGRAM,
+      name: "Youth Literacy",
+    });
+  });
+
+  it("gives the gift no program when the campaign has none", async () => {
+    campaign_by_id_mock.mockResolvedValueOnce(row({ status: "live" }));
+    stripe_intent_mock.mockResolvedValueOnce(ok_result("don-c", { ok: 1 }));
+    await invoke(
+      with_campaign({
+        program: { id: PROGRAM, name: "Request" },
+      })
+    );
+    expect(npo_program_get_mock).not.toHaveBeenCalled();
+    const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+    expect(ctx.intent.campaign_id).toBe(CAMPAIGN);
+    expect(ctx.intent.program).toBeUndefined();
   });
 });

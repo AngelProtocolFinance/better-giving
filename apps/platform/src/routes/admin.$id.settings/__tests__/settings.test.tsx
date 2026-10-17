@@ -278,11 +278,11 @@ describe("fundraiser tab — defaults", () => {
 
     // switch to fundraiser tab
     await expect
-      .element(screen.getByRole("tab", { name: /fundraiser/i }))
+      .element(screen.getByRole("tab", { name: /campaign/i }))
       .toBeVisible();
-    await screen.getByRole("tab", { name: /fundraiser/i }).click();
+    await screen.getByRole("tab", { name: /campaign/i }).click();
 
-    const checkbox = screen.getByLabelText(/allow fundraisers/i);
+    const checkbox = screen.getByLabelText(/allow campaigns/i);
     await expect.element(checkbox).toBeVisible();
     await expect.element(checkbox).not.toBeChecked();
     // use page.elementLocator for within-like scoping
@@ -302,12 +302,12 @@ describe("fundraiser tab — pre-filled", () => {
     const screen = await render_settings(npo.id);
 
     await expect
-      .element(screen.getByRole("tab", { name: /fundraiser/i }))
+      .element(screen.getByRole("tab", { name: /campaign/i }))
       .toBeVisible();
-    await screen.getByRole("tab", { name: /fundraiser/i }).click();
+    await screen.getByRole("tab", { name: /campaign/i }).click();
 
     await expect
-      .element(screen.getByLabelText(/allow fundraisers/i))
+      .element(screen.getByLabelText(/allow campaigns/i))
       .toBeChecked();
   });
 });
@@ -318,11 +318,11 @@ describe("fundraiser tab — toggle on", () => {
     const screen = await render_settings(npo.id);
 
     await expect
-      .element(screen.getByRole("tab", { name: /fundraiser/i }))
+      .element(screen.getByRole("tab", { name: /campaign/i }))
       .toBeVisible();
-    await screen.getByRole("tab", { name: /fundraiser/i }).click();
+    await screen.getByRole("tab", { name: /campaign/i }).click();
 
-    const checkbox = screen.getByLabelText(/allow fundraisers/i);
+    const checkbox = screen.getByLabelText(/allow campaigns/i);
     await expect.element(checkbox).toBeVisible();
     await checkbox.click();
 
@@ -333,7 +333,7 @@ describe("fundraiser tab — toggle on", () => {
       .element(screen.getByRole("button", { name: /submit changes/i }))
       .toBeDisabled();
     await expect
-      .element(screen.getByLabelText(/allow fundraisers/i))
+      .element(screen.getByLabelText(/allow campaigns/i))
       .toBeChecked();
   });
 });

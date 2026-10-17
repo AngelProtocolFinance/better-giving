@@ -1,0 +1,290 @@
+import { eq } from "drizzle-orm";
+import { RouterContextProvider } from "react-router";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { user } from "$/pg/schema/auth";
+import { npos } from "$/pg/schema/npo";
+import type { TestDb } from "$/pg/test-utils/pglite";
+
+const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
+
+vi.mock("$/pg/db", () => ({
+  db: new Proxy(
+    {},
+    {
+      get(_, prop) {
+        const real = test_db.current?.db;
+        if (!real) throw new Error("test_db not initialized");
+        return (real as any)[prop];
+      },
+    }
+  ),
+}));
+
+vi.mock("#/.server/auth", async () =>
+  (await import("$/auth/test-utils")).make_auth_mock({ user_ctx: true })
+);
+
+vi.mock("#/.server/toast", async () => {
+  const { redirect } = await import("react-router");
+  return { redirectWithSuccess: (url: string) => redirect(url) };
+});
+
+const { admin_ctx, user_ctx } = await import("$/auth/test-utils");
+const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
+const { create_test_db } = await import("$/pg/test-utils/pglite");
+const { action: create_action } = await import(
+  "../admin.$id.campaigns.new/api"
+);
+const { action: edit_action, loader: edit_loader } = await import(
+  "../admin.$id.campaigns.$campaign_id/api"
+);
+
+const USER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+beforeAll(async () => {
+  test_db.current = await create_test_db();
+}, 30_000);
+
+afterAll(async () => {
+  await test_db.current?.client.close();
+});
+
+beforeEach(async () => {
+  const db = test_db.current!.db;
+  await db.delete(campaign_members);
+  await db.delete(campaigns);
+  await db.delete(npos);
+  await db.delete(user);
+  await db.insert(user).values({
+    id: USER,
+    name: "Ada Admin",
+    email: "ada-admin-campaign@test.com",
+    emailVerified: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    first_name: "Ada",
+    last_name: "Admin",
+  });
+});
+
+const db = () => test_db.current!.db;
+
+async function npo(ein: string, slug?: string) {
+  const [row] = await db()
+    .insert(npos)
+    .values({
+      registration_number: ein,
+      name: ein,
+      slug: slug ?? null,
+      endow_designation: "Charity",
+      overview_pt: "[]",
+      hq_country: "United States",
+    })
+    .returning();
+  return row!;
+}
+
+function ctx(npo_id: number) {
+  const context = new RouterContextProvider();
+  context.set(admin_ctx, npo_id);
+  context.set(user_ctx, { id: USER });
+  return context;
+}
+
+function body(slug: string, op: "save" | "publish" = "save") {
+  return {
+    name: "Winter drive",
+    slug,
+    description_pt: "[]",
+    donate_methods: ["stripe"],
+    donate_frequencies: ["one-time"],
+    target: "0",
+    op,
+  };
+}
+
+function post(npo_id: number, payload: unknown, campaign_id = "new") {
+  return new Request(`https://x/admin/${npo_id}/campaigns/${campaign_id}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+function outcome(res: unknown) {
+  if (res instanceof Response) {
+    return {
+      status: res.status,
+      location: res.headers.get("Location"),
+      error: undefined as string | undefined,
+    };
+  }
+  const r = res as { data?: { error?: string }; init?: { status?: number } };
+  return {
+    status: r.init?.status ?? 200,
+    location: null as string | null,
+    error: r.data?.error,
+  };
+}
+
+async function thrown_status(p: Promise<unknown>) {
+  try {
+    await p;
+  } catch (err) {
+    expect(err).toBeInstanceOf(Response);
+    return (err as Response).status;
+  }
+  expect.fail("expected a thrown response");
+}
+
+describe("another nonprofit's campaign", () => {
+  async function foreign() {
+    const mine = await npo("EIN-A", "org-a");
+    const theirs = await npo("EIN-B", "org-b");
+    await db().insert(campaigns).values({
+      id: "camp-b",
+      owner_npo_id: theirs.id,
+      creator_id: USER,
+      name: "Theirs",
+      slug: "theirs",
+    });
+    await db().insert(campaign_members).values({
+      campaign_id: "camp-b",
+      npo_id: theirs.id,
+    });
+    return mine;
+  }
+
+  it("404s the editor loader", async () => {
+    const mine = await foreign();
+    const status = await thrown_status(
+      edit_loader({
+        request: new Request("https://x/admin/a/campaigns/camp-b"),
+        params: { id: String(mine.id), campaign_id: "camp-b" },
+        context: ctx(mine.id),
+      } as any)
+    );
+    expect(status).toBe(404);
+  });
+
+  it.each([
+    ["save", body("theirs", "save")],
+    ["publish", body("theirs", "publish")],
+    ["end", { op: "end" }],
+    ["delete", { op: "delete" }],
+  ] as const)("404s %s", async (op, payload) => {
+    const mine = await foreign();
+    const status = await thrown_status(
+      edit_action({
+        request: post(mine.id, payload, "camp-b"),
+        params: { id: String(mine.id), campaign_id: "camp-b" },
+        context: ctx(mine.id),
+      } as any)
+    );
+    expect(op).toBeTruthy();
+    expect(status).toBe(404);
+  });
+});
+
+describe("campaign slug", () => {
+  it("refuses to create one before the organization has a slug", async () => {
+    const org = await npo("EIN-NOSLUG");
+    const res = outcome(
+      await create_action({
+        request: post(org.id, body("winter")),
+        params: { id: String(org.id) },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(res.status).toBe(400);
+    expect(res.error).toBe(
+      "Set your organization slug on Edit Profile before creating a campaign."
+    );
+  });
+
+  it("refuses a slug another campaign of this nonprofit already uses", async () => {
+    const org = await npo("EIN-TAKEN", "taken-org");
+    const first = outcome(
+      await create_action({
+        request: post(org.id, body("Winter")),
+        params: { id: String(org.id) },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(first.status).toBe(302);
+    const second = outcome(
+      await create_action({
+        request: post(org.id, body("winter")),
+        params: { id: String(org.id) },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(second.status).toBe(400);
+    expect(second.error).toBe(
+      "That address is already used by another campaign."
+    );
+  });
+
+  it("lets the slug change until the first publish, then refuses", async () => {
+    const org = await npo("EIN-LOCK", "lock-org");
+    const created = outcome(
+      await create_action({
+        request: post(org.id, body("draft-slug")),
+        params: { id: String(org.id) },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(created.status).toBe(302);
+    const campaign_id = created.location!.split("/").pop()!;
+
+    const renamed = outcome(
+      await edit_action({
+        request: post(org.id, body("open-slug"), campaign_id),
+        params: { id: String(org.id), campaign_id },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(renamed.status).toBe(302);
+    const [row] = await db()
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, campaign_id));
+    expect(row?.slug).toBe("open-slug");
+    expect(row?.published_at).toBeNull();
+
+    const published = outcome(
+      await edit_action({
+        request: post(org.id, body("open-slug", "publish"), campaign_id),
+        params: { id: String(org.id), campaign_id },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(published.status).toBe(302);
+
+    const locked = outcome(
+      await edit_action({
+        request: post(org.id, body("changed", "save"), campaign_id),
+        params: { id: String(org.id), campaign_id },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(locked.status).toBe(400);
+    expect(locked.error).toBe(
+      "The address is locked. Changing it would break links that already point here."
+    );
+    const [after] = await db()
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, campaign_id));
+    expect(after?.slug).toBe("open-slug");
+    expect(after?.status).toBe("live");
+  });
+});

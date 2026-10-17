@@ -124,6 +124,8 @@ const {
   donations,
 } = await import("$/pg/schema/donation");
 const { npos } = await import("$/pg/schema/npo");
+const { user } = await import("$/pg/schema/auth");
+const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
 const { PLACEHOLDER_EMAIL } = await import("@/donations/schema");
 const { subscriptions } = await import("$/pg/schema/subscription");
 const { owed_amounts, owed_entries } = await import("$/pg/schema/owed");
@@ -438,6 +440,8 @@ beforeEach(async () => {
   await db().delete(donation_recipients);
   await db().delete(donations);
   await db().delete(subscriptions);
+  await db().delete(campaign_members);
+  await db().delete(campaigns);
   await db().delete(npos);
   const [npo] = await db()
     .insert(npos)
@@ -2028,6 +2032,64 @@ describe("subscription lifecycle", () => {
     expect(await sub_row()).toMatchObject({
       next_billing: "2026-02-01T00:00:00.000Z",
     });
+  });
+
+  it("copies campaign_id from the prior donation, not the subscription", async () => {
+    const ON_GIFT = "11111111-1111-4111-8111-111111111111";
+    const ON_SUB = "22222222-2222-4222-8222-222222222222";
+    await db().insert(user).values({
+      id: "user-pp-rebill",
+      name: "Ada Admin",
+      email: "ada-pp-rebill@test.com",
+      emailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      first_name: "Ada",
+      last_name: "Admin",
+    });
+    await db()
+      .insert(campaigns)
+      .values([
+        {
+          id: ON_GIFT,
+          owner_npo_id: npo_id,
+          creator_id: "user-pp-rebill",
+          name: "Gift",
+          slug: "gift",
+          description_pt: "[]",
+        },
+        {
+          id: ON_SUB,
+          owner_npo_id: npo_id,
+          creator_id: "user-pp-rebill",
+          name: "Sub",
+          slug: "sub",
+          description_pt: "[]",
+        },
+      ]);
+    await db()
+      .insert(campaign_members)
+      .values([
+        { campaign_id: ON_GIFT, npo_id },
+        { campaign_id: ON_SUB, npo_id },
+      ]);
+    await seed_donation({ frequency: "monthly", campaign_id: ON_GIFT });
+    await deliver(sale_ev());
+    await db()
+      .update(subscriptions)
+      .set({ campaign_id: ON_SUB })
+      .where(eq(subscriptions.id, SUBS_ID));
+    const rebill = sale_ev();
+    rebill.resource.id = "sale-campaign";
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), id: "sale-campaign" });
+
+    const res = await deliver(rebill);
+
+    expect(res.status).toBe(200);
+    const rows = await db().select().from(donations);
+    const clone = rows.find((r) => r.id !== ORDER_ID);
+    expect(clone?.campaign_id).toBe(ON_GIFT);
+    expect((await sub_row())?.campaign_id).toBe(ON_SUB);
   });
 
   it("settles a first sale on a subscription that has expired since, recording it inactive", async () => {
