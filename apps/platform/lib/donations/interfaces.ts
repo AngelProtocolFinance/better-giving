@@ -6,7 +6,7 @@ import type { IAllocation, IAmount, IProgram, ITribute } from "./schema";
 
 export type TToType = "npo" | "fund";
 
-export type TDonationSource = "bg-marketplace" | "bg-widget";
+export type TDonationSource = "bg-marketplace" | "bg-widget" | "bg-agent";
 
 export interface ITo {
   /** npo:int, fund:uuid */
@@ -122,6 +122,8 @@ export interface IDonation extends ITo, IFrom, IFromLegacyOrPostDonation {
   currency: string;
   program?: IProgram;
   source: TDonationSource | (string & {});
+  /** source-specific id; agent donations use a hash of the caller IP */
+  source_id?: string;
   /** form id if using new form */
   form_id?: string;
   frequency: TFrequency;

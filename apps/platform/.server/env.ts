@@ -36,6 +36,9 @@ export const app = {
     process.env.APP_SESSION_SECRET
   ),
   cookie_secret: required("APP_COOKIE_SECRET", process.env.APP_COOKIE_SECRET),
+  // optional shared credential for agent donate calls. when a request presents
+  // it, the hourly cap is per token; otherwise it is per trusted client address.
+  agent_donation_token: process.env.AGENT_DONATION_TOKEN,
 } as const;
 
 export const ai_gateway = {
