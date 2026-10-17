@@ -27,9 +27,9 @@ Report `results.json` + screenshot paths verbatim. `blocked` is **not** `pass`.
 
 `scripts/launch.sh` (run.sh calls it). It:
 1. `pg-up.sh` — initdb/start Postgres at `127.0.0.1:5433`, db `app`, data `/tmp/bg-verify-pg` (needs `apt install postgresql`; `sudo` works on the box). No trust auth and no unix socket: TCP on 127.0.0.1 only, scram-sha-256 with a random per-cluster password (`$VERIFY_STATE/pg.pass`, 0600). It writes a `.verify-platform-owned` marker into the data dir and refuses to reuse an existing dir without one.
-2. writes `apps/platform/.env.verify` (gitignored, 0600): `.env.test` + local `DATABASE_URL` (with that password) + `BASE_URL=http://127.0.0.1:4200`. Started with `--mode verify`, and mode files beat `.env`, so a developer's real `.env` never applies.
+2. writes `apps/platform/.env.verify` (gitignored, 0600): `.env.test` + local `DATABASE_URL` (with that password) + `BASE_URL=http://127.0.0.1:4200` + `CONNECTOR_RETURN_URL=http://127.0.0.1:$VERIFY_PORT/marketplace` (default port 4200). Started with `--mode verify`, and mode files beat `.env`, so a developer's real `.env` never applies. It does not set `VERCEL_ENV`.
 3. builds `packages/*` (platform imports their `dist/`).
-4. migrates with the repo's own `.server/pg/migrate.ts`, seeds `scripts/seed.sql` (npo `Verify Test Nonprofit`, USD rates).
+4. migrates with the repo's own `.server/pg/migrate.ts`, seeds `scripts/seed.sql` (npo `Verify Test Nonprofit`, USD rates), then `scripts/seed-member.mjs` (credential member of that npo, plus `Verify Other Nonprofit` with no membership).
 5. `react-router dev --mode verify --host 127.0.0.1 --port 4200` with `NODE_OPTIONS="--import neon-local.mjs --import stripe-stub.mjs"`.
 Ready = `GET /` → 200 (first SSR compile takes ~10–60 s). State in `/tmp/bg-verify` (`dev.pid`, `port`, `npo_id`, `pg.pass`, `dev.log`, `stripe-stub.log`). The state dir must be private: launch.sh/pg-up.sh create it `0700`, and refuse an existing one that is a symlink, not owned by you, or not `0700` (another local user could pre-plant the fixed `/tmp` path); `pg.pass` is never written through a symlink (`scripts/lib.sh`). On a refusal, remove the dir or set `VERIFY_STATE` to a fresh path.
 
@@ -62,6 +62,9 @@ A listed entry point the drive did not take is not verified. `results.json` reco
 | `marketplace` | from `/`, click footer `Marketplace` → seeded npo card (db read path). Then direct `GET /marketplace` → 200 and the same card. |
 | `donate-card` | direct `GET /donate/:id` → +100 USD → Continue with Card → donor info → payment step with summary $100.00; with real test keys, types 4242… into the Stripe Payment Element (`donate-card-4-card.png`). The marketplace-card Donate link is not clicked, so it is not verified. |
 | `smoke-paths` | smoke.yml's direct `GET /`, `GET /api/currencies`, `GET /form-embed.js` each < 400. No screenshot. |
+| `connector-allow` | direct `GET /login` (the header `Log In` link is not clicked), sign in as the seeded member, direct `GET /admin/connector/allow?state=verify-state-1`, only `Verify Test Nonprofit` is listed, click Allow, land on `/marketplace` with `iss`, `state=verify-state-1`, and a non-empty `code`. |
+
+`scripts/contract.mjs` checks keyless hello against an origin you pass; it does not run the browser Allow flow.
 
 On a cold dev server, scrolling the footer into view prefetches `/donate/1`. Vite reloads and cancels the click. `open_link` retries that same click (header `Log In` and footer `Marketplace`). It does not switch to `goto`. That prefetch can also leave the next direct `/donate/:id` load with a 504 on optimized dependencies, so the amount buttons stay disabled. The donate flow reloads that same URL and clicks `+100 USD` again.
 

@@ -31,6 +31,9 @@ const NPO =
     : "1");
 const T = 60_000;
 const HOME_TITLE = "Fundraising Platform for Nonprofits - Better Giving";
+const MEMBER_EMAIL = "verify-member@example.com";
+// same fixture scripts/seed-member.mjs hashes; login checks that hash
+const MEMBER_PASSWORD = "Verify-member-1";
 
 class Blocked extends Error {}
 const expect_ok = (cond, msg) => {
@@ -106,6 +109,51 @@ const assert_map = (flows) => {
 
 const click_fact = (label, tries) =>
   tries > 1 ? `${label} (retried after a reload, attempt ${tries})` : label;
+
+// a connector code is a secret in the landing URL. logs name that it is
+// present and never include the value.
+const shown_url = (raw) => {
+  try {
+    const u = new URL(raw);
+    if (!u.searchParams.has("code")) return raw.slice(0, 160);
+    u.searchParams.set("code", "present");
+    return u.toString().slice(0, 160);
+  } catch {
+    return raw.slice(0, 160);
+  }
+};
+
+const allow_landing = async (page) => {
+  try {
+    await page.waitForFunction(
+      (iss) => {
+        const u = new URL(location.href);
+        const code = u.searchParams.get("code") ?? "";
+        return (
+          u.origin === iss &&
+          u.pathname === "/marketplace" &&
+          u.searchParams.get("iss") === iss &&
+          u.searchParams.get("state") === "verify-state-1" &&
+          code.length > 0
+        );
+      },
+      BASE,
+      { timeout: T }
+    );
+  } catch {
+    const u = new URL(page.url());
+    const code = u.searchParams.get("code") ?? "";
+    throw new Error(
+      `Allow did not land on /marketplace with iss, state=verify-state-1, and a code (path ${u.pathname}, iss ${u.searchParams.get("iss") ?? "missing"}, state ${u.searchParams.get("state") ?? "missing"}, code ${code.length > 0 ? "present" : "absent"})`
+    );
+  }
+  const u = new URL(page.url());
+  return {
+    pathname: u.pathname,
+    iss: u.searchParams.get("iss"),
+    state: u.searchParams.get("state"),
+  };
+};
 
 // The footer prefetch of `/donate/1` makes Vite optimize new dependencies.
 // The next direct load of that route can 504 those files (`Outdated Optimize
@@ -338,6 +386,96 @@ const FLOWS = {
       return facts;
     },
   },
+  "connector-allow": {
+    desc: "seeded member allows a connector for the nonprofit they administer",
+    async run({ page, shot, entry }) {
+      const login = await page.goto(`${BASE}/login`, {
+        waitUntil: "load",
+        timeout: 120_000,
+      });
+      entry.loaded.push("GET /login");
+      expect_ok(login?.status() === 200, `GET /login → ${login?.status()}`);
+      // A cold dev server reloads /login and clears the fields. The click then
+      // submits an empty form and stays on /login. Refill and click the same
+      // button. This does not switch the login entry to another URL.
+      const email_box = () =>
+        page
+          .locator('input[name="email"], input[placeholder="Email address"]')
+          .first();
+      const password_box = () =>
+        page
+          .locator('input[name="password"], input[placeholder="Password"]')
+          .first();
+      const fill_login = async () => {
+        const email = email_box();
+        await email.waitFor({ state: "visible", timeout: T });
+        await email.fill(MEMBER_EMAIL);
+        await password_box().fill(MEMBER_PASSWORD);
+        if ((await email.inputValue()) !== MEMBER_EMAIL) {
+          await email.fill(MEMBER_EMAIL);
+          await password_box().fill(MEMBER_PASSWORD);
+        }
+      };
+      const on_login = () => new URL(page.url()).pathname.startsWith("/login");
+      let login_tries = 1;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        login_tries = attempt;
+        try {
+          await fill_login();
+          await page
+            .getByRole("button", { name: "Log In", exact: true })
+            .click();
+          await page.waitForURL(
+            (url) => !new URL(url).pathname.startsWith("/login"),
+            {
+              timeout: attempt < 3 ? 5_000 : T,
+            }
+          );
+          break;
+        } catch {
+          if (!on_login()) break;
+          if (attempt === 3) throw new Error("Log In stayed on /login");
+          await page
+            .waitForLoadState("load", { timeout: 30_000 })
+            .catch(() => {});
+        }
+      }
+      const allow = await page.goto(
+        `${BASE}/admin/connector/allow?state=verify-state-1`,
+        { waitUntil: "load", timeout: 120_000 }
+      );
+      entry.loaded.push("GET /admin/connector/allow?state=verify-state-1");
+      const allow_path = new URL(page.url()).pathname;
+      expect_ok(
+        allow?.status() === 200 && allow_path === "/admin/connector/allow",
+        `GET /admin/connector/allow → ${allow?.status()} ${allow_path}`
+      );
+      await page
+        .getByText("Verify Test Nonprofit", { exact: true })
+        .waitFor({ timeout: T });
+      await shot();
+      expect_ok(
+        (await page
+          .getByText("Verify Other Nonprofit", { exact: true })
+          .count()) === 0,
+        "Verify Other Nonprofit is on the allow screen"
+      );
+      await page
+        .getByRole("button", { name: "Allow", exact: true })
+        .click({ noWaitAfter: true });
+      const landed = await allow_landing(page);
+      await shot("landed");
+      return [
+        click_fact(
+          "direct GET /login → left /login (header Log In not clicked)",
+          login_tries
+        ),
+        "direct GET /admin/connector/allow?state=verify-state-1",
+        "picker shows Verify Test Nonprofit and not Verify Other Nonprofit",
+        `Allow → ${landed.pathname} iss=${landed.iss} state=${landed.state} code present`,
+      ];
+    },
+  },
 };
 
 const args = process.argv.slice(2);
@@ -353,7 +491,7 @@ if (args.includes("--check-map")) {
 }
 if (args.includes("--list")) {
   for (const [k, f] of Object.entries(FLOWS))
-    console.log(`${k.padEnd(14)} ${f.desc}`);
+    console.log(`${k.padEnd(16)} ${f.desc}`);
   process.exit(0);
 }
 const names = args.length ? args : Object.keys(FLOWS);
@@ -388,7 +526,7 @@ for (const name of names) {
   page.on("pageerror", (e) => log(`pageerror: ${e.message.slice(0, 300)}`));
   page.on("response", (r) => {
     if (r.status() >= 400) {
-      const s = `${r.request().method()} ${r.status()} ${r.url().slice(0, 160)}`;
+      const s = `${r.request().method()} ${r.status()} ${shown_url(r.url())}`;
       net.push(s);
       log(`http ${s}`);
     }
