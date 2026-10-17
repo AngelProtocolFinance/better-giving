@@ -20,9 +20,9 @@ export function WhoPays({ classes = "" }: IWhoPays) {
               <strong className="text-gray-12">
                 opt-in and never pre-selected
               </strong>
-              . That, plus our volunteers, keeps the commons free for every
-              nonprofit. And third-party processing fees? Most donors choose to
-              cover them, so the vast majority of every gift reaches you.
+              . That keeps the commons free for every nonprofit. And third-party
+              processing fees? Most donors choose to cover them, so the vast
+              majority of every gift reaches you.
             </p>
           </div>
           <div
@@ -47,10 +47,9 @@ export function WhoPays({ classes = "" }: IWhoPays) {
 }
 
 const zero_lines = [
-  "Platform fee",
-  "Fund-management fee",
-  "Setup & contract",
-  "Exit fee",
+  { label: "Platform fee", note: "(while the donor ask stays on)" },
+  { label: "Setup fee" },
+  { label: "Exit fee" },
 ] as const;
 
 const pass_through = [
@@ -63,7 +62,7 @@ function Receipt() {
   return (
     <div
       role="img"
-      aria-label="Illustrative receipt: on a $100 donation, platform, fund-management, setup and exit fees are all $0.00, and 100% is granted to the nonprofit."
+      aria-label="Illustrative receipt: on a $100 donation, the platform fee (while the optional donor contribution stays on), setup fee and exit fee are all $0.00. The donor contribution is optional, and most donors cover card processing."
       className="reveal w-full max-w-sm justify-self-center lg:justify-self-end"
     >
       <div
@@ -78,10 +77,11 @@ function Receipt() {
 
         <div className="grid gap-2.5 mt-6 pt-6 border-t border-dashed">
           <Line label="Donation" value="$100.00" />
-          {zero_lines.map((label, i) => (
+          {zero_lines.map((line, i) => (
             <Line
-              key={label}
-              label={label}
+              key={line.label}
+              label={line.label}
+              note={"note" in line ? line.note : undefined}
               value="$0.00"
               classes="reveal"
               order={i}
@@ -97,10 +97,8 @@ function Receipt() {
 
         <div className="h-1 mt-5 border-y" />
         <div className="grid gap-1 mt-5">
-          <span className="eyebrow text-gray-11">
-            Granted to your nonprofit
-          </span>
-          <span className="display-figure text-6xl text-primary">100%</span>
+          <span className="eyebrow text-gray-11">Better Giving fees</span>
+          <span className="display-figure text-6xl text-primary">$0.00</span>
         </div>
       </div>
       <TornEdge />

@@ -26,7 +26,7 @@ export default function Page() {
       <Steps classes="bg-band py-24 md:py-32" />
       <CtaBand
         title="Open the door to U.S. giving"
-        subtitle="Join the 210+ organizations worldwide raising tax-deductible U.S. donations through Better Giving."
+        subtitle="Raise tax-deductible U.S. donations through Better Giving."
       />
     </main>
   );

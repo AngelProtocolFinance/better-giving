@@ -28,8 +28,8 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
               title="High-yield savings"
               order={1}
             >
-              FDIC-insured, ~3-4% yield, accessible anytime. Electronic payouts
-              within 5 working days.
+              FDIC-insured. Withdrawal requests are reviewed and processed on a
+              monthly basis.
             </FundOption>
             <FundOption
               icon={<TrendingUp className="icon-xl" />}
@@ -37,13 +37,11 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
               order={2}
             >
               Professionally managed, investment-committee governed, rebalanced
-              quarterly. ~11% average annual return over the past five years.*
-              No setup, AUM, or performance fees.
+              quarterly.
             </FundOption>
           </div>
           <p className="text-xs text-gray-11">
-            *Past performance is not indicative of future results; all
-            investments carry risk.
+            Returns vary, and past performance isn't a guarantee.
           </p>
         </div>
 
@@ -51,10 +49,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           <figcaption className="text-lg font-bold text-center">
             Sustainability Fund target allocation
           </figcaption>
-          <AllocationRing
-            center_value="~11%"
-            center_label={["avg. annual return,", "past 5 yrs*"]}
-          />
+          <AllocationRing />
         </figure>
       </div>
     </section>

@@ -11,7 +11,7 @@ const steps = [
   },
   {
     title: "Watch reserves build",
-    body: "Track balances in your dashboard and withdraw anytime. Payouts within 5 working days.",
+    body: "Track balances in your dashboard. Withdrawal requests are reviewed and processed on a monthly basis.",
   },
 ] as const;
 

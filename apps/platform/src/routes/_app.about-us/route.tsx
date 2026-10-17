@@ -26,7 +26,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `About Us | ${app_name}`,
     description:
-      "Since 2021, we've helped 210+ nonprofits worldwide raise over $6M, with free tools, shared growth, and a simple belief: the organizations doing the work should keep the money.",
+      "Since 2021, Better Giving has offered donation forms, savings, and fund growth tools, with a simple belief: the organizations doing the work should keep the money.",
   });
 
 export default function Page({ loaderData }: Route.ComponentProps) {
@@ -41,7 +41,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
 
       <CtaBand
         title="Build the commons with us"
-        subtitle="Join as a member, contribute as a volunteer, or just read the code. Every door is open."
+        subtitle="Register online, or read the code."
       />
 
       <Donate base_url={loaderData.base_url} classes="bg-band py-24 md:py-32" />

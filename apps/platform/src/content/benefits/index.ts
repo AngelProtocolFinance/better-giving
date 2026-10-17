@@ -52,7 +52,7 @@ const nonprofits: Benefit[] = [
     title: "Free Donation Processing",
     title2: "More for your mission",
     description:
-      "Maximize your nonprofit’s funds with no platform fees. Although third-party processing fees may apply, most donors choose to cover these fees. We handle the tax receipts and admin work for accepting all types of donations, you enjoy grants directly to your bank account.",
+      "There is no platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee. Although third-party processing fees may apply, most donors choose to cover these fees. We handle the tax receipts and admin work for accepting all types of donations. Grants and withdrawal requests are reviewed and processed on a monthly basis.",
     img: icon7,
     cardBgClass: colors[0],
   },
@@ -60,7 +60,7 @@ const nonprofits: Benefit[] = [
     title: "High-Yield Savings Accounts",
     title2: "Secure, steady growth for your funds",
     description:
-      "Choose to grow donations in a high-yield savings account at an annual rate of 4-5%, all without any market risk. Funds remain accessible and safe while earning interest, providing your nonprofit with a reliable way to increase reserves over time.",
+      "Choose to grow donations in a high-yield savings account. Returns vary, and past performance isn't a guarantee. Withdrawal requests are reviewed and processed on a monthly basis.",
     img: icon5,
     cardBgClass: colors[1],
   },
@@ -68,7 +68,7 @@ const nonprofits: Benefit[] = [
     title: "Managed Investment Funds",
     title2: "Maximize long-term financial growth",
     description:
-      "Unlock the potential of your donations with managed investment funds that have delivered an average annual return of 24% over the past five years. Our investment strategy is designed for long-term stability and growth, helping your nonprofit secure a sustainable financial future.",
+      "Managed investment funds can hold a share of donations for longer-term growth. Returns vary, and past performance isn't a guarantee.",
     img: icon2,
     cardBgClass: colors[2],
   },

@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 const items = [
   {
     Icon: CalendarClock,
-    text: "Payouts arrive electronically within 5 working days.",
+    text: "Grants and withdrawal requests are reviewed and processed on a monthly basis.",
   },
   {
     Icon: FileDown,

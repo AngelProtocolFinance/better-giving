@@ -14,10 +14,6 @@ const promises = [
     title: "No exit toll",
     body: "Never conditioned on fees or new terms. Data in 5 business days, migration underway in 10.",
   },
-  {
-    title: "Or own it from day one",
-    body: "Self-host the open-source form with your own gateway: your tokens never leave your control.",
-  },
 ] as const;
 
 interface IPortability {
@@ -42,11 +38,11 @@ export function Portability({ classes = "" }: IPortability) {
           </p>
         </div>
 
-        <ol className="grid gap-5 md:grid-cols-2 lg:grid-cols-4 mt-12 md:mt-16">
+        <ol className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 mt-12 md:mt-16">
           {promises.map((p, i) => (
             <li
               key={p.title}
-              className="tile reveal grid content-start gap-3"
+              className="tile reveal grid content-start gap-3 md:max-lg:last:col-span-2"
               style={{ "--reveal-order": i } as CSSProperties}
             >
               <h3 className="text-xl font-bold text-gray-12 text-balance">

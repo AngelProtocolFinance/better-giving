@@ -25,7 +25,7 @@ export function Hero({ classes = "" }: IHero) {
               to={href("/register")}
               className="group btn btn-lg btn-primary gap-2"
             >
-              Apply in minutes
+              Apply online
               <ArrowRight
                 aria-hidden="true"
                 className="icon-md transition-transform motion-safe:group-hover:translate-x-0.5"

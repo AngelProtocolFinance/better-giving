@@ -48,8 +48,8 @@ export function Faq({ classes = "" }) {
           <p>
             Better Giving helps nonprofits increase donations with modern tools
             for donor engagement, easy online giving, and access to a growing
-            network of supporters. It's free to join, and they keep 100% of
-            their donations no hidden fees or cuts.
+            network of supporters. There is no platform fee while the optional
+            donor contribution stays on. Turning that ask off is a 1.5% fee.
           </p>
         </li>
       </ul>

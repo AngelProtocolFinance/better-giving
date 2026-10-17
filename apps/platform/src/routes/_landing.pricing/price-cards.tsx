@@ -18,7 +18,7 @@ const plans: IPlan[] = [
     points: [
       "Donation form, every gift type, embedding",
       "Recurring giving, peer-to-peer, receipts & reporting",
-      "High-yield savings & Sustainability Fund, with no setup, AUM, or performance fees",
+      "High-yield savings & Sustainability Fund. Returns vary, and past performance isn't a guarantee.",
       "Full donor data, exports, portability guarantee",
     ],
     cta: { label: "Join free forever", to: href("/register") },
@@ -34,17 +34,6 @@ const plans: IPlan[] = [
     ],
     cta: { label: "Learn more", to: href("/fiscal-sponsorship") },
   },
-  {
-    name: "Self-hosted",
-    figure: "$0",
-    unit: "open-source software",
-    points: [
-      "Run the donation form on your own infrastructure",
-      "Your own gateway: you pay only its processing costs",
-      "Total ownership of tokens, data & donors",
-    ],
-    cta: { label: "See the open source", to: href("/open-source") },
-  },
 ];
 
 interface IPriceCards {
@@ -54,9 +43,9 @@ interface IPriceCards {
 export function PriceCards({ classes = "" }: IPriceCards) {
   return (
     <section className={classes} aria-label="Plans">
-      {/* md: one four-row track set shared by all three cards through subgrid,
-          so the figures, the lists and the buttons sit on common lines */}
-      <ul className="page grid gap-6 md:grid-cols-3 md:grid-rows-[auto_auto_1fr_auto]">
+      {/* md: one four-row track set shared by both cards through subgrid, so
+          the figures, the lists and the buttons sit on common lines */}
+      <ul className="page grid gap-6 md:grid-cols-2 md:grid-rows-[auto_auto_1fr_auto]">
         {plans.map((plan, i) => (
           <Plan key={plan.name} plan={plan} featured={i === 0} order={i} />
         ))}

@@ -20,7 +20,8 @@ export function Hero({ classes = "" }: IHero) {
           <p className="text-lg/relaxed md:text-xl/relaxed text-pretty text-gray-11 max-w-xl">
             Choose what share of each donation is granted to your bank, held in
             high-yield savings, or invested in the Sustainability Fund. Change
-            the split anytime. Pay nothing, ever.
+            the split anytime. Returns vary, and past performance isn't a
+            guarantee.
           </p>
           <div className="flex max-sm:flex-col max-sm:justify-self-stretch sm:flex-wrap sm:items-center gap-3.5 mt-2">
             <Link
@@ -37,9 +38,6 @@ export function Hero({ classes = "" }: IHero) {
               Book a demo
             </ExtLink>
           </div>
-          <p className="text-sm text-gray-11">
-            No setup, AUM, or performance fees. 100% of growth is yours.
-          </p>
         </div>
         <div className="relative w-full max-w-lg justify-self-center lg:justify-self-end">
           <SplitDiagram />

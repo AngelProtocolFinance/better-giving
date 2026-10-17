@@ -8,7 +8,7 @@ const steps = [
   {
     img: laira1,
     title: "Sign up",
-    body: "Register free in minutes. No fees, no contracts. You're a Member from day one.",
+    body: "Register online. No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.",
   },
   {
     img: laira2,
@@ -18,7 +18,7 @@ const steps = [
   {
     img: laira3,
     title: "Grow",
-    body: "Get payouts within 5 working days, or route a share into savings and the Sustainability Fund.",
+    body: "Grants and withdrawal requests are reviewed and processed on a monthly basis. You can also route a share into savings and the Sustainability Fund.",
   },
 ] as const;
 

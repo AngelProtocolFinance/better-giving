@@ -23,7 +23,7 @@ export function Hero({ classes = "" }: IHero) {
           <p className="text-lg/relaxed md:text-xl/relaxed text-pretty text-blue-5 max-w-xl">
             Every part of Better Giving is public code: the donation form, the
             platform, all of it. When software moves money for your mission,
-            "trust us" isn't enough. Verify us instead.
+            "trust us" isn't enough. Read how a donation is processed.
           </p>
           <div className="flex max-sm:flex-col max-sm:justify-self-stretch sm:flex-wrap sm:items-center gap-3.5 mt-2">
             <ExtLink
@@ -44,17 +44,17 @@ export function Hero({ classes = "" }: IHero) {
 
         <TerminalCard
           label="AngelProtocolFinance / better-giving"
-          description="Illustration: cloning and running the open-source Better Giving platform"
+          description="Illustration: opening the public Better Giving repository to read how a gift is processed"
           classes="w-full max-w-xl justify-self-center lg:justify-self-end"
           sequence
         >
+          <TermComment>public source for the managed platform</TermComment>
           <TermCmd>
-            git clone https://github.com/AngelProtocolFinance/better-giving
+            gh repo view AngelProtocolFinance/better-giving --web
           </TermCmd>
-          <TermComment>the whole platform: forms, flows, funds</TermComment>
-          <TermCmd>pnpm install &amp;&amp; pnpm dev</TermCmd>
-          <TermComment>your form, your gateway, your donors</TermComment>
-          <TermOk>ready on localhost:3000</TermOk>
+          <TermComment>donation form, settlement, receipts</TermComment>
+          <TermComment>read how a gift is processed</TermComment>
+          <TermOk>open on GitHub</TermOk>
         </TerminalCard>
       </div>
     </div>

@@ -3,8 +3,7 @@ import {
   ArrowRight,
   BadgePercent,
   HandCoins,
-  Landmark,
-  LockOpen,
+  ToggleLeft,
   Users,
 } from "lucide-react";
 import type { CSSProperties } from "react";
@@ -12,15 +11,18 @@ import { GITHUB_REPO } from "#/constants/urls";
 
 /** the paragraph's own terms, set as a ledger — nothing here it doesn't say */
 const terms = [
-  { Icon: Users, label: "Volunteer-driven" },
   {
     Icon: HandCoins,
-    label: "Optional donor contributions",
-    note: "Always opt-in, never pre-selected",
+    label: "Optional donor contribution",
+    note: "Opt-in, and starts off",
   },
-  { Icon: BadgePercent, label: "No platform fees" },
-  { Icon: Landmark, label: "No investors" },
-  { Icon: LockOpen, label: "No gated features" },
+  {
+    Icon: BadgePercent,
+    label: "No platform fee",
+    note: "While that ask stays on the form",
+  },
+  { Icon: ToggleLeft, label: "1.5% fee", note: "If you turn the ask off" },
+  { Icon: Users, label: "Open to contributors", note: "Code, docs, or time" },
 ] as const;
 
 interface ICommons {
@@ -36,11 +38,10 @@ export function Commons({ classes = "" }: ICommons) {
             How the commons stays free
           </h2>
           <p className="mt-6 text-lg/relaxed text-gray-11 text-pretty">
-            Better Giving is volunteer-driven and funded entirely by optional
-            donor contributions at checkout. Always opt-in, never pre-selected.
-            No platform fees, no investors, no gated features. Members who share
-            the tools also share the responsibility of keeping them free for
-            everyone. Want to contribute code, docs, or time? The repo is open.
+            Donors can add an optional contribution at checkout. It is opt-in
+            and starts off. There is no platform fee while that ask stays on the
+            form. Turning it off is a 1.5% fee. Want to contribute code, docs,
+            or time? The repo is open.
           </p>
           <ExtLink
             href={GITHUB_REPO}
@@ -58,16 +59,14 @@ export function Commons({ classes = "" }: ICommons) {
           className="tile grid gap-6 reveal w-full max-w-lg justify-self-center lg:justify-self-end"
           style={{ "--reveal-order": 1 } as CSSProperties}
         >
-          {terms.map(({ Icon, label, ...t }) => (
+          {terms.map(({ Icon, label, note }) => (
             <li key={label} className="flex items-center gap-4">
               <span className="flex-none size-10 rounded-full bg-surface text-primary grid place-items-center">
                 <Icon className="icon-lg" />
               </span>
               <span className="grid gap-0.5">
                 <span className="font-bold text-gray-12">{label}</span>
-                {"note" in t && (
-                  <span className="text-sm text-gray-11">{t.note}</span>
-                )}
+                <span className="text-sm text-gray-11">{note}</span>
               </span>
             </li>
           ))}

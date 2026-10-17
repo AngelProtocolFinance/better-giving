@@ -42,7 +42,7 @@ const gift_types = [
     body: "Qualified charitable distributions",
     Icon: Building2,
   },
-  { title: "Crypto", body: "Accepted & liquidated to cash", Icon: Coins },
+  { title: "Crypto", body: "We accept crypto gifts", Icon: Coins },
 ] as const;
 
 interface IGiftTypes {
@@ -59,8 +59,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
           </h2>
           <p className="text-lg/relaxed text-gray-11 text-pretty">
             Stop turning donors away. One integration covers everything. No
-            extra portals, no added admin. Non-cash gifts are liquidated for you
-            and granted as cash.
+            extra portals, no added admin. We accept stock and crypto gifts.
           </p>
         </div>
 

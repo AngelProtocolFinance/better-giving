@@ -15,7 +15,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `Fund Management | ${app_name}`,
     description:
-      "Grant, save, or invest each donation your way. Free high-yield savings and a Sustainability Fund with no setup, AUM, or performance fees.",
+      "Grant, save, or invest each donation your way. Returns vary, and past performance isn't a guarantee.",
   });
 
 export default function Page() {
@@ -27,7 +27,7 @@ export default function Page() {
       <SplitSteps classes="bg-band py-24 md:py-32" />
       <CtaBand
         title="Start building your reserve today"
-        subtitle="Free savings and fund management. No setup, AUM, or performance fees. 100% of growth goes to your mission."
+        subtitle="Grant, save, or invest each donation. Returns vary, and past performance isn't a guarantee."
       />
     </main>
   );

@@ -1,5 +1,6 @@
 import {
   and,
+  count,
   desc,
   eq,
   inArray,
@@ -62,6 +63,7 @@ function to_donation(
     currency: don.currency,
     frequency: don.frequency,
     source: don.source,
+    source_id: don.source_id ?? undefined,
     form_id: don.form_id ?? undefined,
     subscription_id: don.subscription_id ?? undefined,
     via: don.via,
@@ -226,6 +228,7 @@ export async function donation_put(
       currency: data.currency,
       frequency: data.frequency,
       source: data.source,
+      source_id: data.source_id,
       form_id: data.form_id,
       subscription_id: data.subscription_id,
       via: data.via,
@@ -580,6 +583,8 @@ export async function donation_update(
   if (base_rest.frequency !== undefined)
     base_set.frequency = base_rest.frequency;
   if (base_rest.source !== undefined) base_set.source = base_rest.source;
+  if (base_rest.source_id !== undefined)
+    base_set.source_id = base_rest.source_id;
   if (base_rest.form_id !== undefined) base_set.form_id = base_rest.form_id;
   if (base_rest.subscription_id !== undefined)
     base_set.subscription_id = base_rest.subscription_id;
@@ -765,6 +770,117 @@ export async function donation_donor_get(
     .from(donation_donors)
     .where(eq(donation_donors.donation_id, donation_id));
   return row;
+}
+
+async function agent_donation_count_since(
+  since: string,
+  opts: { email?: string; source_id?: string },
+  conn: DbOrTx = db
+): Promise<number> {
+  const [row] = await conn
+    .select({ value: count() })
+    .from(donations)
+    .innerJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
+    .where(
+      and(
+        eq(donations.source, "bg-agent"),
+        sql`${donations.created_at} >= ${since}::timestamptz`,
+        opts.email
+          ? eq(donation_donors.email, opts.email)
+          : eq(donations.source_id, opts.source_id!)
+      )
+    );
+  return row?.value ?? 0;
+}
+
+export type AgentDonationReservation = "created" | "existing" | "limited";
+
+export async function agent_donation_reserve(
+  data: IDonation,
+  since: string,
+  limit: number
+): Promise<AgentDonationReservation> {
+  return db.transaction(async (tx) => {
+    const lock_keys = [
+      `agent-email:${data.from_email}`,
+      `agent-ip:${data.source_id}`,
+    ].sort();
+    for (const key of lock_keys) {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${key})::bigint)`
+      );
+    }
+
+    const [existing] = await tx
+      .select({ source: donations.source })
+      .from(donations)
+      .where(eq(donations.id, data.id));
+    if (existing) {
+      return existing.source === "bg-agent" ? "existing" : "limited";
+    }
+
+    const [customer_count, ip_count] = await Promise.all([
+      agent_donation_count_since(since, { email: data.from_email }, tx),
+      agent_donation_count_since(since, { source_id: data.source_id }, tx),
+    ]);
+    if (customer_count >= limit || ip_count >= limit) return "limited";
+
+    await donation_put(tx, data);
+    return "created";
+  });
+}
+
+/**
+ * marks an agent checkout expired while it is still `created` and still points
+ * at `session_id`. a late expiry for a session that was already replaced does
+ * not touch the replacement.
+ */
+export async function agent_donation_expire(
+  donation_id: string,
+  session_id: string,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  const [row] = await tx
+    .update(donations)
+    .set({ status: "expired", updated_at: new Date().toISOString() })
+    .where(
+      and(
+        eq(donations.id, donation_id),
+        eq(donations.source, "bg-agent"),
+        eq(donations.status, "created"),
+        eq(donations.via_extra, session_id)
+      )
+    )
+    .returning({ id: donations.id });
+  return !!row;
+}
+
+/**
+ * records the Checkout Session on an agent donation that is still unpaid.
+ * a `settled` or otherwise finished row is left alone, so a slow retry cannot
+ * move a paid gift back to `created`.
+ */
+export async function agent_checkout_save(
+  donation_id: string,
+  session_id: string,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  const [row] = await tx
+    .update(donations)
+    .set({
+      via_extra: session_id,
+      status: "created",
+      updated_at: new Date().toISOString(),
+    })
+    .where(
+      and(
+        eq(donations.id, donation_id),
+        eq(donations.source, "bg-agent"),
+        inArray(donations.status, ["created", "expired"])
+      )
+    )
+    .returning({ id: donations.id });
+  return !!row;
 }
 
 export async function donation_settlement_get(

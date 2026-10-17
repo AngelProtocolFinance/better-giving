@@ -35,9 +35,8 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
             <p className="text-base/relaxed md:text-lg/relaxed text-blue-5 text-pretty">
               Our whole stack is open source: trust you can verify in code, not
               just promises. You own the donor relationship, your data exports
-              freely, and if you ever want full independence, you can self-host
-              the donation form and own your own gateway. And there's no
-              lock-in, including your recurring donors: our{" "}
+              freely. And there's no lock-in, including your recurring donors:
+              our{" "}
               <strong className="text-primary-fg">
                 Recurring-Donor Portability Guarantee
               </strong>{" "}
@@ -52,10 +51,10 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
             <h3 className="subsection-heading">Grow it.</h3>
             <p className="text-base/relaxed md:text-lg/relaxed text-pretty">
               We don't just move money. We help you keep and grow it. Route any
-              share of what you raise into FDIC-insured savings (~3-4%) or a
+              share of what you raise into FDIC-insured savings or a
               professionally managed Sustainability Fund, and turn this
-              quarter's gifts into next decade's reserves. No setup, AUM, or
-              performance fees.
+              quarter's gifts into next decade's reserves. Returns vary, and
+              past performance isn't a guarantee.
             </p>
             <GrowthCurve />
           </div>

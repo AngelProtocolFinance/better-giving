@@ -14,7 +14,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `Pricing | ${app_name}`,
     description:
-      "Free forever for nonprofits. $0 platform fees, no contracts. Sustained by optional donor contributions at checkout, always opt-in.",
+      "Fundraising with no platform fee while the optional donor contribution stays on. Turning that ask off is 1.5%. Fiscal sponsorship is 2.9% of each sponsored gift.",
   });
 
 export default function Page() {
@@ -25,7 +25,9 @@ export default function Page() {
           <h1 className="hero-heading max-w-4xl">Free. Forever. Really.</h1>
           <p className="section-body text-gray-11 max-w-3xl">
             Not free-then-paid. Not free-with-gated-features. We're a nonprofit
-            like you. We grant out 100% of donations and never take a cut.
+            like you. There is no platform fee while donors can add an optional
+            contribution. Turning that ask off is a 1.5% fee. Fiscal sponsorship
+            is 2.9% of each sponsored gift.
           </p>
         </div>
       </div>
@@ -38,7 +40,7 @@ export default function Page() {
 
       <CtaBand
         title="Keep every dollar working for your mission"
-        subtitle="No platform fees, no fund fees, no surprises. Just free tools built by a fellow nonprofit."
+        subtitle="No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee."
       />
     </main>
   );

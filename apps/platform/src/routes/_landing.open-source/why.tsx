@@ -6,8 +6,8 @@ const reasons = [
     body: "Anyone (your board, your auditor, your most skeptical donor) can inspect exactly how donations are processed, routed, and receipted.",
   },
   {
-    title: "Own your independence",
-    body: "Self-host the donation form with your own payment gateway and merchant account. Your donor tokens never leave your control. Nothing to migrate, ever.",
+    title: "Read it, then contribute",
+    body: "The repository is the managed platform: the donation form, settlement, and receipts. Reading it is how you check the path a gift takes. Contributions of code, docs, and review are welcome.",
   },
   {
     title: "A commons that outlives us",

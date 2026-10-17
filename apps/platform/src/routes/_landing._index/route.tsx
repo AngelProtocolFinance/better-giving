@@ -50,7 +50,10 @@ const website = {
 };
 
 export const meta: Route.MetaFunction = () =>
-  metas({ jsonld: [organization, website] });
+  metas({
+    description: `Raise more this quarter and grow funds together. ${app_name} offers donation forms, savings, and fund growth tools. No platform fee while the optional donor contribution stays on.`,
+    jsonld: [organization, website],
+  });
 
 export const links: LinksFunction = () => [
   { rel: "preload", href: donation_form, as: "image", fetchPriority: "high" },
@@ -76,8 +79,8 @@ export default function Page() {
         </div>
       </div>
       <CtaBand
-        title="Join the commons. It's free, forever."
-        subtitle="Set up your donation form in minutes. No fees, no contracts, no lock-in. Just more of every dollar working for your mission."
+        title="Join the managed platform."
+        subtitle="No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee."
       />
     </main>
   );

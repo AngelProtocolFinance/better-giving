@@ -11,8 +11,8 @@ import {
 
 const points = [
   "Verify, don't just trust: the full stack is public",
-  "Self-host the form and own your gateway: zero intermediary",
-  "Member-powered: the community keeps the commons free",
+  "Read how a donation is processed, settled, and receipted",
+  "Contributions of code and docs are welcome",
 ] as const;
 
 interface IOpenSource {
@@ -32,9 +32,7 @@ export function OpenSource({ classes = "" }: IOpenSource) {
             <p className="text-blue-5 text-lg/relaxed text-pretty max-w-xl">
               Every part of Better Giving is public: the donation form, the
               platform, all of it. That means trust is verifiable, not just
-              promised. Most nonprofits use our managed platform for
-              convenience; those who want full independence can self-host the
-              form and own their own payment gateway.
+              promised. Nonprofits join the managed platform.
             </p>
           </div>
           <ul className="grid gap-3 font-medium mt-1">
@@ -64,15 +62,17 @@ export function OpenSource({ classes = "" }: IOpenSource) {
         </div>
 
         <TerminalCard
-          label="better-giving / donation-form"
-          description="Illustration: cloning and running the open-source donation form"
+          label="AngelProtocolFinance / better-giving"
+          description="Illustration: opening the public Better Giving repository to read how a gift is processed"
           sequence
         >
-          <TermCmd>git clone https://github.com/better-giving/…</TermCmd>
-          <TermComment>brandable, embeddable donation form</TermComment>
-          <TermCmd>pnpm install &amp;&amp; pnpm dev</TermCmd>
-          <TermComment>your form, your gateway, your donors</TermComment>
-          <TermOk>ready on localhost:3000</TermOk>
+          <TermComment>public source for the managed platform</TermComment>
+          <TermCmd>
+            gh repo view AngelProtocolFinance/better-giving --web
+          </TermCmd>
+          <TermComment>donation form, settlement, receipts</TermComment>
+          <TermComment>read how a gift is processed</TermComment>
+          <TermOk>open on GitHub</TermOk>
         </TerminalCard>
       </div>
     </section>

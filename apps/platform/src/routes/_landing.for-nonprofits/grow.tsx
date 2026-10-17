@@ -4,19 +4,19 @@ const accounts = [
   {
     name: "Current account",
     detail: "Grants paid out to your bank",
-    figure: "Instant access",
+    figure: "Monthly review",
     figure_classes: "",
   },
   {
     name: "Savings account",
     detail: "High-yield reserves",
-    figure: "3% to 4% APY",
+    figure: "Returns vary",
     figure_classes: "text-success-subtle-fg",
   },
   {
     name: "Sustainability Fund",
     detail: "Long-term diversified investment",
-    figure: "~11% historical*",
+    figure: "Returns vary",
     figure_classes: "text-success-subtle-fg",
   },
 ] as const;
@@ -70,8 +70,8 @@ export function Grow({ classes = "" }: IGrow) {
             ))}
           </div>
           <p className="mt-3 text-xs text-gray-11">
-            *Historical returns are not a guarantee of future performance.
-            Allocations are always your choice.
+            Returns vary, and past performance isn't a guarantee. Allocations
+            are always your choice.
           </p>
         </div>
       </div>

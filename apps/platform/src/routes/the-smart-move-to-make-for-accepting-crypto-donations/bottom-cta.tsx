@@ -10,10 +10,11 @@ export function BottomCta({ classes = "" }) {
     >
       <div className="order-2 sm:order-1">
         <h4 className="text-center sm:text-left uppercase sm:text-lg text-primary-fg leading-normal mb-6">
-          Simple. Sustainable. Free.
+          Simple. Sustainable.
         </h4>
         <h3 className="text-center sm:text-left sm:leading-snug  text-2xl text-primary-fg mb-9">
-          Stop paying for what should be free
+          No platform fee while the optional donor contribution stays on.
+          Turning that ask off is a 1.5% fee.
         </h3>
         <div className="relative max-sm:justify-self-center">
           <Link

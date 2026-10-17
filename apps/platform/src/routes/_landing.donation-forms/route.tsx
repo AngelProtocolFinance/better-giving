@@ -17,7 +17,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `All-In-One Donation Form | ${app_name}`,
     description:
-      "Raise more. Save more. Do Less. 100% free. No Setup costs, no recurring charges, no platform fee.",
+      "Raise more. Save more. Do less. No setup costs, no recurring charges. No platform fee while the optional donor contribution stays on.",
   });
 
 export default function Page() {
