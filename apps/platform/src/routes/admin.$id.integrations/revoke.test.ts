@@ -122,6 +122,32 @@ describe("integration connection revoke", () => {
     expect(await db().select().from(api_keys)).toHaveLength(0);
   });
 
+  test("invalid json does not rotate the api key", async () => {
+    const { here, owner } = await seed();
+    const request_for = (body: string) =>
+      action({
+        params: { id: String(here.id) },
+        context: context_for(here.id, owner.id),
+        request: new Request(`http://t/admin/${here.id}/integrations`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body,
+        }),
+      } as any);
+
+    for (const body of ["{", "null", JSON.stringify({ revoke_key: 1 })]) {
+      const res = await request_for(body).catch((err: unknown) => err);
+      expect(res).toBeInstanceOf(Response);
+      expect((res as Response).status).toBe(400);
+    }
+    expect(await db().select().from(api_keys)).toHaveLength(0);
+    const [row] = await db()
+      .select()
+      .from(connector_keys)
+      .where(eq(connector_keys.id, "key-here"));
+    expect(row?.revoked_at).toBeNull();
+  });
+
   test("a key that belongs to another nonprofit stays live", async () => {
     const { here, owner } = await seed();
 

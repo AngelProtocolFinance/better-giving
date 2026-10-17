@@ -13,8 +13,9 @@ const sha256_hex = (value: string) =>
 
 /**
  * One logical write per `(key_id, Idempotency-Key)`. The handler runs only
- * when this call owns a fresh `pending` row. A throw deletes that row so the
- * key is not stuck in flight.
+ * when this call owns a fresh `pending` row. A throw from the handler deletes
+ * that row. Once the handler has returned a 2xx response, a later failure
+ * leaves the row pending so a retry cannot repeat the write.
  */
 export async function with_idempotency(
   db: DbOrTx,
@@ -88,42 +89,54 @@ export async function with_idempotency(
   return problem(409, "idempotency_conflict");
 }
 
+const release_pending = (db: DbOrTx, key_id: string, idem_key: string) =>
+  db
+    .delete(connector_idempotency)
+    .where(
+      and(
+        eq(connector_idempotency.key_id, key_id),
+        eq(connector_idempotency.idem_key, idem_key),
+        eq(connector_idempotency.status, "pending")
+      )
+    );
+
 async function finish(
   db: DbOrTx,
   key_id: string,
   idem_key: string,
   handler: () => Promise<Response>
 ): Promise<Response> {
+  let res: Response;
   try {
-    const res = await handler();
-    const text = await res.text();
-    const response_body: unknown = JSON.parse(text);
-    await db
-      .update(connector_idempotency)
-      .set({
-        status: "stored",
-        response_status: res.status,
-        response_body,
-      })
-      .where(
-        and(
-          eq(connector_idempotency.key_id, key_id),
-          eq(connector_idempotency.idem_key, idem_key)
-        )
-      );
-    const headers = new Headers(res.headers);
-    headers.set("cache-control", "no-store");
-    return new Response(text, { status: res.status, headers });
+    res = await handler();
   } catch (err) {
-    await db
-      .delete(connector_idempotency)
-      .where(
-        and(
-          eq(connector_idempotency.key_id, key_id),
-          eq(connector_idempotency.idem_key, idem_key),
-          eq(connector_idempotency.status, "pending")
-        )
-      );
+    await release_pending(db, key_id, idem_key);
     throw err;
   }
+
+  const text = await res.text();
+  const headers = new Headers(res.headers);
+  headers.set("cache-control", "no-store");
+  // a non-2xx body is not a completed write; return it unchanged and free the key
+  if (res.status < 200 || res.status >= 300) {
+    await release_pending(db, key_id, idem_key);
+    return new Response(text, { status: res.status, headers });
+  }
+
+  // the handler already returned. a parse or store failure must keep the claim
+  const response_body: unknown = JSON.parse(text);
+  await db
+    .update(connector_idempotency)
+    .set({
+      status: "stored",
+      response_status: res.status,
+      response_body,
+    })
+    .where(
+      and(
+        eq(connector_idempotency.key_id, key_id),
+        eq(connector_idempotency.idem_key, idem_key)
+      )
+    );
+  return new Response(text, { status: res.status, headers });
 }

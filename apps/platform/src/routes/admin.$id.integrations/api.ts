@@ -16,11 +16,16 @@ const posted_revoke_key = async (request: Request | undefined) => {
   try {
     body = await request.json();
   } catch {
-    return null;
+    throw resp.status(400, "Invalid JSON");
   }
-  if (!body || typeof body !== "object") return null;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw resp.status(400, "Invalid revocation request");
+  }
   const id = (body as { revoke_key?: unknown }).revoke_key;
-  return typeof id === "string" ? id : null;
+  if (typeof id !== "string") {
+    throw resp.status(400, "Invalid revocation request");
+  }
+  return id;
 };
 
 export const action = async ({

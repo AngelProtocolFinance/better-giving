@@ -237,4 +237,50 @@ describe("with_idempotency", () => {
     expect(res.status).toBe(201);
     expect(handler).toHaveBeenCalledOnce();
   });
+
+  test("a non-2xx response is returned unchanged and the key can be used again", async () => {
+    const key_id = await seed_key();
+    const handler = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ code: "invalid", status: 422 }), {
+          status: 422,
+          headers: { "content-type": "application/problem+json" },
+        })
+    );
+
+    const res = await call(key_id, "bad", "{}", handler);
+
+    expect(res.status).toBe(422);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ code: "invalid", status: 422 });
+    expect(await t.db.select().from(connector_idempotency)).toHaveLength(0);
+
+    const again = await call(key_id, "bad", "{}", handler);
+    expect(again.status).toBe(422);
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  test("a 2xx body that is not json keeps the pending row so a retry conflicts", async () => {
+    const key_id = await seed_key();
+    const handler = vi.fn(async () => new Response("", { status: 201 }));
+
+    await expect(call(key_id, "empty", "{}", handler)).rejects.toThrow();
+    const [row] = await t.db.select().from(connector_idempotency);
+    expect(row.status).toBe("pending");
+    expect(row.response_status).toBeNull();
+
+    const retry = vi.fn(async () =>
+      Response.json({ ok: true }, { status: 201 })
+    );
+    const res = await call(key_id, "empty", "{}", retry);
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      code: "idempotency_conflict",
+      status: 409,
+    });
+    expect(retry).not.toHaveBeenCalled();
+    expect(handler).toHaveBeenCalledOnce();
+  });
 });

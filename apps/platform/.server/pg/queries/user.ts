@@ -7,7 +7,6 @@ import type {
   IUserRow,
   IUserXNpoUpdate,
 } from "@/users/schema";
-import { revoke_member_keys } from "../../connector/keys";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import {
@@ -285,6 +284,9 @@ export async function userxnpo_del(
   user_id: string,
   revoked_by: string | null = null
 ) {
+  // loaded here so route modules that import this file do not pull node:crypto
+  // into the browser bundle
+  const { revoke_member_keys } = await import("../../connector/keys");
   // one transaction: a thrown revoke rolls the membership delete back
   await db.transaction(async (tx) => {
     await tx

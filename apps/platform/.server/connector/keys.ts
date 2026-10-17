@@ -53,7 +53,8 @@ export async function issue_code(
 export async function exchange_code(
   db: DbOrTx,
   code: string,
-  now = new Date()
+  now = new Date(),
+  hold?: (tx: DbOrTx) => Promise<void>
 ): Promise<
   | { ok: true; key: string; key_id: string; npo_id: number; name: string }
   | { ok: false }
@@ -62,12 +63,42 @@ export async function exchange_code(
   const now_iso = now.toISOString();
   try {
     return await db.transaction(async (tx) => {
+      const code_hash = sha256_hex(code);
+      const [pending] = await tx
+        .select({
+          npo_id: connector_codes.npo_id,
+          allowed_by: connector_codes.allowed_by,
+        })
+        .from(connector_codes)
+        .where(
+          and(
+            eq(connector_codes.code_hash, code_hash),
+            isNull(connector_codes.used_at),
+            gt(connector_codes.expires_at, now_iso)
+          )
+        );
+      if (!pending) return { ok: false };
+      // membership before the code claim, same order as member removal
+      // (delete the membership, then revoke keys and unused codes)
+      const [member] = await tx
+        .select({ user_id: user_npo_memberships.user_id })
+        .from(user_npo_memberships)
+        .where(
+          and(
+            eq(user_npo_memberships.npo_id, pending.npo_id),
+            eq(user_npo_memberships.user_id, pending.allowed_by)
+          )
+        )
+        .for("share");
+      // throw, not { ok: false }: the claim below must not commit without a member
+      if (!member) throw new MembershipGone();
+      if (hold) await hold(tx);
       const [claimed] = await tx
         .update(connector_codes)
         .set({ used_at: now_iso })
         .where(
           and(
-            eq(connector_codes.code_hash, sha256_hex(code)),
+            eq(connector_codes.code_hash, code_hash),
             isNull(connector_codes.used_at),
             gt(connector_codes.expires_at, now_iso)
           )
@@ -77,17 +108,6 @@ export async function exchange_code(
           allowed_by: connector_codes.allowed_by,
         });
       if (!claimed) return { ok: false };
-      const [member] = await tx
-        .select({ user_id: user_npo_memberships.user_id })
-        .from(user_npo_memberships)
-        .where(
-          and(
-            eq(user_npo_memberships.npo_id, claimed.npo_id),
-            eq(user_npo_memberships.user_id, claimed.allowed_by)
-          )
-        );
-      // throw, not { ok: false }: that return would commit the used_at claim
-      if (!member) throw new MembershipGone();
       const key = `bgc_${randomBytes(32).toString("base64url")}`;
       const key_id = crypto.randomUUID();
       await tx.insert(connector_keys).values({

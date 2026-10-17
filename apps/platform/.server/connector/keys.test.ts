@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -226,6 +226,47 @@ describe("exchange_code", () => {
     const [row] = await t.db.select().from(connector_codes);
     expect(row.used_at).toBeNull();
     expect(await t.db.select().from(connector_keys)).toHaveLength(0);
+  });
+
+  test("share-locks the membership before inserting the key, and removal then revokes it", async () => {
+    const { npo, owner } = await seed_pair();
+    await join_npo(npo.id, owner.id);
+    const issued = await issue_code(as_db(t.db), {
+      npo_id: npo.id,
+      allowed_by: owner.id,
+      iss: "https://zap.example",
+      now: NOW,
+    });
+    let modes: string[] = [];
+
+    const exchanged = await exchange_code(
+      as_db(t.db),
+      issued.code,
+      NOW,
+      async (tx) => {
+        const { rows } = await tx.execute<{ mode: string }>(sql`
+          select l.mode
+          from pg_locks l
+          join pg_class c on c.oid = l.relation
+          where c.relname = 'user_npo_memberships'
+            and l.granted
+        `);
+        modes = rows.map((row) => row.mode);
+        expect(await tx.select().from(connector_keys)).toHaveLength(0);
+      }
+    );
+
+    expect(modes).toContain("RowShareLock");
+    expect(exchanged.ok).toBe(true);
+    if (!exchanged.ok) return;
+    expect(
+      await revoke_member_keys(as_db(t.db), {
+        npo_id: npo.id,
+        user_id: owner.id,
+        revoked_by: null,
+      })
+    ).toBe(1);
+    expect(await find_live_key(as_db(t.db), exchanged.key, NOW)).toBeNull();
   });
 });
 
