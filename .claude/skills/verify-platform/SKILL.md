@@ -30,12 +30,13 @@ Report `results.json` + screenshot paths verbatim. `blocked` is **not** `pass`.
 2. writes `apps/platform/.env.verify` (gitignored, 0600): `.env.test` + local `DATABASE_URL` (with that password) + `BASE_URL=http://127.0.0.1:4200` + `CONNECTOR_RETURN_URL=http://127.0.0.1:$VERIFY_PORT/marketplace` (default port 4200). Started with `--mode verify`, and mode files beat `.env`, so a developer's real `.env` never applies. It does not set `VERCEL_ENV`.
 3. builds `packages/*` (platform imports their `dist/`).
 4. migrates with the repo's own `.server/pg/migrate.ts`, seeds `scripts/seed.sql` (npo `Verify Test Nonprofit`, USD rates), then `scripts/seed-member.mjs` (credential member of that npo, plus `Verify Other Nonprofit` with no membership).
-5. `react-router dev --mode verify --host 127.0.0.1 --port 4200` with `NODE_OPTIONS="--import neon-local.mjs --import stripe-stub.mjs"`.
+5. `react-router dev --mode verify --host 127.0.0.1 --port 4200` with `NODE_OPTIONS="--import neon-local.mjs --import stripe-stub.mjs --import nonprofits-stub.mjs"`.
 Ready = `GET /` → 200 (first SSR compile takes ~10–60 s). State in `/tmp/bg-verify` (`dev.pid`, `port`, `npo_id`, `pg.pass`, `dev.log`, `stripe-stub.log`). The state dir must be private: launch.sh/pg-up.sh create it `0700`, and refuse an existing one that is a symlink, not owned by you, or not `0700` (another local user could pre-plant the fixed `/tmp` path); `pg.pass` is never written through a symlink (`scripts/lib.sh`). On a refusal, remove the dir or set `VERIFY_STATE` to a fresh path.
 
 Preloads (verification scaffolding — **no product code is changed**):
 - `neon-local.mjs`: points the `@neondatabase/serverless` driver at local Postgres — HTTP queries via `fetchFunction` run through `pg`; transactions go over a ws→tcp pipe on `:5488`, which only dials `DATABASE_URL`'s own port and refuses any request carrying an `Origin` header (i.e. any browser).
 - `stripe-stub.mjs`: while `STRIPE_SECRET_KEY` is filler, server-side `api.stripe.com` calls hit an in-process stub: `GET /v1/country_specs/:cc` is answered, everything else gets a Stripe-shaped 400 and is logged. With real test keys it is inert.
+- `nonprofits-stub.mjs`: while `NONPROFITS_API_KEY` is the `.env.test` filler, `fetch` to `nonprofits.better.giving` is answered in-process (one eligible off-marketplace EIN, one revoked org, one search) and logged. Any other key leaves `fetch` alone.
 
 Full card flow: `VERIFY_STRIPE_SK=sk_test_… VERIFY_STRIPE_PK=pk_test_… scripts/run.sh donate-card` (live keys are refused). Never paste keys into files.
 
@@ -63,6 +64,7 @@ A listed entry point the drive did not take is not verified. `results.json` reco
 | `donate-card` | direct `GET /donate/:id` → +100 USD → Continue with Card → donor info → payment step with summary $100.00; with real test keys, types 4242… into the Stripe Payment Element (`donate-card-4-card.png`). The marketplace-card Donate link is not clicked, so it is not verified. |
 | `smoke-paths` | smoke.yml's direct `GET /`, `GET /api/currencies`, `GET /form-embed.js` each < 400. No screenshot. |
 | `connector-allow` | direct `GET /login` (the header `Log In` link is not clicked), sign in as the seeded member, direct `GET /admin/connector/allow?state=verify-state-1`, only `Verify Test Nonprofit` is listed, click Allow, land on `/marketplace` with `iss`, `state=verify-state-1`, and a non-empty `code`. |
+| `agents-find` | direct `POST /agents/mcp` `find_nonprofit` for the seeded nonprofit, plus a flagged off-marketplace EIN from the nonprofits stub, and `quote_donation` refuses that EIN. No screenshot. |
 
 `scripts/contract.mjs` checks keyless hello against an origin you pass; it does not run the browser Allow flow.
 
@@ -72,7 +74,7 @@ Selectors are ARIA/text/`name=` handles from the real UI (`getByRole("link", {na
 
 ## Evidence
 
-`$VERIFY_OUT/`: `results.json` (per flow: `entry` with `clicked` and `loaded`, status pass|fail|blocked, observed facts, error, screenshots, ARIA snapshot paths, log), `<flow>[-step].png` full-page screenshots of each step (on failure `<flow>-final.png`) and a sibling `<flow>[-step].aria.txt` (Playwright's ARIA snapshot of `body` at that same moment), `<flow>.log` (browser console, page errors, every HTTP ≥400), `drive.txt`, `launch-doctor.log`, and every server log from the state dir (`dev.log`, `migrate.log`, `packages-build.log`, `stripe-stub.log` — what was faked). `smoke-paths` issues HTTP requests and writes no png or aria file. The logs are copied before cleanup deletes the state dir whenever run.sh exits normally or on SIGINT (^C) or SIGTERM — the signals its trap catches. A SIGKILL (`kill -9`) can't be trapped, so it leaves both the logs and the state dir in place; the next run's pre-launch cleanup removes them.
+`$VERIFY_OUT/`: `results.json` (per flow: `entry` with `clicked` and `loaded`, status pass|fail|blocked, observed facts, error, screenshots, ARIA snapshot paths, log), `<flow>[-step].png` full-page screenshots of each step (on failure `<flow>-final.png`) and a sibling `<flow>[-step].aria.txt` (Playwright's ARIA snapshot of `body` at that same moment), `<flow>.log` (browser console, page errors, every HTTP ≥400), `drive.txt`, `launch-doctor.log`, and every server log from the state dir (`dev.log`, `migrate.log`, `packages-build.log`, `stripe-stub.log`, `nonprofits-stub.log` — what was faked). `smoke-paths` issues HTTP requests and writes no png or aria file. The logs are copied before cleanup deletes the state dir whenever run.sh exits normally or on SIGINT (^C) or SIGTERM — the signals its trap catches. A SIGKILL (`kill -9`) can't be trapped, so it leaves both the logs and the state dir in place; the next run's pre-launch cleanup removes them.
 
 Proof standards: clicks and typing for the entry points the flow lists as clicks, and a direct `goto` or `request.get` only for the URLs it lists as loads. No test endpoints. Capture each step, not just the end, and save the ARIA snapshot beside each screenshot. Check side effects (db-backed text on screen, stub log). A flow that can't run for want of secrets is `blocked` with the reason, never `pass`. Read the screenshots and the ARIA snapshots before claiming success.
 
