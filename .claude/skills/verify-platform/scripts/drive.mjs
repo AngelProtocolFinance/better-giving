@@ -893,9 +893,7 @@ const FLOWS = {
       // itself, and wait until its counter matches: the editor commits to the
       // form a moment after the text is on screen.
       const story_text = "Neighbors funding a spring drive.";
-      const story = page.locator(
-        ".rich-text-toolbar [contenteditable='true']"
-      );
+      const story = page.locator(".rich-text-toolbar [contenteditable='true']");
       await story.waitFor();
       await story.click();
       await page.keyboard.insertText(story_text);
