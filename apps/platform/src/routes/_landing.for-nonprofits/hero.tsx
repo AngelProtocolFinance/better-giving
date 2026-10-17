@@ -15,8 +15,9 @@ export function Hero({ classes = "" }: IHero) {
         Fundraising you can audit. Free, forever.
       </h1>
       <p className="section-body mt-5 max-w-2xl text-gray-11">
-        Accept cards, bank, stocks, DAFs, and crypto with $0 platform fees. Our
-        code is public, so you can verify it.
+        Accept cards, bank, stocks, DAFs, and crypto. No platform fee while the
+        optional donor contribution stays on (1.5% if you turn it off). Our code
+        is public, so you can read it.
       </p>
       {/* only while the form sits beside this copy. once the columns stack the
           form is directly below, and its own submit is the primary action —

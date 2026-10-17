@@ -7,11 +7,11 @@ const points = [
   },
   {
     title: "Our transparency pledge goes right to the code",
-    body: "Your board, your auditor, or your most skeptical donor can have our code audited and verify we do what we say: $0 fees, opt-in donor contributions, your data staying yours.",
+    body: "Your board, your auditor, or your most skeptical donor can read the code: opt-in donor contributions, a 1.5% fee only if you turn that ask off, and donation records that export from your dashboard.",
   },
   {
-    title: "And if you ever want, you can take complete control",
-    body: "Your donation form runs on public code, which means you can run it yourself, on your own infrastructure, on your own terms, whenever you choose. The managed service stays free either way. Your form, your donors, your call.",
+    title: "The processing is public",
+    body: "Your donation form runs on public code, so you can read how gifts are processed. The service you join is the managed platform.",
   },
 ] as const;
 

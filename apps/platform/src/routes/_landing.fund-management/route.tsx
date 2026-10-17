@@ -17,7 +17,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `Fund Management | ${app_name}`,
     description:
-      "Grant, save, or invest each donation your way. Free high-yield savings and a Sustainability Fund with no setup, AUM, or performance fees.",
+      "Grant, save, or invest each donation your way. Returns vary, and past performance isn't a guarantee.",
   });
 
 const split_steps = [
@@ -34,7 +34,7 @@ const split_steps = [
   {
     n: "3",
     title: "Watch reserves build",
-    body: "Track balances in your dashboard and withdraw anytime. Payouts within 5 working days.",
+    body: "Track balances in your dashboard. Withdrawal requests are reviewed and processed on a monthly basis.",
   },
 ] as const;
 
@@ -53,7 +53,8 @@ export default function Page() {
             <p className="text-lg/relaxed text-gray-11 max-w-lg text-pretty">
               Choose what share of each donation is granted to your bank, held
               in high-yield savings, or invested in the Sustainability Fund.
-              Change the split anytime. Pay nothing, ever.
+              Change the split anytime. Returns vary, and past performance isn't
+              a guarantee.
             </p>
             <div className="flex max-sm:flex-col max-sm:w-full sm:flex-wrap sm:items-center gap-3.5 mt-1.5">
               <Link
@@ -66,9 +67,6 @@ export default function Page() {
                 Book a demo
               </ExtLink>
             </div>
-            <p className="text-sm text-gray-11">
-              No setup, AUM, or performance fees. 100% of growth is yours.
-            </p>
           </div>
           <Image
             src={laira_presentation}
@@ -114,7 +112,7 @@ export default function Page() {
 
       <CtaBand
         title="Start building your reserve today"
-        subtitle="Free savings and fund management. No setup, AUM, or performance fees. 100% of growth goes to your mission."
+        subtitle="Grant, save, or invest each donation. Returns vary, and past performance isn't a guarantee."
       />
     </main>
   );

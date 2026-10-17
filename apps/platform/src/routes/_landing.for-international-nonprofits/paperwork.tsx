@@ -3,7 +3,6 @@ import { Check } from "lucide-react";
 const items = [
   "Instant U.S. tax-deductible receipts for every donor",
   "Due diligence and vetting handled by our team",
-  "Form 990 and IRS reporting covered",
   "Donor records and data belong to you",
   "Every payout tracked in your dashboard",
 ] as const;
@@ -17,8 +16,8 @@ export function Paperwork({ classes = "" }) {
             You fundraise. We do the paperwork.
           </h2>
           <p className="text-base/relaxed text-gray-11 text-pretty">
-            Everything a U.S. donor expects, and everything the IRS requires,
-            handled on your behalf.
+            U.S. donors receive tax-deductible receipts, and donor records stay
+            in your dashboard.
           </p>
         </div>
         <ul className="grid gap-3 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">

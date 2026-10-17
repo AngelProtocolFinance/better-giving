@@ -74,13 +74,13 @@ export function Table({ classes = "", ...v }: Props) {
                   </thead>
                   <tbody>
                     <tr>
-                      <td>Savings Account (4%)</td>
+                      <td>Savings account (4%, illustrative example)</td>
                       <td>{to_usd(x.end.liq - x.liq)}</td>
                       <td>{to_usd(x.end.liq)}</td>
                       <td>{to_usd(x.liq)}</td>
                     </tr>
                     <tr>
-                      <td>Sustainability Fund (20%)</td>
+                      <td>Sustainability Fund (20%, illustrative example)</td>
                       <td>{to_usd(x.end.lock - x.lock)}</td>
                       <td>{to_usd(x.end.lock)}</td>
                       <td>{to_usd(x.lock)}</td>

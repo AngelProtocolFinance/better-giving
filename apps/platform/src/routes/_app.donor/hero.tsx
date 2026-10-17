@@ -17,7 +17,8 @@ export function Hero({ classes = "" }) {
         <p className="mb-10 text-lg @6xl:text-xl text-center @6xl:text-left">
           Easily support grassroots organizations all over the world with card,
           crypto, stock, and DAF gifts that keep on giving. As a nonprofit, we
-          charge no platform fees.
+          charge no platform fee while a nonprofit leaves the optional
+          contribution on. Turning that ask off is a 1.5% fee.
         </p>
 
         <Link

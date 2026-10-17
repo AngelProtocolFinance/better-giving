@@ -160,9 +160,9 @@ export function Ctas({ classes = "" }) {
             Grow your impact.
           </h3>
           <p className="md:text-lg mb-4 max-md:text-center">
-            Put your donations to work automatically; earn 3-4% in FDIC-insured
-            savings or choose our Sustainability Fund for long-term growth.
-            Either way, your funds stay accessible and productive.
+            Put your donations to work in FDIC-insured savings or the
+            Sustainability Fund. Returns vary, and past performance isn't a
+            guarantee.
           </p>
           <div className="justify-self-center md:justify-self-start">
             <Link

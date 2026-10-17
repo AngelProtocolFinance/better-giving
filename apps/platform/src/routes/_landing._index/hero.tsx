@@ -40,9 +40,9 @@ export function Hero({ classes = "" }: IHero) {
             One form. <span className="text-primary">Free forever.</span>
           </h1>
           <p className="text-lg/relaxed text-gray-11 max-w-lg text-pretty">
-            One brandable, embeddable donation form with $0 platform fees. Run
-            by a volunteer-driven 501(c)(3), with open-source code you can
-            verify yourself.
+            One brandable, embeddable donation form. No platform fee while the
+            optional donor contribution stays on (1.5% if you turn it off).
+            Open-source code you can read.
           </p>
           <div className="flex flex-wrap gap-2 max-w-lg">
             {gift_types.map((g) => (
@@ -63,8 +63,8 @@ export function Hero({ classes = "" }: IHero) {
             </ExtLink>
           </div>
           <p className="text-sm text-gray-11">
-            No platform fees, ever. We're funded by optional donor contributions
-            at checkout.
+            The optional donor contribution is opt-in and starts off. Turning
+            that ask off is a 1.5% fee.
           </p>
         </div>
 

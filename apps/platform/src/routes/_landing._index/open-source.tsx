@@ -10,8 +10,8 @@ import {
 
 const points = [
   "Verify, don't just trust: the full stack is public",
-  "Self-host the form and own your gateway: zero intermediary",
-  "Member-powered: the community keeps the commons free",
+  "Read how a donation is processed, settled, and receipted",
+  "Contributions of code and docs are welcome",
 ] as const;
 
 interface IOpenSource {
@@ -35,9 +35,7 @@ export function OpenSource({ classes = "" }: IOpenSource) {
           <p className="text-primary-fg/90 leading-relaxed text-pretty">
             Every part of Better Giving is public: the donation form, the
             platform, all of it. That means trust is verifiable, not just
-            promised. Most nonprofits use our managed platform for convenience;
-            those who want full independence can self-host the form and own
-            their own payment gateway.
+            promised. Nonprofits join the managed platform.
           </p>
           <div className="grid gap-2.5 text-primary-fg font-medium text-sm">
             {points.map((p) => (
@@ -61,12 +59,11 @@ export function OpenSource({ classes = "" }: IOpenSource) {
           </ExtLink>
         </div>
 
-        <TerminalCard label="better-giving / donation-form">
-          <TermCmd>git clone https://github.com/better-giving/…</TermCmd>
-          <TermComment>brandable, embeddable donation form</TermComment>
-          <TermCmd>pnpm install &amp;&amp; pnpm dev</TermCmd>
-          <TermComment>your form, your gateway, your donors</TermComment>
-          <TermOk>ready on localhost:3000</TermOk>
+        <TerminalCard label="AngelProtocolFinance / better-giving">
+          <TermComment>public source for the managed platform</TermComment>
+          <TermCmd>donation form, settlement, receipts</TermCmd>
+          <TermComment>read how a gift is processed</TermComment>
+          <TermOk>open on GitHub</TermOk>
         </TerminalCard>
       </div>
     </section>

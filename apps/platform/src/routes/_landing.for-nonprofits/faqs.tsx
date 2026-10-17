@@ -5,9 +5,7 @@ export const np_faqs = [
     paragraphs: [
       <p key={0}>
         Donors can add an optional, always opt-in contribution to Better Giving
-        at checkout, and our own Sustainability Fund supports operations. We're
-        a volunteer-run 501(c)(3), so our public filings and fund allocations
-        show exactly how it works.
+        at checkout, and our own Sustainability Fund supports operations.
       </p>,
     ],
   },

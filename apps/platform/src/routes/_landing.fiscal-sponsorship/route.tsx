@@ -40,7 +40,7 @@ const audiences = [
 const steps = [
   {
     title: "Register your organization",
-    body: "Apply in minutes. We review and confirm your eligibility right away.",
+    body: "Apply online. We review your eligibility.",
   },
   {
     title: "We receive gifts on your behalf",
@@ -48,7 +48,7 @@ const steps = [
   },
   {
     title: "We grant funds to you",
-    body: "Electronic payouts within 5 working days, or grow a share in savings and the Sustainability Fund.",
+    body: "Grants are reviewed and processed on a monthly basis, or a share can sit in savings and the Sustainability Fund.",
   },
 ] as const;
 
@@ -75,7 +75,7 @@ export default function Page() {
                 to={href("/register")}
                 className="btn btn-lg btn-primary shadow-lift-cta"
               >
-                Apply in minutes
+                Apply online
               </Link>
               <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
                 Book a demo
@@ -173,7 +173,7 @@ export default function Page() {
 
       <CtaBand
         title="Open the door to U.S. giving"
-        subtitle="Join the 210+ organizations worldwide raising tax-deductible U.S. donations through Better Giving."
+        subtitle="Raise tax-deductible U.S. donations through Better Giving."
       />
     </main>
   );

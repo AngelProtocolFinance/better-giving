@@ -15,14 +15,13 @@ const items: TListItem[] = [
     title1: "Step 1",
     title2: "Sign Up",
     description:
-      "Get started in minutes with our quick and easy sign-up process, completely free of charge.",
+      "Register online. No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.",
     image: { src: laira_shake_hands, width: 100, alt: "Laira negotiating" },
   },
   {
     title1: "Step 2",
     title2: "Embed Donation Form ",
-    description:
-      "Add our customizable donation form to your website effortlessly and start raising funds immediately.",
+    description: "Add our customizable donation form to your website.",
     image: { src: laira_laptop, width: 50, alt: "Laira using laptop" },
   },
   {
