@@ -177,7 +177,7 @@ describe("api.donation-notifications recipient identity", () => {
     expect(d.recipient_name).toBe("Freegan Food Foundation");
   });
 
-  it("refuses a campaign this nonprofit owns that is not accepting gifts", async () => {
+  it("still names a campaign after it has ended", async () => {
     campaign_by_id_mock.mockResolvedValue({
       id: "c0ffee00-0000-4000-8000-000000000001",
       owner_npo_id: Number(NPO_ID),
@@ -193,12 +193,31 @@ describe("api.donation-notifications recipient identity", () => {
         campaign_id: "c0ffee00-0000-4000-8000-000000000001",
       })
     );
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      ok: false,
-      error: "This campaign isn't accepting donations right now.",
+    expect(res.status).toBe(200);
+    const d = template_mock.mock.calls[0]![0] as any;
+    expect(d.campaign_name).toBe("Winter Drive");
+    expect(send_email_mock).toHaveBeenCalledOnce();
+  });
+
+  it("drops a draft campaign and still mails the gift", async () => {
+    campaign_by_id_mock.mockResolvedValue({
+      id: "c0ffee00-0000-4000-8000-000000000001",
+      owner_npo_id: Number(NPO_ID),
+      status: "draft",
+      ends_at: null,
+      name: "Hidden",
+      slug: "hidden",
+      owner_slug: "verify-test",
     });
-    expect(send_email_mock).not.toHaveBeenCalled();
+    const res = await invoke(
+      post({
+        ...notif("AAPL"),
+        campaign_id: "c0ffee00-0000-4000-8000-000000000001",
+      })
+    );
+    expect(res.status).toBe(200);
+    const d = template_mock.mock.calls[0]![0] as any;
+    expect(d.campaign_name).toBeUndefined();
   });
 
   it("rejects a payload carrying no recipient id at all", async () => {
