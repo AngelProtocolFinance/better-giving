@@ -108,7 +108,9 @@ export const https_url = (opts?: { required?: boolean }) => {
 };
 
 const segment_max_chars = 30;
-export const segment = pipe(
+// charset and length only. a stored slug may already equal a route segment,
+// and lookup still has to resolve it. `segment` adds that reservation.
+export const segment_shape = pipe(
   $,
   maxLength(
     segment_max_chars,
@@ -120,7 +122,11 @@ export const segment = pipe(
   regex(/^[a-zA-Z0-9-._~]+$/, "allowed: numbers | letters | - | . | _ | ~"),
   excludes("..", "should not contain double periods"),
   custom((x) => !(x as string).startsWith("."), "should not start with dot"),
-  custom((x) => !(x as string).endsWith("."), "should not end with dot"),
+  custom((x) => !(x as string).endsWith("."), "should not end with dot")
+);
+
+export const segment = pipe(
+  segment_shape,
   custom(
     (x) => segment_block(x as string) === undefined,
     (issue) => segment_block(String(issue.input)) ?? "invalid segment"

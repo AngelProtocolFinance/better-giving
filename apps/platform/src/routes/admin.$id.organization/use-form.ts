@@ -43,11 +43,16 @@ export function use_organization_form(
   const name = useWatch({ control, name: "name" });
 
   const submit = async () => {
-    if (!(await form.trigger([...fields], { shouldFocus: true }))) return;
+    const checked = locked
+      ? fields.filter((name) => name !== "slug")
+      : [...fields];
+    if (!(await form.trigger(checked, { shouldFocus: true }))) return;
     const values = structuredClone(form.getValues());
     await save(
       async () => {
-        const fv = v.parse(schema, values);
+        // a locked slug is not part of this save. an empty stand-in keeps
+        // `slug`'s assignment rules off a value that was stored earlier.
+        const fv = v.parse(schema, locked ? { ...values, slug: "" } : values);
         const update: Update = {};
         if (!locked && dirty("slug") && fv.slug !== "") {
           const found = await fetch(`/api/npos/${fv.slug}?fields=id`).then(

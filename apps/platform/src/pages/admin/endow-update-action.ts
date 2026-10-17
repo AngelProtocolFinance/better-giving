@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { type ActionFunction, data, redirect } from "react-router";
 import { safeParse } from "valibot";
 import { admin_ctx } from "#/.server/auth";
@@ -11,6 +12,7 @@ import {
   npo_update as npo_update_db,
   slug_change_refused,
 } from "$/pg/queries/npo";
+import { npos } from "$/pg/schema/npo";
 
 type Next = { success: string } | { redirect: string };
 
@@ -20,6 +22,19 @@ export const endowUpdate =
     const id = args.context.get(admin_ctx);
 
     const update: INpoUpdate = await args.request.json();
+    // a repeated stored slug is not a new assignment, so a value that now
+    // fails `segment` still lets the other columns through
+    if (typeof update.slug === "string") {
+      const [row] = await db
+        .select({ slug: npos.slug })
+        .from(npos)
+        .where(eq(npos.id, id));
+      if (row?.slug && update.slug === row.slug) delete update.slug;
+    }
+    if (Object.keys(update).length === 0) {
+      if ("success" in next) return dataWithSuccess({ ok: true }, next.success);
+      return redirect(next.redirect);
+    }
     const p = safeParse(npo_update, update);
     if (p.issues) {
       return data({ ok: false, error: p.issues[0].message }, { status: 400 });

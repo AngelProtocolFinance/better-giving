@@ -174,6 +174,27 @@ describe("donate loader org slug", () => {
     expect((id as Response).status).toBe(404);
   });
 
+  it("resolves a stored slug that matches a route", async () => {
+    const npo = await seed_npo("Routed");
+    await test_db
+      .current!.db.update(npos)
+      .set({ slug: "donate" })
+      .where(eq(npos.id, npo.id));
+
+    const d = await load_key("donate");
+
+    expect(d.endow.id).toBe(npo.id);
+    expect(d.endow.name).toBe("Routed");
+    expect(d.arrived).toBe("donate");
+  });
+
+  it("is not found when a reserved word matches no nonprofit", async () => {
+    const res = await load_key("org").catch((e: unknown) => e);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(404);
+  });
+
   it("resolves a number-like value as an id", async () => {
     const npo = await seed_npo("Numbered");
     expect(npo.id).not.toBe(999001);

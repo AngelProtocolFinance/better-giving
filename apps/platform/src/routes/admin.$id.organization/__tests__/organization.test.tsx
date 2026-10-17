@@ -238,6 +238,33 @@ describe("organization — slug set", () => {
   });
 });
 
+describe("organization — stored route slug", () => {
+  it("saves other fields and leaves the slug", async () => {
+    const npo = await seed_npo({ slug: "donate" });
+    const screen = await render_org(npo.id);
+    await expect.element(screen.getByLabelText("Org slug")).toBeDisabled();
+    await expect
+      .element(screen.getByLabelText("Org slug"))
+      .toHaveDisplayValue("donate");
+
+    await screen.getByLabelText(/ein.*registration/i).fill("NEW999");
+    await screen.getByRole("button", { name: "Save organization" }).click();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.registration_number).toBe("NEW999")
+    );
+    expect((await npo_get(npo.id))?.slug).toBe("donate");
+  });
+
+  it("accepts a direct post that repeats the stored slug", async () => {
+    const npo = await seed_npo({ slug: "donate" });
+    await post(npo.id, { slug: "donate", tagline: "after" });
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.tagline).toBe("after")
+    );
+    expect((await npo_get(npo.id))?.slug).toBe("donate");
+  });
+});
+
 describe("organization — server refusal", () => {
   it("refuses a direct post that changes a set slug", async () => {
     const npo = await seed_npo({ slug: "already-set" });
