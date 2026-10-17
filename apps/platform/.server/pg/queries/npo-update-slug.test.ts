@@ -72,6 +72,29 @@ describe("npo_update slug", () => {
     expect(saved.tagline).toBe("before");
   });
 
+  test("one of two first writes wins and the other writes nothing", async () => {
+    const npo = await seed();
+    const results = await Promise.allSettled([
+      npo_update(as_db(test_db.db), npo.id, {
+        slug: "first-slug",
+        tagline: "from-first",
+      }),
+      npo_update(as_db(test_db.db), npo.id, {
+        slug: "second-slug",
+        tagline: "from-second",
+      }),
+    ]);
+    const saved = await row(npo.id);
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    if (saved.slug === "first-slug") {
+      expect(saved.tagline).toBe("from-first");
+    } else {
+      expect(saved.slug).toBe("second-slug");
+      expect(saved.tagline).toBe("from-second");
+    }
+  });
+
   test("allows other columns when the slug is repeated", async () => {
     const npo = await seed("kept-slug");
     await npo_update(as_db(test_db.db), npo.id, {
