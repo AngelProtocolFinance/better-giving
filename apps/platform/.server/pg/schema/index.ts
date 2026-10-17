@@ -1,6 +1,7 @@
 export * from "./auth";
 export * from "./bal-tx";
 export * from "./banking";
+export * from "./connector";
 export * from "./country";
 export * from "./dispute";
 export * from "./dist";

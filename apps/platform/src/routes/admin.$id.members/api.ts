@@ -26,7 +26,7 @@ export const delete_action = async (x: Route.ActionArgs) => {
   if (body.pending_email) {
     await npo_invite_del(id, body.pending_email);
   } else if (body.to_remove) {
-    await userxnpo_del(id, body.to_remove);
+    await userxnpo_del(id, body.to_remove, x.context.get(user_ctx).id);
   } else {
     throw new Response("Bad request", { status: 400 });
   }

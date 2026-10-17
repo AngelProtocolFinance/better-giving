@@ -37,13 +37,15 @@ done
 if [ -n "${VERIFY_STRIPE_SK:-}" ] && [ -z "${VERIFY_STRIPE_PK:-}" ] || [ -z "${VERIFY_STRIPE_SK:-}" ] && [ -n "${VERIFY_STRIPE_PK:-}" ]; then
   echo "set both VERIFY_STRIPE_SK and VERIFY_STRIPE_PK, or neither" >&2; exit 1; fi
 
-# env for mode `verify`: .env.test filler, with local db + base url. mode files
-# beat .env, so a developer's real .env can't leak in. gitignored.
-{ grep -vE '^(DATABASE_URL|DATABASE_URL_UNPOOLED|BASE_URL|VITE_BASE_URL|STAGE|VITE_STAGE)=' "$APP/.env.test" \
+# env for mode `verify`: .env.test filler, with local db, base url, and the
+# connector return url. mode files beat .env, so a developer's real .env can't
+# leak in. gitignored. does not set VERCEL_ENV.
+{ grep -vE '^(DATABASE_URL|DATABASE_URL_UNPOOLED|BASE_URL|VITE_BASE_URL|STAGE|VITE_STAGE|CONNECTOR_RETURN_URL)=' "$APP/.env.test" \
     | { if [ -n "${VERIFY_STRIPE_SK:-}" ]; then grep -vE '^(STRIPE_SECRET_KEY|VITE_STRIPE_PK)='; else cat; fi; }
   [ -n "${VERIFY_STRIPE_SK:-}" ] && { echo "STRIPE_SECRET_KEY=$VERIFY_STRIPE_SK"; echo "VITE_STRIPE_PK=$VERIFY_STRIPE_PK"; }
   echo "DATABASE_URL=$DB"; echo "DATABASE_URL_UNPOOLED=$DB"
   echo "BASE_URL=http://127.0.0.1:$PORT"; echo "VITE_BASE_URL=http://127.0.0.1:$PORT"
+  echo "CONNECTOR_RETURN_URL=http://127.0.0.1:$PORT/marketplace"
   echo "STAGE=local"; echo "VITE_STAGE=local"; } > "$APP/.env.verify"
 chmod 600 "$APP/.env.verify"
 
@@ -57,6 +59,7 @@ PRELOAD="--import $HERE/neon-local.mjs --import $HERE/stripe-stub.mjs --import $
 PSQL=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)/psql
 NPO_ID=$("$PSQL" -h 127.0.0.1 -p "$PGPORT" -U postgres app -qtAf "$HERE/seed.sql" | tail -1)
 echo "$NPO_ID" > "$STATE/npo_id"
+DATABASE_URL=$DB node "$HERE/seed-member.mjs"
 
 cd "$APP"
 DATABASE_URL=$DB STRIPE_SECRET_KEY=$(grep -m1 "^STRIPE_SECRET_KEY=" "$APP/.env.verify" | cut -d= -f2-) NONPROFITS_API_KEY=$(grep -m1 "^NONPROFITS_API_KEY=" "$APP/.env.verify" | cut -d= -f2-) VERIFY_STATE=$STATE NODE_OPTIONS="$PRELOAD" VERIFY_WS_PORT=${VERIFY_WS_PORT:-5488} \
