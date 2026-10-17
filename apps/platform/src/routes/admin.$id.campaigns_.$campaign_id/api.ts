@@ -100,15 +100,20 @@ export const action = async ({
   if (await campaign_slug_refused(id, campaign_id, body.slug)) {
     return data({ error: SLUG_LOCK_NOTE }, { status: 400 });
   }
-  const fields = await to_fields(id, body);
+  const endow = await npo_get(id);
+  if (!endow) throw resp.status(404);
+  const fields = await to_fields(id, body, endow.hide_bg_tip);
   if ("error" in fields) return data({ error: fields.error }, { status: 400 });
   if (await campaign_slug_taken(id, fields.slug, campaign_id)) {
     return data({ error: slug_taken_message() }, { status: 400 });
   }
 
   try {
-    const ok = await campaign_update(id, campaign_id, to_patch(fields));
-    if (!ok) throw resp.status(404);
+    const wrote = await campaign_update(id, campaign_id, to_patch(fields));
+    if (wrote === "slug_locked") {
+      return data({ error: SLUG_LOCK_NOTE }, { status: 400 });
+    }
+    if (wrote !== "ok") throw resp.status(404);
   } catch (err) {
     if (slug_taken(err)) {
       return data({ error: slug_taken_message() }, { status: 400 });

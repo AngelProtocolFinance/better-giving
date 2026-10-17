@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const send_email_mock = vi.hoisted(() => vi.fn());
 const get_session_mock = vi.hoisted(() => vi.fn());
 const to_fn_mock = vi.hoisted(() => vi.fn());
+const campaign_by_id_mock = vi.hoisted(() => vi.fn());
 const template_mock = vi.hoisted(() =>
   vi.fn((_d: any) => ({ node: null, subject: "transfer notif" }))
 );
@@ -12,6 +13,19 @@ vi.mock("emails", () => ({
 }));
 vi.mock("#/.server/auth", () => ({ get_session: get_session_mock }));
 vi.mock("#/.server/donation-recipient", () => ({ to_fn: to_fn_mock }));
+vi.mock("$/pg/queries/campaign", () => ({
+  campaign_by_id: campaign_by_id_mock,
+  campaign_accepts: (
+    row: { status: string; ends_at: string | null },
+    now: Date
+  ) => {
+    if (row.status !== "live") return false;
+    if (row.ends_at && new Date(row.ends_at).getTime() <= now.getTime()) {
+      return false;
+    }
+    return true;
+  },
+}));
 vi.mock("$/email", () => ({ send_email: send_email_mock }));
 vi.mock("$/env", () => ({ base_url: "https://bg.test" }));
 vi.mock("#/errors/report", () => ({ report_null: vi.fn() }));
@@ -69,6 +83,7 @@ beforeEach(async () => {
     to_tip_allowed: true,
     to_members: [],
   });
+  campaign_by_id_mock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -116,6 +131,73 @@ describe("api.donation-notifications recipient identity", () => {
     const res = await invoke(post(notif("AAPL")));
 
     expect(res.status).toBe(400);
+    expect(send_email_mock).not.toHaveBeenCalled();
+  });
+
+  it("names a live campaign this nonprofit owns", async () => {
+    campaign_by_id_mock.mockResolvedValue({
+      id: "c0ffee00-0000-4000-8000-000000000001",
+      owner_npo_id: Number(NPO_ID),
+      status: "live",
+      ends_at: null,
+      name: "Winter Drive",
+      slug: "winter",
+      owner_slug: "verify-test",
+    });
+    await invoke(
+      post({
+        ...notif("AAPL"),
+        campaign_id: "c0ffee00-0000-4000-8000-000000000001",
+      })
+    );
+    const d = template_mock.mock.calls[0]![0] as any;
+    expect(d.campaign_name).toBe("Winter Drive");
+    expect(d.campaign_url).toBe("https://bg.test/org/verify-test/winter");
+  });
+
+  it("drops a campaign another nonprofit owns and still mails the gift", async () => {
+    campaign_by_id_mock.mockResolvedValue({
+      id: "c0ffee00-0000-4000-8000-000000000001",
+      owner_npo_id: 99,
+      status: "live",
+      ends_at: null,
+      name: "Someone else",
+      slug: "else",
+      owner_slug: "other",
+    });
+    const res = await invoke(
+      post({
+        ...notif("AAPL"),
+        campaign_id: "c0ffee00-0000-4000-8000-000000000001",
+      })
+    );
+    expect(res.status).toBe(200);
+    const d = template_mock.mock.calls[0]![0] as any;
+    expect(d.campaign_name).toBeUndefined();
+    expect(d.recipient_name).toBe("Freegan Food Foundation");
+  });
+
+  it("refuses a campaign this nonprofit owns that is not accepting gifts", async () => {
+    campaign_by_id_mock.mockResolvedValue({
+      id: "c0ffee00-0000-4000-8000-000000000001",
+      owner_npo_id: Number(NPO_ID),
+      status: "ended",
+      ends_at: null,
+      name: "Winter Drive",
+      slug: "winter",
+      owner_slug: "verify-test",
+    });
+    const res = await invoke(
+      post({
+        ...notif("AAPL"),
+        campaign_id: "c0ffee00-0000-4000-8000-000000000001",
+      })
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      ok: false,
+      error: "This campaign isn't accepting donations right now.",
+    });
     expect(send_email_mock).not.toHaveBeenCalled();
   });
 

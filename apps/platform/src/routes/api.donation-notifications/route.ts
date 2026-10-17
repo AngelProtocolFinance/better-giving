@@ -8,6 +8,7 @@ import { emails } from "@/constants/common";
 import { to_id } from "@/donations/schema";
 import { send_email } from "$/email";
 import { base_url } from "$/env";
+import { campaign_accepts, campaign_by_id } from "$/pg/queries/campaign";
 
 const positive_decimal = v.pipe(
   v.string(),
@@ -63,15 +64,19 @@ const seen = new Map<string, number>();
 // mail is a phishing link wearing our provenance; a caller-supplied
 // `recipient_name` is a fabricated recipient. both are derivable from the id,
 // so neither is asked for.
+const campaign_id = v.optional(v.pipe(v.string(), v.uuid()));
+
 const schema = v.variant("type", [
   v.object({
     type: v.literal("stocks"),
     recipient_id: to_id,
+    campaign_id,
     details: stocks_details,
   }),
   v.object({
     type: v.literal("ira_qcd"),
     recipient_id: to_id,
+    campaign_id,
     details: ira_qcd_details,
   }),
 ]);
@@ -100,6 +105,33 @@ export const action: ActionFunction = async ({ request }) => {
   const to = await to_fn(data.recipient_id);
   if (!to) {
     return Response.json({ ok: false }, { status: 400 });
+  }
+
+  // a campaign id is checked the same way an intent is: another nonprofit's
+  // campaign is dropped, and one this nonprofit owns that is not open is refused.
+  // the mail then names the campaign from that record, never from the caller.
+  let campaign: { name: string; url?: string } | undefined;
+  if (data.campaign_id) {
+    const row = await campaign_by_id(data.campaign_id);
+    const owned =
+      row && to.to_type === "npo" && row.owner_npo_id === Number(to.to_id);
+    if (owned && row) {
+      if (!campaign_accepts(row, new Date())) {
+        return Response.json(
+          {
+            ok: false,
+            error: "This campaign isn't accepting donations right now.",
+          },
+          { status: 400 }
+        );
+      }
+      campaign = {
+        name: row.name,
+        ...(row.owner_slug
+          ? { url: `${base_url}/org/${row.owner_slug}/${row.slug}` }
+          : {}),
+      };
+    }
   }
 
   // after the lookup, so the map records what was mailed rather than what was
@@ -133,6 +165,9 @@ export const action: ActionFunction = async ({ request }) => {
     recipient_url: `${base_url}${path}`,
     donor_email,
     details: data.details,
+    ...(campaign
+      ? { campaign_name: campaign.name, campaign_url: campaign.url }
+      : {}),
   });
 
   await send_email({ node, subject, to: Object.values(emails) }).catch(

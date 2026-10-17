@@ -220,14 +220,14 @@ export async function campaign_update(
   npo_id: number,
   id: string,
   patch: ICampaignPatch
-): Promise<boolean> {
+): Promise<"ok" | "missing" | "slug_locked"> {
   const current = await campaign_get(npo_id, id);
-  if (!current) return false;
-  if (patch.slug !== undefined && current.published_at) {
-    if (patch.slug.toLowerCase() !== current.slug.toLowerCase()) {
-      return false;
-    }
-  }
+  if (!current) return "missing";
+  // The read above can sit before a concurrent publish. The write itself
+  // refuses a new address once published_at is set.
+  const slug_changes =
+    patch.slug !== undefined &&
+    patch.slug.toLowerCase() !== current.slug.toLowerCase();
   const target =
     patch.target !== undefined ? columns_target(patch.target) : undefined;
   const desc =
@@ -237,7 +237,7 @@ export async function campaign_update(
           description_v2: to_text(patch.description_pt),
         }
       : {};
-  await db
+  const rows = await db
     .update(campaigns)
     .set({
       ...(patch.name !== undefined ? { name: patch.name } : {}),
@@ -276,8 +276,19 @@ export async function campaign_update(
         : {}),
       updated_at: new Date().toISOString(),
     })
-    .where(and(eq(campaigns.id, id), eq(campaigns.owner_npo_id, npo_id)));
-  return true;
+    .where(
+      and(
+        eq(campaigns.id, id),
+        eq(campaigns.owner_npo_id, npo_id),
+        slug_changes ? sql`${campaigns.published_at} is null` : undefined
+      )
+    )
+    .returning({ id: campaigns.id });
+  if (rows.length > 0) return "ok";
+  const still = await campaign_get(npo_id, id);
+  if (!still) return "missing";
+  if (slug_changes && still.published_at) return "slug_locked";
+  return "missing";
 }
 
 /** false when the slug was locked and the caller tried to change it */

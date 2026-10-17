@@ -20,7 +20,8 @@ function blank(s: string | undefined): string | null {
 
 export async function to_fields(
   npo_id: number,
-  body: ICampaignBody
+  body: ICampaignBody,
+  hide_bg_tip: boolean
 ): Promise<
   { error: string } | Omit<ICampaignInput, "id" | "owner_npo_id" | "creator_id">
 > {
@@ -45,7 +46,9 @@ export async function to_fields(
     donate_frequencies: body.donate_frequencies,
     increments: body.increments ?? [],
     target: body.target,
-    hide_bg_tip: body.hide_bg_tip ?? false,
+    // settlement reads the nonprofit's tip setting. a campaign value that
+    // disagrees would show a tip and still charge the organization.
+    hide_bg_tip,
     program_id,
     program_name,
   };

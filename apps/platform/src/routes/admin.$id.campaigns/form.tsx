@@ -145,7 +145,7 @@ export function CampaignForm({
         increments: fv.increments,
         donate_methods: fv.donate_methods.map((m) => m.id),
         donate_frequencies: to_freqs(fv.freqs),
-        hide_bg_tip: fv.hide_bg_tip,
+        hide_bg_tip: init.hide_bg_tip,
         program_id: fv.program_id ?? "",
         op: op.current,
       },
@@ -339,10 +339,15 @@ export function CampaignForm({
           </>
         )}
       />
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" {...register("hide_bg_tip")} />
-        Hide the Better Giving tip
-      </label>
+      <div className="grid gap-1">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={init.hide_bg_tip} disabled />
+          Hide the Better Giving tip
+        </label>
+        <p className="text-xs text-gray-11">
+          This follows the organization's payment settings.
+        </p>
+      </div>
       <label className="grid gap-1">
         <span className="label">Program</span>
         <select {...register("program_id")} className="field-input rounded">

@@ -86,7 +86,11 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             target={to_target(campaign.target ?? "0")}
           />
           {left && <p className="text-sm text-gray-11">{left}</p>}
-          <Share recipientName={campaign.name} url={canonical} />
+          <Share
+            recipientName={campaign.name}
+            url={canonical}
+            line="Gifts on this page go to the nonprofit running it."
+          />
           <RichText
             readOnly
             content={{ value: campaign.description_pt }}
@@ -121,7 +125,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
               recipient={{
                 id: String(npo.id),
                 name: campaign.name,
-                hide_bg_tip: campaign.hide_bg_tip,
+                hide_bg_tip: npo.hide_bg_tip,
                 members: [String(npo.id)],
                 donor_address_required: npo.donor_address_required,
               }}
@@ -132,6 +136,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                 method_ids: campaign.donate_methods ?? undefined,
                 increments: campaign.increments ?? undefined,
                 campaign_id: campaign.id,
+                campaign_url: canonical,
                 prefill_amount_usd: loaderData.prefill_amount_usd,
                 prefill_frequency: loaderData.prefill_frequency,
               }}
