@@ -9,6 +9,7 @@ One file per user-facing feature; each names the drive.mjs flow that proves it. 
 | Marketplace | `marketplace` | [marketplace.md](marketplace.md) |
 | Donate (card) | `donate-card` | [donate-card.md](donate-card.md) |
 | Deploy smoke paths | `smoke-paths` | [smoke-paths.md](smoke-paths.md) |
+| Connector allow | `connector-allow` | [connector-allow.md](connector-allow.md) |
 | Agent nonprofit lookup | `agents-find` | [agents-find.md](agents-find.md) |
 
 `scripts/doctor.sh` runs `drive.mjs --check-map` and fails when a `features/*.md` file (other than this index), a link to one from this file, and a `FLOWS` key in `drive.mjs` are not the same set.

@@ -279,15 +279,30 @@ export async function npo_admin_tx(
   });
 }
 
-export async function userxnpo_del(npo_id: number, user_id: string) {
-  await db
-    .delete(user_npo_memberships)
-    .where(
-      and(
-        eq(user_npo_memberships.user_id, user_id),
-        eq(user_npo_memberships.npo_id, npo_id)
-      )
-    );
+export async function userxnpo_del(
+  npo_id: number,
+  user_id: string,
+  revoked_by: string | null = null
+) {
+  // loaded here so route modules that import this file do not pull node:crypto
+  // into the browser bundle
+  const { revoke_member_keys } = await import("../../connector/keys");
+  // one transaction: a thrown revoke rolls the membership delete back
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(user_npo_memberships)
+      .where(
+        and(
+          eq(user_npo_memberships.user_id, user_id),
+          eq(user_npo_memberships.npo_id, npo_id)
+        )
+      );
+    await revoke_member_keys(tx, {
+      npo_id,
+      user_id,
+      revoked_by,
+    });
+  });
 }
 
 export async function npo_invite_del(npo_id: number, invitee: string) {
