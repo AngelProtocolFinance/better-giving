@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, pgTable, text } from "drizzle-orm/pg-core";
+import { campaigns } from "./campaign";
 import { numeric_as_number, timestamptz } from "./columns";
 import { funds } from "./fund";
 import { npos } from "./npo";
@@ -22,6 +23,7 @@ export const subscriptions = pgTable(
     product_id: text("product_id").notNull(),
     to_npo_id: integer("to_npo_id").references(() => npos.id),
     to_fund_id: text("to_fund_id").references(() => funds.id),
+    campaign_id: text("campaign_id").references(() => campaigns.id),
     to_name: text("to_name").notNull(),
     platform: text("platform").$type<"stripe" | "paypal">().notNull(),
     status: text("status").$type<"active" | "inactive">().notNull(),

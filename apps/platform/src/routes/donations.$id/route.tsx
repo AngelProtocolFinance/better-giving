@@ -21,7 +21,7 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
   return metas({
     title: `Donation to ${d.to_name}`,
     image: laira_gift,
-    description: `I just donated to ${d.to_name} on Better Giving! ${d && d.to_type === "fund" ? "My gift to this fundraiser helps raise funds for causes they love. Why don't you donate as well?" : "They can choose to use my gift today, or save and invest it for sustainable growth"}. When you give today, you give forever.`,
+    description: `I just donated to ${d.to_name} on Better Giving! ${d && d.to_type === "fund" ? "My gift to this campaign helps raise funds for causes they love. Why don't you donate as well?" : "They can choose to use my gift today, or save and invest it for sustainable growth"}. When you give today, you give forever.`,
     url: d.donate_url,
   });
 };
@@ -70,7 +70,7 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
                 {data.to_name}
               </NavLink>
               {data.to_type === "fund"
-                ? " fundraiser page"
+                ? " campaign page"
                 : `${data.to_name.toLowerCase().endsWith("s") ? "'" : "'s"} profile.`}
             </span>
             <span className="ml-auto h-lh flex items-center shrink-0">

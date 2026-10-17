@@ -1,0 +1,78 @@
+import { safeParse } from "valibot";
+import { is_unique_violation } from "$/pg/errors";
+import type { ICampaignInput, ICampaignPatch } from "$/pg/queries/campaign";
+import { npo_program_get } from "$/pg/queries/program";
+import { campaign_body, type ICampaignBody } from "./schema";
+
+export const SLUG_LOCK_NOTE =
+  "The address is locked. Changing it would break links that already point here.";
+
+export const ORG_SLUG_PROMPT =
+  "Set your organization slug on Edit Profile before creating a campaign.";
+
+const SLUG_TAKEN = "That address is already used by another campaign.";
+
+export function slug_taken(err: unknown) {
+  return (
+    is_unique_violation(err, "campaigns_owner_npo_slug_idx") ||
+    is_unique_violation(err, "campaigns_owner_user_slug_idx")
+  );
+}
+
+export function slug_taken_message() {
+  return SLUG_TAKEN;
+}
+
+function blank(s: string | undefined): string | null {
+  if (!s) return null;
+  return s;
+}
+
+export async function to_fields(
+  npo_id: number,
+  body: ICampaignBody
+): Promise<
+  { error: string } | Omit<ICampaignInput, "id" | "owner_npo_id" | "creator_id">
+> {
+  let program_id: string | null = null;
+  let program_name: string | null = null;
+  if (body.program_id) {
+    const prog = await npo_program_get(body.program_id, npo_id);
+    if (!prog) return { error: "That program is not on this nonprofit." };
+    program_id = prog.id;
+    program_name = prog.title;
+  }
+  return {
+    name: body.name,
+    slug: body.slug,
+    campaign_type: body.campaign_type ?? null,
+    description_pt: body.description_pt,
+    banner: blank(body.banner),
+    logo: blank(body.logo),
+    videos: body.videos ?? [],
+    ends_at: blank(body.ends_at),
+    donate_methods: body.donate_methods,
+    donate_frequencies: body.donate_frequencies,
+    increments: body.increments ?? [],
+    target: body.target,
+    hide_bg_tip: body.hide_bg_tip ?? false,
+    program_id,
+    program_name,
+  };
+}
+
+export function to_patch(
+  fields: Omit<ICampaignInput, "id" | "owner_npo_id" | "creator_id">
+): ICampaignPatch {
+  return fields;
+}
+
+export async function read_body(request: Request) {
+  const json: unknown = await request.json().catch(() => undefined);
+  if (json === undefined) return { error: "Request body is not JSON." };
+  const op = (json as { op?: unknown }).op;
+  if (op === "end" || op === "delete") return { op };
+  const parsed = safeParse(campaign_body, json);
+  if (parsed.issues) return { error: parsed.issues[0].message };
+  return { body: parsed.output };
+}

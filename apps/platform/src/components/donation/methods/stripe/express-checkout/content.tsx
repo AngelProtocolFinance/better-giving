@@ -12,6 +12,7 @@ import type {
   IDonorAddressFv,
   IStripeIntentReturn,
 } from "@/donations";
+import { apply_campaign } from "../../../apply-campaign";
 import { use_donation_redirect } from "../../../common/redirect";
 import {
   donation_return_url,
@@ -122,6 +123,7 @@ export function Content({
 
     if (don.program) intent.program = don.program;
     if (don.config?.id) intent.form_id = don.config.id;
+    apply_campaign(intent, don.config);
 
     // everything past here runs with the donor already authorized in the
     // sheet, so no path out of it may be silent — a throw owes the sheet the

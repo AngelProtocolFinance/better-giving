@@ -67,7 +67,7 @@ export const linkGroups: LinkGroup[] = [
         },
       },
       {
-        title: "My Fundraisers",
+        title: "My campaigns",
         to: routes.funds,
         icon: {
           fn: Heart,

@@ -76,7 +76,7 @@ export function Form({
         ref={rhf.desc.ref}
         content={rhf.desc.value}
         onChange={rhf.desc.onChange}
-        placeHolder="A short overview of your fundraiser"
+        placeHolder="A short overview of your campaign"
         charLimit={MAX_DESCRIPTION_CHARS}
         classes={{
           field:
@@ -96,9 +96,9 @@ export function Form({
         slug_field={
           <Field
             {...rhf.register("slug")}
-            label="Custom Fundraiser URL"
+            label="Custom campaign URL"
             classes={{ container: "mt-6" }}
-            placeholder="myFundraiser"
+            placeholder="my-campaign"
             error={rhf.errors.slug?.message}
           />
         }
@@ -147,7 +147,7 @@ export function Form({
       />
 
       <p className="label mt-6">
-        Fundraiser goal <span className="text-destructive-subtle-fg">*</span>
+        Goal <span className="text-destructive-subtle-fg">*</span>
       </p>
       <GoalSelector
         classes="mt-2 mb-2"

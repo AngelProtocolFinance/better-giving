@@ -12,6 +12,15 @@ const freqs_disp = {
   annual: "Annually",
 } as const;
 
+export function opening_frequency(
+  freq_opts: TFrequency[] | undefined,
+  requested: TFrequency | undefined
+): TFrequency {
+  const shown = freqs_shown(freq_opts) ?? ["one-time"];
+  if (requested && shown.includes(requested)) return requested;
+  return "one-time";
+}
+
 export const freqs_shown = (
   freqs: TFrequency[] | undefined
 ): TFrequency[] | null => {
