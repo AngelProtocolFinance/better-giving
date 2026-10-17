@@ -74,6 +74,58 @@ const open_link = async (page, locate, pattern) => {
   return 3;
 };
 
+// First visit to an admin route compiles for a long time, and a Vite reload
+// can cancel the click without changing the URL. A reload that puts us back
+// is a lost click — try again. A navigation that has left the page keeps its
+// 120s wait so a retry does not abort the compile.
+const open_cold = async (page, locate, pattern) => {
+  const matches = (url) => {
+    try {
+      return pattern.test(new URL(url).pathname);
+    } catch {
+      return false;
+    }
+  };
+  let last = page.url();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const before = page.url();
+    try {
+      await locate().click({ timeout: 15_000 });
+    } catch (err) {
+      if (attempt === 3) throw err;
+      await page.waitForLoadState("load", { timeout: 30_000 }).catch(() => {});
+      continue;
+    }
+    // A lost click never moves the URL. A real one does, immediately for a
+    // client transition, and the document behind it may still be compiling.
+    try {
+      await page.waitForURL(
+        (url) => pattern.test(url.pathname) || url.href !== before,
+        { timeout: attempt < 3 ? 8_000 : 120_000 }
+      );
+    } catch (err) {
+      last = page.url();
+      if (matches(last)) return attempt;
+      if (attempt === 3) {
+        throw new Error(`${err.message} (still at ${last})`);
+      }
+      continue;
+    }
+    if (matches(page.url())) return attempt;
+    try {
+      await page.waitForURL(pattern, { timeout: 120_000 });
+      return attempt;
+    } catch (err) {
+      last = page.url();
+      if (matches(last)) return attempt;
+      if (attempt === 3) {
+        throw new Error(`${err.message} (still at ${last})`);
+      }
+    }
+  }
+  throw new Error(`click did not navigate (still at ${last})`);
+};
+
 const readme_ids = () => {
   const readme = fs.readFileSync(path.join(FEATURE_DIR, "README.md"), "utf8");
   return [
@@ -762,14 +814,21 @@ const FLOWS = {
       await assert_no_fundraiser(page, "donor dashboard");
       await shot("donor-dashboard");
 
-      await page.getByRole("link", { name: "Verify Test Nonprofit" }).click();
+      const org_link = () =>
+        page.getByRole("link", { name: "Verify Test Nonprofit" });
+      const org_tries = await open_cold(page, org_link, /\/admin\/\d+/);
       entry.clicked.push("My Organizations → Verify Test Nonprofit");
-      await page.waitForURL(/\/admin\/\d+\/dashboard(?:\?|$)/, { timeout: T });
+      await page.waitForURL(/\/admin\/\d+\/dashboard(?:\?|$)/, {
+        timeout: 120_000,
+      });
       const campaigns = () =>
         page.getByRole("link", { name: "Campaigns", exact: true });
-      await campaigns().click();
+      const campaign_tries = await open_cold(
+        page,
+        campaigns,
+        /\/admin\/\d+\/campaigns(?:\?|$)/
+      );
       entry.clicked.push("sidebar Campaigns");
-      await page.waitForURL(/\/admin\/\d+\/campaigns(?:\?|$)/, { timeout: T });
       await page
         .getByRole("heading", { name: "Campaigns", exact: true })
         .waitFor({
@@ -792,23 +851,31 @@ const FLOWS = {
       await assert_no_fundraiser(page, "campaigns list");
       await shot("list");
 
-      await profile.click();
+      const profile_tries = await open_cold(
+        page,
+        () => page.getByRole("link", { name: /Better Giving profile/ }),
+        /\/admin\/\d+\/edit-profile(?:\?|$)/
+      );
       entry.clicked.push("Better Giving profile");
       await page
         .getByRole("heading", { name: "Public profile information" })
-        .waitFor({ timeout: T });
+        .waitFor({ timeout: 120_000 });
       await shot("edit-profile");
       await page.goBack({ waitUntil: "load", timeout: 120_000 });
       await page
         .getByRole("heading", { name: "Campaigns", exact: true })
         .waitFor({
-          timeout: T,
+          timeout: 120_000,
         });
 
-      await page.getByRole("link", { name: "New campaign" }).click();
+      const new_tries = await open_cold(
+        page,
+        () => page.getByRole("link", { name: "New campaign" }),
+        /\/admin\/\d+\/campaigns\/new(?:\?|$)/
+      );
       entry.clicked.push("New campaign");
       await page.getByRole("heading", { name: "New campaign" }).waitFor({
-        timeout: T,
+        timeout: 120_000,
       });
       await page.getByLabel("Name", { exact: true }).fill("Spring Drive");
       await page.getByLabel("Address", { exact: true }).fill("spring-drive");
@@ -847,11 +914,11 @@ const FLOWS = {
       await shot("form");
       await page.getByRole("button", { name: "Publish" }).click();
       await page.waitForURL(/\/admin\/\d+\/campaigns\/(?!new$)[^/]+$/, {
-        timeout: T,
+        timeout: 120_000,
       });
       await page
         .getByRole("heading", { name: "QR Code" })
-        .waitFor({ timeout: T });
+        .waitFor({ timeout: 120_000 });
       const qr_tab = page.getByRole("tab", { name: "Campaign" });
       if ((await qr_tab.count()) > 0) await qr_tab.click();
       const logo_box = page.locator("#show-logo");
@@ -909,6 +976,10 @@ const FLOWS = {
       await assert_no_fundraiser(page, "/fundraisers/:id");
       await shot("fund-page");
       return [
+        click_fact("organization card → /admin", org_tries),
+        click_fact("sidebar Campaigns", campaign_tries),
+        click_fact("Better Giving profile → Edit Profile", profile_tries),
+        click_fact("New campaign", new_tries),
         "signed in, clicked sidebar Campaigns",
         "pinned profile card opened Edit Profile",
         "published Spring Drive, live · $0 raised, Harbor Listing on the list",
@@ -921,12 +992,32 @@ const FLOWS = {
     desc: "public campaign page, org redirect, and draft/unknown 404s",
     async run({ page, shot, entry }) {
       const url = `${BASE}/org/${ORG}/${SEEDED_CAMPAIGN}`;
-      const r = await page.goto(url, { waitUntil: "load", timeout: 120_000 });
+      let r = await page.goto(url, { waitUntil: "load", timeout: 120_000 });
       entry.loaded.push("GET /org/:org/:campaign");
       expect_ok(
         r.status() === 200,
         `GET /org/${ORG}/${SEEDED_CAMPAIGN} → ${r.status()}`
       );
+      // The supporter wall is client-rendered. A cold load 504s newly
+      // optimized deps, the document stays 200, and the wall never mounts.
+      // Reload the same URL. That is not a second entry.
+      let wall_tries = 1;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        wall_tries = attempt;
+        try {
+          await page.getByText("Seeded campaign thanks").waitFor({
+            timeout: attempt < 3 ? 15_000 : T,
+          });
+          break;
+        } catch (err) {
+          if (attempt === 3) throw err;
+          r = await page.reload({ waitUntil: "load", timeout: 120_000 });
+          expect_ok(
+            r?.status() === 200,
+            `reload /org/${ORG}/${SEEDED_CAMPAIGN} → ${r?.status()}`
+          );
+        }
+      }
       await page.getByRole("heading", { name: "Winter Drive" }).waitFor({
         timeout: T,
       });
@@ -1007,6 +1098,9 @@ const FLOWS = {
         );
       }
       return [
+        wall_tries > 1
+          ? `supporter wall after reload ${wall_tries} of the same URL`
+          : "supporter wall on the first load",
         `GET /org/${ORG}/${SEEDED_CAMPAIGN} → 200, hero, story, goal, donate box, Share, wall, badge, no Log In`,
         `title "${title}", description and og:image set`,
         `GET /org/${ORG} → 302 ${location}`,
