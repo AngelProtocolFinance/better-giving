@@ -643,9 +643,20 @@ const FLOWS = {
       });
       await page.getByLabel("Name", { exact: true }).fill("Spring Drive");
       await page.getByLabel("Address", { exact: true }).fill("spring-drive");
-      const story = page.locator('[contenteditable="true"]').first();
+      // The date field also mounts contenteditable segments (mm / dd / yyyy)
+      // before the story editor finishes loading. Type into the story editor
+      // itself, and wait until its counter matches: the editor commits to the
+      // form a moment after the text is on screen.
+      const story_text = "Neighbors funding a spring drive.";
+      const story = page.locator(
+        ".rich-text-toolbar [contenteditable='true']"
+      );
+      await story.waitFor();
       await story.click();
-      await story.pressSequentially("Neighbors funding a spring drive.");
+      await page.keyboard.insertText(story_text);
+      await page
+        .getByText(new RegExp(`chars\\s*:\\s*${story_text.length}\\s*/`, "i"))
+        .waitFor();
       const hero = path.join(OUT, "campaign-hero.png");
       fs.writeFileSync(hero, png_rgb(400, 100, [20, 90, 140]));
       const uploaded = page.waitForResponse(
@@ -658,7 +669,8 @@ const FLOWS = {
       await page.getByRole("button", { name: "Save cropped image" }).click();
       const upload = await uploaded;
       expect_ok(upload.status() === 200, `hero upload → ${upload.status()}`);
-      await page.getByRole("radio", { name: "Set my own goal" }).click();
+      // The goal option is an Ark hidden input. The visible label is the control.
+      await page.getByText("Set my own goal", { exact: true }).click();
       await page.getByLabel("Amount to raise").fill("2500");
       const segments = page.getByRole("spinbutton");
       const type_date = async (index, digits) => {
@@ -677,9 +689,20 @@ const FLOWS = {
       await page.locator('input[type="number"]').first().fill("100");
       await shot("form");
       await page.getByRole("button", { name: "Publish" }).click();
-      await page.waitForURL(/\/admin\/\d+\/campaigns\/(?!new$)[^/]+$/, {
-        timeout: 120_000,
-      });
+      try {
+        await page.waitForURL(/\/admin\/\d+\/campaigns\/(?!new$)[^/]+$/, {
+          timeout: 120_000,
+        });
+      } catch (err) {
+        const msgs = (
+          await page.locator(".text-destructive-subtle-fg").allInnerTexts()
+        )
+          .map((t) => t.trim())
+          .filter(Boolean);
+        throw new Error(
+          `${err.message} (still at ${page.url()}; ${msgs.join(" | ") || "no field error"})`
+        );
+      }
       await page
         .getByRole("heading", { name: "QR Code" })
         .waitFor({ timeout: 120_000 });
