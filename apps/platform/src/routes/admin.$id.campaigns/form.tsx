@@ -16,12 +16,12 @@ import { ImgEditor } from "#/components/img-editor";
 import { RichText } from "#/components/rich-text";
 import { img_spec } from "#/pages/funds/common";
 import { Videos } from "#/pages/funds/common/videos";
+import { CAMPAIGN_TYPES } from "@/campaign";
 import { to_freq_bools, to_freqs } from "@/helpers/donation";
 import type { DonateMethodId, TFrequency } from "@/schemas";
 import { increment_label_max_chars } from "@/schemas";
-import { CAMPAIGN_TYPES } from "$/pg/schema/campaign";
+import { SLUG_LOCK_NOTE } from "./copy";
 import { type FV, form_schema } from "./form-schema";
-import { SLUG_LOCK_NOTE } from "./persist";
 
 const TYPE_LABEL: Record<(typeof CAMPAIGN_TYPES)[number], string> = {
   year_end: "Year-end",

@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { CAMPAIGN_TYPES } from "@/campaign";
 import {
   $,
   donate_method_id,
@@ -8,7 +9,6 @@ import {
   segment,
   target,
 } from "@/schemas";
-import { CAMPAIGN_TYPES } from "$/pg/schema/campaign";
 
 const https = v.pipe(v.string(), v.trim(), v.url("invalid url"));
 

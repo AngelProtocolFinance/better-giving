@@ -4,23 +4,13 @@ import type { ICampaignInput, ICampaignPatch } from "$/pg/queries/campaign";
 import { npo_program_get } from "$/pg/queries/program";
 import { campaign_body, type ICampaignBody } from "./schema";
 
-export const SLUG_LOCK_NOTE =
-  "The address is locked. Changing it would break links that already point here.";
-
-export const ORG_SLUG_PROMPT =
-  "Set your organization slug on Edit Profile before creating a campaign.";
-
-const SLUG_TAKEN = "That address is already used by another campaign.";
+export { ORG_SLUG_PROMPT, SLUG_LOCK_NOTE, slug_taken_message } from "./copy";
 
 export function slug_taken(err: unknown) {
   return (
     is_unique_violation(err, "campaigns_owner_npo_slug_idx") ||
     is_unique_violation(err, "campaigns_owner_user_slug_idx")
   );
-}
-
-export function slug_taken_message() {
-  return SLUG_TAKEN;
 }
 
 function blank(s: string | undefined): string | null {

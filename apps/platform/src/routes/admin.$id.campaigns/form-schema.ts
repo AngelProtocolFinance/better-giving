@@ -3,13 +3,13 @@ import { target } from "#/components/goal-selector";
 import { img_output } from "#/components/img-editor";
 import { video } from "#/pages/funds/common/videos";
 import { donate_method, richtext_content } from "#/types/components";
+import { CAMPAIGN_TYPES } from "@/campaign";
 import {
   donate_freq_opts_bool,
   increment,
   MAX_NUM_INCREMENTS,
   segment,
 } from "@/schemas";
-import { CAMPAIGN_TYPES } from "$/pg/schema/campaign";
 
 const day = v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/, "invalid date"));
 

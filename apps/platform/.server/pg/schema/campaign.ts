@@ -10,28 +10,14 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import type { TCampaignStatus, TCampaignType } from "@/campaign";
 import type { DonateMethodId, IIncrement, TFrequency } from "@/schemas";
 import { user } from "./auth";
 import { numeric_as_number, timestamptz, timestamptz_now } from "./columns";
 import { npos } from "./npo";
 import { programs } from "./program";
 
-export const CAMPAIGN_TYPES = [
-  "year_end",
-  "emergency",
-  "building",
-  "event",
-  "tribute",
-  "monthly",
-  "program",
-  "other",
-] as const;
-
-export type TCampaignType = (typeof CAMPAIGN_TYPES)[number];
-
-export const CAMPAIGN_STATUSES = ["draft", "live", "ended"] as const;
-
-export type TCampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
+export type { TCampaignStatus, TCampaignType };
 
 export const campaigns = pgTable(
   "campaigns",
