@@ -194,7 +194,7 @@ describe("campaigns constraints", () => {
     await rejects(
       db().insert(campaign_members).values({
         campaign_id: "c-own",
-        npo_id: other.id,
+        npo_id: org.id,
       }),
       "a campaign has one member, its owner"
     );

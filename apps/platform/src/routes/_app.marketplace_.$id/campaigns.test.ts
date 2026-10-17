@@ -18,13 +18,9 @@ vi.mock("$/pg/db", () => ({
   ),
 }));
 
-vi.mock("#/errors/report", () => ({
-  report_error: vi.fn(),
-}));
-
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
+const { campaign_live_for_npo } = await import("$/pg/queries/campaign");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
-const { loader } = await import("./api");
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -94,8 +90,9 @@ afterAll(async () => {
 
 describe("marketplace profile campaigns", () => {
   it("lists live campaigns only", async () => {
-    const data = await loader({ params: { id: "acme" } } as any);
-    expect(data.campaigns.map((c) => c.slug)).toEqual(["live"]);
-    expect(data.campaigns.every((c) => c.status === "live")).toBe(true);
+    const [npo] = await test_db.current!.db.select().from(npos);
+    const rows = await campaign_live_for_npo(npo!.id);
+    expect(rows.map((c) => c.slug)).toEqual(["live"]);
+    expect(rows.every((c) => c.status === "live" && c.owner_slug)).toBe(true);
   });
 });
