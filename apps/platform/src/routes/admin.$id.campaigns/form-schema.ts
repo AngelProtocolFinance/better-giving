@@ -8,14 +8,14 @@ import {
   donate_freq_opts_bool,
   increment,
   MAX_NUM_INCREMENTS,
-  segment,
+  segment_shape,
 } from "@/schemas";
 
 const day = v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/, "invalid date"));
 
 export const form_schema = v.object({
   name: v.pipe(v.string(), v.trim(), v.nonEmpty("required")),
-  slug: v.pipe(segment, v.nonEmpty("required")),
+  slug: v.pipe(segment_shape, v.nonEmpty("required")),
   campaign_type: v.optional(
     v.union([v.literal(""), v.picklist(CAMPAIGN_TYPES)])
   ),

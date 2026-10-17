@@ -27,7 +27,7 @@ export default function Page() {
           <span className="font-mono text-sm">
             /org/your-organization/your-campaign
           </span>
-          . Set the organization slug on Edit Profile first. The campaign
+          . Set the organization slug on Organization first. The campaign
           address can change until the first time you publish. After that it
           stays put, because a change would break links that already point at
           the page.

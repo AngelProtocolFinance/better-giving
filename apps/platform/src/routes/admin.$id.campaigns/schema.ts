@@ -6,7 +6,7 @@ import {
   frequency,
   increment,
   MAX_NUM_INCREMENTS,
-  segment,
+  segment_shape,
   target,
 } from "@/schemas";
 
@@ -14,7 +14,7 @@ const https = v.pipe(v.string(), v.trim(), v.url("invalid url"));
 
 export const campaign_body = v.object({
   name: v.pipe($, v.nonEmpty("required")),
-  slug: v.pipe(segment, v.nonEmpty("required")),
+  slug: v.pipe(segment_shape, v.nonEmpty("required")),
   campaign_type: v.optional(v.picklist(CAMPAIGN_TYPES)),
   description_pt: v.pipe($, v.nonEmpty("required")),
   banner: v.optional(v.union([v.literal(""), https])),

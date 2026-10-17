@@ -26,7 +26,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
   return {
     endow,
     programs: programs.map((p) => ({ id: p.id, title: p.title })),
-    profile_to: href("/admin/:id/edit-profile", { id: String(id) }),
+    profile_to: href("/admin/:id/organization", { id: String(id) }),
   };
 };
 

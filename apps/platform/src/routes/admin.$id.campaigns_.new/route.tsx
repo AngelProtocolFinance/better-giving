@@ -31,7 +31,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         <div className="card grid gap-3">
           <p>{ORG_SLUG_PROMPT}</p>
           <Link to={profile_to} className="btn btn-primary w-fit">
-            Edit Profile
+            Organization
           </Link>
         </div>
       )}
