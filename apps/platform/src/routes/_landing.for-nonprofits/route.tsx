@@ -87,8 +87,8 @@ export default function Page() {
       </div>
 
       <CtaBand
-        title="Fundraising that costs you nothing"
-        subtitle="210+ nonprofits worldwide. $6M+ raised. No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee."
+        title="Join the platform"
+        subtitle="No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee."
       />
     </main>
   );

@@ -12,18 +12,15 @@ export function Hero({ classes = "", ...props }: Props) {
       className={`${classes} grid justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 pb-24 pt-20`}
     >
       <div className="max-w-2xl order-2 xl:order-1">
-        <p className="text-center xl:text-left pre-heading text-primary mb-5">
-          Member powered <span>&#8226;</span> $6M+ kept in{" "}
-          {props.hero_subject[1]}, not fees.
-        </p>
         <h1 className="text-center xl:text-left section-heading mb-4">
           Raise more this quarter.{" "}
           <span className="text-primary">Grow funds together.</span>
         </h1>
         <p className="my-10 text-lg xl:text-xl text-balance text-center xl:text-left">
-          Free: no platform or fund-management fees. High-converting donation
-          flow helps your {props.hero_subject[2]} bring in more gifts today and
-          build lasting capacity over time.
+          No platform fee while the optional donor contribution stays on (1.5%
+          if you turn it off). A high-converting donation flow helps your{" "}
+          {props.hero_subject[2]} bring in more gifts today and build lasting
+          capacity over time.
         </p>
 
         <div className="flex flex-col xl:flex-row justify-center xl:justify-start items-center gap-6">

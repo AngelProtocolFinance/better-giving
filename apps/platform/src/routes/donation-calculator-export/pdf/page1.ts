@@ -420,7 +420,7 @@ export function draw_page1(
   );
   draw_text(
     page,
-    " to High-Yield Savings Account (4% Annual Yield)",
+    " to High-Yield Savings Account (4% annual yield, illustrative example)",
     alloc_x + w["2"] + sr_w,
     y + fs.base,
     fonts.regular,
@@ -441,7 +441,7 @@ export function draw_page1(
   );
   draw_text(
     page,
-    " to Sustainability Fund (20% Average Annual Return)",
+    " to Sustainability Fund (20% average annual return, illustrative example)",
     alloc_x + w["2"] + ir_w,
     y + fs.base,
     fonts.regular,
@@ -539,7 +539,7 @@ function draw_impact_card(
   // savings account (4%)
   draw_text_right(
     page,
-    "Savings Account (4%)",
+    "Savings Account (4%, illustrative example)",
     x + width - pad,
     y + fs.base,
     fonts.semibold,

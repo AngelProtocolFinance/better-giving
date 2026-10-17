@@ -29,19 +29,19 @@ export function Form2({ classes = "", state, setState }: Props) {
       </p>
       <PctSlider
         range={[0, 1]}
-        label="Savings Account (4% yield)"
+        label="Savings account (4% yield, illustrative example)"
         classes="mt-2"
         value={1 - +state.investRate}
         onChange={(x) => setState({ ...state, investRate: 1 - x })}
-        tooltip="Projected yield based on average annual returns over the past 5 years."
+        tooltip="Illustrative example. Returns vary, and past performance isn't a guarantee."
       />
       <PctSlider
         range={[0, 1]}
-        label="Sustainability Fund (20% avg. return)"
+        label="Sustainability Fund (20% avg. return, illustrative example)"
         classes="mt-2"
         value={+state.investRate}
         onChange={(x) => setState({ ...state, investRate: x })}
-        tooltip="Projected yield based on average annual returns over the past 5 years."
+        tooltip="Illustrative example. Returns vary, and past performance isn't a guarantee."
       />
     </div>
   );

@@ -23,8 +23,7 @@ export function Products({ classes = "" }) {
           From high-converting donation forms to growth through Savings and a
           Sustainability Fund, plus global fiscal sponsorship. {app_name} is
           built by and for nonprofits. No platform fee while the optional donor
-          contribution stays on. Turning that ask off is a 1.5% fee. No
-          fund-management fees.
+          contribution stays on. Turning that ask off is a 1.5% fee.
         </p>
 
         <Link

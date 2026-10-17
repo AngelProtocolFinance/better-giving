@@ -26,17 +26,17 @@ export const items: Item[] = [
   },
   {
     emoji: "⚡",
-    title: "Quick Setup. Live in a Day.",
+    title: "Register online",
     description:
-      "Start accepting donations fast - no fees, no complex tech, no waiting weeks.",
-    result: "Result: Grow your impact and savings from day one.   ",
+      "No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.",
+    result: "Add the donation form to your site after you register.",
     icon: <ZapIcon className="text-primary-fg pictogram-sm" />,
   },
   {
     emoji: "🛡️",
     title: "Bulletproof Security & Compliance",
     description:
-      "FDIC-insured. PCI-compliant. Built by a 501(c)(3). Your donors' data is fortress-protected.",
+      "Card data is handled by Stripe (PCI SAQ A). Savings are held in FDIC-insured accounts.",
     result: "Result: Sleep easy knowing everything's secure.",
     icon: <Shield className="text-primary-fg pictogram-sm" />,
   },
@@ -54,7 +54,7 @@ export const items: Item[] = [
     emoji: "💰",
     title: "Your Money, Your Control",
     description:
-      "Withdraw funds anytime. Choose savings or investment options. You stay in complete control.",
+      "Choose savings or the Sustainability Fund. Withdrawal requests are reviewed and processed on a monthly basis. Returns vary, and past performance isn't a guarantee.",
     result: "Result: Flexibility without sacrificing growth.",
     icon: <DollarSignIcon className="text-primary-fg pictogram-sm" />,
   },

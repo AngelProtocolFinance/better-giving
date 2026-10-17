@@ -46,9 +46,9 @@ export default function Page() {
             <strong className="text-gray-12">
               opt-in and never pre-selected
             </strong>
-            . That, plus our volunteers, keeps the commons free for every
-            nonprofit. And third-party processing fees? Most donors choose to
-            cover them, so the vast majority of every gift reaches you.
+            . That keeps the commons free for every nonprofit. And third-party
+            processing fees? Most donors choose to cover them, so the vast
+            majority of every gift reaches you.
           </p>
           <div className="bg-secondary border border-gray-6 rounded px-7 py-5 max-w-xl">
             <p className="text-sm/relaxed text-gray-11 text-pretty">

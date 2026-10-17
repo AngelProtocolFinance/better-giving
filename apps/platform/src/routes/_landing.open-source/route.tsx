@@ -106,11 +106,10 @@ export default function Page() {
           />
           <h2 className="section-heading">How the commons stays free</h2>
           <p className="text-gray-11 leading-relaxed max-w-2xl text-pretty">
-            Better Giving is volunteer-driven. Donors can add an optional
-            contribution at checkout. It is opt-in and starts off. There is no
-            platform fee while that ask stays on the form. Turning it off is a
-            1.5% fee. No investors, no gated features. Want to contribute code,
-            docs, or time? The repo is open.
+            Donors can add an optional contribution at checkout. It is opt-in
+            and starts off. There is no platform fee while that ask stays on the
+            form. Turning it off is a 1.5% fee. Want to contribute code, docs,
+            or time? The repo is open.
           </p>
           <ExtLink
             href={GITHUB_REPO}

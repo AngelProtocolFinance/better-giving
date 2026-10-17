@@ -9,7 +9,7 @@ const steps = [
     alt: "Laira holding the number 1",
     step: "Step 1",
     title: "Sign up",
-    body: "Register in minutes, and you're a member from day one. No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.",
+    body: "Register online. No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.",
   },
   {
     img: laira2,

@@ -61,7 +61,7 @@ export function draw_page4(
   y += fs.lg + w["8"];
 
   const bullets_bg = [
-    "Better Giving doesn't charge processing fees, but third-party services charge an average of 2% (no platform fees)",
+    "Illustrative processing assumption: third-party services at about 2%. No platform fee while the optional donor contribution stays on; turning that ask off is 1.5%.",
     "80% of donors opt to cover processing fees (based on platform data)",
     "Better Giving accepts all donation types (credit cards, ACH, digital wallets, crypto, stocks, DAF)",
   ];
@@ -150,8 +150,8 @@ export function draw_page4(
   y += fs.lg + w["8"];
 
   const inv_items = [
-    "Savings Account: 4% annual yield",
-    "Sustainability Fund: 20% average annual return",
+    "Savings Account: 4% annual yield (illustrative example)",
+    "Sustainability Fund: 20% average annual return (illustrative example)",
     "Returns compound daily",
   ];
   for (const item of inv_items) {

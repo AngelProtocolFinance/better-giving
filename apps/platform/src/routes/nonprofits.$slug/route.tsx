@@ -51,7 +51,7 @@ export const meta: Route.MetaFunction = ({ params: { slug = "" } }) => {
   const ctx = page_context[slug];
   return metas({
     title: `Fundraising Platform for ${ctx.meta_subject.title} | ${app_name}`,
-    description: `${app_name} helps ${ctx.meta_subject.description} increase giving and build long-term growth. Free donation processing with no platform or fund-management fees.`,
+    description: `${app_name} helps ${ctx.meta_subject.description} increase giving and build long-term growth. No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.`,
     image: ctx.hero,
   });
 };

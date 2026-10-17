@@ -41,8 +41,8 @@ export function Hero({ classes = "" }: IHero) {
           </h1>
           <p className="text-lg/relaxed text-gray-11 max-w-lg text-pretty">
             One brandable, embeddable donation form. No platform fee while the
-            optional donor contribution stays on (1.5% if you turn it off). Run
-            by a volunteer-driven 501(c)(3), with open-source code you can read.
+            optional donor contribution stays on (1.5% if you turn it off).
+            Open-source code you can read.
           </p>
           <div className="flex flex-wrap gap-2 max-w-lg">
             {gift_types.map((g) => (

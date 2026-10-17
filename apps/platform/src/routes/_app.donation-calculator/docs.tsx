@@ -27,8 +27,9 @@ export function Docs({ classes = "" }) {
           <h4 className="font-semibold mb-4">Better Giving Platform</h4>
           <ul className="space-y-4 list-disc pl-6">
             <li>
-              Better Giving doesn't charge processing fees, but third-party
-              services charge an average of 2% (no platform fees)
+              Illustrative processing assumption: third-party services at about
+              2%. There is no platform fee while the optional donor contribution
+              stays on. Turning that ask off is a 1.5% fee.
             </li>
             <li>
               80% of donors opt to cover processing fees (based on platform
@@ -62,8 +63,11 @@ export function Docs({ classes = "" }) {
         <section>
           <h4 className="font-semibold mb-4">Investment Returns</h4>
           <ul className="space-y-4 list-disc pl-6">
-            <li>Savings Account: 4% annual yield</li>
-            <li>Sustainability Fund: 20% average annual return</li>
+            <li>Savings account: 4% annual yield (illustrative example)</li>
+            <li>
+              Sustainability Fund: 20% average annual return (illustrative
+              example)
+            </li>
             <li>Returns compound daily</li>
           </ul>
         </section>

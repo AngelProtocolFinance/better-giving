@@ -20,12 +20,6 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
               No market risk
             </Badge>
             <h3 className="text-2xl font-bold">High-yield savings</h3>
-            <span className="text-4xl font-bold text-primary">
-              ~3-4%{" "}
-              <span className="text-base font-normal text-gray-11">
-                annual yield
-              </span>
-            </span>
             <p className="text-sm/relaxed text-gray-11">
               FDIC-insured. A reliable way to build reserves while funds stay
               safe and liquid. Withdrawal requests are reviewed and processed on
@@ -37,12 +31,6 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
               Long-term growth
             </Badge>
             <h3 className="text-2xl font-bold">Sustainability Fund</h3>
-            <span className="text-4xl font-bold">
-              ~11%{" "}
-              <span className="text-base font-normal text-primary-fg/90">
-                avg. annual return, past 5 yrs*
-              </span>
-            </span>
             <p className="text-sm/relaxed text-primary-fg/90">
               A professionally managed, pooled investment fund designed for
               long-term stability: your path to an endowment-style reserve,
@@ -51,8 +39,7 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
           </div>
         </div>
         <p className="mt-5 text-xs text-gray-11 text-center">
-          *Past performance is not indicative of future results; all investments
-          carry risk.
+          Returns vary, and past performance isn't a guarantee.
         </p>
       </div>
     </section>

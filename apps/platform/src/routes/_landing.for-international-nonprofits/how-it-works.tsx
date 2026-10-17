@@ -5,7 +5,7 @@ const steps = [
   },
   {
     title: "Receipt, due diligence, and reporting handled",
-    body: "The donor gets an instant U.S. tax-deductible receipt. We handle due diligence, record-keeping, and Form 990 reporting. You never touch U.S. paperwork.",
+    body: "The donor gets a U.S. tax-deductible receipt. We handle due diligence and record-keeping.",
   },
   {
     title: "Funds granted to your organization",

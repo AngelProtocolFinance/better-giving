@@ -108,7 +108,7 @@ function Tooltip({ classes = "" }) {
         />
       </svg>
       <p className="translate-x-12 -rotate-12 font-gochi text-nowrap">
-        It’s totally free!
+        No fee while the ask is on
       </p>
     </span>
   );

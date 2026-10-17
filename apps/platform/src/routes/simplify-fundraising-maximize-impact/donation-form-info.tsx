@@ -13,8 +13,7 @@ type TListItem = {
 const items: TListItem[] = [
   {
     title: "Quick, simple setup",
-    description:
-      "Register in minutes, we’ll review and get you started right away.",
+    description: "Register online.",
     image: { src: laira_cheering, width: 50 },
   },
   {
@@ -49,7 +48,8 @@ export function DonationFormInfo({ classes = "" }) {
         Raise more. Save more. Do less.
       </h2>
       <p className="col-span-full mb-12 text-center text-xl text-navy">
-        100% free. No setup costs, no recurring charges, no platform fees.
+        No platform fee while the optional donor contribution stays on. Turning
+        that ask off is a 1.5% fee.
       </p>
 
       <StepsCarousel classes="w-full max-w-lg self-center justify-self-center" />
@@ -61,9 +61,9 @@ export function DonationFormInfo({ classes = "" }) {
       </ul>
       <p className="col-span-full text-center text-xl @6xl:text-2xl leading-normal max-w-3xl justify-self-center mt-8">
         As a 501(c)(3) public charity, Better Giving accepts donations on your
-        behalf, handling all reporting, processing, and tax receipting. We grant
-        100% of donations directly to your bank account, or save and invest a
-        portion based on your preferences.
+        behalf and issues tax receipts. Grants and withdrawal requests are
+        reviewed and processed on a monthly basis, or a share can sit in savings
+        and the Sustainability Fund.
       </p>
     </section>
   );

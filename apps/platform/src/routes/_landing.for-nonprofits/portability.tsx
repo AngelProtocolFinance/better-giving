@@ -16,12 +16,13 @@ export function Portability({ classes = "" }: IPortability) {
           className="mb-5"
         />
         <h2 id="portability-heading" className="article-heading">
-          Your donor records leave with you
+          The recurring-donor portability guarantee
         </h2>
         <p className="mt-3 text-lg text-gray-11 text-pretty">
-          If you leave, you can export your donation records. We do not transfer
-          stored card credentials to another processor. A donor who wants to
-          keep giving authorizes a new gift with the new provider.
+          If you ever leave, your recurring donors leave with you:
+          subscriptions, data, everything. We never hold nonprofits captive.
+          Partnership means you stay because you want to, not because switching
+          hurts.
         </p>
       </div>
     </section>

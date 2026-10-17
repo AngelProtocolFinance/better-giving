@@ -45,10 +45,10 @@ export function PriceCards({ classes = "" }: IPriceCards) {
               Recurring giving, peer-to-peer, receipts &amp; reporting
             </Check>
             <Check dark>
-              High-yield savings &amp; Sustainability Fund, with no setup, AUM,
-              or performance fees
+              High-yield savings &amp; Sustainability Fund. Returns vary, and
+              past performance isn't a guarantee.
             </Check>
-            <Check dark>Donation records export from your dashboard</Check>
+            <Check dark>Full donor data, exports, portability guarantee</Check>
           </div>
           <Link to={href("/register")} className="btn btn-secondary mt-auto">
             Join free forever
