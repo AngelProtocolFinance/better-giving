@@ -22,14 +22,9 @@ const pillars = [
     body: "Professional oversight of strategy and risk, rebalanced quarterly to the target allocation.",
   },
   {
-    icon: <span className="text-base font-bold leading-none">$0</span>,
-    title: "No fees of any kind",
-    body: "No setup, AUM, or performance fees. Unheard of in fund management. The commons covers it.",
-  },
-  {
     icon: <ArrowLeftRight className="icon-xl" />,
     title: "Your money stays yours",
-    body: "Adjust your grant/save/invest split anytime, and withdraw with 5-working-day electronic payouts.",
+    body: "Adjust your grant, save, or invest split anytime. Withdrawal requests are reviewed and processed on a monthly basis.",
   },
 ];
 
@@ -51,12 +46,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
           >
             <div className="size-32.5 rounded-full bg-surface grid place-items-center text-center">
               <div>
-                <span className="block text-2xl font-bold">100%</span>
-                <span className="text-xs text-gray-11">
-                  of growth
-                  <br />
-                  is yours
-                </span>
+                <span className="block text-lg font-bold">Target mix</span>
               </div>
             </div>
           </div>

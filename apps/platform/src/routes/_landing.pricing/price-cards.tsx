@@ -27,7 +27,7 @@ interface IPriceCards {
 export function PriceCards({ classes = "" }: IPriceCards) {
   return (
     <div className={`${classes}`}>
-      <div className="page grid gap-6 md:grid-cols-3">
+      <div className="page grid gap-6 md:grid-cols-2">
         <div className="bg-primary rounded p-8 flex flex-col gap-3.5 shadow-lift-cta text-primary-fg">
           <span className="text-lg font-bold">
             Fundraising &amp; fund management
@@ -45,8 +45,8 @@ export function PriceCards({ classes = "" }: IPriceCards) {
               Recurring giving, peer-to-peer, receipts &amp; reporting
             </Check>
             <Check dark>
-              High-yield savings &amp; Sustainability Fund, with no setup, AUM,
-              or performance fees
+              High-yield savings &amp; Sustainability Fund. Returns vary, and
+              past performance isn't a guarantee.
             </Check>
             <Check dark>Full donor data, exports, portability guarantee</Check>
           </div>
@@ -79,25 +79,6 @@ export function PriceCards({ classes = "" }: IPriceCards) {
             className="btn btn-secondary mt-auto"
           >
             Learn more
-          </Link>
-        </div>
-
-        <div className="card-on-band flex flex-col gap-3.5">
-          <span className="text-lg font-bold">Self-hosted</span>
-          <span className="text-5xl font-bold">
-            $0
-            <span className="text-base font-normal text-gray-11">
-              {" "}
-              (open-source software)
-            </span>
-          </span>
-          <div className="grid gap-2">
-            <Check>Run the donation form on your own infrastructure</Check>
-            <Check>Your own gateway: you pay only its processing costs</Check>
-            <Check>Total ownership of tokens, data &amp; donors</Check>
-          </div>
-          <Link to={href("/open-source")} className="btn btn-secondary mt-auto">
-            See the open source
           </Link>
         </div>
       </div>

@@ -6,9 +6,6 @@ interface Stat {
 }
 
 const home_stats: readonly Stat[] = [
-  { value: "210+", label: "nonprofits worldwide" },
-  { value: "$6M+", label: "raised for partners" },
-  { value: "$0", label: "platform or fund fees" },
   { value: "2021", label: "serving nonprofits since" },
 ];
 

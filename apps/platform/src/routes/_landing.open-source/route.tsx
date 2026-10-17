@@ -13,7 +13,6 @@ import {
   TermOk,
 } from "#/pages/@sections/terminal-card";
 import type { Route } from "./+types/route";
-import { TwoPaths } from "./two-paths";
 
 export const headers: Route.HeadersFunction = () => ({
   "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
@@ -23,7 +22,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `Open Source | ${app_name}`,
     description:
-      "Every part of Better Giving is public code: verify how donations are handled, self-host the form, and help keep the commons free.",
+      "The Better Giving platform is public code. Read how donations are processed, and contribute code or docs if you want to help.",
   });
 
 const why = [
@@ -32,8 +31,8 @@ const why = [
     body: "Anyone (your board, your auditor, your most skeptical donor) can inspect exactly how donations are processed, routed, and receipted.",
   },
   {
-    title: "Own your independence",
-    body: "Self-host the donation form with your own payment gateway and merchant account. Your donor tokens never leave your control. Nothing to migrate, ever.",
+    title: "Read it, then contribute",
+    body: "The repository is the managed platform: the donation form, settlement, and receipts. Reading it is how you check the path a gift takes. Contributions of code, docs, and review are welcome.",
   },
   {
     title: "A commons that outlives us",
@@ -54,7 +53,7 @@ export default function Page() {
             <p className="text-lg/relaxed text-primary-fg/90 max-w-lg text-pretty">
               Every part of Better Giving is public code: the donation form, the
               platform, all of it. When software moves money for your mission,
-              "trust us" isn't enough. Verify us instead.
+              "trust us" isn't enough. Read how a donation is processed.
             </p>
             <div className="flex max-sm:flex-col max-sm:w-full sm:flex-wrap sm:items-center gap-3.5 mt-1.5">
               <ExtLink
@@ -70,13 +69,10 @@ export default function Page() {
             </div>
           </div>
           <TerminalCard label="AngelProtocolFinance / better-giving">
-            <TermCmd>
-              git clone https://github.com/AngelProtocolFinance/better-giving
-            </TermCmd>
-            <TermComment>the whole platform: forms, flows, funds</TermComment>
-            <TermCmd>pnpm install &amp;&amp; pnpm dev</TermCmd>
-            <TermComment>your form, your gateway, your donors</TermComment>
-            <TermOk>ready on localhost:3000</TermOk>
+            <TermComment>public source for the managed platform</TermComment>
+            <TermCmd>donation form, settlement, receipts</TermCmd>
+            <TermComment>read how a gift is processed</TermComment>
+            <TermOk>open on GitHub</TermOk>
           </TerminalCard>
         </div>
       </div>
@@ -100,8 +96,6 @@ export default function Page() {
         </div>
       </div>
 
-      <TwoPaths classes="bg-band py-24" />
-
       <div className="page py-24">
         <div className="max-w-3xl mx-auto grid gap-5 justify-items-center text-center">
           <Image
@@ -112,11 +106,10 @@ export default function Page() {
           />
           <h2 className="section-heading">How the commons stays free</h2>
           <p className="text-gray-11 leading-relaxed max-w-2xl text-pretty">
-            Better Giving is volunteer-driven and funded entirely by optional
-            donor contributions at checkout. Always opt-in, never pre-selected.
-            No platform fees, no investors, no gated features. Members who share
-            the tools also share the responsibility of keeping them free for
-            everyone. Want to contribute code, docs, or time? The repo is open.
+            Donors can add an optional contribution at checkout. It is opt-in
+            and starts off. There is no platform fee while that ask stays on the
+            form. Turning it off is a 1.5% fee. Want to contribute code, docs,
+            or time? The repo is open.
           </p>
           <ExtLink
             href={GITHUB_REPO}
@@ -129,8 +122,8 @@ export default function Page() {
       </div>
 
       <CtaBand
-        title="Verify us. Then join us."
-        subtitle="Read the code, kick the tires, and set up your form in an afternoon. Free forever either way."
+        title="Read the code. Then join the managed platform."
+        subtitle="The repository is public. Joining means the managed platform: no platform fee while the optional donor contribution stays on."
       />
     </main>
   );

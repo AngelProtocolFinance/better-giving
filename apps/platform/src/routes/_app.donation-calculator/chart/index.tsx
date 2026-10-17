@@ -79,8 +79,9 @@ export function Chart({ classes = "", ...v }: Props) {
       <div className="mt-4 text-sm flex items-center">
         <Info width={16} className="shrink-0 mr-2 text-warning" />
         <span>
-          Investment yields based on average annual returns over past 5 years
-          (4% for Savings Account, 20% for Sustainability Fund)
+          Illustrative example, not a forecast: 4% for the savings account and
+          20% for the Sustainability Fund. Returns vary, and past performance
+          isn't a guarantee.
         </span>
       </div>
 

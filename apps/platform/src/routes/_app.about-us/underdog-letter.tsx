@@ -23,7 +23,9 @@ export function UnderdogLetter({ classes = "" }: IUnderdogLetter) {
             So we help you raise more with a conversion-optimized donation flow.
             We help you grow more by accepting larger gift types and putting
             donations to work. We help you do more by handling the admin so you
-            can focus on your mission. And we never take a cut, anywhere.
+            can focus on your mission. There is no platform fee while the
+            optional donor contribution stays on. Turning that ask off is a 1.5%
+            fee.
           </p>
           <p className="leading-relaxed text-pretty">
             <strong>

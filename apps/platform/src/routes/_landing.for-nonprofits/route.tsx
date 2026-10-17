@@ -33,7 +33,7 @@ export const meta: Route.MetaFunction = () =>
     // this page into the homepage
     url: `${base_url}${href("/for-nonprofits")}`,
     title: `For Nonprofits | ${app_name}`,
-    description: `Free forever fundraising for U.S. 501(c)(3)s. ${app_name} takes $0 in platform fees, accepts cash, crypto, stock and DAF gifts, and lets you take your donor data with you.`,
+    description: `Fundraising for U.S. 501(c)(3)s. No platform fee while the optional donor contribution stays on. ${app_name} accepts cash, crypto, stock and DAF gifts, and donation records export from the dashboard.`,
   });
 
 export default function Page() {
@@ -87,8 +87,8 @@ export default function Page() {
       </div>
 
       <CtaBand
-        title="Fundraising that costs you nothing"
-        subtitle="210+ nonprofits worldwide. $6M+ raised. $0 platform fees, forever. And a transparency pledge you can verify in the code."
+        title="Join the platform"
+        subtitle="No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee."
       />
     </main>
   );

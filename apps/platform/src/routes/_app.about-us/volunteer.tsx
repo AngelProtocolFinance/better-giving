@@ -19,28 +19,20 @@ export function Volunteer({ classes = "" }: IVolunteer) {
         />
         <div className="grid gap-4 justify-items-start">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
-            Who runs this?
+            Contribute
           </p>
           <h2 id="volunteer-heading" className="section-heading">
-            Volunteers. No investors. No salaries to protect.
+            Lend your skills
           </h2>
           <p className="text-gray-11 leading-relaxed text-pretty">
-            Better Giving is run by volunteers from across the nonprofit and
-            technology worlds, people who build, maintain, and support the
-            commons because they believe nonprofits deserve better financial
-            infrastructure. There's no venture capital to satisfy and no revenue
-            target to hit, which is exactly why we can promise free forever and
-            mean it.
-          </p>
-          <p className="text-gray-11 leading-relaxed text-pretty">
-            Want to lend your skills (code, design, writing, nonprofit
-            expertise)? We'd love to have you.
+            Want to help with code, design, writing, or nonprofit expertise?
+            We'd love to have you.
           </p>
           <a
             href={`mailto:${EMAILS.support}`}
             className="inline-flex items-center gap-1.5 font-bold link"
           >
-            Volunteer with us
+            Get in touch
             <ArrowRight className="icon-md" />
           </a>
         </div>

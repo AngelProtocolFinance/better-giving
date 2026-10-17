@@ -9,7 +9,7 @@ const solutions = [
     problemDescription:
       "Platforms charge high fees, subscriptions, and hidden costs that reduce the funds your nonprofit actually receives.",
     solutionDescription:
-      "100% of donations go to your nonprofit. No platform fees, no annual subscription, no hidden costs.",
+      "No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.",
   },
   {
     problem: "Limited or Inconsistent Crypto & Donation Support",
@@ -23,7 +23,7 @@ const solutions = [
     problemDescription:
       "Lengthy sign-up processes, required sales calls, and technical complexity slow down your fundraising.",
     solutionDescription:
-      "Get started in one day with a simple setup and embeddable donation forms for your website.",
+      "Register online and add an embeddable donation form to your website.",
   },
   {
     problem: "Lack of Personalization & Branding",

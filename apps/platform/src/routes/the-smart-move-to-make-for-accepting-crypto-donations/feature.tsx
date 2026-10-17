@@ -23,14 +23,15 @@ const items: TListItem[] = [
     image: { src: laira_shake_hands, width: 100, alt: "Laira using laptop" },
   },
   {
-    title1: "Zero Platform Fees",
-    description: "100% of donations go directly to your cause.",
+    title1: "Platform fee",
+    description:
+      "No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.",
     image: { src: laira_pointing, width: 65, alt: "Laira presenting" },
   },
   {
     title1: "Built for Long-Term Growth",
     description:
-      "Free fundraising tools, savings accounts, and financial planning support.",
+      "Donation forms, savings, and the Sustainability Fund. Returns vary, and past performance isn't a guarantee.",
     image: { src: laira_presentation, width: 90, alt: "Laira presenting" },
   },
 ];

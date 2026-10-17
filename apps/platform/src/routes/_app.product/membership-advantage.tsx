@@ -3,10 +3,9 @@ import { Check } from "lucide-react";
 import laira_gift from "#/assets/laira/laira-gift.webp";
 
 const points = [
-  "Simpler Form 990: one pooled grant instead of hundreds of records",
   "Automatic branded tax receipts to every donor",
-  "Stock & crypto liquidated for you: cash lands in your bank",
-  "No juggling processor accounts; reduced PCI & compliance scope",
+  "We accept stock and crypto gifts",
+  "Card data handled by Stripe (PCI SAQ A)",
   "Full donor-level data, always yours to export",
 ] as const;
 

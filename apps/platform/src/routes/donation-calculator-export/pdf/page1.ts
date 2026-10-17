@@ -13,6 +13,7 @@ import {
   draw_text,
   draw_text_center,
   draw_text_right,
+  draw_wrapped,
   y_pdf,
 } from "./layout";
 import type { Fonts, Images } from "./types";
@@ -447,6 +448,18 @@ export function draw_page1(
     fonts.regular,
     fs.base
   );
+  y += fs.base + w["8"];
+  const note_h = draw_wrapped(
+    page,
+    "These rates are an illustrative example. Returns vary, and past performance isn't a guarantee.",
+    px,
+    y,
+    fonts.regular,
+    fs.sm,
+    content_w,
+    { color: gray["11"] }
+  );
+  y += note_h;
 
   // === impact cards (1yr, 5yr, 10yr) ===
   y += fs.base + w["24"];

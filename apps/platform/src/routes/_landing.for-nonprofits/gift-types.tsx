@@ -20,8 +20,9 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
         </h2>
         <p className="mt-3 max-w-3xl text-lg text-gray-11 text-pretty">
           Most platforms charge 2% to 5%, or gate gift types behind paid tiers.
-          Better Giving gives you the full toolkit at no cost, because donors
-          cover processing or chip in voluntarily, always opt-in.
+          Better Giving includes every gift type. Donors can cover processing or
+          add an optional contribution. It is opt-in and starts off. Turning
+          that ask off is a 1.5% fee.
         </p>
 
         <div className="grid gap-5 mt-10 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr]">
@@ -53,11 +54,10 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
           </div>
 
           <div className="card flex flex-col justify-center">
-            <h3 className="text-lg">Set up in an afternoon</h3>
+            <h3 className="text-lg">Add the form to your site</h3>
             <p className="mt-2 text-sm leading-relaxed text-gray-11 text-pretty">
-              Embed your form and connect your bank in an afternoon. Most
-              accounts are approved within 3 business days, and tax receipts,
-              donor records, and compliance are handled automatically.
+              Embed the form and connect your bank from the dashboard. Tax
+              receipts and donor records are handled in the platform.
             </p>
           </div>
         </div>

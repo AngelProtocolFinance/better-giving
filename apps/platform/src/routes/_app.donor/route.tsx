@@ -14,7 +14,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: "For Donors",
     description:
-      "Easily support grassroots organizations all over the world with card, crypto, stock, and DAF gifts that keep on giving. As a nonprofit, we charge no platform fees.",
+      "Easily support grassroots organizations all over the world with card, crypto, stock, and DAF gifts that keep on giving. No platform fee while the optional donor contribution stays on.",
   });
 
 export default function Page({ classes = "" }) {

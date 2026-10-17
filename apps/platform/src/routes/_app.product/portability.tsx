@@ -16,11 +16,6 @@ const promises = [
     title: "No exit toll",
     body: "Never conditioned on fees or new terms. Data in 5 business days, migration underway in 10.",
   },
-  {
-    n: "4",
-    title: "Or own it from day one",
-    body: "Self-host the open-source form with your own gateway: your tokens never leave your control.",
-  },
 ] as const;
 
 interface IPortability {
@@ -48,7 +43,7 @@ export function Portability({ classes = "" }: IPortability) {
           </strong>
           :
         </p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-11">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-11">
           {promises.map((p) => (
             <div key={p.n} className="bg-secondary rounded px-7 py-6">
               <span className="block text-3xl font-bold text-primary">

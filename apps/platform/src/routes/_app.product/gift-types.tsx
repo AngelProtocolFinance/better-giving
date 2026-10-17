@@ -6,7 +6,7 @@ const gift_types = [
   { title: "Stock", body: "Larger gifts, tax benefits for donors" },
   { title: "Donor-Advised Funds", body: "DAFpay via Chariot, built in" },
   { title: "IRA / QCD", body: "Qualified charitable distributions" },
-  { title: "Crypto", body: "Accepted & liquidated to cash" },
+  { title: "Crypto", body: "We accept crypto gifts" },
 ] as const;
 
 interface IGiftTypes {
@@ -28,8 +28,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
         </h2>
         <p className="mt-3.5 text-gray-11 text-center max-w-2xl mx-auto text-pretty">
           Stop turning donors away. One integration covers everything. No extra
-          portals, no added admin. Non-cash gifts are liquidated for you and
-          granted as cash.
+          portals, no added admin. We accept stock and crypto gifts.
         </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-11">
           {gift_types.map((g) => (

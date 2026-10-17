@@ -43,10 +43,9 @@ export const Top = ({ classes = "" }) => {
           </svg>
         </div>
         <p className="px-6 max-w-5xl mx-auto max-md:block md:text-2xl text-center text-pretty sm:text-balance">
-          Why should your nonprofit lose funds to annual subscriptions and
-          platform fees? Better Giving ensures 100% of your donations go toward
-          your mission—no hidden fees, no unnecessary costs, just seamless
-          crypto, stock, and DAF giving.
+          Accept crypto, stock, and DAF gifts in one form. There is no platform
+          fee while the optional donor contribution stays on. Turning that ask
+          off is a 1.5% fee.
         </p>
         <div className="max-xl:hidden absolute right-28 top-1/3">
           <Image
@@ -110,7 +109,7 @@ function Tooltip({ classes = "" }) {
         />
       </svg>
       <p className="translate-x-12 -rotate-12 font-gochi text-nowrap">
-        It’s totally free!
+        No fee while the ask is on
       </p>
     </span>
   );

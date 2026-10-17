@@ -42,8 +42,8 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
               <div>
                 <span className="font-bold">High-yield savings</span>
                 <p className="mt-0.5 text-sm/normal text-gray-11">
-                  FDIC-insured, ~3-4% yield, accessible anytime. Electronic
-                  payouts within 5 working days.
+                  FDIC-insured. Withdrawal requests are reviewed and processed
+                  on a monthly basis.
                 </p>
               </div>
             </div>
@@ -58,15 +58,13 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
                 <span className="font-bold">Sustainability Fund</span>
                 <p className="mt-0.5 text-sm/normal text-gray-11">
                   Professionally managed, investment-committee governed,
-                  rebalanced quarterly. ~11% average annual return over the past
-                  five years.* No setup, AUM, or performance fees.
+                  rebalanced quarterly.
                 </p>
               </div>
             </div>
           </div>
           <p className="text-xs text-gray-11">
-            *Past performance is not indicative of future results; all
-            investments carry risk.
+            Returns vary, and past performance isn't a guarantee.
           </p>
         </div>
 
@@ -82,12 +80,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           >
             <div className="size-32.5 rounded-full bg-surface grid place-items-center text-center">
               <div>
-                <span className="block text-2xl font-bold">~11%</span>
-                <span className="text-xs text-gray-11">
-                  avg. annual return,
-                  <br />
-                  past 5 yrs*
-                </span>
+                <span className="block text-lg font-bold">Target mix</span>
               </div>
             </div>
           </div>

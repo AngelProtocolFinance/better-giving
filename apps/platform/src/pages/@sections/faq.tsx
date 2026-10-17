@@ -27,13 +27,10 @@ export const faqs = [
       "Are Better Giving’s fundraising solutions really free? How do you sustain your operations?",
     paragraphs: [
       <p key={0}>
-        Yes, Better Giving’s fundraising solutions and donation processing are
-        completely free: we grant out 100% of all donations, and you pay no
-        costs at any time. We rely on optional donor contributions during
-        checkout for support, allowing us to provide free services to nonprofits
-        while remaining sustainable. We believe in nonprofit optionality, and
-        you may opt out of this donor contribution model in favor of a 1.5%
-        platform fee if you prefer.
+        Donors can add an optional contribution at checkout. It is opt-in and
+        starts off. There is no platform fee while that ask stays on the form.
+        Turning it off is a 1.5% fee. Fiscal sponsorship is 2.9% of each
+        sponsored gift.
       </p>,
       <p key={1} className="italic">
         Maximize your impact without worrying about fees eating into donations.
@@ -64,14 +61,11 @@ export const faqs = [
     question: "How quickly can I start fundraising with Better Giving?",
     paragraphs: [
       <p key={0}>
-        With Better Giving, you can start accepting donations almost
-        immediately. Our setup process is quick and user-friendly—many
-        nonprofits are up and running within a day. Easily add your donation
-        form to your website or share your custom fundraising page to start
-        receiving donations from day one.
+        Register online, then add your donation form to your website or share
+        your fundraising page.
       </p>,
       <p key={1} className="italic">
-        Start raising funds fast without the hassle of complex setup processes.
+        Add the form when you are ready to raise funds.
       </p>,
     ],
   },
@@ -135,14 +129,9 @@ export const faqs = [
       "How do the managed investment funds work, and how do they benefit nonprofits?",
     paragraphs: [
       <p key={0}>
-        Our flagship Sustainability Fund is a high-yield investment fund
-        averaging 24% returns annually over the past five years. It’s designed
-        to help nonprofits achieve long-term financial stability by growing
-        their donations over time. Unlike one-time donations that are used up
-        quickly, the Sustainability Fund allows your contributions to keep
-        working for your organization. The growth is reinvested until you
-        request funds granted out, ensuring your nonprofit has a reliable source
-        of funding well into the future.
+        The Sustainability Fund can hold a share of donations for longer-term
+        growth. Returns vary, and past performance isn't a guarantee. Withdrawal
+        requests are reviewed and processed on a monthly basis.
       </p>,
       <p key={1} className="italic">
         Turn today’s donations into long-term financial security for your
@@ -165,24 +154,6 @@ export const faqs = [
       <p key={1} className="italic">
         Stay informed with transparent, regular updates on your financial
         performance.
-      </p>,
-    ],
-  },
-  {
-    id: 8,
-    question:
-      "Are there any fees for using Better Giving’s fund management solutions?",
-    paragraphs: [
-      <p key={0}>
-        Our optional fund management solutions are provided with no setup costs
-        or minimum entry barriers. To cover expenses, we charge a cost-leading
-        0.8% AUM fee, with a 12.5% performance fee over 5% returns: we only win
-        when you win, and as a nonprofit any income generated from our fees is
-        reinvested to further our mission.
-      </p>,
-      <p key={1} className="italic">
-        Grow funds securely with a nonprofit partner rather than overpaying
-        for-profit third parties.
       </p>,
     ],
   },
@@ -238,17 +209,14 @@ export const faqs = [
         donation.
       </p>,
       <p key={1}>
-        No upfront or membership fees
-        <br />
-        The 2.9% fee is often covered by the donor, in which case there’s no
-        cost to your nonprofit.
+        The 2.9% fee is often covered by the donor, in which case the nonprofit
+        does not pay that fee.
         <br />
         This is well below the industry average of 4–10% for similar services
       </p>,
       <p key={2}>
-        Better Giving is completely free to join. There are no setup fees,
-        subscriptions, or annual costs — you can start accepting donations right
-        away at no charge.
+        There is no platform fee while the optional donor contribution stays on.
+        Turning that ask off is a 1.5% fee.
       </p>,
     ],
   },

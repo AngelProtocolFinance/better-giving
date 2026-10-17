@@ -10,7 +10,9 @@ export function DonationFormInfo({ classes = "" }) {
         Raise more. Save more. Do less.
       </h2>
       <p className="col-span-full mb-4 text-center text-xl text-navy">
-        100% free. No setup costs, no recurring charges, no platform fees.
+        No setup costs and no recurring charges. No platform fee while the
+        optional donor contribution stays on. Turning that ask off is a 1.5%
+        fee.
       </p>
 
       <StepsCarousel

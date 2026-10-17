@@ -22,7 +22,8 @@ export function Products({ classes = "" }) {
         <p className="mb-10 text-lg xl:text-xl text-center xl:text-left">
           From high-converting donation forms to growth through Savings and a
           Sustainability Fund, plus global fiscal sponsorship. {app_name} is
-          built by and for nonprofits. Free-no platform or fund-management fees.
+          built by and for nonprofits. No platform fee while the optional donor
+          contribution stays on. Turning that ask off is a 1.5% fee.
         </p>
 
         <Link
