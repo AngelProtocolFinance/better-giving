@@ -30,7 +30,7 @@ export function Slug({
         </div>
       )}
       <p className="text-xs sm:text-sm text-gray-11 italic mt-2">
-        Change your fundraiser's profile URL ending segment from the default
+        Change your campaign's profile URL ending segment from the default
         alphanumeric ID to a more human-readable value for better SEO and donor
         recognition. Only numbers and letters are permitted! Your alphanumeric
         ID URL will continue to work. There is no risk of breaking existing
@@ -38,7 +38,7 @@ export function Slug({
       </p>
 
       <p className="text-xs sm:text-sm text-gray-11 italic mt-2">
-        Example: {get_link(slug_new || "myFundraiser", base_url)}
+        Example: {get_link(slug_new || "my-campaign", base_url)}
       </p>
     </div>
   );

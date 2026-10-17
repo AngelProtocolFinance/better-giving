@@ -51,7 +51,7 @@ const solutions = [
     problemDescription:
       "Some platforms make setting up recurring gifts or peer-to-peer campaigns complicated or costly.",
     solutionDescription:
-      "Recurring donation tools & peer-to-peer fundraising come built-in, at no extra cost—fundraisers accept all donation types, including crypto.",
+      "Recurring donation tools and peer-to-peer fundraising come built-in, at no extra cost. Campaigns accept all donation types, including crypto.",
   },
   {
     problem: "Lack of Financial Security & Long-Term Growth Support",

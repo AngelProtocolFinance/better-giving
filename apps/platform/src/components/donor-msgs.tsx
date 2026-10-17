@@ -5,6 +5,7 @@ import laira from "#/assets/laira/laira-face.png";
 interface Props {
   classes?: string;
   id: string;
+  campaign_id?: string;
 }
 
 interface Page {
@@ -12,20 +13,33 @@ interface Page {
   next: string | null;
 }
 
-const fetcher = ([, id, key]: [string, string, string | null]) =>
-  fetch(`/api/npo/${id}/donors${key ? `?next=${key}` : ""}`).then<Page>((res) =>
-    res.json()
+const fetcher = ([, id, key, campaign_id]: [
+  string,
+  string,
+  string | null,
+  string | null,
+]) => {
+  const q = new URLSearchParams();
+  if (key) q.set("next", key);
+  if (campaign_id) q.set("campaign_id", campaign_id);
+  const search = q.toString();
+  return fetch(`/api/npo/${id}/donors${search ? `?${search}` : ""}`).then<Page>(
+    (res) => res.json()
   );
+};
 
-export function DonorMsgs({ classes = "", id }: Props) {
-  const { data, mutate, error } = use_swr(["txs", id, null], fetcher);
+export function DonorMsgs({ classes = "", id, campaign_id }: Props) {
+  const { data, mutate, error } = use_swr(
+    ["txs", id, null, campaign_id ?? null],
+    fetcher
+  );
 
   if (error || !data) return null;
   const { items, next } = data;
   if (items.length === 0) return null;
 
   async function load(next: string) {
-    const res = await fetcher(["txs", id, next]);
+    const res = await fetcher(["txs", id, next, campaign_id ?? null]);
     mutate(
       (x) => ({
         items: [...(x?.items || []), ...res.items],

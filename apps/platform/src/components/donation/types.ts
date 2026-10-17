@@ -350,6 +350,10 @@ export type Config = {
   /** amount the form opens with, in usd; the stored row still carries it
    * under `defaults.stripe.amount_usd` and the loader flattens it here */
   prefill_amount_usd?: string;
+  /** opening frequency when it is one of `freq_opts`; anything else is ignored */
+  prefill_frequency?: TFrequency;
+  /** set on a campaign page so the gift is attributed; absent on every other form */
+  campaign_id?: string;
   /** origin of the page framing this form, when its embed script told us.
    * already validated (see `common/parent-origin.ts`); absent means the
    * wildcard every embed used before the parameter existed. */

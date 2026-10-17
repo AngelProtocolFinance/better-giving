@@ -29,7 +29,7 @@ const items: IListItem[] = [
   {
     title: "Be Part of a Movement",
     description:
-      "Join a growing community of supporters, fundraisers, and changemakers.",
+      "Join a growing community of supporters, organizers, and changemakers.",
     icon: <Handshake className="text-warning pictogram-sm" />,
   },
 ];

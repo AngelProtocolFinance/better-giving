@@ -15,7 +15,7 @@ export default CacheRoute(Page);
 function Page({ loaderData: endow }: Route.ComponentProps) {
   const tabs = [
     { id: "donation", name: "Donation" },
-    { id: "fundraiser", name: "Fundraiser" },
+    { id: "campaign", name: "Campaign" },
     { id: "donation-form", name: "Donation Form" },
   ];
   return (
@@ -32,7 +32,7 @@ function Page({ loaderData: endow }: Route.ComponentProps) {
               hide_bg_tip={endow.hide_bg_tip ?? false}
             />
           </TabPanel>
-          <TabPanel value="fundraiser">
+          <TabPanel value="campaign">
             <FundraiserTab fund_opt_in={endow.fund_opt_in ?? false} />
           </TabPanel>
 

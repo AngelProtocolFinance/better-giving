@@ -10,6 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { IAddr } from "@/types/donation";
+import { campaigns } from "./campaign";
 import { numeric_as_number, timestamptz, timestamptz_now } from "./columns";
 import { forms } from "./form";
 import { funds } from "./fund";
@@ -41,6 +42,7 @@ export const donations = pgTable(
     via: text("via").notNull(),
     source_id: text("source_id"),
     form_id: text("form_id").references(() => forms.id),
+    campaign_id: text("campaign_id").references(() => campaigns.id),
     via_extra: text("via_extra"),
     program_id: text("program_id"),
     program_name: text("program_name"),
@@ -87,6 +89,7 @@ export const donations = pgTable(
     ),
     index("donations_form_id_idx").on(t.form_id),
     index("donations_subscription_id_idx").on(t.subscription_id),
+    index("donations_campaign_id_idx").on(t.campaign_id),
   ]
 );
 

@@ -51,14 +51,14 @@ export function FundraiserTab({ fund_opt_in }: Props) {
     >
       <div>
         <CheckField {...register("fund_opt_in")} classes="font-medium">
-          Allow Fundraisers to be created on behalf of your nonprofit
+          Allow campaigns to be created on behalf of your nonprofit
         </CheckField>
         <p className="text-xs sm:text-sm text-gray-11 italic mt-1">
-          Fundraising functionality is optional for all Better Giving
-          nonprofits. By opting in, people will be able to create fundraisers on
-          your behalf. You will receive 100% of funds raised for fundraisers
-          specific to your organization, and a percentage split of fundraisers
-          involving multiple nonprofits (such as curated giving indexes).
+          This is optional for all Better Giving nonprofits. By opting in,
+          people will be able to create campaigns on your behalf. You will
+          receive 100% of funds raised for campaigns specific to your
+          organization, and a percentage split of campaigns involving multiple
+          nonprofits (such as curated giving indexes).
         </p>
       </div>
 

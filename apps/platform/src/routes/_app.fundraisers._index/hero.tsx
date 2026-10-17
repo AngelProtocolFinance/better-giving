@@ -15,8 +15,8 @@ export default function Hero({ classes = "" }: { classes?: string }) {
         </h1>
 
         <p className="text-xl lg:text-2xl max-lg:text-center text-balance ">
-          Fundraisers that Support One or Several Nonprofits. Every Donation
-          goes where you want it to.
+          Campaigns that support one or several nonprofits. Every donation goes
+          where you want it to.
         </p>
       </div>
 

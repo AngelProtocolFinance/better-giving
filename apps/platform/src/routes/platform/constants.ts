@@ -83,7 +83,7 @@ export const link_groups: LinkGroup[] = [
         icon: { fn: HandCoinsIcon, size: 18 },
       },
       {
-        title: "Fundraiser Moderation",
+        title: "Campaign moderation",
         to: routes.fundraiser_moderation,
         icon: { fn: HatGlassesIcon, size: 18 },
       },

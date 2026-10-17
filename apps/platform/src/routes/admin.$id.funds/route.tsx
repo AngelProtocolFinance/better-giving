@@ -1,7 +1,7 @@
 import { Portal } from "@ark-ui/react/portal";
 import { createListCollection, Select } from "@ark-ui/react/select";
 import { DrawerIcon, EmptyState, popup_anim } from "@better-giving/ui";
-import { href, Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import type { Route } from "./+types/route";
 import { FundItem } from "./fund-item";
@@ -32,7 +32,7 @@ function Page({ loaderData }: Route.ComponentProps) {
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-3xl font-bold">Fundraisers</h1>
+        <h1 className="text-3xl font-bold">Campaign opt-outs</h1>
         <div className="flex items-center gap-3">
           <Select.Root
             collection={COLLECTION}
@@ -71,20 +71,11 @@ function Page({ loaderData }: Route.ComponentProps) {
               </Select.Positioner>
             </Portal>
           </Select.Root>
-          <Link
-            to={{
-              pathname: href("/fundraisers/new"),
-              search: `npo=${endow.id}`,
-            }}
-            className="btn btn-primary"
-          >
-            + Create
-          </Link>
         </div>
       </div>
       <div className="grid @xl:grid-cols-2 @2xl:grid-cols-3 gap-4">
         {funds.length === 0 ? (
-          <EmptyState classes="mt-4">No fundraisers found</EmptyState>
+          <EmptyState classes="mt-4">No campaigns found</EmptyState>
         ) : (
           funds.map((fund) => (
             <FundItem

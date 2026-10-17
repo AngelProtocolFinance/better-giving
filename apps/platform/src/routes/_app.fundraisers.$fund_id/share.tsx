@@ -128,7 +128,7 @@ function Prompt({ recipientName, open, set_open, url, ...social }: IPrompt) {
         ref={msgRef}
         className="my-6 sm:my-10 mx-4 sm:mx-12 text-sm leading-normal p-3 border rounded"
       >
-        Donate to <span className="font-bold">{recipientName}</span> fundraiser
+        Donate to <span className="font-bold">{recipientName}</span>
         on <span className="font-bold">{social.handle}</span>!{" "}
         {
           "Every gift is invested to provide sustainable funding for nonprofits: Give once, give forever."

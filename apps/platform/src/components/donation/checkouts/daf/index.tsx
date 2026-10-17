@@ -14,6 +14,7 @@ import type {
 } from "@/donations/schema";
 import { to_units } from "@/helpers/decimal";
 import { HttpError, json_ok } from "@/helpers/https";
+import { apply_campaign } from "../../apply-campaign";
 import { donation_amounts } from "../../common/amounts";
 import { usd_option } from "../../common/constants";
 import { currency } from "../../common/currency";
@@ -239,6 +240,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
 
         if (d.program) intent.program = d.program;
         if (d.config?.id) intent.form_id = d.config.id;
+        apply_campaign(intent, d.config);
 
         set_sent(true);
         const res = await fetch(href("/api/donation-intents"), {

@@ -6,6 +6,7 @@ import { report_error } from "#/errors/report";
 import type { IDonationIntent, IStripeIntentReturn } from "@/donations";
 import { HttpError, json_ok } from "@/helpers/https";
 import { ErrorBoundaryClass } from "../../../error";
+import { apply_campaign } from "../../apply-campaign";
 import { stripe_amounts } from "../../common/amounts";
 import { currency as currencyfn } from "../../common/currency";
 import { stripe_promise } from "../../common/stripe";
@@ -60,6 +61,7 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
 
   if (don.program) intent.program = don.program;
   if (don.config?.id) intent.form_id = don.config.id;
+  apply_campaign(intent, don.config);
 
   // each request creates a donation row and a stripe intent
   const { data, error, isLoading } = use_swr(intent, fetcher, {

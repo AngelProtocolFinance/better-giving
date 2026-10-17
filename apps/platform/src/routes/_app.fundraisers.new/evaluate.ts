@@ -51,21 +51,19 @@ const evaluation_schema = v.strictObject({
 
 type IEvaluation = v.InferOutput<typeof evaluation_schema>;
 
-const SYSTEM = `Nonprofit fundraiser moderator. Any language.
+const SYSTEM = `Nonprofit campaign moderator. Any language.
 SPAM: commercial/sales, scams, phishing, contact harvesting, illegal (drugs/weapons/terrorism), adult/hate content, impersonation.
 ALLOW: medical, charity, education, memorials, disaster relief, animals, faith-based, community, and appeals that name amounts, goals, deadlines or donor rewards.
 Commercial intent means selling a product or service, which is distinct from asking for donations. Rough writing and typos are fine. When uncertain, allow.`;
 
 const format = Output.object({ schema: valibotSchema(evaluation_schema) });
 
-export const evaluate = async (
-  fundraiser: IFundraiser
-): Promise<IEvaluation> => {
+export const evaluate = async (campaign: IFundraiser): Promise<IEvaluation> => {
   const { output } = await generateText({
     model: "anthropic/claude-haiku-4.5",
     output: format,
     system: SYSTEM,
-    prompt: `Name: ${fundraiser.name}\nDesc: ${fundraiser.description}`,
+    prompt: `Name: ${campaign.name}\nDesc: ${campaign.description}`,
     temperature: 0,
     maxRetries: 1,
   });

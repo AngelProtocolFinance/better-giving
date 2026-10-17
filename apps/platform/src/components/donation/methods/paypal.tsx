@@ -16,6 +16,7 @@ import {
 } from "@/donations/paypal-capture";
 import { donor_fv_init, type IDonationIntent } from "@/donations/schema";
 import { HttpError, json_ok } from "@/helpers/https";
+import { apply_campaign } from "../apply-campaign";
 import { use_donation_redirect } from "../common/redirect";
 import { retry_once } from "../common/retry";
 import { donation_return_url, type IDonationDest } from "../common/return-url";
@@ -201,6 +202,7 @@ export function Paypal({
         };
         if (d.program) intent.program = d.program;
         if (d.config?.id) intent.form_id = d.config.id;
+        apply_campaign(intent, d.config);
 
         const { tx_id, don_id, amount } = await fetch(
           href("/api/donation-intents"),

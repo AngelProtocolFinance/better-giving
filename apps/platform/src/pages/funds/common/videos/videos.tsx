@@ -24,8 +24,8 @@ export function Videos({ classes = "", ...props }: IVideos) {
         </button>
       </div>
       <p id="videos-description" className="text-gray-11 text-sm mb-2">
-        Upload a video or two about your fundraiser - you could use a video from
-        your chosen nonprofit.
+        Upload a video or two about your campaign. You can use a video from your
+        nonprofit.
       </p>
       <VideoModal
         open={open}

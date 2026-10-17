@@ -37,7 +37,7 @@ interface Props {
 export function GoalSelector(props: Props) {
   return (
     <RadioGroup
-      label="Fundraiser Goal"
+      label="Goal"
       hideLabel
       value={props.value}
       onValueChange={props.onChange}

@@ -66,26 +66,26 @@ export const resources: Resource[] = [
   },
   {
     type: "templates",
-    name: "Fundraiser Info Templates",
+    name: "Campaign info templates",
     description:
-      "Collection of templates for creating fundraiser information pages, donor communications, and campaign materials.",
+      "Collection of templates for creating campaign information pages, donor communications, and campaign materials.",
     url: `${S3}/fundraiser-info-templates.pdf`,
     size: "6.0 MB",
   },
   // guides
   {
     type: "guides",
-    name: "AI Fundraiser Campaign Guide (Experienced)",
+    name: "AI campaign guide (experienced)",
     description:
-      "How to use AI to create a fundraiser communications campaign — for nonprofits with some AI experience.",
+      "How to use AI to create a communications campaign — for nonprofits with some AI experience.",
     url: `${S3}/ai-fundraiser-campaign-guide-experienced.pdf`,
     size: "1.9 MB",
   },
   {
     type: "guides",
-    name: "AI Fundraiser Campaign Guide (Beginners)",
+    name: "AI campaign guide (beginners)",
     description:
-      "Step-by-step guide to using AI for fundraiser communications — designed for nonprofits new to AI.",
+      "Step-by-step guide to using AI for campaign communications — designed for nonprofits new to AI.",
     url: `${S3}/ai-fundraiser-campaign-guide-beginners.pdf`,
     size: "1.7 MB",
   },
