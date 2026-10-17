@@ -8,7 +8,7 @@ import { emails } from "@/constants/common";
 import { to_id } from "@/donations/schema";
 import { send_email } from "$/email";
 import { base_url } from "$/env";
-import { campaign_accepts, campaign_by_id } from "$/pg/queries/campaign";
+import { campaign_by_id } from "$/pg/queries/campaign";
 
 const positive_decimal = v.pipe(
   v.string(),
@@ -107,24 +107,17 @@ export const action: ActionFunction = async ({ request }) => {
     return Response.json({ ok: false }, { status: 400 });
   }
 
-  // a campaign id is checked the same way an intent is: another nonprofit's
-  // campaign is dropped, and one this nonprofit owns that is not open is refused.
-  // the mail then names the campaign from that record, never from the caller.
+  // another nonprofit's campaign, or a draft, is dropped. a published campaign
+  // this nonprofit owns is named even after it closes: the donor may already
+  // have the transfer instructions, and the team still needs the notice.
+  // new gifts are blocked on the campaign page, which renders no donate box
+  // once the campaign is closed.
   let campaign: { name: string; url?: string } | undefined;
   if (data.campaign_id) {
     const row = await campaign_by_id(data.campaign_id);
     const owned =
       row && to.to_type === "npo" && row.owner_npo_id === Number(to.to_id);
-    if (owned && row) {
-      if (!campaign_accepts(row, new Date())) {
-        return Response.json(
-          {
-            ok: false,
-            error: "This campaign isn't accepting donations right now.",
-          },
-          { status: 400 }
-        );
-      }
+    if (owned && row && row.status !== "draft") {
       campaign = {
         name: row.name,
         ...(row.owner_slug
