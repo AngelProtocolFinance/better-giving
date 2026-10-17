@@ -41,10 +41,10 @@ const { admin_ctx, user_ctx } = await import("$/auth/test-utils");
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { action: create_action } = await import(
-  "../admin.$id.campaigns.new/api"
+  "../admin.$id.campaigns_.new/api"
 );
 const { action: edit_action, loader: edit_loader } = await import(
-  "../admin.$id.campaigns.$campaign_id/api"
+  "../admin.$id.campaigns_.$campaign_id/api"
 );
 
 const USER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
