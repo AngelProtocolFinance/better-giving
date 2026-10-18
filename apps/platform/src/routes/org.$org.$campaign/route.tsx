@@ -204,60 +204,64 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                 )}
               </header>
               <section
-                className="order-2 mt-10 flex flex-col rounded border bg-panel p-5 lg:order-none lg:mt-12 lg:p-6"
+                className="order-2 mt-10 flex flex-col rounded border bg-panel lg:order-none lg:mt-12"
                 data-group="progress"
                 data-section="progress"
               >
-                <div data-section="stats">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0">
-                      <span className="figures text-3xl font-bold lg:text-4xl">
-                        {to_usd(campaign.raised)}
-                      </span>{" "}
-                      <span className="text-base text-gray-11">
-                        {goal == null
-                          ? "raised"
-                          : `raised of ${to_usd(goal)} goal`}
-                      </span>
-                    </p>
-                    {percent != null && (
-                      <p className="figures shrink-0 whitespace-nowrap text-lg font-semibold text-success-subtle-fg">
-                        {percent}%
+                <div className="flex flex-col p-5 lg:p-6">
+                  <div data-section="stats">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="min-w-0">
+                        <span className="figures text-3xl font-bold lg:text-4xl">
+                          {to_usd(campaign.raised)}
+                        </span>{" "}
+                        <span className="text-base text-gray-11">
+                          {goal == null
+                            ? "raised"
+                            : `raised of ${to_usd(goal)} goal`}
+                        </span>
                       </p>
+                      {percent != null && (
+                        <p className="figures shrink-0 whitespace-nowrap text-lg font-semibold text-success-subtle-fg">
+                          {percent}%
+                        </p>
+                      )}
+                    </div>
+                    {goal != null && (
+                      <ArkProgress.Root
+                        value={Math.min(campaign.raised, goal)}
+                        max={goal}
+                        aria-label={`${percent}% of the goal`}
+                        className="mt-3 h-2 w-full"
+                      >
+                        <ArkProgress.Track className="h-full w-full overflow-hidden rounded-full bg-success/10 inset-shadow-track">
+                          <ArkProgress.Range className="h-full rounded-full bg-success shadow-track-fill" />
+                        </ArkProgress.Track>
+                      </ArkProgress.Root>
                     )}
+                    <p className="mt-3 text-sm text-gray-11">
+                      <span className="figures">
+                        {donor_label(donor_count)}
+                      </span>
+                      {when && (
+                        <>
+                          <span className="mx-1.5" aria-hidden="true">
+                            ·
+                          </span>
+                          <span className="font-semibold text-gray-12">
+                            {when}
+                          </span>
+                        </>
+                      )}
+                    </p>
                   </div>
-                  {goal != null && (
-                    <ArkProgress.Root
-                      value={Math.min(campaign.raised, goal)}
-                      max={goal}
-                      aria-label={`${percent}% of the goal`}
-                      className="mt-3 h-2 w-full"
-                    >
-                      <ArkProgress.Track className="h-full w-full overflow-hidden rounded-full bg-success/10 inset-shadow-track">
-                        <ArkProgress.Range className="h-full rounded-full bg-success shadow-track-fill" />
-                      </ArkProgress.Track>
-                    </ArkProgress.Root>
-                  )}
-                  <p className="mt-3 text-sm text-gray-11">
-                    <span className="figures">{donor_label(donor_count)}</span>
-                    {when && (
-                      <>
-                        <span className="mx-1.5" aria-hidden="true">
-                          ·
-                        </span>
-                        <span className="font-semibold text-gray-12">
-                          {when}
-                        </span>
-                      </>
-                    )}
-                  </p>
-                </div>
-                <div className="mt-6 border-t pt-6">
-                  <Share
-                    recipientName={campaign.name}
-                    url={canonical}
-                    line="Gifts on this page go to the nonprofit running it."
-                  />
+                  <div className="mt-6 border-t pt-6">
+                    <Share
+                      recipientName={campaign.name}
+                      url={canonical}
+                      line="Gifts on this page go to the nonprofit running it."
+                    />
+                  </div>
                 </div>
               </section>
               <section
@@ -337,7 +341,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                   </div>
                 ) : (
                   <div
-                    className="flex flex-col items-start rounded border bg-panel p-6"
+                    className="card flex flex-col items-start"
                     data-section="notice"
                   >
                     <h2 className="mb-3 text-xl font-bold" data-heading="">
