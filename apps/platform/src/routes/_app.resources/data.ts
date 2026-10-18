@@ -77,7 +77,7 @@ export const resources: Resource[] = [
     type: "guides",
     name: "AI campaign guide (experienced)",
     description:
-      "How to use AI to create a communications campaign — for nonprofits with some AI experience.",
+      "How to use AI to create a communications campaign, for nonprofits with some AI experience.",
     url: `${S3}/ai-fundraiser-campaign-guide-experienced.pdf`,
     size: "1.9 MB",
   },
@@ -85,7 +85,7 @@ export const resources: Resource[] = [
     type: "guides",
     name: "AI campaign guide (beginners)",
     description:
-      "Step-by-step guide to using AI for campaign communications — designed for nonprofits new to AI.",
+      "Step-by-step guide to using AI for campaign communications, for nonprofits new to AI.",
     url: `${S3}/ai-fundraiser-campaign-guide-beginners.pdf`,
     size: "1.7 MB",
   },

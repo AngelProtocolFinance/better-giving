@@ -11,7 +11,7 @@ export default CacheRoute(Page);
 function Page({ loaderData: { funds } }: Route.ComponentProps) {
   const items =
     funds.length === 0 ? (
-      <Info>You currently don't have any campaigns</Info>
+      <Info>No campaigns yet</Info>
     ) : (
       <div className="grid @xl:grid-cols-2 @2xl:grid-cols-3 gap-4">
         {funds.map((fund) => (

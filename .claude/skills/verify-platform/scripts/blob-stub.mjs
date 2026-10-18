@@ -1,4 +1,4 @@
-// verification scaffolding — while BLOB_READ_WRITE_TOKEN is .env.test filler,
+// verification scaffolding. while BLOB_READ_WRITE_TOKEN is .env.test filler,
 // @vercel/blob put() talks to this process instead of vercel.com. the sdk
 // reads VERCEL_BLOB_API_URL at request time. a real token leaves that unset.
 // every stubbed call is logged to $VERIFY_STATE/blob-stub.log.

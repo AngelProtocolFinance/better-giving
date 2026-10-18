@@ -339,7 +339,7 @@ describe("funds — filter and display", () => {
     const screen = await render_funds(npo.id);
 
     await expect
-      .element(screen.getByText(/no campaigns found/i))
+      .element(screen.getByText(/no campaign opt-outs/i))
       .toBeInTheDocument();
   });
 });

@@ -75,7 +75,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       </div>
       <div className="grid @xl:grid-cols-2 @2xl:grid-cols-3 gap-4">
         {funds.length === 0 ? (
-          <EmptyState classes="mt-4">No campaigns found</EmptyState>
+          <EmptyState classes="mt-4">No campaign opt-outs</EmptyState>
         ) : (
           funds.map((fund) => (
             <FundItem
