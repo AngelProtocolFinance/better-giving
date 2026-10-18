@@ -14,7 +14,9 @@ export function Layout({ children }: PropsWithChildren<{ classes?: string }>) {
   useConsent();
 
   return (
-    <html lang="en">
+    // the pre-paint script below writes data-banner-dismissed onto <html>
+    // before hydration; that attribute is expected to differ from the server's
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
