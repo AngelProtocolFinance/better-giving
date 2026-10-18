@@ -7,6 +7,7 @@ import {
   expect,
   test,
 } from "vitest";
+import { is_unique_violation } from "../errors";
 import { npos } from "../schema/npo";
 import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
@@ -93,6 +94,28 @@ describe("npo_update slug", () => {
       expect(saved.slug).toBe("second-slug");
       expect(saved.tagline).toBe("from-second");
     }
+  });
+
+  test("a second organization cannot take a slug another organization holds", async () => {
+    await seed("shared");
+    const other = await seed();
+    await expect(
+      npo_update(as_db(test_db.db), other.id, { slug: "shared" })
+    ).rejects.toSatisfy((err: unknown) =>
+      is_unique_violation(err, "npos_slug_unique")
+    );
+    expect((await row(other.id)).slug).toBeNull();
+  });
+
+  test("a second organization cannot take a slug that differs only by case", async () => {
+    await seed("shared");
+    const other = await seed();
+    await expect(
+      npo_update(as_db(test_db.db), other.id, { slug: "Shared" })
+    ).rejects.toSatisfy((err: unknown) =>
+      is_unique_violation(err, "npos_slug_lower_idx")
+    );
+    expect((await row(other.id)).slug).toBeNull();
   });
 
   test("allows other columns when the slug is repeated", async () => {

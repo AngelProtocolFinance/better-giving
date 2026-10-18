@@ -24,6 +24,7 @@ export interface INonprofitOrg {
 
 export type TNonprofitsFailure =
   | "not_found"
+  | "invalid_query"
   | "rate_limited"
   | "unavailable"
   | "disabled";
@@ -287,6 +288,7 @@ function parse_search(body: unknown): INonprofitOrg[] | undefined {
 type TFetched =
   | { kind: "json"; body: unknown }
   | { kind: "not_found" }
+  | { kind: "invalid_query" }
   | { kind: "rate_limited" }
   | { kind: "unavailable" }
   | { kind: "disabled" };
@@ -319,6 +321,17 @@ async function call_api(path: string): Promise<TFetched> {
     return { kind: "unavailable" };
   }
   if (res.status === 404) return { kind: "not_found" };
+  if (res.status === 400) {
+    const code = problem_code(await read_json(res));
+    if (
+      code === "invalid_query" ||
+      code === "invalid_ein" ||
+      code === "invalid_limit"
+    ) {
+      return { kind: "invalid_query" };
+    }
+    return { kind: "unavailable" };
+  }
   if (res.status !== 200) return { kind: "unavailable" };
   const body = await read_json(res);
   if (body === undefined) return { kind: "unavailable" };

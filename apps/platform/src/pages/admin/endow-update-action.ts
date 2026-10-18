@@ -6,6 +6,7 @@ import { dataWithSuccess } from "#/.server/toast";
 import type { INpoUpdate } from "@/npo";
 import { npo_update } from "@/npo/schema";
 import { db } from "$/pg/db";
+import { is_unique_violation } from "$/pg/errors";
 import { from_target } from "$/pg/queries/fmt";
 import {
   npo_by_slug,
@@ -63,6 +64,16 @@ export const endowUpdate =
     } catch (err) {
       if (err instanceof Error && err.message === slug_change_refused) {
         return data({ ok: false, error: err.message }, { status: 400 });
+      }
+      if (
+        rest.slug &&
+        (is_unique_violation(err, "npos_slug_unique") ||
+          is_unique_violation(err, "npos_slug_lower_idx"))
+      ) {
+        return data(
+          { ok: false, error: `Slug ${rest.slug} is already taken` },
+          { status: 400 }
+        );
       }
       throw err;
     }

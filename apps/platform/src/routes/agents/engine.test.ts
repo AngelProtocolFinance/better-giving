@@ -748,6 +748,64 @@ describe("find_nonprofit IRS fallback", () => {
     }
   );
 
+  test.each([
+    ["one character", "a"],
+    ["trimmed to one character", "  a  "],
+    ["punctuation only", "??"],
+    ["blank", "   "],
+    ["over 200 characters", "a".repeat(201)],
+  ])(
+    "query %s keeps local results, does not fetch, and is invalid_query",
+    async (_label, query) => {
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      mocks.get_npos.mockResolvedValue(local_page);
+
+      const result = await find_nonprofit({ query }, caller());
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(result.items).toEqual(local_page.items);
+      expect(result.not_on_better_giving).toEqual([]);
+      expect(result.external_lookup).toBe("invalid_query");
+    }
+  );
+
+  test("a two-character query that contains a letter still fetches", async () => {
+    const fetch = stub_fetch(() =>
+      http(200, { query: "'a", limit: 10, results: [] })
+    );
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    const result = await find_nonprofit({ query: "'a" }, caller());
+
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(result.items).toEqual(local_page.items);
+    expect(result.external_lookup).toBe("ok");
+  });
+
+  test.each(["invalid_query", "invalid_ein", "invalid_limit"])(
+    "HTTP 400 %s keeps local results and is invalid_query",
+    async (code) => {
+      stub_fetch(() => http(400, { code }));
+      mocks.get_npos.mockResolvedValue(local_page);
+
+      const result = await find_nonprofit({ query: "acme" }, caller());
+
+      expect(result.items).toEqual(local_page.items);
+      expect(result.not_on_better_giving).toEqual([]);
+      expect(result.external_lookup).toBe("invalid_query");
+    }
+  );
+
+  test("HTTP 400 with another code stays unavailable", async () => {
+    stub_fetch(() => http(400, { code: "something_else" }));
+    mocks.get_npos.mockResolvedValue(local_page);
+
+    const result = await find_nonprofit({ query: "acme" }, caller());
+
+    expect(result.external_lookup).toBe("unavailable");
+  });
+
   test("an unknown EIN is not_found and the miss is cached", async () => {
     const fetch = stub_fetch(() => http(404, { code: "not_found" }));
 
