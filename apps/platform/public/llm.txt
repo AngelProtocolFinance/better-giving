@@ -1,13 +1,12 @@
 # Better Giving
 
+> Nonprofit fundraising and fund management platform — by a nonprofit, for nonprofits. Accept donations via card, crypto, stocks, DAF, and more. Grow funds with savings and investment options. Free for nonprofits.
+
 Agents can find a nonprofit, quote a one-time USD donation, receive a
 Stripe-hosted checkout link, and check settlement status through the MCP
 endpoint at https://better.giving/agents.
 
 The same URL serves the agent guide over GET.
-# Better Giving
-
-> Nonprofit fundraising and fund management platform — by a nonprofit, for nonprofits. Accept donations via card, crypto, stocks, DAF, and more. Grow funds with savings and investment options. Free for nonprofits.
 
 Better Giving is a 501(c)(3) public charity (EIN 87-3758939) that provides free donation processing, embeddable fundraising forms, fund management (high-yield savings and investment portfolio), and fiscal sponsorship for international NGOs. 195+ countries, 100+ cryptocurrencies, zero platform fees.
 
