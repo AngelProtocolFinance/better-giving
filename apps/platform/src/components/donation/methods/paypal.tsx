@@ -120,6 +120,7 @@ export function Paypal({
   const root_ref = useRef<HTMLDivElement>(null);
   // read during render: a later render rebuilds className from props and would
   // put h-0 back. state would re-render and wipe the buttons this effect adds.
+  // -mt-2 rides with the clip: it cancels the form column's gap while empty.
   const shown = useRef(false);
 
   const { currency, frequency, is_partial } = p;
@@ -153,7 +154,7 @@ export function Paypal({
     let mounted = true;
     let cleanup: (() => void) | null = null;
     shown.current = false;
-    root_ref.current?.classList.add("h-0", "overflow-hidden");
+    root_ref.current?.classList.add("h-0", "overflow-hidden", "-mt-2");
 
     const init = async () => {
       // get_sdk clears its cache on failure, so the second call re-runs the
@@ -184,7 +185,7 @@ export function Paypal({
 
       const reveal = () => {
         shown.current = true;
-        root_ref.current?.classList.remove("h-0", "overflow-hidden");
+        root_ref.current?.classList.remove("h-0", "overflow-hidden", "-mt-2");
       };
 
       // returns both ids so each click can capture its own (no shared mutable
@@ -472,7 +473,7 @@ export function Paypal({
   return (
     <div
       ref={root_ref}
-      className={`relative isolate ${shown.current ? "" : "h-0 overflow-hidden"} ${classes}`}
+      className={`relative isolate ${shown.current ? "" : "h-0 overflow-hidden -mt-2"} ${classes}`}
     >
       {is_partial && (
         // a shield over the sdk's own buttons, not a control: its whole job is

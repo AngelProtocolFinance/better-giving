@@ -140,7 +140,7 @@ export function Form(props: TMethodState<"stripe">) {
     if (u?.flow !== flow) return null;
     if (don.hide_unavailable_express) return null;
     return (
-      <p role="status" className="mt-4 text-xs text-gray-11">
+      <p role="status" className="text-xs text-gray-11">
         {u.msg}
       </p>
     );
@@ -294,7 +294,6 @@ export function Form(props: TMethodState<"stripe">) {
           {...rhf.stripe_express}
         />
       )}
-      {!prompt && unavailable(sx_unavailable, sx_flow)}
       {rhf.paypal_express && pp_unavailable?.flow !== pp_flow && (
         <Paypal
           {...rhf.paypal_express}
@@ -312,7 +311,10 @@ export function Form(props: TMethodState<"stripe">) {
           on_unavailable={(msg) => set_pp_unavailable({ flow: pp_flow, msg })}
         />
       )}
-      {!prompt && unavailable(pp_unavailable, pp_flow)}
+      <div className="flex flex-col gap-1 mb-2 empty:hidden">
+        {!prompt && unavailable(sx_unavailable, sx_flow)}
+        {!prompt && unavailable(pp_unavailable, pp_flow)}
+      </div>
       {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-gray-11" />}
       {/* rendered empty from mount so the notice lands as a change to announce.
           sr-only while empty rather than hidden: it takes no gap in the column

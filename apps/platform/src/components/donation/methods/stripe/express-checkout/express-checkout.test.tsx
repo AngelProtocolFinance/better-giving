@@ -291,6 +291,7 @@ describe("stripe express: the slot stays collapsed until a wallet is there", () 
     await vi.waitFor(() => expect(el.ready_calls).toBe(1));
     expect(btn.element().parentElement?.className ?? "").toContain("h-0");
     expect(btn.element().parentElement?.className).toContain("overflow-hidden");
+    expect(btn.element().parentElement?.className).toContain("-mt-2");
     expect(on_unavailable).not.toHaveBeenCalled();
     expect(on_error).not.toHaveBeenCalled();
   });
@@ -303,6 +304,7 @@ describe("stripe express: the slot stays collapsed until a wallet is there", () 
     await vi.waitFor(() =>
       expect(btn.element().parentElement?.className ?? "").not.toContain("h-0")
     );
+    expect(btn.element().parentElement?.className ?? "").not.toContain("-mt-2");
   });
 });
 

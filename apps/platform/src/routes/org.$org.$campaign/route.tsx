@@ -272,8 +272,9 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                 className="order-4 mt-10 flex min-w-0 flex-col lg:order-none lg:mt-12"
                 data-group="story"
                 data-section="story"
+                aria-labelledby="campaign-story"
               >
-                <h2 className="mb-4 text-xl font-bold" data-heading="">
+                <h2 id="campaign-story" className="sr-only">
                   About this campaign
                 </h2>
                 <div data-section="prose">

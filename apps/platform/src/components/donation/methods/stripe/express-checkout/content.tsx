@@ -71,7 +71,7 @@ export function Content({
   const redirect = use_donation_redirect();
   const root_ref = useRef<HTMLDivElement>(null);
   // read during render: a later render rebuilds className from this and would
-  // put h-0 back on a slot that already has a button.
+  // put h-0 and -mt-2 back on a slot that already has a button.
   const shown = useRef(false);
 
   const show_if_wallet: NonNullable<ExpressCheckoutElementProps["onReady"]> = (
@@ -85,6 +85,7 @@ export function Content({
     shown.current = open;
     root_ref.current?.classList.toggle("h-0", !open);
     root_ref.current?.classList.toggle("overflow-hidden", !open);
+    root_ref.current?.classList.toggle("-mt-2", !open);
   };
 
   const on_confirm: ExpressCheckoutElementProps["onConfirm"] = async (ev) => {
@@ -209,11 +210,11 @@ export function Content({
   };
 
   return (
-    // the element paints an empty frame before ready or loaderror. clipped
-    // until a wallet button is actually there.
+    // empty frame before ready or loaderror. h-0 clips it; -mt-2 cancels the
+    // form column's gap so a collapsed slot adds no space.
     <div
       ref={root_ref}
-      className={shown.current ? undefined : "h-0 overflow-hidden"}
+      className={shown.current ? undefined : "h-0 overflow-hidden -mt-2"}
     >
       <ExpressCheckoutElement
         id="express-checkout"
