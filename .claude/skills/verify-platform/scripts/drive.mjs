@@ -1083,7 +1083,7 @@ const FLOWS = {
             .querySelector("iframe[title='Campaign video 1']")
             ?.getAttribute("src")
             ?.includes("aqz-KE-bpKQ"),
-        { timeout: T },
+        { timeout: T }
       );
       const body = await page.locator("body").innerText();
       expect_ok(
