@@ -122,7 +122,7 @@ export interface IDonation extends ITo, IFrom, IFromLegacyOrPostDonation {
   currency: string;
   program?: IProgram;
   source: TDonationSource | (string & {});
-  /** source-specific id; agent donations use a hash of the caller IP */
+  /** source-specific id. agent donations hash the caller: the agent token when the request presents it, otherwise the trusted client address */
   source_id?: string;
   /** form id if using new form */
   form_id?: string;
