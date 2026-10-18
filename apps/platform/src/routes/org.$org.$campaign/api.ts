@@ -8,7 +8,7 @@ import {
   campaign_donor_count,
   campaign_public,
   campaign_repeat_donor,
-  campaign_settled_gift,
+  campaign_settled_donation,
 } from "$/pg/queries/campaign";
 import { npo_get } from "$/pg/queries/npo";
 import { reg_public_ein } from "$/pg/queries/registration";
@@ -25,7 +25,6 @@ function thanks_from(url: URL): {
   thanks_amount: string | null;
   thanks_name: string | null;
   thanks_usd: number | null;
-  thanks_donor_name: string;
 } {
   const raw = url.searchParams.get("donation_amount");
   const amount = raw == null ? Number.NaN : Number(raw);
@@ -34,7 +33,6 @@ function thanks_from(url: URL): {
       thanks_amount: null,
       thanks_name: null,
       thanks_usd: null,
-      thanks_donor_name: "",
     };
   }
   const currency = url.searchParams.get("donation_currency")?.trim() ?? "";
@@ -44,7 +42,6 @@ function thanks_from(url: URL): {
     thanks_amount: usd ? to_usd(amount) : `${amount} ${currency}`,
     thanks_name: name === "" ? "You" : name,
     thanks_usd: usd ? amount : null,
-    thanks_donor_name: name,
   };
 }
 
@@ -52,20 +49,16 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const campaign = await campaign_public(params.org, params.campaign);
   if (!campaign || campaign.owner_npo_id == null) throw resp.status(404);
   const url = new URL(request.url);
-  const { thanks_donor_name, ...thanks } = thanks_from(url);
+  const thanks = thanks_from(url);
   const donation_id = url.searchParams.get("donation_id")?.trim() ?? "";
   const [npo, donor_count, registration, thanks_settled, thanks_repeat] =
     await Promise.all([
       npo_get(campaign.owner_npo_id),
       campaign_donor_count(campaign.id),
       reg_public_ein(campaign.owner_npo_id),
-      thanks.thanks_usd != null && thanks.thanks_usd > 0
-        ? campaign_settled_gift(
-            campaign.id,
-            thanks.thanks_usd,
-            thanks_donor_name
-          )
-        : false,
+      donation_id === ""
+        ? false
+        : campaign_settled_donation(campaign.id, donation_id),
       donation_id === ""
         ? false
         : campaign_repeat_donor(campaign.id, donation_id),

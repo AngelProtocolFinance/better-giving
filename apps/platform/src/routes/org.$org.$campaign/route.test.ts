@@ -598,37 +598,88 @@ describe("public campaign page", () => {
     expect(data.thanks_repeat).toBe(false);
   });
 
-  it("reports a thanks gift settled when a settled usd gift matches the amount and name", async () => {
+  it("reports a thanks gift settled when that donation is settled on this campaign", async () => {
     const npo = await org();
     await campaign(npo.id);
     const db = test_db.current!.db;
     await db.insert(donations).values({
-      id: "settled-ada",
-      upusd: 100,
+      id: "settled-card",
+      upusd: 80,
       status: "settled",
-      amount_base: 100,
-      amount_tip: 0,
-      amount_fee_allowance: 0,
+      amount_base: 80,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
       currency: "USD",
       frequency: "one-time",
       source: "bg-marketplace",
       via: "stripe",
       campaign_id: "camp-public",
     });
-    await db.insert(donation_messages).values({
-      id: "msg-ada",
-      donation_id: "settled-ada",
-      donor_name: " ada ",
+    await db.insert(donation_donors).values({
+      donation_id: "settled-card",
+      email: "pat@test.com",
+      name: "Pat",
     });
     const data = await load(
-      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada"
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=settled-card"
     );
+    expect(data.thanks_name).toBe("Ada");
     expect(data.thanks_usd).toBe(100);
     expect(data.thanks_settled).toBe(true);
-    expect(data.campaign.raised).toBe(0);
   });
 
-  it("matches a settled usd amount when the thanks return names nobody", async () => {
+  it("leaves a thanks gift unsettled while that donation is still an intent", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    await db.insert(donations).values({
+      id: "settled-card",
+      upusd: 80,
+      status: "intent",
+      amount_base: 80,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    await db.insert(donation_donors).values({
+      donation_id: "settled-card",
+      email: "pat@test.com",
+      name: "Pat",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=settled-card"
+    );
+    expect(data.thanks_settled).toBe(false);
+  });
+
+  it("leaves a thanks gift unsettled when that donation settled on another campaign", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await campaign(npo.id, { id: "camp-other", slug: "spring" });
+    await test_db.current!.db.insert(donations).values({
+      id: "settled-elsewhere",
+      upusd: 80,
+      status: "settled",
+      amount_base: 80,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-other",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=settled-elsewhere"
+    );
+    expect(data.thanks_settled).toBe(false);
+  });
+
+  it("leaves a thanks gift unsettled when the return has no donation id", async () => {
     const npo = await org();
     await campaign(npo.id);
     await test_db.current!.db.insert(donations).values({
@@ -648,7 +699,7 @@ describe("public campaign page", () => {
       "https://x/org/acme/winter?donation_amount=25&donor_name=%20"
     );
     expect(data.thanks_usd).toBe(25);
-    expect(data.thanks_settled).toBe(true);
+    expect(data.thanks_settled).toBe(false);
   });
 
   it("marks an ended campaign and a live campaign past its end as closed", async () => {
