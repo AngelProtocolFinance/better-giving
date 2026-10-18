@@ -17,12 +17,13 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
         <div className="grid gap-6 md:grid-cols-2 mt-11">
           <div className="bg-secondary border border-gray-6 rounded p-9 grid gap-3.5 content-start">
             <Badge size="md" tone="secondary" className="justify-self-start">
-              Government money market
+              No market risk
             </Badge>
             <h3 className="text-2xl font-bold">High-yield savings</h3>
             <p className="text-sm/relaxed text-gray-11">
-              Held in the Fidelity Government Money Market (SPAXX). Withdrawal
-              requests are reviewed and processed on a monthly basis.
+              FDIC-insured. A reliable way to build reserves while funds stay
+              safe and liquid. Withdrawal requests are reviewed and processed on
+              a monthly basis.
             </p>
           </div>
           <div className="surface-primary rounded p-9 grid gap-3.5 content-start">

@@ -16,7 +16,7 @@ export const items: Item[] = [
   {
     title: "Is our money safe?",
     description:
-      "A: Card data is handled by Stripe (PCI SAQ A). Savings are held in the Fidelity Government Money Market (SPAXX).",
+      "A: Card data is handled by Stripe (PCI SAQ A). Savings are held in FDIC-insured accounts at Fidelity Investments.",
   },
   {
     title: "What if we're too small?",
