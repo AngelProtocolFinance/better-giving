@@ -48,7 +48,11 @@ function usd_rate_lookup(chain_id: TAlchemyChainId) {
   const fetch_rate = async (contract: string): Promise<number | null> => {
     try {
       const cg_res = await coingecko((x) => {
-        x.pathname = `api/v3/simple/token_price/${platform}?contract_addresses=${contract}&vs_currencies=usd`;
+        // `?` inside pathname is encoded into the path, so coingecko never
+        // sees the query and answers 404 for every deposit
+        x.pathname = `api/v3/simple/token_price/${platform}`;
+        x.searchParams.set("contract_addresses", contract);
+        x.searchParams.set("vs_currencies", "usd");
         return x;
       });
       if (!cg_res.ok) throw new Error(`cg fetch failed: ${cg_res.statusText}`);
