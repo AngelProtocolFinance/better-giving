@@ -390,6 +390,13 @@ export type Init = {
    * fails **mid-flight** always announces itself, on every mount.
    */
   hide_unavailable_express?: boolean;
+  /**
+   * the card button is the main action and must not move once the form is
+   * up. express wallets and their load failures render under it, behind an
+   * "or", and that group stays collapsed until a wallet has actually drawn.
+   * other donate pages leave this off and keep the wallets above the button.
+   */
+  wallets_below?: boolean;
 };
 
 export type TMethod =

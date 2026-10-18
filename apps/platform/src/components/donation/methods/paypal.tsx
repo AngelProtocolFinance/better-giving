@@ -33,6 +33,8 @@ interface Props extends IPayPalExpress {
    * everything that goes wrong *during* a payment stays on `on_error`.
    */
   on_unavailable?: (msg: string) => void;
+  /** a funding button is in the slot. not raised when none are eligible. */
+  on_shown?: () => void;
   /**
    * the payment went through. raised the moment it does, before the trip to
    * the thank-you page is even attempted — that trip can take up to nine
@@ -108,6 +110,7 @@ export function Paypal({
   classes = "",
   on_error,
   on_unavailable,
+  on_shown,
   on_paid,
   on_stuck,
   on_unconfirmed,
@@ -136,6 +139,8 @@ export function Paypal({
   on_error_ref.current = on_error;
   const on_unavailable_ref = useRef(on_unavailable ?? on_error);
   on_unavailable_ref.current = on_unavailable ?? on_error;
+  const on_shown_ref = useRef(on_shown);
+  on_shown_ref.current = on_shown;
   const on_paid_ref = useRef(on_paid);
   on_paid_ref.current = on_paid;
   const on_stuck_ref = useRef(on_stuck);
@@ -186,6 +191,7 @@ export function Paypal({
       const reveal = () => {
         shown.current = true;
         root_ref.current?.classList.remove("h-0", "overflow-hidden", "-mt-2");
+        on_shown_ref.current?.();
       };
 
       // returns both ids so each click can capture its own (no shared mutable

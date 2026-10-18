@@ -18,7 +18,11 @@ const don_mock = vi.hoisted(() => ({ value: {} }));
 // a rail that reports itself unavailable on every mount — an adblocked sdk
 // fails identically each time it's retried. the buttons below drive the
 // one-shot cases; these flags drive the persistent one.
-const rails = vi.hoisted(() => ({ pp_out: false, sx_out: false }));
+const rails = vi.hoisted(() => ({
+  pp_out: false,
+  sx_out: false,
+  sx_shown: false,
+}));
 // mock express buttons — express checkout calls validate() on every click (reject-based),
 // paypal uses overlay gate (is_partial-based). each carries its testid as text:
 // the suite runs with the stylesheet applied, and preflight collapses an empty
@@ -106,18 +110,30 @@ vi.mock("./express-checkout", () => ({
     // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only by design
     useEffect(() => {
       if (rails.sx_out) props.on_unavailable?.("express is out");
+      if (rails.sx_shown) props.on_shown?.();
     }, []);
     return (
       // `paid` is what the real rail reads at its click gate to refuse a
       // second payment; surfaced here so a test can see the refusal without
       // reaching into stripe's own element.
-      <div data-testid="express-mock" data-paid={props.paid ? "" : undefined}>
+      <div
+        data-testid="express-mock"
+        data-classes={props.classes ?? ""}
+        data-paid={props.paid ? "" : undefined}
+      >
         <button
           type="button"
           data-testid="express-checkout-btn"
           onClick={() => props.validate()}
         >
           express-checkout-btn
+        </button>
+        <button
+          type="button"
+          data-testid="express-shown"
+          onClick={() => props.on_shown?.()}
+        >
+          express-shown
         </button>
         <button
           type="button"
@@ -608,6 +624,7 @@ describe("Stripe form: an express rail that can't be offered", () => {
   afterEach(() => {
     rails.pp_out = false;
     rails.sx_out = false;
+    rails.sx_shown = false;
     don_set_mock.mockReset();
   });
 
@@ -992,5 +1009,100 @@ describe("Stripe form: the two express rails degrade independently", () => {
     await expect
       .element(screen.getByText("express is out"))
       .not.toBeInTheDocument();
+  });
+});
+
+describe("Stripe form: wallets under the card button", () => {
+  afterEach(() => {
+    rails.pp_out = false;
+    rails.sx_out = false;
+    rails.sx_shown = false;
+  });
+
+  test("the default mount keeps the wallets above the button", async () => {
+    don_mock.value = init();
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    const btn = screen
+      .getByRole("button", { name: /continue with card/i })
+      .element();
+    const express = screen.getByTestId("express-mock").element();
+    expect(
+      express.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0);
+    expect(screen.getByTestId("wallet-group").query()).toBeNull();
+    expect(express.getAttribute("data-classes")).toContain("mt-4");
+    expect(btn.className).toContain("mt-auto");
+  });
+
+  test("a wallets_below mount holds the group shut, divider included", async () => {
+    don_mock.value = init({ wallets_below: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    const group = screen.getByTestId("wallet-group").element();
+    const btn = screen
+      .getByRole("button", { name: /continue with card/i })
+      .element();
+    expect(
+      btn.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0);
+    expect(group.className).toContain("h-0");
+    expect(group.className).toContain("-mt-2");
+    expect(group.className).toContain("overflow-hidden");
+    expect(group.className).toContain("opacity-0");
+    expect(group.className).not.toContain("duration-150");
+    expect(btn.className).not.toContain("mt-auto");
+    expect(
+      screen.getByTestId("express-mock").element().getAttribute("data-classes")
+    ).not.toContain("mt-4");
+    const divider = group.querySelector("p");
+    expect(divider?.textContent).toBe("or");
+    expect(divider?.className).toContain("my-4");
+    expect(divider?.className).toContain("text-xs");
+    expect(divider?.className).toContain("text-gray-11");
+    expect(group.querySelector(".gap-2")).not.toBeNull();
+  });
+
+  test("the group fades open once a wallet draws, without animating height", async () => {
+    rails.sx_shown = true;
+    don_mock.value = init({ wallets_below: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    const group = screen.getByTestId("wallet-group");
+    await vi.waitFor(() =>
+      expect(group.element().className).toContain("opacity-100")
+    );
+    const cls = group.element().className;
+    expect(cls).not.toContain("h-0");
+    expect(cls).not.toContain("overflow-hidden");
+    expect(cls).toContain("-mt-2");
+    expect(cls).toContain("transition-opacity");
+    expect(cls).toContain("duration-150");
+    expect(cls).not.toContain("transition-all");
+  });
+
+  test("a load failure stays in the shut group and does not move the button", async () => {
+    rails.sx_out = true;
+    don_mock.value = init({ wallets_below: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    const group = screen.getByTestId("wallet-group").element();
+    await vi.waitFor(() =>
+      expect(group.textContent).toContain("express is out")
+    );
+    expect(group.className).toContain("h-0");
+    const stack = group.querySelector(".gap-1");
+    expect(stack?.className).toContain("mt-4");
+    expect(stack?.className).toContain("gap-1");
+    expect(
+      screen
+        .getByRole("button", { name: /continue with card/i })
+        .element()
+        .compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0);
   });
 });

@@ -166,6 +166,7 @@ const express = {
 const mount = (handlers: {
   on_error: (msg: string) => void;
   on_unavailable?: (msg: string) => void;
+  on_shown?: () => void;
 }) =>
   stb(
     <Context {...init()}>
@@ -297,7 +298,8 @@ describe("stripe express: the slot stays collapsed until a wallet is there", () 
   });
 
   test("a ready wallet is allowed to take height", async () => {
-    const Stub = mount({ on_error: vi.fn() });
+    const on_shown = vi.fn();
+    const Stub = mount({ on_error: vi.fn(), on_shown });
     const screen = await render(<Stub />);
 
     const btn = screen.getByTestId("express-btn");
@@ -305,6 +307,17 @@ describe("stripe express: the slot stays collapsed until a wallet is there", () 
       expect(btn.element().parentElement?.className ?? "").not.toContain("h-0")
     );
     expect(btn.element().parentElement?.className ?? "").not.toContain("-mt-2");
+    expect(on_shown).toHaveBeenCalledOnce();
+  });
+
+  test("a ready element with no payment method does not count as shown", async () => {
+    el.methods = undefined;
+    const on_shown = vi.fn();
+    const Stub = mount({ on_error: vi.fn(), on_shown });
+    await render(<Stub />);
+
+    await vi.waitFor(() => expect(el.ready_calls).toBe(1));
+    expect(on_shown).not.toHaveBeenCalled();
   });
 });
 

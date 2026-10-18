@@ -26,7 +26,7 @@ import {
   donor_label,
   ended_label,
   goal_amount,
-  goal_percent,
+  percent_label,
   shown_end,
   tag_label,
   time_left,
@@ -124,7 +124,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
       campaign.ends_at && new Date(campaign.ends_at).getTime() <= now.getTime()
     );
   const goal = goal_amount(campaign.target, campaign.raised);
-  const percent = goal == null ? null : goal_percent(campaign.raised, goal);
+  const percent = goal == null ? null : percent_label(campaign.raised, goal);
   const tag = tag_label(campaign.campaign_type);
   const closed_at = open ? null : shown_end(campaign.ends_at, now);
   const when = open
@@ -226,7 +226,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                       </p>
                       {percent != null && (
                         <p className="figures shrink-0 whitespace-nowrap text-lg font-semibold text-success-subtle-fg">
-                          {percent}%
+                          {percent}
                         </p>
                       )}
                     </div>
@@ -234,11 +234,13 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                       <ArkProgress.Root
                         value={Math.min(campaign.raised, goal)}
                         max={goal}
-                        aria-label={`${percent}% of the goal`}
+                        aria-label={`${percent} of the goal`}
                         className="mt-3 h-2 w-full"
                       >
                         <ArkProgress.Track className="h-full w-full overflow-hidden rounded-full bg-success/10 inset-shadow-track">
-                          <ArkProgress.Range className="h-full rounded-full bg-success shadow-track-fill" />
+                          <ArkProgress.Range
+                            className={`h-full rounded-full bg-success shadow-track-fill${percent === "<1%" ? " min-w-1" : ""}`}
+                          />
                         </ArkProgress.Track>
                       </ArkProgress.Root>
                     )}
@@ -348,6 +350,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                           : undefined
                       }
                       user={user}
+                      wallets_below
                     />
                   </div>
                 ) : (

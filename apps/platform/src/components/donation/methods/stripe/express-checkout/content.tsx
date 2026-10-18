@@ -39,6 +39,8 @@ export interface IContentExternal
    * *during* a payment stays on `on_error`.
    */
   on_unavailable?: (msg: string) => void;
+  /** a wallet button is on screen. an empty ready event is not this. */
+  on_shown?: () => void;
   /**
    * the wallet charge went through. raised the moment it does, before the trip
    * to the thank-you page is even attempted — that trip can take up to nine
@@ -61,6 +63,7 @@ export function Content({
   on_click,
   on_error,
   on_unavailable,
+  on_shown,
   on_paid,
   on_stuck,
   ...x
@@ -73,6 +76,8 @@ export function Content({
   // read during render: a later render rebuilds className from this and would
   // put h-0 and -mt-2 back on a slot that already has a button.
   const shown = useRef(false);
+  const on_shown_ref = useRef(on_shown);
+  on_shown_ref.current = on_shown;
 
   const show_if_wallet: NonNullable<ExpressCheckoutElementProps["onReady"]> = (
     ev
@@ -86,6 +91,7 @@ export function Content({
     root_ref.current?.classList.toggle("h-0", !open);
     root_ref.current?.classList.toggle("overflow-hidden", !open);
     root_ref.current?.classList.toggle("-mt-2", !open);
+    if (open) on_shown_ref.current?.();
   };
 
   const on_confirm: ExpressCheckoutElementProps["onConfirm"] = async (ev) => {

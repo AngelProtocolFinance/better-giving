@@ -38,6 +38,17 @@ export function goal_percent(raised: number, goal: number): number {
   return Math.floor((raised / goal) * 100);
 }
 
+/**
+ * $0 stays 0% with an empty bar. a gift that floors to 0% has still started,
+ * so the figure reads <1% rather than looking like nothing came in.
+ */
+export function percent_label(raised: number, goal: number): string {
+  if (!(raised > 0)) return "0%";
+  const n = goal_percent(raised, goal);
+  if (n === 0) return "<1%";
+  return `${n}%`;
+}
+
 export function donor_label(n: number): string {
   if (n === 1) return "1 donor";
   return `${n.toLocaleString("en-US")} donors`;

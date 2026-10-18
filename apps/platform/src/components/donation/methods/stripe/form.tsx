@@ -5,7 +5,7 @@ import {
   Prompt,
 } from "@better-giving/ui";
 import { CheckIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { href } from "react-router";
 import use_swr from "swr/immutable";
 import { currency_precision } from "#/helpers/stripe";
@@ -65,6 +65,12 @@ export function Form(props: TMethodState<"stripe">) {
   // still move. shuts every rail the way `paid` does, but is kept apart from
   // it: there is no receipt to point at, and the notice says something else.
   const [unconfirmed, set_unconfirmed] = useState(false);
+  // shut until a wallet draws, then one frame at full height still invisible,
+  // then the fade. height is never transitioned: the card button must not move.
+  const [wallet_phase, set_wallet_phase] = useState<{
+    flow: string;
+    phase: "shut" | "in" | "open";
+  }>({ flow: "", phase: "shut" });
   const shut = paid || unconfirmed;
   const { don_set, don } = use_donation();
 
@@ -128,6 +134,33 @@ export function Form(props: TMethodState<"stripe">) {
     ? `${rhf.stripe_express.currency}-${rhf.stripe_express.frequency}`
     : "";
 
+  const wallets_below = don.wallets_below === true;
+  const wallet_flow = `${sx_flow}|${pp_flow}`;
+  const wallets_below_ref = useRef(wallets_below);
+  wallets_below_ref.current = wallets_below;
+  const wallet_flow_ref = useRef(wallet_flow);
+  wallet_flow_ref.current = wallet_flow;
+  const phase = wallet_phase.flow === wallet_flow ? wallet_phase.phase : "shut";
+
+  const reveal_wallets = () => {
+    if (!wallets_below_ref.current) return;
+    const flow = wallet_flow_ref.current;
+    set_wallet_phase((s) =>
+      s.flow === flow && s.phase !== "shut" ? s : { flow, phase: "in" }
+    );
+  };
+
+  useEffect(() => {
+    if (phase !== "in") return;
+    const flow = wallet_flow;
+    const id = requestAnimationFrame(() => {
+      set_wallet_phase((s) =>
+        s.flow === flow && s.phase === "in" ? { flow, phase: "open" } : s
+      );
+    });
+    return () => cancelAnimationFrame(id);
+  }, [phase, wallet_flow]);
+
   /**
    * what stands where an express block would have been. a rail that can't be
    * offered is never a modal: the failure is usually persistent (an adblocked
@@ -187,6 +220,78 @@ export function Form(props: TMethodState<"stripe">) {
         if (t) rhf.currency.onChange(t);
       }}
     />
+  );
+
+  const express_slot =
+    rhf.stripe_express && sx_unavailable?.flow !== sx_flow ? (
+      <ExpressCheckout
+        paid={shut}
+        on_error={(msg) =>
+          set_prompt({ type: "error", children: <p>{msg}</p> })
+        }
+        on_paid={() => set_paid(true)}
+        on_stuck={on_stuck}
+        on_shown={reveal_wallets}
+        // nothing has been paid yet and no donor action is pending: record
+        // it and let `unavailable` decide what stands in the block's place.
+        // never a prompt — see the note there.
+        on_unavailable={(msg) => set_sx_unavailable({ flow: sx_flow, msg })}
+        validate={async () => {
+          const valid = await rhf.trigger(["amount", "frequency"]);
+          if (!valid) rhf.setFocus("amount");
+          return valid;
+        }}
+        classes={
+          wallets_below
+            ? shut
+              ? "opacity-50"
+              : ""
+            : `mt-4 ${shut ? "opacity-50" : ""}`
+        }
+        {...rhf.stripe_express}
+      />
+    ) : null;
+  const paypal_slot =
+    rhf.paypal_express && pp_unavailable?.flow !== pp_flow ? (
+      <Paypal
+        {...rhf.paypal_express}
+        classes={shut ? "opacity-50" : ""}
+        paid={shut}
+        validate={async () => {
+          const valid = await rhf.trigger(["amount", "frequency"]);
+          if (!valid) rhf.setFocus("amount");
+          return valid;
+        }}
+        on_error={(x) => set_prompt({ type: "error", children: x })}
+        on_paid={() => set_paid(true)}
+        on_shown={reveal_wallets}
+        on_stuck={on_stuck}
+        on_unconfirmed={() => set_unconfirmed(true)}
+        on_unavailable={(msg) => set_pp_unavailable({ flow: pp_flow, msg })}
+      />
+    ) : null;
+  const notices = (
+    <div
+      className={
+        wallets_below
+          ? "mt-4 flex flex-col gap-1 empty:hidden"
+          : "mb-2 flex flex-col gap-1 empty:hidden"
+      }
+    >
+      {!prompt && unavailable(sx_unavailable, sx_flow)}
+      {!prompt && unavailable(pp_unavailable, pp_flow)}
+    </div>
+  );
+  const continue_btn = (
+    <button
+      disabled={
+        shut || currency.isLoading || currency.isValidating || rhf.isSubmitting
+      }
+      className={`${wallets_below ? "" : "mt-auto "}btn btn-form-primary`}
+      type="submit"
+    >
+      Continue with Card
+    </button>
   );
 
   return (
@@ -273,48 +378,9 @@ export function Form(props: TMethodState<"stripe">) {
           or paypal's live session — out from under them. both rails refuse a
           second payment at their own click gate instead, where the sheet has
           not opened yet and there is nothing to strand. */}
-      {rhf.stripe_express && sx_unavailable?.flow !== sx_flow && (
-        <ExpressCheckout
-          paid={shut}
-          on_error={(msg) =>
-            set_prompt({ type: "error", children: <p>{msg}</p> })
-          }
-          on_paid={() => set_paid(true)}
-          on_stuck={on_stuck}
-          // nothing has been paid yet and no donor action is pending: record
-          // it and let `unavailable` decide what stands in the block's place.
-          // never a prompt — see the note there.
-          on_unavailable={(msg) => set_sx_unavailable({ flow: sx_flow, msg })}
-          validate={async () => {
-            const valid = await rhf.trigger(["amount", "frequency"]);
-            if (!valid) rhf.setFocus("amount");
-            return valid;
-          }}
-          classes={`mt-4 ${shut ? "opacity-50" : ""}`}
-          {...rhf.stripe_express}
-        />
-      )}
-      {rhf.paypal_express && pp_unavailable?.flow !== pp_flow && (
-        <Paypal
-          {...rhf.paypal_express}
-          classes={shut ? "opacity-50" : ""}
-          paid={shut}
-          validate={async () => {
-            const valid = await rhf.trigger(["amount", "frequency"]);
-            if (!valid) rhf.setFocus("amount");
-            return valid;
-          }}
-          on_error={(x) => set_prompt({ type: "error", children: x })}
-          on_paid={() => set_paid(true)}
-          on_stuck={on_stuck}
-          on_unconfirmed={() => set_unconfirmed(true)}
-          on_unavailable={(msg) => set_pp_unavailable({ flow: pp_flow, msg })}
-        />
-      )}
-      <div className="flex flex-col gap-1 mb-2 empty:hidden">
-        {!prompt && unavailable(sx_unavailable, sx_flow)}
-        {!prompt && unavailable(pp_unavailable, pp_flow)}
-      </div>
+      {wallets_below ? null : express_slot}
+      {wallets_below ? null : paypal_slot}
+      {wallets_below ? null : notices}
       {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-gray-11" />}
       {/* rendered empty from mount so the notice lands as a change to announce.
           sr-only while empty rather than hidden: it takes no gap in the column
@@ -326,19 +392,30 @@ export function Form(props: TMethodState<"stripe">) {
         {unconfirmed &&
           "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt, or contact us."}
       </p>
-
-      <button
-        disabled={
-          shut ||
-          currency.isLoading ||
-          currency.isValidating ||
-          rhf.isSubmitting
-        }
-        className="mt-auto btn btn-form-primary"
-        type="submit"
-      >
-        Continue with Card
-      </button>
+      {continue_btn}
+      {wallets_below && (
+        // the whole group, divider included, adds nothing until a wallet
+        // draws. -mt-2 cancels this column's gap either way, so the button
+        // never shifts and the divider's own margin is the space.
+        <div
+          data-testid="wallet-group"
+          inert={phase === "shut"}
+          className={
+            phase === "shut"
+              ? "h-0 -mt-2 overflow-hidden opacity-0"
+              : `-mt-2 flex flex-col transition-opacity duration-150 ${
+                  phase === "open" ? "opacity-100" : "opacity-0"
+                }`
+          }
+        >
+          <p className="my-4 text-center text-xs text-gray-11">or</p>
+          <div className="flex flex-col gap-2">
+            {express_slot}
+            {paypal_slot}
+          </div>
+          {notices}
+        </div>
+      )}
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </FieldSet>
   );

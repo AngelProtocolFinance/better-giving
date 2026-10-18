@@ -5,6 +5,7 @@ import {
   ended_label,
   goal_amount,
   goal_percent,
+  percent_label,
   shown_end,
   tag_label,
   time_left,
@@ -30,6 +31,16 @@ describe("campaign page copy", () => {
     expect(goal_percent(0, 5000)).toBe(0);
     expect(goal_percent(184_260, 250_000)).toBe(73);
     expect(goal_percent(300, 100)).toBe(300);
+  });
+
+  it("reads a started gift under 1% as <1% and leaves a real zero at 0%", () => {
+    expect(percent_label(0, 5000)).toBe("0%");
+    expect(percent_label(25, 5000)).toBe("<1%");
+    expect(percent_label(49, 5000)).toBe("<1%");
+    expect(percent_label(50, 5000)).toBe("1%");
+    expect(percent_label(999, 1000)).toBe("99%");
+    expect(percent_label(184_260, 250_000)).toBe("73%");
+    expect(percent_label(300, 100)).toBe("300%");
   });
 
   it("singularizes one donor and groups the rest", () => {
