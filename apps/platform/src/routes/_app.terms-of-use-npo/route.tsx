@@ -471,7 +471,7 @@ export default function TermsNonprofits() {
               and Section 4(i) as it applies to Recovery Amounts, apply only to
               donations made on or after the later of (i) 12:00 a.m. Eastern
               Time ({TERMS_ZONE}) on{" "}
-              {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
+              {/* same TERMS_EFFECTIVE as the effective line; a later cutoff needs its own date */}
               {EFFECTIVE} and (ii) the date these Terms take effect under
               Section 9(d). A donation is “made” when the Donor’s payment is
               authorized or, for securities, cryptocurrency or other digital

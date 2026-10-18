@@ -77,9 +77,10 @@ export default function SecurityPolicy() {
 
       <h3>Savings &amp; Investment Custody</h3>
       <p>
-        Savings balances are held in <strong>FDIC-insured accounts</strong>{" "}
-        (limits apply). Investment assets are custodied with regulated partners
-        and protected by <strong>SIPC</strong> coverage where applicable.
+        Savings balances are held in the{" "}
+        <strong>Fidelity Government Money Market (SPAXX)</strong>. Investment
+        assets are custodied with regulated partners and protected by{" "}
+        <strong>SIPC</strong> coverage where applicable.
       </p>
 
       <h3>Backups &amp; Continuity</h3>

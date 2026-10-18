@@ -160,9 +160,9 @@ export function Ctas({ classes = "" }) {
             Grow your impact.
           </h3>
           <p className="md:text-lg mb-4 max-md:text-center">
-            Put your donations to work in FDIC-insured savings or the
-            Sustainability Fund. Returns vary, and past performance isn't a
-            guarantee.
+            Put your donations to work in the Fidelity Government Money Market
+            (SPAXX) or the Sustainability Fund. Returns vary, and past
+            performance isn't a guarantee.
           </p>
           <div className="justify-self-center md:justify-self-start">
             <Link

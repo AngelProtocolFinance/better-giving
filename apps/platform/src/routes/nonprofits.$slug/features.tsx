@@ -36,7 +36,7 @@ export const items: Item[] = [
     emoji: "🛡️",
     title: "Bulletproof Security & Compliance",
     description:
-      "Card data is handled by Stripe (PCI SAQ A). Savings are held in FDIC-insured accounts.",
+      "Card data is handled by Stripe (PCI SAQ A). Savings are held in the Fidelity Government Money Market (SPAXX).",
     result: "Result: Sleep easy knowing everything's secure.",
     icon: <Shield className="text-primary-fg pictogram-sm" />,
   },

@@ -52,10 +52,10 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
             <h3 className="text-2xl font-bold">Grow it.</h3>
             <p className="text-base/relaxed text-gray-11">
               We don't just move money. We help you keep and grow it. Route any
-              share of what you raise into FDIC-insured savings or a
-              professionally managed Sustainability Fund, and turn this
-              quarter's gifts into next decade's reserves. Returns vary, and
-              past performance isn't a guarantee.
+              share of what you raise into the Fidelity Government Money Market
+              (SPAXX) or a professionally managed Sustainability Fund, and turn
+              this quarter's gifts into next decade's reserves. Returns vary,
+              and past performance isn't a guarantee.
             </p>
           </div>
         </div>

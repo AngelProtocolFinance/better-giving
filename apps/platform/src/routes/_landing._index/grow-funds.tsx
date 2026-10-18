@@ -42,8 +42,9 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
               <div>
                 <span className="font-bold">High-yield savings</span>
                 <p className="mt-0.5 text-sm/normal text-gray-11">
-                  FDIC-insured. Withdrawal requests are reviewed and processed
-                  on a monthly basis.
+                  Held in the Fidelity Government Money Market (SPAXX).
+                  Withdrawal requests are reviewed and processed on a monthly
+                  basis.
                 </p>
               </div>
             </div>
