@@ -281,4 +281,46 @@ describe("Bank transfer form", () => {
       .element(screen.getByText(/0\.8% fee, capped at \$5/))
       .toBeVisible();
   });
+
+  test("a pinned mount insets the fields and sticks the button", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+      pin: true,
+    };
+    don_mock.value = init;
+
+    const screen = await render(<Form step="form" type="stripe_bank" />);
+
+    const inset = screen.container.querySelector(".p-5");
+    expect(inset?.classList.contains("p-5")).toBe(true);
+    expect(inset?.classList.contains("sm:p-6")).toBe(true);
+    const pin = screen.container.querySelector("[data-pin]");
+    const btn = screen.getByRole("button", { name: /continue/i }).element();
+    expect(pin?.contains(btn)).toBe(true);
+    expect(inset?.contains(btn)).toBe(false);
+    expect(btn.className).not.toContain("mt-auto");
+  });
+
+  test("an unpinned mount does not gain the pin inset", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+
+    const screen = await render(<Form step="form" type="stripe_bank" />);
+
+    expect(screen.container.querySelector(".p-5")).toBeNull();
+    expect(screen.container.querySelector("[data-pin]")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /continue/i }).element().className
+    ).toContain("mt-auto");
+  });
 });

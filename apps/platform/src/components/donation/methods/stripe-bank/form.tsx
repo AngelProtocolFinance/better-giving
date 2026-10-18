@@ -24,6 +24,7 @@ import { Incrementers } from "../../common/incrementers";
 import { TipField } from "../../common/tip-field";
 import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
+import { pin_bar } from "../../pin";
 import { type TMethodState, to_step } from "../../types";
 import { use_rhf } from "../stripe/use-rhf";
 
@@ -124,13 +125,10 @@ export function Form(props: TMethodState<"stripe_bank">) {
     />
   );
 
-  return (
-    <FieldSet
-      onSubmit={rhf.handleSubmit((fv) =>
-        to_step("stripe_bank", fv, "donor", don_set)
-      )}
-      className="flex flex-col h-full gap-y-2"
-    >
+  const pin = don.pin === true;
+
+  const fields = (
+    <>
       {freqs && (
         <Frequency
           opts={freqs}
@@ -203,16 +201,41 @@ export function Form(props: TMethodState<"stripe_bank">) {
       <p className="text-xs text-gray-11">
         0.8% fee, capped at $5 — save vs. card (2.2% + $0.30)
       </p>
+    </>
+  );
 
-      <button
-        disabled={
-          currency.isLoading || currency.isValidating || rhf.isSubmitting
-        }
-        className="mt-auto btn btn-form-primary"
-        type="submit"
-      >
-        Continue
-      </button>
+  const continue_btn = (
+    <button
+      disabled={currency.isLoading || currency.isValidating || rhf.isSubmitting}
+      className={`${pin ? "" : "mt-auto "}btn btn-form-primary`}
+      type="submit"
+    >
+      Continue
+    </button>
+  );
+
+  const on_submit = rhf.handleSubmit((fv) =>
+    to_step("stripe_bank", fv, "donor", don_set)
+  );
+
+  if (!pin) {
+    return (
+      <FieldSet onSubmit={on_submit} className="flex flex-col h-full gap-y-2">
+        {fields}
+        {continue_btn}
+        {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
+      </FieldSet>
+    );
+  }
+
+  return (
+    <FieldSet onSubmit={on_submit} className="flex min-h-full flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col gap-y-2 p-5 sm:p-6">
+        {fields}
+      </div>
+      <div data-pin="" className={pin_bar}>
+        {continue_btn}
+      </div>
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </FieldSet>
   );

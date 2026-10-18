@@ -15,6 +15,7 @@ import { MethodBenefits } from "../../common/method-benefits";
 import { TipField } from "../../common/tip-field";
 import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
+import { pin_bar } from "../../pin";
 import { type ITokenFv, type TMethodState, to_step } from "../../types";
 import { use_rhf } from "./use-rhf";
 
@@ -153,15 +154,10 @@ export function Form(props: TMethodState<"crypto">) {
     />
   );
 
-  return (
-    <form
-      onSubmit={handleSubmit((x) => {
-        to_step("crypto", x, "donor", don_set);
-        reset();
-      })}
-      className="flex flex-col gap-y-2 rounded min-h-full"
-      autoComplete="off"
-    >
+  const pin = don.pin === true;
+
+  const fields = (
+    <>
       <TokenField
         combobox={combobox}
         ref={token.ref}
@@ -229,16 +225,51 @@ export function Form(props: TMethodState<"crypto">) {
         checked_changed={(x) => cpf.onChange(x)}
       />
       <MethodBenefits subject="crypto" classes="mt-2" />
+    </>
+  );
 
-      <button
-        disabled={
-          token_state === "error" || token_state === "loading" || isSubmitting
-        }
-        className="mt-auto btn btn-form-primary"
-        type="submit"
+  const continue_btn = (
+    <button
+      disabled={
+        token_state === "error" || token_state === "loading" || isSubmitting
+      }
+      className={`${pin ? "" : "mt-auto "}btn btn-form-primary`}
+      type="submit"
+    >
+      Continue
+    </button>
+  );
+
+  const on_submit = handleSubmit((x) => {
+    to_step("crypto", x, "donor", don_set);
+    reset();
+  });
+
+  if (!pin) {
+    return (
+      <form
+        onSubmit={on_submit}
+        className="flex flex-col gap-y-2 rounded min-h-full"
+        autoComplete="off"
       >
-        Continue
-      </button>
+        {fields}
+        {continue_btn}
+      </form>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={on_submit}
+      className="flex min-h-full flex-1 flex-col"
+      autoComplete="off"
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-y-2 p-5 sm:p-6">
+        {fields}
+      </div>
+      <div data-pin="" className={pin_bar}>
+        {continue_btn}
+      </div>
     </form>
   );
 }

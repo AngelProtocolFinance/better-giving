@@ -6,6 +6,7 @@ import { Incrementers } from "../../common/incrementers";
 import { TipField } from "../../common/tip-field";
 import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
+import { pin_bar } from "../../pin";
 import { type TMethodState, to_step } from "../../types";
 import { use_rhf } from "./use-rhf";
 
@@ -24,15 +25,10 @@ export function Form(props: TMethodState<"daf">) {
     },
   });
 
-  return (
-    <FormContainer
-      disabled={rhf.isSubmitting}
-      onSubmit={rhf.handleSubmit((fv) =>
-        // skip donor step
-        to_step("daf", fv, "checkout", don_set)
-      )}
-      className="flex flex-col gap-y-2 min-h-full"
-    >
+  const pin = don.pin === true;
+
+  const fields = (
+    <>
       <Field
         required
         {...rhf.register("amount")}
@@ -87,13 +83,51 @@ export function Form(props: TMethodState<"daf">) {
         checked={rhf.cpf.value}
         checked_changed={(x) => rhf.cpf.onChange(x)}
       />
+    </>
+  );
 
-      {/* no `disabled` of its own — FormContainer's fieldset carries
-          `disabled={rhf.isSubmitting}` and already makes this unpressable
-          while a submit is in flight */}
-      <button className="mt-auto btn btn-form-primary" type="submit">
-        Continue
-      </button>
+  // no `disabled` of its own — FormContainer's fieldset carries
+  // `disabled={rhf.isSubmitting}` and already makes this unpressable
+  // while a submit is in flight
+  const continue_btn = (
+    <button
+      className={`${pin ? "" : "mt-auto "}btn btn-form-primary`}
+      type="submit"
+    >
+      Continue
+    </button>
+  );
+
+  const on_submit = rhf.handleSubmit((fv) =>
+    // skip donor step
+    to_step("daf", fv, "checkout", don_set)
+  );
+
+  if (!pin) {
+    return (
+      <FormContainer
+        disabled={rhf.isSubmitting}
+        onSubmit={on_submit}
+        className="flex flex-col gap-y-2 min-h-full"
+      >
+        {fields}
+        {continue_btn}
+      </FormContainer>
+    );
+  }
+
+  return (
+    <FormContainer
+      disabled={rhf.isSubmitting}
+      onSubmit={on_submit}
+      className="flex min-h-full flex-1 flex-col"
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-y-2 p-5 sm:p-6">
+        {fields}
+      </div>
+      <div data-pin="" className={pin_bar}>
+        {continue_btn}
+      </div>
     </FormContainer>
   );
 }
