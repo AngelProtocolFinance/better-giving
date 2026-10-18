@@ -1,7 +1,9 @@
+import { HttpResponse, http } from "msw";
 import { createRoutesStub } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 import { page as browser, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { mswWorker } from "#/setup-tests-browser";
 import { CampaignPage, type ICampaignPage } from "./page";
 
 function mount(props: ICampaignPage) {
@@ -223,5 +225,134 @@ describe("campaign page", () => {
     expect(link.element().parentElement?.textContent).toBe(
       "501(c)(3) · EIN 12-3456789 · harbor.example"
     );
+  });
+
+  test("a thank-you names the gift that landed", async () => {
+    const screen = await mount(page({ thanks: { amount: "$100" } }));
+    await expect
+      .element(screen.getByText("Your $100 gift is in."))
+      .toBeVisible();
+  });
+
+  test("a short feed sticks once it has resolved", async () => {
+    let release = () => {};
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mswWorker.use(
+      http.get("/api/npo/fit-npo/donors", async () => {
+        await hold;
+        return HttpResponse.json({
+          items: [
+            {
+              id: "ada",
+              donor_name: "Ada Lovelace",
+              donor_message: "For the Tuesday stew.",
+              amount: 40,
+              date: new Date().toISOString(),
+            },
+          ],
+          next: null,
+        });
+      })
+    );
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    await browser.viewport(1440, 900);
+    try {
+      const screen = await mount(
+        page({ donors: { id: "fit-npo", campaign_id: "camp-fit" } })
+      );
+      const action = () => document.querySelector("[data-col='action']");
+      await vi.waitFor(() => {
+        expect(action()?.querySelector("[data-feed-pending]")).not.toBeNull();
+      });
+      expect(action()?.className ?? "").not.toContain("lg:sticky");
+      release();
+      await expect.element(screen.getByText("Ada Lovelace")).toBeVisible();
+      await vi.waitFor(() => {
+        const column = action();
+        expect(column?.querySelector("[data-feed-pending]")).toBeNull();
+        expect(column?.className ?? "").toContain("lg:sticky");
+      });
+    } finally {
+      release();
+      await browser.viewport(width, height);
+    }
+  });
+
+  test("a tall feed stays unstuck, and the header appears once Donate scrolls away", async () => {
+    let release = () => {};
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const names = [
+      "Mira",
+      "Noor",
+      "Owen",
+      "Pia",
+      "Quinn",
+      "Rhea",
+      "Soren",
+      "Tove",
+      "Uma",
+      "Vera",
+      "Willa",
+      "Xena",
+      "Yael",
+      "Zora",
+      "Alden",
+      "Bram",
+      "Cleo",
+      "Dina",
+    ];
+    mswWorker.use(
+      http.get("/api/npo/tall-npo/donors", async () => {
+        await hold;
+        return HttpResponse.json({
+          items: names.map((name) => ({
+            id: name,
+            donor_name: name,
+            donor_message: "For the clinic's winter fuel fund.",
+            amount: 40,
+            date: new Date().toISOString(),
+          })),
+          next: null,
+        });
+      })
+    );
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    // 1440 so every card is in the column; short enough that eighteen cards exceed innerHeight - 64
+    await browser.viewport(1440, 720);
+    try {
+      const screen = await mount(
+        page({
+          donors: { id: "tall-npo", campaign_id: "camp-tall" },
+          highlight: { name: "You", amount: "$25" },
+        })
+      );
+      const action = () => document.querySelector("[data-col='action']");
+      await vi.waitFor(() => {
+        expect(action()?.querySelector("[data-feed-pending]")).not.toBeNull();
+      });
+      await expect.element(screen.getByText("You")).toBeVisible();
+      expect(action()?.className ?? "").not.toContain("lg:sticky");
+      release();
+      await expect.element(screen.getByText("Dina")).toBeInTheDocument();
+      await vi.waitFor(() => {
+        const column = action();
+        expect(column?.querySelector("[data-feed-pending]")).toBeNull();
+        expect(column?.className ?? "").not.toContain("lg:sticky");
+      });
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      await vi.waitFor(() => {
+        expect(document.querySelector("[data-sticky='header']")).not.toBeNull();
+      });
+    } finally {
+      release();
+      window.scrollTo(0, 0);
+      await browser.viewport(width, height);
+    }
   });
 });

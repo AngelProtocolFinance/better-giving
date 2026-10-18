@@ -69,6 +69,11 @@ export function CampaignPage(props: ICampaignPage) {
     const node = action_ref.current;
     if (!node) return;
     const measure = () => {
+      // unresolved feed is a short box; sticking now unsticks when cards land
+      if (node.querySelector("[data-feed-pending]")) {
+        set_fits(false);
+        return;
+      }
       const height = node.getBoundingClientRect().height;
       // 0 is the mobile display:contents box; it has nothing to stick
       set_fits(height > 0 && height <= window.innerHeight - 64);
@@ -76,9 +81,18 @@ export function CampaignPage(props: ICampaignPage) {
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(node);
+    // a marker can leave without a box change (empty feed, highlight already painted)
+    const mo = new MutationObserver(measure);
+    mo.observe(node, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-feed-pending"],
+    });
     window.addEventListener("resize", measure);
     return () => {
       ro.disconnect();
+      mo.disconnect();
       window.removeEventListener("resize", measure);
     };
   }, []);

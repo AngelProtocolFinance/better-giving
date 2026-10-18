@@ -221,9 +221,16 @@ export function DonorMsgs({
   }
   if (!data) {
     if (feed) {
-      if (!highlight) return null;
+      // marker only: the campaign column waits on this before it sticks
+      if (!highlight) {
+        return <div data-feed-pending="" hidden className={classes} />;
+      }
       return (
-        <section data-feed="" className={`${classes} flex flex-col gap-3`}>
+        <section
+          data-feed=""
+          {...(error ? {} : { "data-feed-pending": "" })}
+          className={`${classes} flex flex-col gap-3`}
+        >
           <HighlightCard highlight={highlight} />
         </section>
       );
