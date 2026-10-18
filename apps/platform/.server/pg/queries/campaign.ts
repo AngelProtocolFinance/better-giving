@@ -257,7 +257,7 @@ export async function campaign_update(
 ): Promise<"ok" | "missing" | "slug_locked"> {
   const current = await campaign_get(npo_id, id);
   if (!current) return "missing";
-  // The read above can sit before a concurrent publish. The write itself
+  // the read above can sit before a concurrent publish. the write itself
   // refuses a new address once published_at is set.
   const slug_changes =
     patch.slug !== undefined &&
