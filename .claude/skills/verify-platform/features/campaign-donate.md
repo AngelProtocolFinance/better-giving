@@ -9,7 +9,7 @@
 - `/org/<org-slug>/<campaign-slug>`. The drive loads this directly, including the query-string preset. It does not arrive from the marketplace.
 
 ## Driving it with drive.mjs
-- `node scripts/drive.mjs campaign-donate` loads `GET /org/verify-test/winter?amount=50&frequency=monthly`. The amount field is 50 and **Give Monthly** is selected.
+- `node scripts/drive.mjs campaign-donate` loads `GET /org/verify-campaign/winter?amount=50&frequency=monthly`. The amount field is 50 and **Give Monthly** is selected.
 - Then the same page without the query: **+100 USD** → **Continue with Card** → donor info → **Continue**. The payment step shows **Total donation $100.00**. The `POST /api/donation-intents` body includes the seeded campaign id.
 - With filler keys the page shows "We couldn't start the payment…" and `stripe-stub.log` lists the refused server calls → status **blocked**.
 - With `VERIFY_STRIPE_SK`/`VERIFY_STRIPE_PK` test keys: types 4242 4242 4242 4242 into the `Secure payment input frame` iframe → **pass**. It does not submit a charge.

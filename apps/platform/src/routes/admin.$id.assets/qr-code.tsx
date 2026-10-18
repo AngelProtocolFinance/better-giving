@@ -105,7 +105,7 @@ export function QrCode({
       <Tabs
         className="w-96"
         items={tabs.map((tab) => ({ value: tab.id, label: tab.name }))}
-        defaultValue="profile"
+        defaultValue={tabs[0].id}
         onValueChange={set_selected_tab}
       >
         {/* qr code panel */}

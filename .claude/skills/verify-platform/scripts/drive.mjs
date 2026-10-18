@@ -37,7 +37,8 @@ const MEMBER_EMAIL = "verify-member@example.com";
 // same fixture scripts/seed-member.mjs hashes; login checks that hash
 const MEMBER_PASSWORD = "Verify-member-1";
 // these match scripts/seed.sql. the password is a local fixture, not a credential.
-const ORG = "verify-test";
+// campaign pages. org-slug sets verify-test on Verify Test Nonprofit, which starts without a slug.
+const ORG = "verify-campaign";
 const SEEDED_CAMPAIGN = "winter";
 const SEEDED_CAMPAIGN_ID = "c0ffee00-0000-4000-8000-000000000001";
 const SEEDED_FUND = "f0000000-0000-4000-8000-000000000001";
@@ -818,9 +819,9 @@ const FLOWS = {
       await shot("donor-dashboard");
 
       const org_link = () =>
-        page.getByRole("link", { name: "Verify Test Nonprofit" });
+        page.getByRole("link", { name: "Verify Campaign Nonprofit" });
       const org_tries = await open_cold(page, org_link, /\/admin\/\d+/);
-      entry.clicked.push("My Organizations → Verify Test Nonprofit");
+      entry.clicked.push("My Organizations → Verify Campaign Nonprofit");
       await page.waitForURL(/\/admin\/\d+\/dashboard(?:\?|$)/, {
         timeout: 120_000,
       });

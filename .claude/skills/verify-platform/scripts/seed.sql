@@ -48,9 +48,18 @@ insert into currency_rates (base_currency, rates, updated_at)
 values ('USD', '{"USD":1,"EUR":0.92,"GBP":0.79,"PHP":56.5,"AUD":1.52,"CAD":1.37}', now())
 on conflict (base_currency) do nothing;
 
-update npos
-set slug = 'verify-test', image = '/logo.png', logo = '/logo.png'
-where registration_number = 'VERIFY0001';
+-- campaigns are a second published nonprofit. VERIFY0001 stays without a slug so
+-- the organization-slug flow can set verify-test. this slug is a different word
+-- so the two do not collide.
+insert into npos (
+  registration_number, name, endow_designation, hq_country, overview_pt,
+  tagline, published, active, slug, image, logo
+)
+select 'VERIFY0003', 'Verify Campaign Nonprofit', 'Charity', 'United States',
+       'Fixture nonprofit for campaign verify flows.',
+       'Fixture nonprofit used by the campaign drives',
+       true, true, 'verify-campaign', '/logo.png', '/logo.png'
+where not exists (select 1 from npos where registration_number = 'VERIFY0003');
 
 -- npo admin. password is the local fixture Verify-password-123!
 -- (better-auth scrypt, salt:hash). email_verified so sign-in does not mail a link.
@@ -67,7 +76,7 @@ values (
   now()
 );
 insert into user_npo_memberships (user_id, npo_id)
-select 'a0000000-0000-4000-8000-0000000000aa', id from npos where registration_number = 'VERIFY0001';
+select 'a0000000-0000-4000-8000-0000000000aa', id from npos where registration_number = 'VERIFY0003';
 
 -- an existing npo-owned fund. the campaigns list shows it as a campaign.
 insert into funds (
@@ -86,10 +95,10 @@ select
   '9999-12-31T23:59:59Z',
   id,
   'a0000000-0000-4000-8000-0000000000aa'
-from npos where registration_number = 'VERIFY0001';
+from npos where registration_number = 'VERIFY0003';
 insert into fund_members (fund_id, npo_id)
 select 'f0000000-0000-4000-8000-000000000001', id
-from npos where registration_number = 'VERIFY0001';
+from npos where registration_number = 'VERIFY0003';
 
 -- live campaign the public page and the donate flow use. increments are +100 USD.
 insert into campaigns (
@@ -113,10 +122,10 @@ select
   array['one-time','monthly'],
   '[{"value":"100","label":""}]'::jsonb,
   5000
-from npos where registration_number = 'VERIFY0001';
+from npos where registration_number = 'VERIFY0003';
 insert into campaign_members (campaign_id, npo_id)
 select 'c0ffee00-0000-4000-8000-000000000001', id
-from npos where registration_number = 'VERIFY0001';
+from npos where registration_number = 'VERIFY0003';
 
 -- draft: the public page must 404 it.
 insert into campaigns (
@@ -130,10 +139,10 @@ select
   'draft-hidden',
   '[]',
   'draft'
-from npos where registration_number = 'VERIFY0001';
+from npos where registration_number = 'VERIFY0003';
 insert into campaign_members (campaign_id, npo_id)
 select 'c0ffee00-0000-4000-8000-000000000002', id
-from npos where registration_number = 'VERIFY0001';
+from npos where registration_number = 'VERIFY0003';
 
 insert into donations (
   id, upusd, status, amount_base, amount_tip, amount_fee_allowance,
@@ -158,7 +167,7 @@ select
   'Seeded campaign thanks',
   now(),
   25
-from npos where registration_number = 'VERIFY0001';
+from npos where registration_number = 'VERIFY0003';
 insert into donation_messages (id, donation_id, npo_id, donor_name, donor_message, date, amount)
 select
   'verify-msg-profile',
@@ -168,6 +177,6 @@ select
   'Profile only gift note',
   now() - interval '1 minute',
   10
-from npos where registration_number = 'VERIFY0001';
+from npos where registration_number = 'VERIFY0003';
 
 select id from npos where registration_number = 'VERIFY0001';
