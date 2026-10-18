@@ -1,5 +1,11 @@
 import { ExtLink, Image, Modal } from "@better-giving/ui";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Link } from "react-router";
 import { DonorMsgs, type IDonorHighlight } from "#/components/donor-msgs";
 import { DappLogo } from "#/components/image";
@@ -15,7 +21,10 @@ const ring =
 const donate_inline = `h-16 w-full rounded bg-primary text-2xl font-semibold text-primary-fg hover:bg-blue-10 ${ring}`;
 const donate_header = `h-11 shrink-0 rounded bg-primary px-4 text-base font-semibold text-primary-fg hover:bg-blue-10 ${ring}`;
 const donate_bar = `h-12 min-w-0 flex-1 rounded bg-primary text-base font-semibold text-primary-fg hover:bg-blue-10 ${ring}`;
-const close_btn = `grid size-11 place-items-center rounded text-2xl leading-none text-gray-12 ${ring}`;
+const close_btn =
+  "grid size-11 place-items-center rounded text-2xl leading-none text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-9";
+// a bare min-[1288px]: sorts before lg: (px vs 64rem), so the zero is lg:-prefixed
+const gutter = "px-5 lg:px-8 lg:min-[1288px]:px-0";
 
 export interface ICampaignPage {
   title: string;
@@ -49,9 +58,30 @@ export function CampaignPage(props: ICampaignPage) {
     props.open && props.initial_dialog_open === true
   );
   const [away, set_away] = useState(false);
+  // false until the first measure, so a tall column can show the header
+  const [fits, set_fits] = useState(false);
   const donate_ref = useRef<HTMLButtonElement>(null);
   const close_ref = useRef<HTMLButtonElement>(null);
+  const action_ref = useRef<HTMLDivElement>(null);
   const open_dialog = () => set_dialog(true);
+
+  useLayoutEffect(() => {
+    const node = action_ref.current;
+    if (!node) return;
+    const measure = () => {
+      const height = node.getBoundingClientRect().height;
+      // 0 is the mobile display:contents box; it has nothing to stick
+      set_fits(height > 0 && height <= window.innerHeight - 64);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
 
   useEffect(() => {
     const node = donate_ref.current;
@@ -69,20 +99,23 @@ export function CampaignPage(props: ICampaignPage) {
     return () => io.disconnect();
   }, [props.open]);
 
-  const sticky = props.open && away;
+  const sticky_bar = props.open && away;
+  const sticky_header = sticky_bar && !fits;
 
   return (
     <>
       <div
         inert={dialog ? true : undefined}
-        className="min-h-[100dvh] bg-background text-gray-12 [&:has([data-feed])_[data-sticky=header]]:lg:flex"
+        className="min-h-[100dvh] bg-background text-gray-12"
       >
-        {sticky && (
+        {sticky_header && (
           <header
             data-sticky="header"
-            className="fixed inset-x-0 top-0 z-sticky hidden h-14 border-b border-gray-6 bg-gray-1"
+            className="fixed inset-x-0 top-0 z-sticky hidden h-14 border-b border-gray-6 bg-gray-1 lg:flex"
           >
-            <div className="mx-auto flex h-full w-full max-w-[1224px] items-center justify-between gap-3">
+            <div
+              className={`mx-auto flex h-full w-full max-w-[1224px] items-center justify-between gap-3 ${gutter}`}
+            >
               <p className="min-w-0 truncate text-base font-semibold">
                 {props.title}
               </p>
@@ -96,7 +129,9 @@ export function CampaignPage(props: ICampaignPage) {
             </div>
           </header>
         )}
-        <div className="mx-auto w-full max-w-[1224px] px-5 pt-4 pb-12 lg:px-0 lg:pt-8 lg:pb-16">
+        <div
+          className={`mx-auto w-full max-w-[1224px] pt-4 pb-12 lg:pt-8 lg:pb-16 ${gutter}`}
+        >
           <div className="flex flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_392px] lg:items-start lg:gap-8">
             <div
               data-col="story"
@@ -125,8 +160,9 @@ export function CampaignPage(props: ICampaignPage) {
               )}
             </div>
             <div
+              ref={action_ref}
               data-col="action"
-              className="contents lg:sticky lg:top-8 lg:self-start lg:flex lg:min-w-0 lg:flex-col lg:gap-6 lg:has-[[data-feed]]:static lg:has-[[data-feed]]:gap-10"
+              className={`contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6 lg:has-[[data-feed]]:gap-10${fits ? " lg:sticky lg:top-8 lg:self-start" : ""}`}
             >
               <Notice {...props} />
               <div className="order-4 flex flex-col gap-2 lg:order-none">
@@ -161,7 +197,7 @@ export function CampaignPage(props: ICampaignPage) {
             <span className="text-sm font-semibold">Better Giving</span>
           </footer>
         </div>
-        {sticky && (
+        {sticky_bar && (
           <div
             data-sticky="bar"
             className="fixed inset-x-0 bottom-0 z-sticky flex gap-2 border-t border-gray-6 bg-gray-1 px-5 py-3 lg:hidden"
@@ -185,7 +221,11 @@ export function CampaignPage(props: ICampaignPage) {
         classes="bg-surface"
         scrim="bg-gray-12/56"
         title="Donate"
-        initialFocusEl={() => close_ref.current}
+        initialFocusEl={() => {
+          // lib.dom FocusOptions stops at preventScroll; the flag is what skips :focus-visible
+          close_ref.current?.focus({ focusVisible: false } as FocusOptions);
+          return close_ref.current;
+        }}
       >
         <div className="flex shrink-0 justify-end bg-surface px-2 pt-2 sm:sticky sm:top-0 sm:z-sticky">
           <button

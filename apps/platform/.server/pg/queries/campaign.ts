@@ -181,6 +181,38 @@ export async function campaign_settled_gift(
   return row != null;
 }
 
+/** settled gift here from this name, on the donor row or the message, trimmed, ignoring case. blank is unknown, so false. */
+export async function campaign_repeat_donor(
+  campaign_id: string,
+  donor_name: string
+): Promise<boolean> {
+  const name = donor_name.trim();
+  if (name === "") return false;
+  const [row] = await db
+    .select({ id: donations.id })
+    .from(donations)
+    .where(
+      and(
+        eq(donations.campaign_id, campaign_id),
+        eq(donations.status, "settled"),
+        or(
+          sql`exists (
+            select 1 from ${donation_donors}
+            where ${donation_donors.donation_id} = ${donations.id}
+              and lower(btrim(${donation_donors.name})) = lower(${name})
+          )`,
+          sql`exists (
+            select 1 from ${donation_messages}
+            where ${donation_messages.donation_id} = ${donations.id}
+              and lower(btrim(${donation_messages.donor_name})) = lower(${name})
+          )`
+        )
+      )
+    )
+    .limit(1);
+  return row != null;
+}
+
 export async function campaign_live_for_npo(
   npo_id: number
 ): Promise<ICampaignRow[]> {

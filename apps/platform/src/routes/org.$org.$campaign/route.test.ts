@@ -336,6 +336,44 @@ describe("public campaign page", () => {
     expect(data.campaign.raised).toBe(0);
   });
 
+  it("reports a repeat when that name already settled a different amount", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    await db.insert(donations).values({
+      id: "prior-ada",
+      upusd: 40,
+      status: "settled",
+      amount_base: 40,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    await db.insert(donation_donors).values({
+      donation_id: "prior-ada",
+      email: "ada@test.com",
+      name: "Ada",
+    });
+    await db.insert(donation_messages).values({
+      id: "msg-prior-ada",
+      donation_id: "prior-ada",
+      donor_name: "Ada",
+    });
+    const again = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada"
+    );
+    expect(again.thanks_repeat).toBe(true);
+    expect(again.thanks_settled).toBe(false);
+    const stranger = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Bea"
+    );
+    expect(stranger.thanks_repeat).toBe(false);
+  });
+
   it("reports a thanks gift settled when a settled usd gift matches the amount and name", async () => {
     const npo = await org();
     await campaign(npo.id);

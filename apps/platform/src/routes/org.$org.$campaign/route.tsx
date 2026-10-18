@@ -144,6 +144,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
     thanks_usd: loaderData.thanks_usd,
     thanks_present: thanks != null,
     already_settled: loaderData.thanks_settled,
+    repeat_donor: loaderData.thanks_repeat,
   });
   const raised_line =
     goal == null

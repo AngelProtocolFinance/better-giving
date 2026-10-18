@@ -1,6 +1,6 @@
 import { createRoutesStub } from "react-router";
 import { describe, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page as browser, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { CampaignPage, type ICampaignPage } from "./page";
 
@@ -127,7 +127,7 @@ describe("campaign page", () => {
     expect(document.querySelector("[data-sticky='bar']")).toBeNull();
   });
 
-  test("sticky surfaces mount once Donate leaves the viewport", async () => {
+  test("a short column mounts the bar once Donate leaves and keeps the header off", async () => {
     const seen: IntersectionObserverCallback[] = [];
     const Real = globalThis.IntersectionObserver;
     class StubIO implements IntersectionObserver {
@@ -145,6 +145,10 @@ describe("campaign page", () => {
       }
     }
     vi.stubGlobal("IntersectionObserver", StubIO);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    // the iframe defaults below lg, where the column is display:contents (height 0)
+    await browser.viewport(1440, 900);
     try {
       const screen = await mount(page());
       await vi.waitFor(() => expect(seen.length).toBeGreaterThan(0));
@@ -156,8 +160,8 @@ describe("campaign page", () => {
         );
       }
       await vi.waitFor(() => {
-        expect(document.querySelector("[data-sticky='header']")).not.toBeNull();
         expect(document.querySelector("[data-sticky='bar']")).not.toBeNull();
+        expect(document.querySelector("[data-sticky='header']")).toBeNull();
       });
       await expect
         .element(
@@ -166,6 +170,7 @@ describe("campaign page", () => {
         .toBeVisible();
     } finally {
       vi.stubGlobal("IntersectionObserver", Real);
+      await browser.viewport(width, height);
     }
   });
 
@@ -175,6 +180,11 @@ describe("campaign page", () => {
       .element(screen.getByRole("dialog", { name: "Donate" }))
       .toBeVisible();
     await expect.element(screen.getByText("Form body")).toBeVisible();
+    const close = screen.getByRole("button", { name: "Close", exact: true });
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(close.element());
+    });
+    expect(close.element().matches(":focus-visible")).toBe(false);
   });
 
   test("a website renders on the legal line without a legal string", async () => {

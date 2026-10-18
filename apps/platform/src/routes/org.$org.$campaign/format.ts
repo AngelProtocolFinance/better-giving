@@ -104,7 +104,7 @@ export function closed_body(ends_at: string | null): string {
   return `It stopped taking donations on ${format_ended_date(ends_at)}. Thank you to everyone who gave.`;
 }
 
-/** display only. a settled match is already inside raised and donors. */
+/** display only. a settled match is already inside raised and donors. a repeat donor is already inside the count. */
 export function shown_totals(input: {
   raised: number;
   donors: number;
@@ -112,12 +112,13 @@ export function shown_totals(input: {
   thanks_usd: number | null;
   thanks_present: boolean;
   already_settled: boolean;
+  repeat_donor: boolean;
 }): { raised: number; donors: number; no_gifts: boolean } {
   const extra =
     input.thanks_usd != null && input.thanks_usd > 0 && !input.already_settled
       ? input.thanks_usd
       : 0;
-  const donors = input.donors + (extra > 0 ? 1 : 0);
+  const donors = input.donors + (extra > 0 && !input.repeat_donor ? 1 : 0);
   return {
     raised: input.raised + extra,
     donors,

@@ -114,8 +114,23 @@ describe("shown totals", () => {
         thanks_usd: 25,
         thanks_present: true,
         already_settled: false,
+        repeat_donor: false,
       })
     ).toEqual({ raised: 65, donors: 3, no_gifts: false });
+  });
+
+  it("adds a repeat donor's gift without counting them again", () => {
+    expect(
+      shown_totals({
+        raised: 140,
+        donors: 3,
+        open: true,
+        thanks_usd: 100,
+        thanks_present: true,
+        already_settled: false,
+        repeat_donor: true,
+      })
+    ).toEqual({ raised: 240, donors: 3, no_gifts: false });
   });
 
   it("leaves the database totals when that gift has already settled", () => {
@@ -127,6 +142,7 @@ describe("shown totals", () => {
         thanks_usd: 25,
         thanks_present: true,
         already_settled: true,
+        repeat_donor: false,
       })
     ).toEqual({ raised: 40, donors: 2, no_gifts: false });
   });
@@ -140,6 +156,7 @@ describe("shown totals", () => {
         thanks_usd: null,
         thanks_present: true,
         already_settled: false,
+        repeat_donor: false,
       })
     ).toEqual({ raised: 40, donors: 0, no_gifts: false });
   });
@@ -153,6 +170,7 @@ describe("shown totals", () => {
         thanks_usd: null,
         thanks_present: false,
         already_settled: false,
+        repeat_donor: false,
       })
     ).toEqual({ raised: 0, donors: 0, no_gifts: false });
   });
@@ -166,6 +184,7 @@ describe("shown totals", () => {
         thanks_usd: null,
         thanks_present: false,
         already_settled: false,
+        repeat_donor: false,
       })
     ).toEqual({ raised: 0, donors: 0, no_gifts: true });
   });
