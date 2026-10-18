@@ -19,7 +19,9 @@ vi.mock("$/pg/db", () => ({
 }));
 
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
-const { campaign_live_for_npo } = await import("$/pg/queries/campaign");
+const { campaign_live_for_npo, campaign_shown_status } = await import(
+  "$/pg/queries/campaign"
+);
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 
 beforeAll(async () => {
@@ -76,11 +78,33 @@ beforeAll(async () => {
       status: "ended",
       description_pt: "[]",
     },
+    {
+      id: "past-1",
+      owner_npo_id: npo!.id,
+      creator_id: "user-mkt",
+      name: "Past",
+      slug: "past",
+      status: "live",
+      ends_at: "2020-01-01T00:00:00.000Z",
+      description_pt: "[]",
+    },
+    {
+      id: "future-1",
+      owner_npo_id: npo!.id,
+      creator_id: "user-mkt",
+      name: "Future",
+      slug: "future",
+      status: "live",
+      ends_at: "2099-01-01T00:00:00.000Z",
+      description_pt: "[]",
+    },
   ]);
   await db.insert(campaign_members).values([
     { campaign_id: "live-1", npo_id: npo!.id },
     { campaign_id: "draft-1", npo_id: npo!.id },
     { campaign_id: "ended-1", npo_id: npo!.id },
+    { campaign_id: "past-1", npo_id: npo!.id },
+    { campaign_id: "future-1", npo_id: npo!.id },
   ]);
 }, 30_000);
 
@@ -92,7 +116,15 @@ describe("marketplace profile campaigns", () => {
   it("lists live campaigns only", async () => {
     const [npo] = await test_db.current!.db.select().from(npos);
     const rows = await campaign_live_for_npo(npo!.id);
-    expect(rows.map((c) => c.slug)).toEqual(["live"]);
+    expect(rows.map((c) => c.slug).sort()).toEqual(["future", "live"]);
     expect(rows.every((c) => c.status === "live" && c.owner_slug)).toBe(true);
+    const past = {
+      status: "live" as const,
+      ends_at: "2020-01-01T00:00:00.000Z",
+    };
+    expect(campaign_shown_status(past)).toBe("ended");
+    expect(campaign_shown_status({ status: "live", ends_at: null })).toBe(
+      "live"
+    );
   });
 });

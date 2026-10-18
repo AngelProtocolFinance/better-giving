@@ -1,4 +1,4 @@
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { to_text } from "#/components/rich-text/helpers";
 import type { DonateMethodId, IIncrement, TFrequency } from "@/schemas";
 import { db } from "../db";
@@ -135,7 +135,11 @@ export async function campaign_live_for_npo(
 ): Promise<ICampaignRow[]> {
   const rows = await campaign_query()
     .where(
-      and(eq(campaigns.owner_npo_id, npo_id), eq(campaigns.status, "live"))
+      and(
+        eq(campaigns.owner_npo_id, npo_id),
+        eq(campaigns.status, "live"),
+        or(isNull(campaigns.ends_at), sql`${campaigns.ends_at} > now()`)
+      )
     )
     .orderBy(desc(campaigns.created_at));
   return rows.map(present);
@@ -146,6 +150,15 @@ export async function campaign_by_id(
 ): Promise<ICampaignRow | undefined> {
   const [row] = await campaign_query().where(eq(campaigns.id, id));
   return row && present(row);
+}
+
+/** stored `live` reads as ended once `ends_at` has passed. the row stays live. */
+export function campaign_shown_status(
+  row: { status: TCampaignStatus; ends_at: string | null },
+  now: Date = new Date()
+): TCampaignStatus {
+  if (row.status === "live" && !campaign_accepts(row, now)) return "ended";
+  return row.status;
 }
 
 export function campaign_accepts(

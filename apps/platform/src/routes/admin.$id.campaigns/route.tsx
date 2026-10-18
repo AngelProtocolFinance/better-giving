@@ -59,7 +59,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             >
               <span className="font-semibold">{c.name}</span>
               <span className="text-sm text-gray-11">
-                {c.status} · {to_usd(c.raised)} raised · {when(c.ends_at)}
+                {c.status_label} · {to_usd(c.raised)} raised · {when(c.ends_at)}
               </span>
             </Link>
           </li>
