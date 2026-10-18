@@ -356,6 +356,8 @@ export type Config = {
   campaign_id?: string;
   /** public campaign address, for transfer instructions the donor copies */
   campaign_url?: string;
+  /** campaign title on those instructions. the legal grantee stays recipient.name */
+  campaign_name?: string;
   /** origin of the page framing this form, when its embed script told us.
    * already validated (see `common/parent-origin.ts`); absent means the
    * wildcard every embed used before the parameter existed. */
