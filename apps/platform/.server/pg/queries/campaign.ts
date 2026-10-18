@@ -151,6 +151,35 @@ export async function campaign_donor_count(
   return row?.n ?? 0;
 }
 
+/** usd preview for a gift that can still settle: `amount_base / upusd`, and only while status is intent or confirmed. tip and the donor-covered fee are not part of it. a blank id, a missing row, any other status, a rate that is not a positive finite number, or a base that is not positive is unknown. */
+export async function campaign_donation_base_usd(
+  campaign_id: string,
+  donation_id: string
+): Promise<number | null> {
+  const id = donation_id.trim();
+  if (id === "") return null;
+  const [row] = await db
+    .select({
+      amount_base: donations.amount_base,
+      upusd: donations.upusd,
+    })
+    .from(donations)
+    .where(
+      and(
+        eq(donations.id, id),
+        eq(donations.campaign_id, campaign_id),
+        or(eq(donations.status, "intent"), eq(donations.status, "confirmed"))
+      )
+    )
+    .limit(1);
+  if (!row) return null;
+  if (!Number.isFinite(row.upusd) || row.upusd <= 0) return null;
+  if (!Number.isFinite(row.amount_base) || row.amount_base <= 0) return null;
+  const usd = row.amount_base / row.upusd;
+  if (!Number.isFinite(usd) || usd <= 0) return null;
+  return usd;
+}
+
 /** this donation is settled on this campaign. a card return is base plus tip plus fee, and settlement writes a donor name only when from_public is set, so neither identifies the row. a blank id is unknown. */
 export async function campaign_settled_donation(
   campaign_id: string,

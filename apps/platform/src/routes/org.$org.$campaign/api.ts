@@ -5,6 +5,7 @@ import { resp } from "@/helpers/https";
 import { frequency } from "@/schemas";
 import {
   campaign_accepts,
+  campaign_donation_base_usd,
   campaign_donor_count,
   campaign_public,
   campaign_repeat_donor,
@@ -24,16 +25,12 @@ function prefill_amount(raw: string | null) {
 function thanks_from(url: URL): {
   thanks_amount: string | null;
   thanks_name: string | null;
-  thanks_usd: number | null;
+  usd: boolean;
 } {
   const raw = url.searchParams.get("donation_amount");
   const amount = raw == null ? Number.NaN : Number(raw);
   if (!Number.isFinite(amount) || amount <= 0) {
-    return {
-      thanks_amount: null,
-      thanks_name: null,
-      thanks_usd: null,
-    };
+    return { thanks_amount: null, thanks_name: null, usd: false };
   }
   const currency = url.searchParams.get("donation_currency")?.trim() ?? "";
   const usd = currency === "" || currency.toUpperCase() === "USD";
@@ -41,7 +38,7 @@ function thanks_from(url: URL): {
   return {
     thanks_amount: usd ? to_usd(amount) : `${amount} ${currency}`,
     thanks_name: name === "" ? "You" : name,
-    thanks_usd: usd ? amount : null,
+    usd,
   };
 }
 
@@ -51,18 +48,28 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const url = new URL(request.url);
   const thanks = thanks_from(url);
   const donation_id = url.searchParams.get("donation_id")?.trim() ?? "";
-  const [npo, donor_count, registration, thanks_settled, thanks_repeat] =
-    await Promise.all([
-      npo_get(campaign.owner_npo_id),
-      campaign_donor_count(campaign.id),
-      reg_public_ein(campaign.owner_npo_id),
-      donation_id === ""
-        ? false
-        : campaign_settled_donation(campaign.id, donation_id),
-      donation_id === ""
-        ? false
-        : campaign_repeat_donor(campaign.id, donation_id),
-    ]);
+  const redirect_failed =
+    url.searchParams.get("redirect_status")?.trim() === "failed";
+  const count_base = donation_id !== "" && thanks.usd && !redirect_failed;
+  const [
+    npo,
+    donor_count,
+    registration,
+    thanks_settled,
+    thanks_repeat,
+    base_usd,
+  ] = await Promise.all([
+    npo_get(campaign.owner_npo_id),
+    campaign_donor_count(campaign.id),
+    reg_public_ein(campaign.owner_npo_id),
+    donation_id === ""
+      ? false
+      : campaign_settled_donation(campaign.id, donation_id),
+    donation_id === ""
+      ? false
+      : campaign_repeat_donor(campaign.id, donation_id),
+    count_base ? campaign_donation_base_usd(campaign.id, donation_id) : null,
+  ]);
   if (!npo || npo.active === false) throw resp.status(404);
 
   const amount = prefill_amount(url.searchParams.get("amount"));
@@ -98,7 +105,12 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     prefill_amount_usd: amount,
     prefill_frequency: frequency_ok ?? monthly_default,
     donor_count,
-    ...thanks,
+    thanks_amount: thanks.thanks_amount,
+    thanks_name: thanks.thanks_name,
+    // the return amount is the rail charge. a usd return counts the gift base
+    // before settlement, net of tip and the donor-covered fee. a stripe
+    // redirect_status of failed will not settle, so it adds nothing.
+    thanks_usd: count_base && !thanks_settled ? base_usd : null,
     thanks_settled,
     thanks_repeat,
     user: user
