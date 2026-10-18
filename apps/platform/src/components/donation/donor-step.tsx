@@ -155,7 +155,7 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
       onSubmit={on_submit}
       className={`flex min-h-full flex-1 flex-col ${classes}`}
     >
-      <div className="flex min-h-0 flex-1 flex-col content-start gap-4 p-4 @xl/steps:p-8">
+      <div className="flex min-h-0 flex-1 flex-col content-start gap-4 p-5 sm:p-6">
         {fields}
       </div>
       <div data-pin="" className={pin_bar}>

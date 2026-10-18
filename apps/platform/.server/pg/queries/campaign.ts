@@ -10,6 +10,7 @@ import {
   type TCampaignType,
 } from "../schema/campaign";
 import { donation_donors, donations } from "../schema/donation";
+import { donation_messages } from "../schema/donation-message";
 import { npos } from "../schema/npo";
 import { v_campaign_total_usd } from "../schema/views";
 import { from_target, to_target } from "./fmt";
@@ -149,6 +150,35 @@ export async function campaign_donor_count(
       )
     );
   return row?.n ?? 0;
+}
+
+/** settled USD row of this amount. a given name has to match the message, trimmed, ignoring case. */
+export async function campaign_settled_gift(
+  campaign_id: string,
+  amount: number,
+  donor_name: string
+): Promise<boolean> {
+  const name = donor_name.trim();
+  const [row] = await db
+    .select({ id: donations.id })
+    .from(donations)
+    .where(
+      and(
+        eq(donations.campaign_id, campaign_id),
+        eq(donations.status, "settled"),
+        sql`upper(${donations.currency}) = 'USD'`,
+        eq(donations.amount_base, amount),
+        name === ""
+          ? undefined
+          : sql`exists (
+              select 1 from ${donation_messages}
+              where ${donation_messages.donation_id} = ${donations.id}
+                and lower(btrim(${donation_messages.donor_name})) = lower(${name})
+            )`
+      )
+    )
+    .limit(1);
+  return row != null;
 }
 
 export async function campaign_live_for_npo(

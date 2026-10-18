@@ -7,6 +7,7 @@ import {
   campaign_accepts,
   campaign_donor_count,
   campaign_public,
+  campaign_settled_gift,
 } from "$/pg/queries/campaign";
 import { npo_get } from "$/pg/queries/npo";
 import { reg_public_ein } from "$/pg/queries/registration";
@@ -22,32 +23,45 @@ function prefill_amount(raw: string | null) {
 function thanks_from(url: URL): {
   thanks_amount: string | null;
   thanks_name: string | null;
+  thanks_usd: number | null;
+  thanks_donor_name: string;
 } {
   const raw = url.searchParams.get("donation_amount");
   const amount = raw == null ? Number.NaN : Number(raw);
   if (!Number.isFinite(amount) || amount <= 0) {
-    return { thanks_amount: null, thanks_name: null };
+    return {
+      thanks_amount: null,
+      thanks_name: null,
+      thanks_usd: null,
+      thanks_donor_name: "",
+    };
   }
   const currency = url.searchParams.get("donation_currency")?.trim() ?? "";
-  const thanks_amount =
-    currency === "" || currency.toUpperCase() === "USD"
-      ? to_usd(amount)
-      : `${amount} ${currency}`;
+  const usd = currency === "" || currency.toUpperCase() === "USD";
   const name = url.searchParams.get("donor_name")?.trim() ?? "";
-  return { thanks_amount, thanks_name: name === "" ? "You" : name };
+  return {
+    thanks_amount: usd ? to_usd(amount) : `${amount} ${currency}`,
+    thanks_name: name === "" ? "You" : name,
+    thanks_usd: usd ? amount : null,
+    thanks_donor_name: name,
+  };
 }
 
 export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const campaign = await campaign_public(params.org, params.campaign);
   if (!campaign || campaign.owner_npo_id == null) throw resp.status(404);
-  const [npo, donor_count, registration] = await Promise.all([
+  const url = new URL(request.url);
+  const { thanks_donor_name, ...thanks } = thanks_from(url);
+  const [npo, donor_count, registration, thanks_settled] = await Promise.all([
     npo_get(campaign.owner_npo_id),
     campaign_donor_count(campaign.id),
     reg_public_ein(campaign.owner_npo_id),
+    thanks.thanks_usd != null && thanks.thanks_usd > 0
+      ? campaign_settled_gift(campaign.id, thanks.thanks_usd, thanks_donor_name)
+      : false,
   ]);
   if (!npo || npo.active === false) throw resp.status(404);
 
-  const url = new URL(request.url);
   const amount = prefill_amount(url.searchParams.get("amount"));
   const freq_raw = url.searchParams.get("frequency");
   const freq_parsed = safeParse(frequency, freq_raw);
@@ -64,7 +78,6 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
 
   const { user } = await get_session(request);
   const now = new Date();
-  const thanks = thanks_from(url);
   return {
     campaign,
     npo: {
@@ -83,6 +96,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     prefill_frequency: frequency_ok ?? monthly_default,
     donor_count,
     ...thanks,
+    thanks_settled,
     user: user
       ? {
           email: user.email,

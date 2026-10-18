@@ -8,6 +8,7 @@ import {
   legal_line,
   percent_label,
   shown_end,
+  shown_totals,
   tag_label,
   time_left,
   website_link,
@@ -100,5 +101,72 @@ describe("campaign page copy", () => {
     });
     expect(website_link(null)).toBeUndefined();
     expect(website_link("")).toBeUndefined();
+  });
+});
+
+describe("shown totals", () => {
+  it("adds a usd gift that has not settled", () => {
+    expect(
+      shown_totals({
+        raised: 40,
+        donors: 2,
+        open: true,
+        thanks_usd: 25,
+        thanks_present: true,
+        already_settled: false,
+      })
+    ).toEqual({ raised: 65, donors: 3, no_gifts: false });
+  });
+
+  it("leaves the database totals when that gift has already settled", () => {
+    expect(
+      shown_totals({
+        raised: 40,
+        donors: 2,
+        open: true,
+        thanks_usd: 25,
+        thanks_present: true,
+        already_settled: true,
+      })
+    ).toEqual({ raised: 40, donors: 2, no_gifts: false });
+  });
+
+  it("leaves the total for a non-usd gift and hides the empty line", () => {
+    expect(
+      shown_totals({
+        raised: 40,
+        donors: 0,
+        open: true,
+        thanks_usd: null,
+        thanks_present: true,
+        already_settled: false,
+      })
+    ).toEqual({ raised: 40, donors: 0, no_gifts: false });
+  });
+
+  it("hides the empty line once the campaign has ended", () => {
+    expect(
+      shown_totals({
+        raised: 0,
+        donors: 0,
+        open: false,
+        thanks_usd: null,
+        thanks_present: false,
+        already_settled: false,
+      })
+    ).toEqual({ raised: 0, donors: 0, no_gifts: false });
+  });
+
+  it("shows no gifts yet only while the campaign is open and empty", () => {
+    expect(
+      shown_totals({
+        raised: 0,
+        donors: 0,
+        open: true,
+        thanks_usd: null,
+        thanks_present: false,
+        already_settled: false,
+      })
+    ).toEqual({ raised: 0, donors: 0, no_gifts: true });
   });
 });

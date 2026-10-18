@@ -104,6 +104,27 @@ export function closed_body(ends_at: string | null): string {
   return `It stopped taking donations on ${format_ended_date(ends_at)}. Thank you to everyone who gave.`;
 }
 
+/** display only. a settled match is already inside raised and donors. */
+export function shown_totals(input: {
+  raised: number;
+  donors: number;
+  open: boolean;
+  thanks_usd: number | null;
+  thanks_present: boolean;
+  already_settled: boolean;
+}): { raised: number; donors: number; no_gifts: boolean } {
+  const extra =
+    input.thanks_usd != null && input.thanks_usd > 0 && !input.already_settled
+      ? input.thanks_usd
+      : 0;
+  const donors = input.donors + (extra > 0 ? 1 : 0);
+  return {
+    raised: input.raised + extra,
+    donors,
+    no_gifts: input.open && donors === 0 && !input.thanks_present,
+  };
+}
+
 /** null once the end has passed. the caller shows the ended label instead. */
 export function time_left(ends_at: string, now: Date): string | null {
   const ms = new Date(ends_at).getTime() - now.getTime();

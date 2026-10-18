@@ -35,6 +35,7 @@ vi.mock("#/.server/auth", async () =>
 
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
 const { donation_donors, donations } = await import("$/pg/schema/donation");
+const { donation_messages } = await import("$/pg/schema/donation-message");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { loader } = await import("./api");
 
@@ -50,6 +51,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const db = test_db.current!.db;
+  await db.delete(donation_messages);
   await db.delete(donation_donors);
   await db.delete(donations);
   await db.delete(campaign_members);
@@ -265,6 +267,8 @@ describe("public campaign page", () => {
     );
     expect(data.thanks_amount).toBe("40 EUR");
     expect(data.thanks_name).toBe("You");
+    expect(data.thanks_usd).toBeNull();
+    expect(data.thanks_settled).toBe(false);
   });
 
   it("formats a gift with no currency as dollars and a blank name as You", async () => {
@@ -275,6 +279,8 @@ describe("public campaign page", () => {
     );
     expect(data.thanks_amount).toBe("$25");
     expect(data.thanks_name).toBe("You");
+    expect(data.thanks_usd).toBe(25);
+    expect(data.thanks_settled).toBe(false);
   });
 
   it("ignores a gift amount that is not a positive number", async () => {
@@ -285,6 +291,102 @@ describe("public campaign page", () => {
     );
     expect(data.thanks_amount).toBeNull();
     expect(data.thanks_name).toBeNull();
+  });
+
+  it("reports an unsettled thanks gift when no settled usd gift matches", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    async function gift(
+      id: string,
+      status: string,
+      currency: string,
+      amount: number,
+      donor_name: string
+    ) {
+      await db.insert(donations).values({
+        id,
+        upusd: amount,
+        status,
+        amount_base: amount,
+        amount_tip: 0,
+        amount_fee_allowance: 0,
+        currency,
+        frequency: "one-time",
+        source: "bg-marketplace",
+        via: "stripe",
+        campaign_id: "camp-public",
+      });
+      await db.insert(donation_messages).values({
+        id: `msg-${id}`,
+        donation_id: id,
+        donor_name,
+      });
+    }
+    await gift("intent-ada", "intent", "USD", 100, "Ada");
+    await gift("settled-bea", "settled", "USD", 100, "Bea");
+    await gift("settled-eur", "settled", "EUR", 100, "Ada");
+    await gift("settled-other", "settled", "USD", 40, "Ada");
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada"
+    );
+    expect(data.thanks_usd).toBe(100);
+    expect(data.thanks_settled).toBe(false);
+    expect(data.donor_count).toBe(0);
+    expect(data.campaign.raised).toBe(0);
+  });
+
+  it("reports a thanks gift settled when a settled usd gift matches the amount and name", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    await db.insert(donations).values({
+      id: "settled-ada",
+      upusd: 100,
+      status: "settled",
+      amount_base: 100,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    await db.insert(donation_messages).values({
+      id: "msg-ada",
+      donation_id: "settled-ada",
+      donor_name: " ada ",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada"
+    );
+    expect(data.thanks_usd).toBe(100);
+    expect(data.thanks_settled).toBe(true);
+    expect(data.campaign.raised).toBe(0);
+  });
+
+  it("matches a settled usd amount when the thanks return names nobody", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await test_db.current!.db.insert(donations).values({
+      id: "settled-anon",
+      upusd: 25,
+      status: "settled",
+      amount_base: 25,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=25&donor_name=%20"
+    );
+    expect(data.thanks_usd).toBe(25);
+    expect(data.thanks_settled).toBe(true);
   });
 
   it("marks an ended campaign and a live campaign past its end as closed", async () => {

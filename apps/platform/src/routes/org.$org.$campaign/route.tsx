@@ -22,6 +22,7 @@ import {
   goal_amount,
   legal_line,
   shown_end,
+  shown_totals,
   tag_label,
   time_left,
   website_link,
@@ -136,13 +137,21 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
         name: loaderData.thanks_name ?? "You",
       }
     : null;
+  const totals = shown_totals({
+    raised: campaign.raised,
+    donors: donor_count,
+    open,
+    thanks_usd: loaderData.thanks_usd,
+    thanks_present: thanks != null,
+    already_settled: loaderData.thanks_settled,
+  });
   const raised_line =
     goal == null
-      ? `${to_usd(campaign.raised)} raised`
-      : `${to_usd(campaign.raised)} raised of ${to_usd(goal)} goal`;
+      ? `${to_usd(totals.raised)} raised`
+      : `${to_usd(totals.raised)} raised of ${to_usd(goal)} goal`;
   const donor_line = when
-    ? `${donor_label(donor_count)} · ${when}`
-    : donor_label(donor_count);
+    ? `${donor_label(totals.donors)} · ${when}`
+    : donor_label(totals.donors);
 
   return (
     <CampaignPage
@@ -159,9 +168,9 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
       story={{ value: campaign.description_pt }}
       videos={campaign.videos.map((url) => ({ url }))}
       raised_line={raised_line}
-      bar={goal == null ? null : { raised: campaign.raised, goal }}
+      bar={goal == null ? null : { raised: totals.raised, goal }}
       donor_line={donor_line}
-      no_gifts={donor_count === 0}
+      no_gifts={totals.no_gifts}
       open={open}
       ended_body={open ? null : closed_body(closed_at)}
       {...(thanks

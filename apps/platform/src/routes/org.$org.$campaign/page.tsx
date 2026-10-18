@@ -63,7 +63,7 @@ export function CampaignPage(props: ICampaignPage) {
       ([entry]) => {
         set_away(entry ? !entry.isIntersecting : false);
       },
-      { threshold: 0.5 }
+      { threshold: 0 }
     );
     io.observe(node);
     return () => io.disconnect();
@@ -75,14 +75,14 @@ export function CampaignPage(props: ICampaignPage) {
     <>
       <div
         inert={dialog ? true : undefined}
-        className="min-h-[100dvh] bg-background text-gray-12"
+        className="min-h-[100dvh] bg-background text-gray-12 [&:has([data-feed])_[data-sticky=header]]:lg:flex"
       >
         {sticky && (
           <header
             data-sticky="header"
-            className="fixed inset-x-0 top-0 z-sticky hidden h-14 border-b border-gray-6 bg-gray-1 min-[1440px]:flex"
+            className="fixed inset-x-0 top-0 z-sticky hidden h-14 border-b border-gray-6 bg-gray-1"
           >
-            <div className="mx-auto flex h-full w-full items-center justify-between gap-3 min-[1440px]:w-[1224px]">
+            <div className="mx-auto flex h-full w-full max-w-[1224px] items-center justify-between gap-3">
               <p className="min-w-0 truncate text-base font-semibold">
                 {props.title}
               </p>
@@ -96,24 +96,21 @@ export function CampaignPage(props: ICampaignPage) {
             </div>
           </header>
         )}
-        <div className="mx-auto w-full px-5 pt-4 pb-12 min-[1440px]:w-[1224px] min-[1440px]:px-0 min-[1440px]:pt-8 min-[1440px]:pb-16">
-          <div className="flex flex-col gap-10 min-[1440px]:grid min-[1440px]:grid-cols-[800px_392px] min-[1440px]:items-start min-[1440px]:gap-8">
+        <div className="mx-auto w-full max-w-[1224px] px-5 pt-4 pb-12 lg:px-0 lg:pt-8 lg:pb-16">
+          <div className="flex flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_392px] lg:items-start lg:gap-8">
             <div
               data-col="story"
-              className="contents min-[1440px]:flex min-[1440px]:min-w-0 min-[1440px]:flex-col min-[1440px]:gap-10"
+              className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-10"
             >
               <Mast {...props} />
               {props.hero && (
                 <Image
                   src={props.hero}
                   alt={props.hero_alt}
-                  className="order-5 aspect-video w-full rounded object-cover min-[1440px]:order-none"
+                  className="order-5 aspect-video w-full rounded object-cover lg:order-none"
                 />
               )}
-              <section
-                aria-label="Story"
-                className="order-6 min-[1440px]:order-none"
-              >
+              <section aria-label="Story" className="order-6 lg:order-none">
                 <RichText
                   readOnly
                   content={props.story}
@@ -123,14 +120,16 @@ export function CampaignPage(props: ICampaignPage) {
                   }}
                 />
               </section>
-              {props.videos.length > 0 && <Videos videos={props.videos} />}
+              {props.videos.length > 0 && (
+                <Videos title={props.title} videos={props.videos} />
+              )}
             </div>
             <div
               data-col="action"
-              className="contents min-[1440px]:flex min-[1440px]:min-w-0 min-[1440px]:flex-col min-[1440px]:gap-6 min-[1440px]:has-[[data-feed]]:gap-10"
+              className="contents lg:sticky lg:top-8 lg:self-start lg:flex lg:min-w-0 lg:flex-col lg:gap-6 lg:has-[[data-feed]]:static lg:has-[[data-feed]]:gap-10"
             >
               <Notice {...props} />
-              <div className="order-4 flex flex-col gap-2 min-[1440px]:order-none">
+              <div className="order-4 flex flex-col gap-2 lg:order-none">
                 {props.open && (
                   <button
                     ref={donate_ref}
@@ -150,14 +149,14 @@ export function CampaignPage(props: ICampaignPage) {
               <Progress {...props} />
               <DonorMsgs
                 layout="feed"
-                classes="order-8 min-[1440px]:order-none"
+                classes="order-8 lg:order-none"
                 id={props.donors.id}
                 campaign_id={props.donors.campaign_id}
                 highlight={props.highlight}
               />
             </div>
           </div>
-          <footer className="mt-10 flex w-full items-center gap-3 border-t py-6 min-[1440px]:mt-16">
+          <footer className="mt-10 flex w-full items-center gap-3 border-t py-6 lg:mt-16">
             <DappLogo classes="h-8" />
             <span className="text-sm font-semibold">Better Giving</span>
           </footer>
@@ -165,7 +164,7 @@ export function CampaignPage(props: ICampaignPage) {
         {sticky && (
           <div
             data-sticky="bar"
-            className="fixed inset-x-0 bottom-0 z-sticky flex gap-2 border-t border-gray-6 bg-gray-1 px-5 py-3 min-[1440px]:hidden"
+            className="fixed inset-x-0 bottom-0 z-sticky flex gap-2 border-t border-gray-6 bg-gray-1 px-5 py-3 lg:hidden"
           >
             <Share
               trigger="button"
@@ -209,8 +208,8 @@ export function CampaignPage(props: ICampaignPage) {
 
 function Mast(props: ICampaignPage) {
   return (
-    <div className="order-2 flex flex-col gap-3 min-[1440px]:order-none">
-      <div className="order-2 flex items-center gap-3 min-[1440px]:order-1">
+    <div className="order-2 flex flex-col gap-3 lg:order-none">
+      <div className="order-2 flex items-center gap-3 lg:order-1">
         {props.logo && (
           <Image
             src={props.logo}
@@ -243,7 +242,7 @@ function Mast(props: ICampaignPage) {
           )}
         </div>
       </div>
-      <h1 className="order-1 text-3xl font-bold tracking-tight text-balance break-words min-[1440px]:order-2 min-[1440px]:text-4xl">
+      <h1 className="order-1 text-3xl font-bold leading-[1.15] tracking-[-0.02em] text-balance break-words lg:order-2 lg:text-4xl">
         {props.title}
       </h1>
       {(props.tag || props.program_name) && (
@@ -267,7 +266,7 @@ function Mast(props: ICampaignPage) {
 function Notice(props: ICampaignPage) {
   if (!props.open && props.ended_body) {
     return (
-      <section className="order-1 min-[1440px]:order-none">
+      <section className="order-1 lg:order-none">
         <div className="rounded border border-gray-6 bg-panel">
           <div className="flex flex-col gap-2 p-4">
             <h2 className="text-xl font-bold">Giving has ended</h2>
@@ -279,7 +278,7 @@ function Notice(props: ICampaignPage) {
   }
   if (props.open && props.thanks) {
     return (
-      <section className="order-1 flex flex-col gap-2 rounded border border-green-6 bg-green-2 p-4 min-[1440px]:order-none">
+      <section className="order-1 flex flex-col gap-2 rounded border border-green-6 bg-green-2 p-4 lg:order-none">
         <h2 className="text-xl font-bold">Thank you</h2>
         <p>Your {props.thanks.amount} gift is in.</p>
       </section>
@@ -290,7 +289,7 @@ function Notice(props: ICampaignPage) {
 
 function Progress(props: ICampaignPage) {
   return (
-    <div className="order-3 flex flex-col gap-2 min-[1440px]:order-none">
+    <div className="order-3 flex flex-col gap-2 lg:order-none">
       <p className="text-base">{props.raised_line}</p>
       {props.bar && (
         <RaisedBar raised={props.bar.raised} goal={props.bar.goal} />
@@ -302,47 +301,45 @@ function Progress(props: ICampaignPage) {
 }
 
 function RaisedBar({ raised, goal }: { raised: number; goal: number }) {
-  const [track, set_track] = useState<HTMLDivElement | null>(null);
-  const [width, set_width] = useState(0);
-  useEffect(() => {
-    if (!track) return;
-    const measure = () => set_width(track.clientWidth);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(track);
-    return () => ro.disconnect();
-  }, [track]);
-  const ratio = goal > 0 ? Math.min(1, raised / goal) : 0;
-  const tiny = raised > 0 && width > 0 && width * ratio < 4;
-  const fill = raised <= 0 ? "0px" : tiny ? "4px" : `${ratio * 100}%`;
+  const percent = goal > 0 ? Math.min(100, (raised / goal) * 100) : 0;
+  const square = percent < 1;
+  const fill = raised <= 0 ? "0px" : `max(4px, ${percent}%)`;
   return (
     <div
-      ref={set_track}
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={goal}
       aria-valuenow={Math.min(raised, goal)}
       aria-label="Amount raised"
-      className={`h-2 w-full bg-gray-3 ${tiny ? "rounded-none" : "rounded"}`}
+      className={`h-2 w-full bg-gray-3 ${square ? "rounded-none" : "rounded"}`}
     >
       <div
-        className={`h-full bg-success ${tiny ? "rounded-none" : "rounded"}`}
+        className={`h-full bg-success ${square ? "rounded-none" : "rounded"}`}
         style={{ width: fill }}
       />
     </div>
   );
 }
 
-function Videos({ videos }: { videos: ICampaignPage["videos"] }) {
+function Videos({
+  title,
+  videos,
+}: {
+  title: string;
+  videos: ICampaignPage["videos"];
+}) {
   return (
-    <section className="order-7 flex flex-col gap-2 min-[1440px]:order-none">
-      <h2 className="text-xl font-bold">Videos</h2>
+    <section className="order-7 flex flex-col gap-2 lg:order-none">
       {videos.map((video) =>
         extract_youtube_id(video.url) ? (
           <Video
             key={video.url}
             url={video.url}
-            title={video.title ?? "Play video"}
+            title={
+              video.title
+                ? `Play video: ${video.title}`
+                : `Play video: ${title}`
+            }
           />
         ) : (
           <ExtLink key={video.url} href={video.url} className="link">

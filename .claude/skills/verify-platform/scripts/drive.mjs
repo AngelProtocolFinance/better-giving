@@ -1070,15 +1070,13 @@ const FLOWS = {
       await page.getByText("A winter story for the seeded campaign.").waitFor({
         timeout: T,
       });
-      await page.getByRole("heading", { name: "Videos" }).waitFor({
-        timeout: T,
-      });
-      const video = page.locator("iframe[title='Play video']");
+      const video = page.locator("iframe[title='Play video: Winter Drive']");
+      await video.waitFor({ timeout: T });
       await video.scrollIntoViewIfNeeded();
       await page.waitForFunction(
         () =>
           document
-            .querySelector("iframe[title='Play video']")
+            .querySelector("iframe[title='Play video: Winter Drive']")
             ?.getAttribute("src")
             ?.includes("aqz-KE-bpKQ"),
         { timeout: T }

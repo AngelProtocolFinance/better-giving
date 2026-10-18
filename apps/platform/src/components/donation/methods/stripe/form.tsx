@@ -294,7 +294,7 @@ export function Form(props: TMethodState<"stripe">) {
       disabled={
         shut || currency.isLoading || currency.isValidating || rhf.isSubmitting
       }
-      className={`${stack_wallets ? "" : "mt-auto "}btn btn-form-primary`}
+      className={`${stack_wallets ? "" : "mt-auto "}btn btn-form-primary min-h-11`}
       type="submit"
     >
       Continue with Card
@@ -444,7 +444,7 @@ export function Form(props: TMethodState<"stripe">) {
 
   return (
     <FieldSet onSubmit={on_submit} className="flex min-h-full flex-1 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col gap-y-2 p-4 @xl/steps:p-8">
+      <div className="flex min-h-0 flex-1 flex-col gap-y-2 p-5 sm:p-6">
         {fields}
         {after_rails}
       </div>
