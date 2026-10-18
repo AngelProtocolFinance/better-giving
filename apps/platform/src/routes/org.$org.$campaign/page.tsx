@@ -59,9 +59,12 @@ export function CampaignPage(props: ICampaignPage) {
       set_away(false);
       return;
     }
-    const io = new IntersectionObserver(([entry]) => {
-      set_away(entry ? !entry.isIntersecting : false);
-    });
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        set_away(entry ? !entry.isIntersecting : false);
+      },
+      { threshold: 0.5 }
+    );
     io.observe(node);
     return () => io.disconnect();
   }, [props.open]);
