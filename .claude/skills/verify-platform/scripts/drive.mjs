@@ -1074,7 +1074,7 @@ const FLOWS = {
       });
       const body = await page.locator("body").innerText();
       expect_ok(
-        body.includes("$0") && body.includes("$5,000"),
+        body.includes("$25") && body.includes("$5,000"),
         "progress/goal missing"
       );
       expect_ok(

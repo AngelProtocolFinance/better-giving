@@ -117,6 +117,10 @@ export function Paypal({
 }: Props) {
   const { don } = use_donation();
   const container_ref = useRef<HTMLDivElement>(null);
+  const root_ref = useRef<HTMLDivElement>(null);
+  // read during render: a later render rebuilds className from props and would
+  // put h-0 back. state would re-render and wipe the buttons this effect adds.
+  const shown = useRef(false);
 
   const { currency, frequency, is_partial } = p;
   const is_recurring = frequency !== "one-time";
@@ -148,6 +152,8 @@ export function Paypal({
   useEffect(() => {
     let mounted = true;
     let cleanup: (() => void) | null = null;
+    shown.current = false;
+    root_ref.current?.classList.add("h-0", "overflow-hidden");
 
     const init = async () => {
       // get_sdk clears its cache on failure, so the second call re-runs the
@@ -175,6 +181,11 @@ export function Paypal({
           `PayPal not available for ${currency.toUpperCase()}`
         );
       }
+
+      const reveal = () => {
+        shown.current = true;
+        root_ref.current?.classList.remove("h-0", "overflow-hidden");
+      };
 
       // returns both ids so each click can capture its own (no shared mutable
       // state — a rapid double-click must not let intent B's don_id overwrite
@@ -435,6 +446,7 @@ export function Paypal({
       cleanup = () => {
         for (const b of mounted_btns) b.remove();
       };
+      if (mounted_btns.length > 0) reveal();
     };
 
     init().catch((err) => {
@@ -458,7 +470,10 @@ export function Paypal({
   }, [currency, is_recurring]);
 
   return (
-    <div className={`relative isolate ${classes}`}>
+    <div
+      ref={root_ref}
+      className={`relative isolate ${shown.current ? "" : "h-0 overflow-hidden"} ${classes}`}
+    >
       {is_partial && (
         // a shield over the sdk's own buttons, not a control: its whole job is
         // to swallow a click on an unfilled form and run validation, so it is

@@ -164,6 +164,22 @@ where not exists (
   select 1 from donation_donors
   where donation_id = 'd0000000-0000-4000-8000-000000000001'
 );
+-- raised is the settled dist net, not the donation row. without this the
+-- page counts the donor and shows $0.
+insert into dists (
+  id, donation_id, status, date_created, to_id, amount_denom, amount, amount_usd, net
+)
+select
+  'dist-verify-campaign',
+  'd0000000-0000-4000-8000-000000000001',
+  'settled',
+  now(),
+  id,
+  'USD',
+  25, 25, 25
+from npos
+where registration_number = 'VERIFY0003'
+  and not exists (select 1 from dists where id = 'dist-verify-campaign');
 insert into donation_messages (id, donation_id, npo_id, donor_name, donor_message, date, amount)
 select
   'verify-msg-campaign',

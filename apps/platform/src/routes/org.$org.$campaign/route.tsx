@@ -260,6 +260,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                   </div>
                   <div className="mt-6 border-t pt-6">
                     <Share
+                      classes="-my-2"
                       recipientName={campaign.name}
                       url={canonical}
                       line="Gifts on this page go to the nonprofit running it."
@@ -319,6 +320,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                       source="bg-marketplace"
                       mode="live"
                       base_url={base_url}
+                      hide_unavailable_express
                       recipient={{
                         id: String(npo.id),
                         name: campaign.name,
@@ -359,8 +361,14 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                     <p className="mb-4 text-gray-11">
                       {closed_body(closed_at)}
                     </p>
-                    <Link to={org} className="btn btn-secondary">
-                      Visit {campaign.owner_name} profile
+                    <Link
+                      to={org}
+                      aria-label={`Visit ${campaign.owner_name} profile`}
+                      className="btn btn-secondary h-auto min-w-0"
+                    >
+                      <span className="line-clamp-2 min-w-0 text-center">
+                        Visit {campaign.owner_name} profile
+                      </span>
                     </Link>
                   </div>
                 )}

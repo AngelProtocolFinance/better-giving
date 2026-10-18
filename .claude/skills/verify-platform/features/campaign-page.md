@@ -10,7 +10,7 @@
 - `/org/<org-slug>` is a separate direct request. It is not a click.
 
 ## Driving it with drive.mjs
-- `node scripts/drive.mjs campaign-page` loads `GET /org/verify-campaign/winter` and checks the hero image (`/logo.png`), the title **Winter Drive**, the story, **$0** raised of a **$5,000** goal, **+100 USD**, **Continue with Card**, **Share on LinkedIn**, the supporter message **Seeded campaign thanks**, and the footer badge. **Profile only gift note** is absent. There is no **Log In** link.
+- `node scripts/drive.mjs campaign-page` loads `GET /org/verify-campaign/winter` and checks the hero image (`/logo.png`), the title **Winter Drive**, the story, **$25** raised of a **$5,000** goal, **+100 USD**, **Continue with Card**, **Share on LinkedIn**, the supporter message **Seeded campaign thanks**, and the footer badge. **Profile only gift note** is absent. There is no **Log In** link.
 - `<head>` title is `Winter Drive - Better Giving`. The description meta contains the story. `og:image` contains `logo.png`.
 - `GET /org/verify-campaign` is a 302 to `/marketplace/verify-campaign` (not followed).
 - `GET /org/verify-campaign/draft-hidden` and `GET /org/verify-campaign/no-such-campaign` are 404.

@@ -124,7 +124,7 @@ export function DonorMsgs({
             />
 
             <div className="min-w-0">
-              <p className="text-nowrap text-sm font-semibold">
+              <p className="break-words text-sm font-semibold">
                 {donor.donor_name}
               </p>
               {donor.donor_message && (
