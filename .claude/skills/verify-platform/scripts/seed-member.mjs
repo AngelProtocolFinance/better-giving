@@ -111,18 +111,18 @@ const seed = async (client) => {
     }
     await client.query(
       `insert into user_npo_memberships (user_id, npo_id)
-       select $1, id from npos where registration_number = 'VERIFY-0001'
+       select $1, id from npos where registration_number = 'VERIFY0001'
        on conflict do nothing`,
       [user_id]
     );
     const member = await client.query(
       `select 1 from user_npo_memberships m
        join npos n on n.id = m.npo_id
-       where m.user_id = $1 and n.registration_number = 'VERIFY-0001'`,
+       where m.user_id = $1 and n.registration_number = 'VERIFY0001'`,
       [user_id]
     );
     if (member.rowCount === 0) {
-      throw new Error("VERIFY-0001 is missing; seed.sql did not run");
+      throw new Error("VERIFY0001 is missing; seed.sql did not run");
     }
     await client.query(
       `delete from user_npo_memberships m
@@ -149,7 +149,7 @@ if (url) {
     } finally {
       client.release();
     }
-    process.stdout.write("seeded member of VERIFY-0001\n");
+    process.stdout.write("seeded member of VERIFY0001\n");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`seed-member: ${safe(message)}`);

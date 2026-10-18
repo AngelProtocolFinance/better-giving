@@ -158,6 +158,12 @@ insert into donations (
   'USD', 'one-time', 'bg-marketplace', 'stripe',
   null
 );
+insert into donation_donors (donation_id, email, name)
+select 'd0000000-0000-4000-8000-000000000001', 'campaign-donor@example.com', 'Campaign Donor'
+where not exists (
+  select 1 from donation_donors
+  where donation_id = 'd0000000-0000-4000-8000-000000000001'
+);
 insert into donation_messages (id, donation_id, npo_id, donor_name, donor_message, date, amount)
 select
   'verify-msg-campaign',

@@ -1066,10 +1066,9 @@ const FLOWS = {
         timeout: T,
       });
       const hero = await page
-        .locator("header div")
-        .first()
-        .evaluate((el) => el.style.backgroundImage);
-      expect_ok(hero.includes("logo.png"), `hero style ${hero}`);
+        .locator('[data-block="hero"]')
+        .getAttribute("src");
+      expect_ok((hero ?? "").includes("logo.png"), `hero src ${hero}`);
       await page.getByText("A winter story for the seeded campaign.").waitFor({
         timeout: T,
       });
@@ -1078,7 +1077,10 @@ const FLOWS = {
         body.includes("$0") && body.includes("$5,000"),
         "progress/goal missing"
       );
-      expect_ok(body.includes("Goal"), "goal label missing");
+      expect_ok(
+        body.includes("raised of") && body.includes("goal"),
+        "goal label missing"
+      );
       await page
         .getByRole("button", { name: "+100 USD" })
         .waitFor({ timeout: T });
