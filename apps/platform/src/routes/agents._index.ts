@@ -14,7 +14,7 @@ one-time USD donations. This page is its agent guide.
 
 ## Laira skill
 
-1. Ask the donor for a nonprofit name or EIN and call \`find_nonprofit\`. Entries in \`not_on_better_giving\` are not on Better Giving and cannot take a donation. Tell the donor, share \`onboarding_url\` so the nonprofit can join, and never call \`quote_donation\` with them. If \`external_lookup\` is not \`ok\` or \`not_found\`, say the IRS lookup is temporarily unavailable rather than saying the nonprofit was not found.
+1. Ask the donor for a nonprofit name or EIN and call \`find_nonprofit\`. Entries in \`not_on_better_giving\` are not on Better Giving and cannot take a donation. Tell the donor, share \`onboarding_url\` so the nonprofit can join, and never call \`quote_donation\` with them. If \`external_lookup\` is \`invalid_query\`, ask for a nonprofit name of at least two characters or a 9-digit EIN. If it is anything else besides \`ok\` or \`not_found\`, say the IRS lookup is temporarily unavailable rather than saying the nonprofit was not found.
 2. Confirm the recipient, donation amount, whether to add a 10%, 15%, 20%, or no Better Giving tip, and whether to cover the card fee.
 3. Call \`quote_donation\` and show every amount returned. If the recipient refuses tips, ask again without one. If the nonprofit requires a mailing address, this checkout cannot take the gift.
 4. Collect the donor's first name, last name, and email, then call \`donate\` with the unchanged quote token.
@@ -30,7 +30,7 @@ const tools = [
   {
     name: "find_nonprofit",
     description:
-      "Find a Better Giving nonprofit by name or US EIN. IRS-verified 501(c)(3)s that are not on Better Giving come back in not_on_better_giving and cannot take a donation: tell the donor and share onboarding_url, and never pass them to quote_donation. If external_lookup is not ok or not_found, the IRS lookup is temporarily unavailable.",
+      "Find a Better Giving nonprofit by name or US EIN. IRS-verified 501(c)(3)s that are not on Better Giving come back in not_on_better_giving and cannot take a donation: tell the donor and share onboarding_url, and never pass them to quote_donation. If external_lookup is invalid_query, ask for a name of at least two characters or a 9-digit EIN. If external_lookup is not ok, not_found, or invalid_query, the IRS lookup is temporarily unavailable.",
     inputSchema: {
       type: "object",
       properties: { query: { type: "string" }, ein: { type: "string" } },
