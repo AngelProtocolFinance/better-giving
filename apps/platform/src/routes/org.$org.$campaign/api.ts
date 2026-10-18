@@ -2,7 +2,11 @@ import { safeParse } from "valibot";
 import { get_session } from "#/.server/auth";
 import { resp } from "@/helpers/https";
 import { frequency } from "@/schemas";
-import { campaign_accepts, campaign_public } from "$/pg/queries/campaign";
+import {
+  campaign_accepts,
+  campaign_donor_count,
+  campaign_public,
+} from "$/pg/queries/campaign";
 import { npo_get } from "$/pg/queries/npo";
 import type { Route } from "./+types/route";
 
@@ -16,7 +20,10 @@ function prefill_amount(raw: string | null) {
 export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const campaign = await campaign_public(params.org, params.campaign);
   if (!campaign || campaign.owner_npo_id == null) throw resp.status(404);
-  const npo = await npo_get(campaign.owner_npo_id);
+  const [npo, donor_count] = await Promise.all([
+    npo_get(campaign.owner_npo_id),
+    campaign_donor_count(campaign.id),
+  ]);
   if (!npo || npo.active === false) throw resp.status(404);
 
   const url = new URL(request.url);
@@ -24,10 +31,14 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const freq_raw = url.searchParams.get("frequency");
   const freq_parsed = safeParse(frequency, freq_raw);
   const freq_opts = campaign.donate_frequencies ?? undefined;
+  const offered = freq_opts ?? ["one-time"];
   const frequency_ok =
-    freq_parsed.success &&
-    (freq_opts ?? ["one-time"]).includes(freq_parsed.output)
+    freq_parsed.success && offered.includes(freq_parsed.output)
       ? freq_parsed.output
+      : undefined;
+  const monthly_default =
+    campaign.campaign_type === "monthly" && offered.includes("monthly")
+      ? "monthly"
       : undefined;
 
   const { user } = await get_session(request);
@@ -45,7 +56,8 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     base_url: url.origin,
     canonical: `${url.origin}/org/${params.org}/${params.campaign}`,
     prefill_amount_usd: amount,
-    prefill_frequency: frequency_ok,
+    prefill_frequency: frequency_ok ?? monthly_default,
+    donor_count,
     user: user
       ? {
           email: user.email,

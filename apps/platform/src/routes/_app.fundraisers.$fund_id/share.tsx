@@ -48,7 +48,7 @@ const invested_line =
 export function Share(props: ShareProps) {
   return (
     <div className={`${props.classes ?? ""} grid py-2`}>
-      <h2 className="w-full pt-2 font-bold text-primary mb-2">
+      <h2 data-heading="" className="w-full pt-2 font-bold text-primary mb-2">
         Spread the word!
       </h2>
       <p className="text-gray-11 text-sm max-w-sm">
@@ -143,8 +143,8 @@ function Prompt({
         ref={msgRef}
         className="my-6 sm:my-10 mx-4 sm:mx-12 text-sm leading-normal p-3 border rounded"
       >
-        Donate to <span className="font-bold">{recipientName}</span>
-        on <span className="font-bold">{social.handle}</span>!{" "}
+        Donate to <span className="font-bold">{recipientName}</span> on{" "}
+        <span className="font-bold">{social.handle}</span>!{" "}
         {line ?? invested_line}
       </p>
       <ExtLink

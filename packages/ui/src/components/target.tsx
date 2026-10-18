@@ -94,7 +94,7 @@ Target.Text = ({ classes = "" }) => {
   );
 };
 
-function smart_next(progress: number): number {
+export function smart_next(progress: number): number {
   const base = 100;
   const multiplier = 2;
   let next = base;

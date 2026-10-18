@@ -33,6 +33,7 @@ vi.mock("#/.server/auth", async () =>
 );
 
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
+const { donation_donors, donations } = await import("$/pg/schema/donation");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { loader } = await import("./api");
 
@@ -48,6 +49,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const db = test_db.current!.db;
+  await db.delete(donation_donors);
+  await db.delete(donations);
   await db.delete(campaign_members);
   await db.delete(campaigns);
   await db.delete(npos);
@@ -87,6 +90,8 @@ async function campaign(
     slug?: string;
     status?: "draft" | "live" | "ended";
     ends_at?: string | null;
+    campaign_type?: "monthly";
+    donate_frequencies?: ("one-time" | "monthly")[];
   } = {}
 ) {
   const id = o.id ?? "camp-public";
@@ -99,8 +104,9 @@ async function campaign(
     status: o.status ?? "live",
     ends_at: o.ends_at ?? null,
     description_pt: "[]",
+    campaign_type: o.campaign_type,
     donate_methods: ["stripe"],
-    donate_frequencies: ["one-time", "monthly"],
+    donate_frequencies: o.donate_frequencies ?? ["one-time", "monthly"],
     published_at: "2026-01-01T00:00:00.000Z",
   });
   await test_db.current!.db.insert(campaign_members).values({
@@ -148,6 +154,24 @@ describe("public campaign page", () => {
     expect(data.closed).toBe(false);
     expect(data.prefill_amount_usd).toBeUndefined();
     expect(data.prefill_frequency).toBeUndefined();
+    expect(data.donor_count).toBe(0);
+  });
+
+  it("defaults a monthly campaign to monthly unless the query asks otherwise", async () => {
+    const npo = await org();
+    await campaign(npo.id, { campaign_type: "monthly" });
+    const monthly = await load("https://x/org/acme/winter");
+    expect(monthly.prefill_frequency).toBe("monthly");
+    const once = await load("https://x/org/acme/winter?frequency=one-time");
+    expect(once.prefill_frequency).toBe("one-time");
+    await campaign(npo.id, {
+      id: "once-only",
+      slug: "once-only",
+      campaign_type: "monthly",
+      donate_frequencies: ["one-time"],
+    });
+    const blocked = await load("https://x/org/acme/once-only");
+    expect(blocked.prefill_frequency).toBeUndefined();
   });
 
   it("prefills amount and frequency when both are valid for the campaign", async () => {
@@ -159,6 +183,34 @@ describe("public campaign page", () => {
     expect(data.prefill_amount_usd).toBe("50");
     expect(data.prefill_frequency).toBe("monthly");
     expect(data.npo.id).toBe(npo.id);
+  });
+
+  it("counts distinct settled donors and skips an unfinished gift", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    async function gift(id: string, email: string, status: string) {
+      await db.insert(donations).values({
+        id,
+        upusd: 10,
+        status,
+        amount_base: 10,
+        amount_tip: 0,
+        amount_fee_allowance: 0,
+        currency: "USD",
+        frequency: "one-time",
+        source: "bg-marketplace",
+        via: "stripe",
+        campaign_id: "camp-public",
+      });
+      await db.insert(donation_donors).values({ donation_id: id, email });
+    }
+    await gift("g1", "Ada@test.com", "settled");
+    await gift("g2", "ada@test.com", "settled");
+    await gift("g3", "Bea@test.com", "settled");
+    await gift("g4", "Cara@test.com", "intent");
+    const data = await load("https://x/org/acme/winter");
+    expect(data.donor_count).toBe(2);
   });
 
   it("marks an ended campaign and a live campaign past its end as closed", async () => {

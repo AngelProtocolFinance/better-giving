@@ -9,6 +9,7 @@ export function extract_youtube_id(url: string): string | null {
 interface IYouTubePlayer {
   url: string;
   classes?: string;
+  title?: string;
 }
 
 interface IYouTubeEmbed extends IYouTubePlayer {
@@ -47,7 +48,7 @@ export function YouTubePlayer(props: YouTubePlayerProps) {
       src={`https://www.youtube-nocookie.com/embed/${id}${controls ? "" : "?controls=0"}`}
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowFullScreen
-      title="YouTube video"
+      title={props.title ?? "YouTube video"}
       loading="lazy"
     />
   );

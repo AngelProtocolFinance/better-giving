@@ -9,7 +9,7 @@ import {
   type TCampaignStatus,
   type TCampaignType,
 } from "../schema/campaign";
-import { donations } from "../schema/donation";
+import { donation_donors, donations } from "../schema/donation";
 import { npos } from "../schema/npo";
 import { v_campaign_total_usd } from "../schema/views";
 import { from_target, to_target } from "./fmt";
@@ -128,6 +128,27 @@ export async function campaign_public(
     )
   );
   return row && present(row);
+}
+
+/** distinct donors with a settled gift. messages are not donors. */
+export async function campaign_donor_count(
+  campaign_id: string
+): Promise<number> {
+  const [row] = await db
+    .select({
+      n: sql<number>`count(distinct lower(${donation_donors.email}))`.mapWith(
+        Number
+      ),
+    })
+    .from(donations)
+    .innerJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
+    .where(
+      and(
+        eq(donations.campaign_id, campaign_id),
+        eq(donations.status, "settled")
+      )
+    );
+  return row?.n ?? 0;
 }
 
 export async function campaign_live_for_npo(
