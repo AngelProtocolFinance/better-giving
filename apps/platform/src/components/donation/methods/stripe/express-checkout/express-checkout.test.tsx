@@ -32,6 +32,25 @@ const billing_init = () => ({
 });
 const el = vi.hoisted(() => ({
   load_error: false,
+  ready_calls: 0,
+  // undefined: the element is ready and no wallet can show.
+  methods: {
+    amazonPay: false,
+    applePay: true,
+    googlePay: false,
+    link: false,
+    paypal: false,
+    klarna: false,
+  } as
+    | {
+        amazonPay: boolean;
+        applePay: boolean;
+        googlePay: boolean;
+        link: boolean;
+        paypal: boolean;
+        klarna: boolean;
+      }
+    | undefined,
   error: { message: "element iframe blocked" } as Record<string, unknown>,
   billing: {
     email: "john@doe.com",
@@ -78,7 +97,7 @@ vi.mock("@stripe/stripe-js", () => ({
 }));
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: ({ children }: any) => children,
-  ExpressCheckoutElement: ({ onLoadError, onConfirm }: any) => {
+  ExpressCheckoutElement: ({ onLoadError, onConfirm, onReady }: any) => {
     // mount-only: `onLoadError` is an inline arrow, so keeping it in the deps
     // would re-fire the handler on every re-render and quietly turn the
     // `toHaveBeenCalledOnce()` assertions below into "called at least once".
@@ -86,7 +105,13 @@ vi.mock("@stripe/react-stripe-js", () => ({
     useEffect(() => {
       if (el.load_error) {
         onLoadError({ elementType: "expressCheckout", error: el.error });
+        return;
       }
+      onReady?.({
+        elementType: "expressCheckout",
+        availablePaymentMethods: el.methods,
+      });
+      el.ready_calls += 1;
     }, []);
     // the label gives preflight a box to click; empty, the button is 0x0
     return (
@@ -158,6 +183,15 @@ describe("stripe express: an element that reports a load error", () => {
   });
   afterEach(() => {
     el.load_error = false;
+    el.ready_calls = 0;
+    el.methods = {
+      amazonPay: false,
+      applePay: true,
+      googlePay: false,
+      link: false,
+      paypal: false,
+      klarna: false,
+    };
     el.error = { message: "element iframe blocked" };
     reported.length = 0;
     vi.restoreAllMocks();
@@ -229,6 +263,46 @@ describe("stripe express: an element that reports a load error", () => {
 
     await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
     expect(on_error).toHaveBeenCalledWith(load_failed);
+  });
+});
+
+describe("stripe express: the slot stays collapsed until a wallet is there", () => {
+  afterEach(() => {
+    el.load_error = false;
+    el.ready_calls = 0;
+    el.methods = {
+      amazonPay: false,
+      applePay: true,
+      googlePay: false,
+      link: false,
+      paypal: false,
+      klarna: false,
+    };
+  });
+
+  test("a ready element with no payment method takes no height and says nothing", async () => {
+    el.methods = undefined;
+    const on_unavailable = vi.fn();
+    const on_error = vi.fn();
+    const Stub = mount({ on_error, on_unavailable });
+    const screen = await render(<Stub />);
+
+    const btn = screen.getByTestId("express-btn");
+    await vi.waitFor(() => expect(el.ready_calls).toBe(1));
+    expect(btn.element().parentElement?.className ?? "").toContain("h-0");
+    expect(btn.element().parentElement?.className).toContain("overflow-hidden");
+    expect(on_unavailable).not.toHaveBeenCalled();
+    expect(on_error).not.toHaveBeenCalled();
+  });
+
+  test("a ready wallet is allowed to take height", async () => {
+    const Stub = mount({ on_error: vi.fn() });
+    const screen = await render(<Stub />);
+
+    const btn = screen.getByTestId("express-btn");
+    await vi.waitFor(() =>
+      expect(btn.element().parentElement?.className ?? "").not.toContain("h-0")
+    );
   });
 });
 

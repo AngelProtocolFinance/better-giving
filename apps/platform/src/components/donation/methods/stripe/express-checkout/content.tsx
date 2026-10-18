@@ -4,6 +4,7 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
+import { useRef } from "react";
 import { href } from "react-router";
 import { report_degraded, report_error } from "#/errors/report";
 import { GENERIC_ERROR_MESSAGE } from "@/constants/common";
@@ -68,6 +69,23 @@ export function Content({
   const elements = useElements();
   const stripe = useStripe();
   const redirect = use_donation_redirect();
+  const root_ref = useRef<HTMLDivElement>(null);
+  // read during render: a later render rebuilds className from this and would
+  // put h-0 back on a slot that already has a button.
+  const shown = useRef(false);
+
+  const show_if_wallet: NonNullable<ExpressCheckoutElementProps["onReady"]> = (
+    ev
+  ) => {
+    // ready with no method still mounts an empty frame. only a method that
+    // will draw a button is allowed to take height.
+    const open =
+      !!ev.availablePaymentMethods &&
+      Object.values(ev.availablePaymentMethods).some(Boolean);
+    shown.current = open;
+    root_ref.current?.classList.toggle("h-0", !open);
+    root_ref.current?.classList.toggle("overflow-hidden", !open);
+  };
 
   const on_confirm: ExpressCheckoutElementProps["onConfirm"] = async (ev) => {
     if (!stripe || !elements) return;
@@ -191,44 +209,52 @@ export function Content({
   };
 
   return (
-    <ExpressCheckoutElement
-      id="express-checkout"
-      className={classes}
-      onConfirm={on_confirm}
-      onClick={on_click}
-      onLoadError={(ev) => {
-        // pre-interaction: the element never came up, so nothing has been paid
-        // and no donor action is waiting on an answer.
-        //
-        // two unrelated failures arrive here. `api_connection_error` is
-        // stripe's error `type` for "the browser could not reach us" — the
-        // donor's network, nothing to fix. anything else is the request we
-        // sent, and an amount stripe rejects for the currency lands here too,
-        // so it has to stay loud.
-        //
-        // stripe localises `message` to the donor's browser and the tracker
-        // groups on the message, so the stable type/code is what gets reported
-        // and the localised error rides along as context.
-        const { type: kind, code } = ev.error;
-        const report =
-          kind === "api_connection_error" ? report_degraded : report_error;
-        report(
-          new Error(
-            `stripe express checkout failed to load: ${kind}${code ? ` (${code})` : ""}`
-          ),
-          { stripe_error: ev.error }
-        );
-        (on_unavailable ?? on_error)(LOAD_FAILED);
-      }}
-      options={{
-        layout: { overflow: "never" },
-        buttonTheme: {
-          googlePay: "white",
-          applePay: "white",
-        },
-        emailRequired: true,
-        billingAddressRequired: true,
-      }}
-    />
+    // the element paints an empty frame before ready or loaderror. clipped
+    // until a wallet button is actually there.
+    <div
+      ref={root_ref}
+      className={shown.current ? undefined : "h-0 overflow-hidden"}
+    >
+      <ExpressCheckoutElement
+        id="express-checkout"
+        className={classes}
+        onConfirm={on_confirm}
+        onClick={on_click}
+        onReady={show_if_wallet}
+        onLoadError={(ev) => {
+          // pre-interaction: the element never came up, so nothing has been paid
+          // and no donor action is waiting on an answer.
+          //
+          // two unrelated failures arrive here. `api_connection_error` is
+          // stripe's error `type` for "the browser could not reach us" — the
+          // donor's network, nothing to fix. anything else is the request we
+          // sent, and an amount stripe rejects for the currency lands here too,
+          // so it has to stay loud.
+          //
+          // stripe localises `message` to the donor's browser and the tracker
+          // groups on the message, so the stable type/code is what gets reported
+          // and the localised error rides along as context.
+          const { type: kind, code } = ev.error;
+          const report =
+            kind === "api_connection_error" ? report_degraded : report_error;
+          report(
+            new Error(
+              `stripe express checkout failed to load: ${kind}${code ? ` (${code})` : ""}`
+            ),
+            { stripe_error: ev.error }
+          );
+          (on_unavailable ?? on_error)(LOAD_FAILED);
+        }}
+        options={{
+          layout: { overflow: "never" },
+          buttonTheme: {
+            googlePay: "white",
+            applePay: "white",
+          },
+          emailRequired: true,
+          billingAddressRequired: true,
+        }}
+      />
+    </div>
   );
 }

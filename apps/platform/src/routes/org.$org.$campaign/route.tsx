@@ -248,7 +248,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                       </span>
                       {when && (
                         <>
-                          <span className="mx-1.5" aria-hidden="true">
+                          <span className="mx-2.5" aria-hidden="true">
                             ·
                           </span>
                           <span className="font-semibold text-gray-12">
@@ -320,7 +320,6 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                       source="bg-marketplace"
                       mode="live"
                       base_url={base_url}
-                      hide_unavailable_express
                       recipient={{
                         id: String(npo.id),
                         name: campaign.name,
@@ -364,11 +363,13 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                     <Link
                       to={org}
                       aria-label={`Visit ${campaign.owner_name} profile`}
-                      className="btn btn-secondary h-auto min-w-0"
+                      className="btn btn-secondary h-auto max-w-full min-w-0 gap-x-1"
                     >
+                      <span className="shrink-0">Visit</span>
                       <span className="line-clamp-2 min-w-0 text-center">
-                        Visit {campaign.owner_name} profile
+                        {campaign.owner_name}
                       </span>
+                      <span className="shrink-0">profile</span>
                     </Link>
                   </div>
                 )}
