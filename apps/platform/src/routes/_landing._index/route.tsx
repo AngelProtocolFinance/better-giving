@@ -1,5 +1,3 @@
-import type { LinksFunction } from "react-router";
-import donation_form from "#/assets/images/donation-form.png";
 import { app_name, base_url } from "#/constants/env";
 import { socials } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
@@ -54,10 +52,6 @@ export const meta: Route.MetaFunction = () =>
     description: `Raise more this quarter and grow funds together. ${app_name} offers donation forms, savings, and fund growth tools. No platform fee while the optional donor contribution stays on.`,
     jsonld: [organization, website],
   });
-
-export const links: LinksFunction = () => [
-  { rel: "preload", href: donation_form, as: "image", fetchPriority: "high" },
-];
 
 export default function Page() {
   return (
