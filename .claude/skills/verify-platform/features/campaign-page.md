@@ -10,7 +10,7 @@
 - `/org/<org-slug>` is a separate direct request. It is not a click.
 
 ## Driving it with drive.mjs
-- `node scripts/drive.mjs campaign-page` loads `GET /org/verify-campaign/winter` and checks the hero image (`img.aspect-video`, `/logo.png`), the title **Winter Drive**, the story, the frame titled **Play video: Winter Drive** for `aqz-KE-bpKQ`, **$25** raised of a **$5,000** goal, the supporter message **Seeded campaign thanks**, and the footer badge. **Profile only gift note** is absent. There is no **Log In** link. The body does not contain **About this campaign** or **Spread the word!**. **+100 USD**, **Continue with Card**, and **Share on LinkedIn** are absent until their dialogs open.
+- `node scripts/drive.mjs campaign-page` loads `GET /org/verify-campaign/winter` and checks the hero image (`img.aspect-video`, `/logo.png`), the title **Winter Drive**, the story, the frame titled **Play video: Winter Drive** for `aqz-KE-bpKQ`, **$25** raised of a **$5,000** goal, the supporter message **Seeded campaign thanks**, and the footer badge. **Profile only gift note** is absent. There is no **Log In** link. The body does not contain **About this campaign** or **Spread the word!**, and there is no Videos heading. **+100 USD**, **Continue with Card**, and **Share on LinkedIn** are absent until their dialogs open.
 - It clicks **Donate** and then sees **Continue with Card**. It closes that dialog, clicks **Share**, and then sees **Share on LinkedIn**.
 - `<head>` title is `Winter Drive - Better Giving`. The description meta contains the story. `og:image` contains `logo.png`.
 - `GET /org/verify-campaign` is a 302 to `/marketplace/verify-campaign` (not followed).

@@ -1098,6 +1098,13 @@ const FLOWS = {
         !body.includes("Spread the word!"),
         "page contains Spread the word!"
       );
+      // Heading role, not a body substring: a story can say "videos".
+      expect_ok(
+        (await page
+          .getByRole("heading", { name: "Videos", exact: true })
+          .count()) === 0,
+        "page has a Videos heading"
+      );
       expect_ok(
         (await page.getByRole("button", { name: "+100 USD" }).count()) === 0,
         "+100 USD is on the page before Donate"
@@ -1198,7 +1205,7 @@ const FLOWS = {
           : "supporter wall on the first load",
         `GET /org/${ORG}/${SEEDED_CAMPAIGN} → 200, hero, story, video, goal, wall, badge, no Log In`,
         "Donate opens Continue with Card; Share opens Share on LinkedIn",
-        "no About this campaign or Spread the word!",
+        "no About this campaign, Spread the word!, or Videos heading",
         `title "${title}", description and og:image set`,
         `GET /org/${ORG} → 302 ${location}`,
         "draft-hidden and no-such-campaign → 404",
