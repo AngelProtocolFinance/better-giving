@@ -113,7 +113,7 @@ export default function TermsReferrals() {
             and may waive any amount in whole or in part at its discretion. This
             section applies only to donations made on or after the later of (i)
             12:00 a.m. Eastern Time ({TERMS_ZONE}) on{" "}
-            {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
+            {/* same TERMS_EFFECTIVE as the effective line; a later cutoff needs its own date */}
             {EFFECTIVE} and (ii) the date these revised Program Terms take
             effect.
           </p>
