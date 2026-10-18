@@ -54,6 +54,16 @@ export function format_ended_date(ends_at: string): string {
   return ended_date.format(new Date(ends_at));
 }
 
+/**
+ * a future `ends_at` is the schedule. an early close does not rewrite it, so
+ * that date is not when donations stopped.
+ */
+export function shown_end(ends_at: string | null, now: Date): string | null {
+  if (!ends_at) return null;
+  if (new Date(ends_at).getTime() > now.getTime()) return null;
+  return ends_at;
+}
+
 export function ended_label(ends_at: string | null): string {
   if (!ends_at) return "Ended";
   return `Ended ${format_ended_date(ends_at)}`;

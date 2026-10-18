@@ -1,7 +1,7 @@
 // extracts video id from youtube.com/watch, youtu.be, and embed urls
 export function extract_youtube_id(url: string): string | null {
   const match = url.match(
-    /(?:youtube\.com\/(?:watch\?.*v=|embed\/)|youtu\.be\/|youtube-nocookie\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+    /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/|youtube-nocookie\.com\/embed\/)([a-zA-Z0-9_-]{11})/
   );
   return match?.[1] ?? null;
 }

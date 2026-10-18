@@ -5,6 +5,7 @@ import {
   ended_label,
   goal_amount,
   goal_percent,
+  shown_end,
   tag_label,
   time_left,
 } from "./format";
@@ -58,5 +59,14 @@ describe("campaign page copy", () => {
     expect(closed_body("2026-10-12T23:59:59.999Z")).toBe(
       "It stopped taking donations on Oct 12, 2026. Thank you to everyone who gave."
     );
+  });
+
+  it("drops a future end date after an early close", () => {
+    const now = new Date("2026-10-18T12:00:00.000Z");
+    expect(shown_end("2026-12-31T23:59:59.999Z", now)).toBeNull();
+    expect(shown_end("2026-10-12T23:59:59.999Z", now)).toBe(
+      "2026-10-12T23:59:59.999Z"
+    );
+    expect(shown_end(null, now)).toBeNull();
   });
 });

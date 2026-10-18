@@ -1,5 +1,5 @@
 import { Progress as ArkProgress } from "@ark-ui/react/progress";
-import { Image } from "@better-giving/ui";
+import { ExtLink, Image } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import {
   isRouteErrorResponse,
@@ -13,6 +13,7 @@ import { ErrorElement } from "#/components/error/error-element";
 import { DappLogo } from "#/components/image";
 import { RichText, richtext_styles } from "#/components/rich-text";
 import { to_text } from "#/components/rich-text/helpers";
+import { extract_youtube_id } from "#/components/youtube-player";
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { use_now } from "#/hooks/use-now";
@@ -26,6 +27,7 @@ import {
   ended_label,
   goal_amount,
   goal_percent,
+  shown_end,
   tag_label,
   time_left,
 } from "./format";
@@ -124,11 +126,12 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
   const goal = goal_amount(campaign.target, campaign.raised);
   const percent = goal == null ? null : goal_percent(campaign.raised, goal);
   const tag = tag_label(campaign.campaign_type);
+  const closed_at = open ? null : shown_end(campaign.ends_at, now);
   const when = open
     ? campaign.ends_at
       ? time_left(campaign.ends_at, now)
       : null
-    : ended_label(campaign.ends_at);
+    : ended_label(closed_at);
   const org = `/marketplace/${params.org}`;
 
   return (
@@ -287,13 +290,19 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                     <h3 className="text-lg font-semibold" data-heading="">
                       Videos
                     </h3>
-                    {campaign.videos.map((url, i) => (
-                      <Video
-                        key={url}
-                        url={url}
-                        title={`Campaign video ${i + 1}`}
-                      />
-                    ))}
+                    {campaign.videos.map((url, i) =>
+                      extract_youtube_id(url) ? (
+                        <Video
+                          key={url}
+                          url={url}
+                          title={`Campaign video ${i + 1}`}
+                        />
+                      ) : (
+                        <ExtLink key={url} href={url} className="link">
+                          Campaign video {i + 1}
+                        </ExtLink>
+                      )
+                    )}
                   </div>
                 )}
               </section>
@@ -348,7 +357,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
                       This campaign has ended
                     </h2>
                     <p className="mb-4 text-gray-11">
-                      {closed_body(campaign.ends_at)}
+                      {closed_body(closed_at)}
                     </p>
                     <Link to={org} className="btn btn-secondary">
                       Visit {campaign.owner_name} profile
