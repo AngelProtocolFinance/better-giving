@@ -86,6 +86,7 @@ export const top_level_route_segments = [
   "api",
   "blog",
   "check-email",
+  "connector",
   "dashboard",
   "donate",
   "donate-fund",
