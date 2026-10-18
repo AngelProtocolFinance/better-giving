@@ -104,7 +104,7 @@ from npos where registration_number = 'VERIFY0003';
 insert into campaigns (
   id, owner_npo_id, creator_id, name, slug, description_pt, banner, logo,
   status, published_at, ends_at, donate_methods, donate_frequencies,
-  increments, target_number
+  increments, target_number, videos
 )
 select
   'c0ffee00-0000-4000-8000-000000000001',
@@ -121,8 +121,19 @@ select
   array['stripe'],
   array['one-time','monthly'],
   '[{"value":"100","label":""}]'::jsonb,
-  5000
-from npos where registration_number = 'VERIFY0003';
+  5000,
+  array['https://www.youtube.com/watch?v=aqz-KE-bpKQ']::text[]
+from npos where registration_number = 'VERIFY0003'
+  and not exists (
+    select 1 from campaigns
+    where id = 'c0ffee00-0000-4000-8000-000000000001'
+  );
+-- a database that already has Winter Drive keeps the old row. the insert
+-- above does not rewrite it, so an empty videos array still needs this.
+update campaigns
+set videos = array['https://www.youtube.com/watch?v=aqz-KE-bpKQ']::text[]
+where id = 'c0ffee00-0000-4000-8000-000000000001'
+  and videos = '{}';
 insert into campaign_members (campaign_id, npo_id)
 select 'c0ffee00-0000-4000-8000-000000000001', id
 from npos where registration_number = 'VERIFY0003';

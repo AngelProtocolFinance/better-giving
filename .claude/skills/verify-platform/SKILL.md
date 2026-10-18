@@ -68,7 +68,7 @@ A listed entry point the drive did not take is not verified. `results.json` reco
 | `agents-find` | direct `POST /agents/mcp` `find_nonprofit` for the seeded nonprofit, plus a flagged off-marketplace EIN from the nonprofits stub, and `quote_donation` refuses that EIN. No screenshot. |
 | `org-slug` | sign in as the seeded npo admin, click sidebar `Organization`, set `verify-test`, reload to the disabled field and the set-once note, then `GET /donate/verify-test` and `GET /marketplace/verify-test`. |
 | `campaign-admin` | sign in as the seeded npo admin, click sidebar Campaigns, open the pinned profile card, publish a new campaign, see it live at $0 next to the existing listing, decode the campaign QR. Screenshots of the donor dashboard, the list, and `/fundraisers/<id>` contain no "fundraiser". |
-| `campaign-page` | direct `GET /org/<org>/<campaign>` 200 with hero, story, goal, donate box, Share, supporter wall, and badge, and no Log In. Head title, description, and hero. `GET /org/<org>` 302 to `/marketplace/<org>`. Draft and unknown slugs 404. |
+| `campaign-page` | direct `GET /org/<org>/<campaign>` 200 with hero, story, video, goal, donate box, Share, supporter wall, and badge, and no Log In. Head title, description, and hero. `GET /org/<org>` 302 to `/marketplace/<org>`. Draft and unknown slugs 404. |
 | `campaign-donate` | on the campaign page, `?amount=50&frequency=monthly` presets those values; +100 USD → card → donor info → summary $100.00; the intent POST carries `campaign_id`. With filler keys the card step is blocked; with test keys, types 4242…. |
 
 `scripts/contract.mjs` checks keyless hello against an origin you pass; it does not run the browser Allow flow.

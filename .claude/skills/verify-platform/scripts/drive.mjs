@@ -1072,6 +1072,19 @@ const FLOWS = {
       await page.getByText("A winter story for the seeded campaign.").waitFor({
         timeout: T,
       });
+      await page.getByRole("heading", { name: "Videos" }).waitFor({
+        timeout: T,
+      });
+      const video = page.locator("iframe[title='Campaign video 1']");
+      await video.scrollIntoViewIfNeeded();
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector("iframe[title='Campaign video 1']")
+            ?.getAttribute("src")
+            ?.includes("aqz-KE-bpKQ"),
+        { timeout: T },
+      );
       const body = await page.locator("body").innerText();
       expect_ok(
         body.includes("$25") && body.includes("$5,000"),
@@ -1147,7 +1160,7 @@ const FLOWS = {
         wall_tries > 1
           ? `supporter wall after reload ${wall_tries} of the same URL`
           : "supporter wall on the first load",
-        `GET /org/${ORG}/${SEEDED_CAMPAIGN} → 200, hero, story, goal, donate box, Share, wall, badge, no Log In`,
+        `GET /org/${ORG}/${SEEDED_CAMPAIGN} → 200, hero, story, video, goal, donate box, Share, wall, badge, no Log In`,
         `title "${title}", description and og:image set`,
         `GET /org/${ORG} → 302 ${location}`,
         "draft-hidden and no-such-campaign → 404",
