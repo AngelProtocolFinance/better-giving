@@ -15,6 +15,7 @@ import {
 } from "../../common/return-url";
 import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { use_donation } from "../../context";
+import { pin_bar } from "../../pin";
 import { Loader } from "../loader";
 
 /** `done` is a paid donation whose trip to the receipt never happened: the
@@ -122,6 +123,21 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
     return <ErrorTrigger error={status.error} />;
   }
 
+  const pin = don.pin === true && status !== "init";
+  const pay = (
+    <button
+      className={
+        pin ? "btn btn-form-primary w-full" : "btn btn-form-primary w-full mt-6"
+      }
+      disabled={!stripe || !elements || status !== "ready" || !complete}
+      type="submit"
+    >
+      <LoadText text="Processing..." is_loading={status === "submitting"}>
+        Donate Now
+      </LoadText>
+    </button>
+  );
+
   return (
     <form
       data-testid="stripe-checkout-form"
@@ -150,16 +166,15 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
       />
       {status === "init" ? (
         <Loader />
-      ) : (
-        <button
-          className="btn btn-form-primary w-full mt-6"
-          disabled={!stripe || !elements || status !== "ready" || !complete}
-          type="submit"
+      ) : pin ? (
+        <div
+          data-pin=""
+          className={`${pin_bar} order-1 -mx-4 -mb-4 @xl/steps:-mx-8 @xl/steps:-mb-8`}
         >
-          <LoadText text="Processing..." is_loading={status === "submitting"}>
-            Donate Now
-          </LoadText>
-        </button>
+          {pay}
+        </div>
+      ) : (
+        pay
       )}
       {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-gray-11" />}
     </form>

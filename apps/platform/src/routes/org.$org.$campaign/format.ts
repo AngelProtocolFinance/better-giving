@@ -49,6 +49,23 @@ export function percent_label(raised: number, goal: number): string {
   return `${n}%`;
 }
 
+/** the page joins this with the website, so the separating dot stays there. */
+export function legal_line(ein: string | null): string | undefined {
+  if (!ein) return;
+  return `501(c)(3) · EIN ${ein}`;
+}
+
+export function website_link(
+  url: string | null
+): { href: string; label: string } | undefined {
+  if (!url) return;
+  try {
+    return { href: url, label: new URL(url).host };
+  } catch {
+    return { href: url, label: url };
+  }
+}
+
 export function donor_label(n: number): string {
   if (n === 1) return "1 donor";
   return `${n.toLocaleString("en-US")} donors`;

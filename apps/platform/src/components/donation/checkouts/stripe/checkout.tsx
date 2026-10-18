@@ -73,7 +73,11 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
 
   return (
     <Summary
-      classes="grid content-start p-4 @xl/steps:p-8"
+      classes={
+        don.pin
+          ? "flex min-h-full flex-1 flex-col p-4 @xl/steps:p-8"
+          : "grid content-start p-4 @xl/steps:p-8"
+      }
       on_back={() =>
         to_step(bank_only ? "stripe_bank" : "stripe", props, "donor", don_set)
       }

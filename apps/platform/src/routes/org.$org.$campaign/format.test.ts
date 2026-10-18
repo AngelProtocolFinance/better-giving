@@ -5,10 +5,12 @@ import {
   ended_label,
   goal_amount,
   goal_percent,
+  legal_line,
   percent_label,
   shown_end,
   tag_label,
   time_left,
+  website_link,
 } from "./format";
 
 describe("campaign page copy", () => {
@@ -79,5 +81,24 @@ describe("campaign page copy", () => {
       "2026-10-12T23:59:59.999Z"
     );
     expect(shown_end(null, now)).toBeNull();
+  });
+
+  it("states a 501(c)(3) ein and skips a blank one", () => {
+    expect(legal_line("22-2222222")).toBe("501(c)(3) · EIN 22-2222222");
+    expect(legal_line(null)).toBeUndefined();
+    expect(legal_line("")).toBeUndefined();
+  });
+
+  it("labels a website with its host, or the raw string when the url does not parse", () => {
+    expect(website_link("https://acme.example/give")).toEqual({
+      href: "https://acme.example/give",
+      label: "acme.example",
+    });
+    expect(website_link("not a url")).toEqual({
+      href: "not a url",
+      label: "not a url",
+    });
+    expect(website_link(null)).toBeUndefined();
+    expect(website_link("")).toBeUndefined();
   });
 });

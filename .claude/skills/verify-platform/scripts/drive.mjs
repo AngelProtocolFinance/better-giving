@@ -1065,9 +1065,7 @@ const FLOWS = {
       await page.getByRole("heading", { name: "Winter Drive" }).waitFor({
         timeout: T,
       });
-      const hero = await page
-        .locator('[data-block="hero"]')
-        .getAttribute("src");
+      const hero = await page.locator("img.aspect-video").getAttribute("src");
       expect_ok((hero ?? "").includes("logo.png"), `hero src ${hero}`);
       await page.getByText("A winter story for the seeded campaign.").waitFor({
         timeout: T,
@@ -1075,12 +1073,12 @@ const FLOWS = {
       await page.getByRole("heading", { name: "Videos" }).waitFor({
         timeout: T,
       });
-      const video = page.locator("iframe[title='Campaign video 1']");
+      const video = page.locator("iframe[title='Play video']");
       await video.scrollIntoViewIfNeeded();
       await page.waitForFunction(
         () =>
           document
-            .querySelector("iframe[title='Campaign video 1']")
+            .querySelector("iframe[title='Play video']")
             ?.getAttribute("src")
             ?.includes("aqz-KE-bpKQ"),
         { timeout: T }
@@ -1094,15 +1092,30 @@ const FLOWS = {
         body.includes("raised of") && body.includes("goal"),
         "goal label missing"
       );
-      await page
-        .getByRole("button", { name: "+100 USD" })
-        .waitFor({ timeout: T });
-      await page.getByRole("button", { name: /Continue with Card/ }).waitFor({
-        timeout: T,
-      });
-      await page.getByRole("button", { name: "Share on LinkedIn" }).waitFor({
-        timeout: T,
-      });
+      expect_ok(
+        !body.includes("About this campaign"),
+        "page contains About this campaign"
+      );
+      expect_ok(
+        !body.includes("Spread the word!"),
+        "page contains Spread the word!"
+      );
+      expect_ok(
+        (await page.getByRole("button", { name: "+100 USD" }).count()) === 0,
+        "+100 USD is on the page before Donate"
+      );
+      expect_ok(
+        (await page
+          .getByRole("button", { name: /Continue with Card/ })
+          .count()) === 0,
+        "Continue with Card is on the page before Donate"
+      );
+      expect_ok(
+        (await page
+          .getByRole("button", { name: "Share on LinkedIn" })
+          .count()) === 0,
+        "Share on LinkedIn is on the page before Share"
+      );
       await page.getByText("Seeded campaign thanks").waitFor({ timeout: T });
       expect_ok(
         !(await page.locator("body").innerText()).includes(
@@ -1135,6 +1148,31 @@ const FLOWS = {
       expect_ok((image ?? "").includes("logo.png"), `og:image "${image}"`);
       await shot();
 
+      // .first(): the sticky bar duplicates Donate and Share once the inline
+      // Donate leaves the viewport. Close unmounts the donate dialog so Share
+      // is clickable.
+      await page
+        .getByRole("button", { name: "Donate", exact: true })
+        .first()
+        .click();
+      await page.getByRole("button", { name: /Continue with Card/ }).waitFor({
+        timeout: T,
+      });
+      await shot("donate");
+      await page.getByRole("button", { name: "Close", exact: true }).click();
+      await page.getByRole("button", { name: /Continue with Card/ }).waitFor({
+        state: "hidden",
+        timeout: T,
+      });
+      await page
+        .getByRole("button", { name: "Share", exact: true })
+        .first()
+        .click();
+      await page.getByRole("button", { name: "Share on LinkedIn" }).waitFor({
+        timeout: T,
+      });
+      await shot("share");
+
       const org = await page.request.get(`${BASE}/org/${ORG}`, {
         maxRedirects: 0,
         timeout: 120_000,
@@ -1160,7 +1198,9 @@ const FLOWS = {
         wall_tries > 1
           ? `supporter wall after reload ${wall_tries} of the same URL`
           : "supporter wall on the first load",
-        `GET /org/${ORG}/${SEEDED_CAMPAIGN} → 200, hero, story, video, goal, donate box, Share, wall, badge, no Log In`,
+        `GET /org/${ORG}/${SEEDED_CAMPAIGN} → 200, hero, story, video, goal, wall, badge, no Log In`,
+        "Donate opens Continue with Card; Share opens Share on LinkedIn",
+        "no About this campaign or Spread the word!",
         `title "${title}", description and og:image set`,
         `GET /org/${ORG} → 302 ${location}`,
         "draft-hidden and no-such-campaign → 404",
@@ -1169,7 +1209,7 @@ const FLOWS = {
     },
   },
   "campaign-donate": {
-    desc: "campaign donate box presets a query, then a card gift of $100 carries campaign_id",
+    desc: "campaign donate dialog presets a query, then a card gift of $100 carries campaign_id",
     async run({ page, shot, ctx, entry }) {
       const preset_url = `${BASE}/org/${ORG}/${SEEDED_CAMPAIGN}?amount=50&frequency=monthly`;
       const preset = await page.goto(preset_url, {
@@ -1199,9 +1239,29 @@ const FLOWS = {
           intents.push(req.postData() ?? "");
         }
       });
-      const amount_tries = await click_after_reload(page, () =>
-        page.getByRole("button", { name: "+100 USD" })
+      expect_ok(
+        (await page.getByRole("button", { name: "+100 USD" }).count()) === 0,
+        "+100 USD is on the page before Donate"
       );
+      // Same cold-load reload as click_after_reload. A reload closes the
+      // dialog, so each attempt opens Donate again before +100 USD.
+      let amount_tries = 1;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        amount_tries = attempt;
+        try {
+          await page
+            .getByRole("button", { name: "Donate", exact: true })
+            .first()
+            .click({ timeout: attempt < 3 ? 20_000 : T });
+          await page
+            .getByRole("button", { name: "+100 USD" })
+            .click({ timeout: attempt < 3 ? 20_000 : T });
+          break;
+        } catch (err) {
+          if (attempt === 3) throw err;
+          await page.reload({ waitUntil: "load", timeout: 120_000 });
+        }
+      }
       await shot("2-amount");
       await page.getByRole("button", { name: /Continue with Card/ }).click();
       await page.getByText("Payment information").waitFor({ timeout: T });
@@ -1230,9 +1290,9 @@ const FLOWS = {
         `intent did not carry campaign_id ${SEEDED_CAMPAIGN_ID}`
       );
       const facts = [
-        "amount=50 and frequency=monthly preset the box",
+        "amount=50 and frequency=monthly open the donate dialog",
         click_fact(
-          "+100 USD → Continue with Card → donor info → Continue",
+          "Donate → +100 USD → Continue with Card → donor info → Continue",
           amount_tries
         ),
         "payment step: Total donation $100.00",

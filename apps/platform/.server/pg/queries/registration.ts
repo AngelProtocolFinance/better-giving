@@ -350,3 +350,39 @@ export async function is_fsa_doc_eid(eid: string): Promise<boolean> {
     .limit(1);
   return !!row;
 }
+
+/** the ein a public page may show for `npo_id`.
+ *
+ * approved is status `03` — the value the approval write sets, and the one
+ * `reg_stripe_deauthorize` leaves alone — linked by `status_approved_npo_id`.
+ * that row is chosen before `o_type` and `o_ein` are read, so a later `other`
+ * or a blank ein hides an older 501(c)(3) instead of falling through to it.
+ * `npos.registration_number` is a different field and is not read. */
+export async function reg_public_ein(
+  npo_id: number
+): Promise<{ ein: string } | null> {
+  const [row] = await db
+    .select({
+      o_type: registrations.o_type,
+      o_ein: registrations.o_ein,
+    })
+    .from(registrations)
+    .where(
+      and(
+        eq(registrations.status_approved_npo_id, npo_id),
+        eq(registrations.status, "03")
+      )
+    )
+    .orderBy(
+      // `desc` puts nulls first, so a missing stamp would outrank a real one.
+      // id orders a tie, so two rows with the same stamp don't swap between reads.
+      sql`${registrations.updated_at} desc nulls last`,
+      desc(registrations.id)
+    )
+    .limit(1);
+
+  if (row?.o_type !== "501c3") return null;
+  const ein = row.o_ein?.trim() ?? "";
+  if (ein === "") return null;
+  return { ein };
+}

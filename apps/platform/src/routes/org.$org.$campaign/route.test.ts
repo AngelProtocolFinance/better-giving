@@ -9,6 +9,7 @@ import {
 } from "vitest";
 import { user } from "$/pg/schema/auth";
 import { npos } from "$/pg/schema/npo";
+import { registrations } from "$/pg/schema/registration";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -53,6 +54,7 @@ beforeEach(async () => {
   await db.delete(donations);
   await db.delete(campaign_members);
   await db.delete(campaigns);
+  await db.delete(registrations);
   await db.delete(npos);
   await db.delete(user);
   await db.insert(user).values({
@@ -67,7 +69,7 @@ beforeEach(async () => {
   });
 });
 
-async function org(active = true) {
+async function org(active = true, url: string | null = null) {
   const [row] = await test_db
     .current!.db.insert(npos)
     .values({
@@ -78,6 +80,7 @@ async function org(active = true) {
       overview_pt: "[]",
       hq_country: "United States",
       active,
+      url,
     })
     .returning();
   return row!;
@@ -211,6 +214,77 @@ describe("public campaign page", () => {
     await gift("g4", "Cara@test.com", "intent");
     const data = await load("https://x/org/acme/winter");
     expect(data.donor_count).toBe(2);
+  });
+
+  it("returns no ein and no website when the nonprofit has no registration", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load("https://x/org/acme/winter");
+    expect(data.npo.ein).toBeNull();
+    expect(data.npo.url).toBeNull();
+    expect(data.thanks_amount).toBeNull();
+    expect(data.thanks_name).toBeNull();
+  });
+
+  it("returns the approved 501(c)(3) ein and the nonprofit website", async () => {
+    const npo = await org(true, "https://acme.example/give");
+    await campaign(npo.id);
+    await test_db.current!.db.insert(registrations).values({
+      id: "approved",
+      r_id: "approved@test.com",
+      status: "03",
+      o_type: "501c3",
+      o_ein: "22-2222222",
+      status_approved_npo_id: npo.id,
+      updated_at: "2026-06-01T00:00:00.000Z",
+    });
+    const data = await load("https://x/org/acme/winter");
+    expect(data.npo.ein).toBe("22-2222222");
+    expect(data.npo.url).toBe("https://acme.example/give");
+    expect(data.npo).not.toHaveProperty("registration_number");
+    expect(data.npo).not.toHaveProperty("tagline");
+  });
+
+  it("reads a finished gift from the return query without counting it", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada"
+    );
+    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_name).toBe("Ada");
+    expect(data.donor_count).toBe(0);
+    expect(data.campaign.raised).toBe(0);
+  });
+
+  it("formats a non-USD gift as the amount plus its currency code", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=40&donation_currency=EUR"
+    );
+    expect(data.thanks_amount).toBe("40 EUR");
+    expect(data.thanks_name).toBe("You");
+  });
+
+  it("formats a gift with no currency as dollars and a blank name as You", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=25&donor_name=%20"
+    );
+    expect(data.thanks_amount).toBe("$25");
+    expect(data.thanks_name).toBe("You");
+  });
+
+  it("ignores a gift amount that is not a positive number", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=0&donation_currency=USD&donor_name=Ada"
+    );
+    expect(data.thanks_amount).toBeNull();
+    expect(data.thanks_name).toBeNull();
   });
 
   it("marks an ended campaign and a live campaign past its end as closed", async () => {

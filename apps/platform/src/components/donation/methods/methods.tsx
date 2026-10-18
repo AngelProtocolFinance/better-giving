@@ -74,7 +74,13 @@ export function DonateMethods(props: TDonation) {
       step: "form",
     };
     return (
-      <div className="grid p-4 @xl/steps:p-8">
+      <div
+        className={
+          props.pin
+            ? "flex min-h-full flex-1 flex-col"
+            : "grid p-4 @xl/steps:p-8"
+        }
+      >
         <Panel {...(s as any)} />
       </div>
     );
@@ -83,7 +89,11 @@ export function DonateMethods(props: TDonation) {
   return (
     <Tabs.Root
       data-testid="donate-methods"
-      className="grid @xl/steps:grid-cols-[auto_1fr]"
+      className={
+        props.pin
+          ? "flex min-h-full flex-1 flex-col"
+          : "grid @xl/steps:grid-cols-[auto_1fr]"
+      }
       defaultValue={tabs[tab_idx_found === -1 ? 0 : tab_idx_found]}
       lazyMount
       unmountOnExit
@@ -106,7 +116,13 @@ export function DonateMethods(props: TDonation) {
           </Tabs.Trigger>
         ))}
       </Tabs.List>
-      <div className="grid p-4 @xl/steps:p-8 pt-0 @xl/steps:pt-4">
+      <div
+        className={
+          props.pin
+            ? "flex min-h-0 flex-1 flex-col"
+            : "grid p-4 @xl/steps:p-8 pt-0 @xl/steps:pt-4"
+        }
+      >
         {tabs.map((tab) => {
           const Panel = methods[tab].panel;
           const s: TMethodState<typeof tab> = fvs[tab] || {

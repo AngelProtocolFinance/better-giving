@@ -1,5 +1,3 @@
-import { Progress as ArkProgress } from "@ark-ui/react/progress";
-import { ExtLink, Image } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import {
   isRouteErrorResponse,
@@ -8,17 +6,13 @@ import {
   useRouteError,
 } from "react-router";
 import { Steps } from "#/components/donation";
-import { DonorMsgs } from "#/components/donor-msgs";
 import { ErrorElement } from "#/components/error/error-element";
 import { DappLogo } from "#/components/image";
-import { RichText, richtext_styles } from "#/components/rich-text";
+import { richtext_styles } from "#/components/rich-text";
 import { to_text } from "#/components/rich-text/helpers";
-import { extract_youtube_id } from "#/components/youtube-player";
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { use_now } from "#/hooks/use-now";
-import { Share } from "#/routes/_app.fundraisers.$fund_id/share";
-import { Video } from "#/routes/_app.fundraisers.$fund_id/video";
 import type { Route } from "./+types/route";
 import { loader } from "./api";
 import {
@@ -26,11 +20,13 @@ import {
   donor_label,
   ended_label,
   goal_amount,
-  percent_label,
+  legal_line,
   shown_end,
   tag_label,
   time_left,
+  website_link,
 } from "./format";
+import { CampaignPage } from "./page";
 
 export { loader };
 export const links: LinksFunction = () => [...richtext_styles];
@@ -124,7 +120,6 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
       campaign.ends_at && new Date(campaign.ends_at).getTime() <= now.getTime()
     );
   const goal = goal_amount(campaign.target, campaign.raised);
-  const percent = goal == null ? null : percent_label(campaign.raised, goal);
   const tag = tag_label(campaign.campaign_type);
   const closed_at = open ? null : shown_end(campaign.ends_at, now);
   const when = open
@@ -133,262 +128,93 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
       : null
     : ended_label(closed_at);
   const org = `/marketplace/${params.org}`;
+  const legal = legal_line(npo.ein);
+  const website = website_link(npo.url);
+  const thanks = loaderData.thanks_amount
+    ? {
+        amount: loaderData.thanks_amount,
+        name: loaderData.thanks_name ?? "You",
+      }
+    : null;
+  const raised_line =
+    goal == null
+      ? `${to_usd(campaign.raised)} raised`
+      : `${to_usd(campaign.raised)} raised of ${to_usd(goal)} goal`;
+  const donor_line = when
+    ? `${donor_label(donor_count)} · ${when}`
+    : donor_label(donor_count);
 
   return (
-    <div className="min-h-screen bg-background text-gray-12">
-      <div className="mx-auto w-full max-w-[80rem]">
-        <div className="page flex flex-col" data-group="page">
-          <div
-            className="flex h-16 w-full items-center gap-3 lg:h-18"
-            data-group="identity"
-            data-section="identity"
-            data-shell=""
-            data-block="identity"
-          >
-            {campaign.mark && (
-              <Image
-                src={campaign.mark}
-                alt=""
-                width={40}
-                height={40}
-                className="size-8 shrink-0 rounded-full border bg-panel object-cover lg:size-10"
-              />
-            )}
-            <Link
-              to={org}
-              className="line-clamp-2 min-w-0 text-base font-semibold text-gray-12 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              {campaign.owner_name}
-            </Link>
-          </div>
-          {campaign.hero && (
-            <Image
-              src={campaign.hero}
-              alt=""
-              data-group="hero"
-              data-section="hero"
-              data-shell=""
-              data-block="hero"
-              className="mt-6 aspect-4/1 w-full rounded object-cover"
-            />
-          )}
-          <div
-            className="mt-6 grid w-full lg:mt-10 lg:grid-cols-[minmax(0,1fr)_456px] lg:items-start lg:gap-x-12"
-            data-group="main"
-            data-section="main"
-            data-shell=""
-            data-block="main"
-          >
-            <div
-              className="contents lg:flex lg:min-w-0 lg:flex-col"
-              data-group="column"
-              data-col="main"
-            >
-              <header
-                className="order-1 flex flex-col items-start lg:order-none"
-                data-group="header"
-                data-section="header"
-              >
-                {tag && (
-                  <p className="mb-3 inline-block rounded bg-secondary px-2 py-1 text-xs font-semibold uppercase tracking-badge text-primary-deep">
-                    {tag}
-                  </p>
-                )}
-                <h1
-                  className={`text-3xl font-bold text-balance break-words lg:text-4_5xl lg:leading-tight ${campaign.program_name ? "mb-3" : ""}`}
-                  data-heading=""
-                >
-                  {campaign.name}
-                </h1>
-                {campaign.program_name && (
-                  <p className="text-sm text-gray-11">
-                    Program: {campaign.program_name}
-                  </p>
-                )}
-              </header>
-              <section
-                className="order-2 mt-10 flex flex-col rounded border bg-panel lg:order-none lg:mt-12"
-                data-group="progress"
-                data-section="progress"
-              >
-                <div className="flex flex-col p-5 lg:p-6">
-                  <div data-section="stats">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="min-w-0">
-                        <span className="figures text-3xl font-bold lg:text-4xl">
-                          {to_usd(campaign.raised)}
-                        </span>{" "}
-                        <span className="text-base text-gray-11">
-                          {goal == null
-                            ? "raised"
-                            : `raised of ${to_usd(goal)} goal`}
-                        </span>
-                      </p>
-                      {percent != null && (
-                        <p className="figures shrink-0 whitespace-nowrap text-lg font-semibold text-success-subtle-fg">
-                          {percent}
-                        </p>
-                      )}
-                    </div>
-                    {goal != null && (
-                      <ArkProgress.Root
-                        value={Math.min(campaign.raised, goal)}
-                        max={goal}
-                        aria-label={`${percent} of the goal`}
-                        className="mt-3 h-2 w-full"
-                      >
-                        <ArkProgress.Track className="h-full w-full overflow-hidden rounded-full bg-success/10 inset-shadow-track">
-                          <ArkProgress.Range
-                            className={`h-full rounded-full bg-success shadow-track-fill${percent === "<1%" ? " min-w-1" : ""}`}
-                          />
-                        </ArkProgress.Track>
-                      </ArkProgress.Root>
-                    )}
-                    <p className="mt-3 text-sm text-gray-11">
-                      <span className="figures">
-                        {donor_label(donor_count)}
-                      </span>
-                      {when && (
-                        <>
-                          <span className="mx-2.5" aria-hidden="true">
-                            ·
-                          </span>
-                          <span className="font-semibold text-gray-12">
-                            {when}
-                          </span>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <div className="mt-6 border-t pt-6">
-                    <Share
-                      classes="-my-2"
-                      recipientName={campaign.name}
-                      url={canonical}
-                      line="Gifts on this page go to the nonprofit running it."
-                    />
-                  </div>
-                </div>
-              </section>
-              <section
-                className="order-4 mt-10 flex min-w-0 flex-col lg:order-none lg:mt-12"
-                data-group="story"
-                data-section="story"
-                aria-labelledby="campaign-story"
-              >
-                <h2 id="campaign-story" className="sr-only">
-                  About this campaign
-                </h2>
-                <div data-section="prose">
-                  <RichText
-                    readOnly
-                    content={{ value: campaign.description_pt }}
-                    classes={{
-                      field:
-                        "w-full flex flex-col gap-4 text-base leading-relaxed",
-                    }}
-                  />
-                </div>
-                {campaign.videos.length > 0 && (
-                  <div className="mt-8 flex flex-col gap-4">
-                    <h3 className="text-lg font-semibold" data-heading="">
-                      Videos
-                    </h3>
-                    {campaign.videos.map((url, i) =>
-                      extract_youtube_id(url) ? (
-                        <Video
-                          key={url}
-                          url={url}
-                          title={`Campaign video ${i + 1}`}
-                        />
-                      ) : (
-                        <ExtLink key={url} href={url} className="link">
-                          Campaign video {i + 1}
-                        </ExtLink>
-                      )
-                    )}
-                  </div>
-                )}
-              </section>
-            </div>
-            <aside
-              className="order-3 mt-10 self-start lg:sticky lg:top-6 lg:order-none lg:mt-0"
-              data-col="aside"
-              data-group="aside"
-            >
-              <div data-group="donate">
-                {open ? (
-                  <div className="overflow-clip rounded border">
-                    <Steps
-                      source="bg-marketplace"
-                      mode="live"
-                      base_url={base_url}
-                      recipient={{
-                        id: String(npo.id),
-                        name: campaign.name,
-                        hide_bg_tip: npo.hide_bg_tip,
-                        members: [String(npo.id)],
-                        donor_address_required: npo.donor_address_required,
-                      }}
-                      config={{
-                        id: null,
-                        success_redirect: undefined,
-                        freq_opts: campaign.donate_frequencies ?? undefined,
-                        method_ids: campaign.donate_methods ?? undefined,
-                        increments: campaign.increments ?? undefined,
-                        campaign_id: campaign.id,
-                        campaign_url: canonical,
-                        prefill_amount_usd: loaderData.prefill_amount_usd,
-                        prefill_frequency: loaderData.prefill_frequency,
-                      }}
-                      program={
-                        campaign.program_id
-                          ? {
-                              id: campaign.program_id,
-                              name: campaign.program_name ?? "",
-                            }
-                          : undefined
-                      }
-                      user={user}
-                      wallets_below
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className="card flex flex-col items-start"
-                    data-section="notice"
-                  >
-                    <h2 className="mb-3 text-xl font-bold" data-heading="">
-                      This campaign has ended
-                    </h2>
-                    <p className="mb-4 text-gray-11">
-                      {closed_body(closed_at)}
-                    </p>
-                    <Link
-                      to={org}
-                      aria-label={`Visit ${campaign.owner_name} profile`}
-                      className="btn btn-secondary h-auto max-w-full min-w-0 gap-x-1"
-                    >
-                      <span className="shrink-0">Visit</span>
-                      <span className="line-clamp-2 min-w-0 text-center">
-                        {campaign.owner_name}
-                      </span>
-                      <span className="shrink-0">profile</span>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </aside>
-          </div>
-          <DonorMsgs
-            classes="mt-10 lg:mt-16"
-            id={String(campaign.owner_npo_id)}
-            campaign_id={campaign.id}
-            columns="lg"
+    <CampaignPage
+      title={campaign.name}
+      org_name={campaign.owner_name}
+      org_href={org}
+      logo={campaign.mark || null}
+      {...(legal ? { legal } : {})}
+      {...(website ? { website } : {})}
+      tag={tag}
+      program_name={campaign.program_name || null}
+      hero={campaign.hero || null}
+      hero_alt={campaign.name}
+      story={{ value: campaign.description_pt }}
+      videos={campaign.videos.map((url) => ({ url }))}
+      raised_line={raised_line}
+      bar={goal == null ? null : { raised: campaign.raised, goal }}
+      donor_line={donor_line}
+      no_gifts={donor_count === 0}
+      open={open}
+      ended_body={open ? null : closed_body(closed_at)}
+      {...(thanks
+        ? { thanks: { amount: thanks.amount }, highlight: thanks }
+        : {})}
+      donors={{
+        id: String(campaign.owner_npo_id),
+        campaign_id: campaign.id,
+      }}
+      form={
+        open ? (
+          <Steps
+            source="bg-marketplace"
+            mode="live"
+            base_url={base_url}
+            recipient={{
+              id: String(npo.id),
+              name: campaign.name,
+              hide_bg_tip: npo.hide_bg_tip,
+              members: [String(npo.id)],
+              donor_address_required: npo.donor_address_required,
+            }}
+            config={{
+              id: null,
+              success_redirect: canonical,
+              freq_opts: campaign.donate_frequencies ?? undefined,
+              method_ids: campaign.donate_methods ?? undefined,
+              increments: campaign.increments ?? undefined,
+              campaign_id: campaign.id,
+              campaign_url: canonical,
+              prefill_amount_usd: loaderData.prefill_amount_usd,
+              prefill_frequency: loaderData.prefill_frequency,
+            }}
+            program={
+              campaign.program_id
+                ? {
+                    id: campaign.program_id,
+                    name: campaign.program_name ?? "",
+                  }
+                : undefined
+            }
+            user={user}
+            wallets_below
+            pin
           />
-          <Footer />
-        </div>
-      </div>
-    </div>
+        ) : null
+      }
+      initial_dialog_open={
+        open &&
+        Boolean(loaderData.prefill_amount_usd) &&
+        campaign.campaign_type !== "monthly"
+      }
+      share={{ recipientName: campaign.name, url: canonical }}
+    />
   );
 }
