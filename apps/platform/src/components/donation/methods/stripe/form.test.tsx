@@ -20,6 +20,7 @@ const don_mock = vi.hoisted(() => ({ value: {} }));
 // one-shot cases; these flags drive the persistent one.
 const rails = vi.hoisted(() => ({
   pp_out: false,
+  pp_shown: false,
   sx_out: false,
   sx_shown: false,
 }));
@@ -33,6 +34,7 @@ vi.mock("../paypal", () => ({
     // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only by design
     useEffect(() => {
       if (rails.pp_out) props.on_unavailable?.("paypal is out");
+      if (rails.pp_shown) props.on_shown?.();
     }, []);
     return (
       <div data-testid="paypal-mock" data-paid={props.paid ? "" : undefined}>
@@ -623,6 +625,7 @@ const assert_form_live = async (
 describe("Stripe form: an express rail that can't be offered", () => {
   afterEach(() => {
     rails.pp_out = false;
+    rails.pp_shown = false;
     rails.sx_out = false;
     rails.sx_shown = false;
     don_set_mock.mockReset();
@@ -1015,6 +1018,7 @@ describe("Stripe form: the two express rails degrade independently", () => {
 describe("Stripe form: wallets under the card button", () => {
   afterEach(() => {
     rails.pp_out = false;
+    rails.pp_shown = false;
     rails.sx_out = false;
     rails.sx_shown = false;
   });
@@ -1105,5 +1109,42 @@ describe("Stripe form: wallets under the card button", () => {
         .element()
         .compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING
     ).not.toBe(0);
+  });
+
+  test("monthly to annual keeps a drawn paypal button open", async () => {
+    // stripe is out, so only paypal calls on_shown, and the mock does that
+    // once per mount. the real rail's effect is the same: monthly and annual
+    // are both recurring, so it does not run again.
+    rails.pp_shown = true;
+    rails.sx_out = true;
+    don_mock.value = init({
+      wallets_below: true,
+      config: {
+        id: null,
+        success_redirect: undefined,
+        freq_opts: ["monthly", "annual"],
+        prefill_frequency: "monthly",
+      },
+    });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    const group = screen.getByTestId("wallet-group");
+    await vi.waitFor(() =>
+      expect(group.element().className).toContain("opacity-100")
+    );
+
+    (
+      screen
+        .getByRole("radio", { name: /give annually/i })
+        .element() as HTMLElement
+    ).click();
+    await expect
+      .element(screen.getByRole("radio", { name: /give annually/i }))
+      .toBeChecked();
+
+    expect(group.element().className).toContain("opacity-100");
+    expect(group.element().className).not.toContain("h-0");
+    expect(screen.getByTestId("paypal-mock").query()).not.toBeNull();
   });
 });
