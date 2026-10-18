@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { to_text } from "#/components/rich-text/helpers";
 import type { DonateMethodId, IIncrement, TFrequency } from "@/schemas";
 import { db } from "../db";
@@ -181,32 +181,30 @@ export async function campaign_settled_gift(
   return row != null;
 }
 
-/** settled gift here from this name, on the donor row or the message, trimmed, ignoring case. blank is unknown, so false. */
+/** another settled gift on this campaign shares this donation's donor email. names are not identity; a missing row or a blank email is unknown. */
 export async function campaign_repeat_donor(
   campaign_id: string,
-  donor_name: string
+  donation_id: string
 ): Promise<boolean> {
-  const name = donor_name.trim();
-  if (name === "") return false;
+  const id = donation_id.trim();
+  if (id === "") return false;
+  const [donor] = await db
+    .select({ email: donation_donors.email })
+    .from(donation_donors)
+    .where(eq(donation_donors.donation_id, id))
+    .limit(1);
+  const email = donor?.email.trim() ?? "";
+  if (email === "") return false;
   const [row] = await db
     .select({ id: donations.id })
     .from(donations)
+    .innerJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
     .where(
       and(
         eq(donations.campaign_id, campaign_id),
         eq(donations.status, "settled"),
-        or(
-          sql`exists (
-            select 1 from ${donation_donors}
-            where ${donation_donors.donation_id} = ${donations.id}
-              and lower(btrim(${donation_donors.name})) = lower(${name})
-          )`,
-          sql`exists (
-            select 1 from ${donation_messages}
-            where ${donation_messages.donation_id} = ${donations.id}
-              and lower(btrim(${donation_messages.donor_name})) = lower(${name})
-          )`
-        )
+        ne(donations.id, id),
+        sql`lower(btrim(${donation_donors.email})) = lower(${email})`
       )
     )
     .limit(1);

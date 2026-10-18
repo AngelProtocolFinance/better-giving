@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -118,6 +119,50 @@ async function campaign(
     campaign_id: id,
     npo_id,
   });
+}
+
+async function gift(o: {
+  id: string;
+  email: string;
+  status: string;
+  name: string;
+  campaign_id?: string;
+  with_donor?: boolean;
+}) {
+  const db = test_db.current!.db;
+  await db.insert(donations).values({
+    id: o.id,
+    upusd: 40,
+    status: o.status,
+    amount_base: 40,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "stripe",
+    campaign_id: o.campaign_id ?? "camp-public",
+  });
+  if (o.with_donor !== false) {
+    await db.insert(donation_donors).values({
+      donation_id: o.id,
+      email: o.email,
+      name: o.name,
+    });
+  }
+  await db.insert(donation_messages).values({
+    id: `msg-${o.id}`,
+    donation_id: o.id,
+    donor_name: o.name,
+  });
+}
+
+function email_keys(value: unknown): string[] {
+  if (value == null || typeof value !== "object") return [];
+  if (Array.isArray(value)) return value.flatMap(email_keys);
+  return Object.entries(value).flatMap(([key, child]) =>
+    key === "email" ? [key] : email_keys(child)
+  );
 }
 
 function load(url: string) {
@@ -336,42 +381,221 @@ describe("public campaign page", () => {
     expect(data.campaign.raised).toBe(0);
   });
 
-  it("reports a repeat when that name already settled a different amount", async () => {
+  it("counts the same email once when an earlier gift on this campaign already settled", async () => {
     const npo = await org();
     await campaign(npo.id);
-    const db = test_db.current!.db;
-    await db.insert(donations).values({
+    await gift({
       id: "prior-ada",
-      upusd: 40,
+      email: "Ada@test.com",
       status: "settled",
-      amount_base: 40,
-      amount_tip: 0,
-      amount_fee_allowance: 0,
-      currency: "USD",
-      frequency: "one-time",
-      source: "bg-marketplace",
-      via: "stripe",
-      campaign_id: "camp-public",
+      name: "Not Ada",
     });
-    await db.insert(donation_donors).values({
-      donation_id: "prior-ada",
-      email: "ada@test.com",
+    await gift({
+      id: "current-ada",
+      email: " ada@test.com ",
+      status: "intent",
       name: "Ada",
     });
-    await db.insert(donation_messages).values({
-      id: "msg-prior-ada",
-      donation_id: "prior-ada",
-      donor_name: "Ada",
+    const url =
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=current-ada";
+    const again = await load(url);
+    expect(again.thanks_repeat).toBe(true);
+    expect(again.thanks_name).toBe("Ada");
+    expect(again.thanks_settled).toBe(false);
+    await test_db
+      .current!.db.update(donation_donors)
+      .set({ email: "bea@test.com" })
+      .where(eq(donation_donors.donation_id, "current-ada"));
+    const other = await load(url);
+    expect(other.thanks_repeat).toBe(false);
+  });
+
+  it("counts two donors who share a display name", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "ada-one",
+      email: "ada.one@test.com",
+      status: "settled",
+      name: "Ada",
     });
-    const again = await load(
+    await gift({
+      id: "ada-two",
+      email: "ada.two@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=ada-two"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("counts two Anonymous givers separately", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "anon-one",
+      email: "anon.one@test.com",
+      status: "settled",
+      name: "Anonymous",
+    });
+    await gift({
+      id: "anon-two",
+      email: "anon.two@test.com",
+      status: "intent",
+      name: "Anonymous",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Anonymous&donation_id=anon-two"
+    );
+    expect(data.thanks_repeat).toBe(false);
+    expect(data.thanks_name).toBe("Anonymous");
+  });
+
+  it("does not count a named return with no donation id as a repeat", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "settled-ada",
+      email: "ada@test.com",
+      status: "settled",
+      name: "Ada",
+    });
+    const named = await load(
       "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada"
     );
-    expect(again.thanks_repeat).toBe(true);
-    expect(again.thanks_settled).toBe(false);
-    const stranger = await load(
-      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Bea"
+    expect(named.thanks_repeat).toBe(false);
+    expect(named.thanks_name).toBe("Ada");
+    const blank = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=%20"
     );
-    expect(stranger.thanks_repeat).toBe(false);
+    expect(blank.thanks_repeat).toBe(false);
+  });
+
+  it("keeps the donor email off the loader payload", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "prior-secret",
+      email: "repeat-secret@test.com",
+      status: "settled",
+      name: "Ada",
+    });
+    await gift({
+      id: "current-secret",
+      email: "repeat-secret@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=current-secret"
+    );
+    expect(data.thanks_repeat).toBe(true);
+    expect(email_keys(data)).toEqual([]);
+    expect(JSON.stringify(data)).not.toContain("repeat-secret@test.com");
+  });
+
+  it("does not count a donor's only gift as a repeat of itself", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "only-ada",
+      email: "ada@test.com",
+      status: "settled",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=only-ada"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("ignores a settled gift on a different campaign", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await campaign(npo.id, { id: "camp-other", slug: "spring" });
+    await gift({
+      id: "elsewhere",
+      email: "ada@test.com",
+      status: "settled",
+      name: "Ada",
+      campaign_id: "camp-other",
+    });
+    await gift({
+      id: "here",
+      email: "ada@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=here"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("does not count an unfinished gift as an earlier donation", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "intent-prior",
+      email: "ada@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    await gift({
+      id: "intent-current",
+      email: "ada@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=intent-current"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("does not count a return whose donation has no donor row", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "named-settled",
+      email: "ada@test.com",
+      status: "settled",
+      name: "Ada",
+    });
+    await gift({
+      id: "no-donor",
+      email: "ada@test.com",
+      status: "intent",
+      name: "Ada",
+      with_donor: false,
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=no-donor"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("does not count a blank email as a repeat of another blank email", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "blank-prior",
+      email: "   ",
+      status: "settled",
+      name: "Ada",
+    });
+    await gift({
+      id: "blank-current",
+      email: "   ",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=blank-current"
+    );
+    expect(data.thanks_repeat).toBe(false);
   });
 
   it("reports a thanks gift settled when a settled usd gift matches the amount and name", async () => {

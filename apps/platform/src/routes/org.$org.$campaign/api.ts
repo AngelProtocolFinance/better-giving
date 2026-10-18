@@ -53,6 +53,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   if (!campaign || campaign.owner_npo_id == null) throw resp.status(404);
   const url = new URL(request.url);
   const { thanks_donor_name, ...thanks } = thanks_from(url);
+  const donation_id = url.searchParams.get("donation_id")?.trim() ?? "";
   const [npo, donor_count, registration, thanks_settled, thanks_repeat] =
     await Promise.all([
       npo_get(campaign.owner_npo_id),
@@ -65,9 +66,9 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
             thanks_donor_name
           )
         : false,
-      thanks.thanks_amount != null
-        ? campaign_repeat_donor(campaign.id, thanks_donor_name)
-        : false,
+      donation_id === ""
+        ? false
+        : campaign_repeat_donor(campaign.id, donation_id),
     ]);
   if (!npo || npo.active === false) throw resp.status(404);
 
