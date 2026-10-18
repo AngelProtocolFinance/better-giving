@@ -1052,7 +1052,7 @@ describe("Stripe form: wallets under the card button", () => {
     expect(group.className).toContain("-mt-2");
     expect(group.className).toContain("overflow-hidden");
     expect(group.className).toContain("opacity-0");
-    expect(group.className).not.toContain("duration-150");
+    expect(group.className).not.toContain("transition-opacity");
     expect(btn.className).not.toContain("mt-auto");
     expect(
       screen.getByTestId("express-mock").element().getAttribute("data-classes")
@@ -1080,7 +1080,8 @@ describe("Stripe form: wallets under the card button", () => {
     expect(cls).not.toContain("overflow-hidden");
     expect(cls).toContain("-mt-2");
     expect(cls).toContain("transition-opacity");
-    expect(cls).toContain("duration-150");
+    // house default is --duration-fast (150ms); a spelled duration is drift.
+    expect(cls).not.toMatch(/\bduration-/);
     expect(cls).not.toContain("transition-all");
   });
 

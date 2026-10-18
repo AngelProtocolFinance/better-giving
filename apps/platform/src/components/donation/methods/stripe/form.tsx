@@ -396,14 +396,16 @@ export function Form(props: TMethodState<"stripe">) {
       {wallets_below && (
         // the whole group, divider included, adds nothing until a wallet
         // draws. -mt-2 cancels this column's gap either way, so the button
-        // never shifts and the divider's own margin is the space.
+        // never shifts and the divider's own margin is the space. the fade
+        // names no duration: the house default is --duration-fast (150ms),
+        // and a raw duration number is rejected by the motion gate.
         <div
           data-testid="wallet-group"
           inert={phase === "shut"}
           className={
             phase === "shut"
               ? "h-0 -mt-2 overflow-hidden opacity-0"
-              : `-mt-2 flex flex-col transition-opacity duration-150 ${
+              : `-mt-2 flex flex-col transition-opacity ${
                   phase === "open" ? "opacity-100" : "opacity-0"
                 }`
           }
