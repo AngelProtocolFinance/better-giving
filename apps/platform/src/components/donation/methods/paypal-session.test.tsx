@@ -123,7 +123,7 @@ describe("paypal express: a payment that dies mid-flight", () => {
 
     await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
     expect(on_error).toHaveBeenCalledWith(
-      "PayPal failed — please try another payment method."
+      "PayPal failed. Please try another payment method."
     );
     expect(on_unavailable).not.toHaveBeenCalled();
   });
@@ -180,7 +180,7 @@ describe.each([
       );
 
       expect(on_error).toHaveBeenCalledExactlyOnceWith(
-        "PayPal failed — please try another payment method."
+        "PayPal failed. Please try another payment method."
       );
     });
   }

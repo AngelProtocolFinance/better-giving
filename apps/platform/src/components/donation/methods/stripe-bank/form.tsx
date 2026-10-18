@@ -199,7 +199,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
       />
 
       <p className="text-xs text-gray-11">
-        0.8% fee, capped at $5 — save vs. card (2.2% + $0.30)
+        0.8% fee, capped at $5. Saves vs. card (2.2% + $0.30).
       </p>
     </>
   );

@@ -37,7 +37,7 @@ vi.mock("#/errors/report", async (orig) => ({
 }));
 
 const load_failed =
-  "Express checkout failed to load — please try another payment method.";
+  "Express checkout failed to load. Please try another payment method.";
 
 // the flag is on: whatever still reaches on_error here isn't over-swallowing
 const init = (): TDonation => ({

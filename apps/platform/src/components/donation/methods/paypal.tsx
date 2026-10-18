@@ -279,7 +279,7 @@ export function Paypal({
         // surface a friendly fallback so donor can try another method.
         console.warn("paypal session error", err);
         on_error_ref.current(
-          "PayPal failed — please try another payment method."
+          "PayPal failed. Please try another payment method."
         );
       };
 
@@ -387,7 +387,7 @@ export function Paypal({
                 } catch (err) {
                   report_error(err);
                   on_error_ref.current(
-                    "Subscription failed — please contact support."
+                    "Subscription failed. Please contact support."
                   );
                 }
               },
@@ -465,7 +465,7 @@ export function Paypal({
       report_degraded(err);
       if (mounted) {
         on_unavailable_ref.current(
-          "PayPal failed to load — please try another payment method."
+          "PayPal failed to load. Please try another payment method."
         );
       }
     });
