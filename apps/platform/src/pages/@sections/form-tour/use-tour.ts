@@ -1,6 +1,7 @@
 import {
   type RefObject,
   useEffect,
+  useLayoutEffect,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -14,6 +15,11 @@ const subscribe_reduce = (on_change: () => void) => {
   return () => mq.removeEventListener("change", on_change);
 };
 
+/** the first read lands before the browser paints, so a reload mid-page never
+ *  shows chapter 0's frame; the server has no layout to read and keeps it */
+export const use_before_paint =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 export interface ITour extends ITourPos {
   reduced: boolean;
 }
@@ -22,8 +28,13 @@ export interface ITour extends ITourPos {
  *  elements under `root`. one passive scroll reader, throttled to a frame —
  *  never a wheel handler, a snap or a scroll override, so the page scrolls
  *  exactly as it would without the tour. the server, and the first client
- *  render, read chapter 0 at 0, which is what keeps hydration matched. */
-export function use_tour(root: RefObject<HTMLElement | null>): ITour {
+ *  render, read chapter 0 at 0, which is what keeps hydration matched.
+ *  `layout` names the arrangement the chapters are in; a change of it moves
+ *  every chapter without a scroll, so it re-reads. */
+export function use_tour(
+  root: RefObject<HTMLElement | null>,
+  layout?: string
+): ITour {
   const [pos, set_pos] = useState<ITourPos>({ chapter: 0, progress: 0 });
   const reduced = useSyncExternalStore(
     subscribe_reduce,
@@ -31,7 +42,7 @@ export function use_tour(root: RefObject<HTMLElement | null>): ITour {
     () => false
   );
 
-  useEffect(() => {
+  use_before_paint(() => {
     const el = root.current;
     if (!el) return;
     let raf = 0;
@@ -64,7 +75,7 @@ export function use_tour(root: RefObject<HTMLElement | null>): ITour {
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
     };
-  }, [root]);
+  }, [root, layout]);
 
   return { ...pos, reduced };
 }

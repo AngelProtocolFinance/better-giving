@@ -160,9 +160,9 @@ interface ISwitch {
 
 function Switch({ on, label, dim, classes = "" }: ISwitch) {
   return (
-    <span className={`${classes} gap-x-1 flex items-center text-sm`}>
+    <span className={`${classes} gap-x-1 flex items-start text-sm`}>
       <span
-        className={`flex items-center h-lh w-8 rounded-full p-1 transition-colors ${
+        className={`flex shrink-0 items-center h-lh w-8 rounded-full p-1 transition-colors ${
           on ? "bg-form-primary" : "bg-gray-3"
         }`}
       >
@@ -172,9 +172,7 @@ function Switch({ on, label, dim, classes = "" }: ISwitch) {
           }`}
         />
       </span>
-      <span
-        className={`whitespace-nowrap font-medium ${dim && !on ? "text-gray-11" : ""}`}
-      >
+      <span className={`font-medium ${dim && !on ? "text-gray-11" : ""}`}>
         {label}
       </span>
     </span>

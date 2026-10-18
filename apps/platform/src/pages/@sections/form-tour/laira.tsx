@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import announce from "#/assets/laira/laira-announce.webp";
 import cheering from "#/assets/laira/laira-cheering.webp";
 import coin from "#/assets/laira/laira-coin.webp";
@@ -37,6 +36,12 @@ const SPARKS = [
   "-translate-x-12 -translate-y-28 bg-red-9 rounded-full",
 ];
 
+/** warm the cache for every pose, so a swap on scroll paints at once rather
+ *  than after a request; the pinned stage calls it when it goes live */
+export function preload_poses() {
+  for (const { src } of Object.values(POSES)) new Image().src = src;
+}
+
 interface ILaira {
   pose: TPose;
   /** in the scroll-driven stage: a new pose hops in */
@@ -55,30 +60,20 @@ export function Laira({
   classes = "",
 }: ILaira) {
   const p = POSES[pose];
-  const box = useRef<HTMLDivElement>(null);
-
-  // the stage swaps poses on scroll; fetch them once it is actually shown, so
-  // a swap paints at once instead of after a request. hidden below xl, where
-  // each static frame lazy-loads its own single pose.
-  useEffect(() => {
-    if (!live || box.current?.offsetParent == null) return;
-    for (const { src } of Object.values(POSES)) new Image().src = src;
-  }, [live]);
-
   const hop =
     live && !reduced
       ? "transition duration-base ease-out starting:opacity-0 starting:translate-y-3"
       : "";
 
   return (
-    <div ref={box} className={classes}>
+    <div className={classes}>
       <img
         key={pose}
         src={p.src}
         width={500}
         height={p.height}
         alt=""
-        loading={live ? "eager" : "lazy"}
+        loading="lazy"
         className={`h-full w-auto ${hop}`}
       />
       {burst && !reduced && (
