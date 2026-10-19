@@ -660,6 +660,59 @@ describe("public campaign page", () => {
     expect(data.thanks_settled).toBe(false);
   });
 
+  it("counts a php return toward the raised line while that row is still created", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    await db.insert(donations).values({
+      id: "php-created",
+      upusd: 50,
+      status: "created",
+      amount_base: 400,
+      amount_tip: 60,
+      amount_fee_allowance: 40,
+      currency: "PHP",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    await db.insert(donation_donors).values({
+      donation_id: "php-created",
+      email: "ivy@test.com",
+      name: "Ivy",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=500&donation_currency=PHP&donor_name=Ivy%20Verify&donation_id=php-created"
+    );
+    expect(data.thanks_amount).toBe("500 PHP");
+    expect(data.thanks_usd).toBe(8);
+    expect(data.thanks_settled).toBe(false);
+  });
+
+  it("does not count a php intent toward the raised line when the bank redirect failed", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await test_db.current!.db.insert(donations).values({
+      id: "php-intent",
+      upusd: 50,
+      status: "intent",
+      amount_base: 500,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "PHP",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=500&donation_currency=PHP&donor_name=Ivy%20Verify&donation_id=php-intent&redirect_status=failed"
+    );
+    expect(data.thanks_amount).toBe("500 PHP");
+    expect(data.thanks_usd).toBeNull();
+  });
+
   it("does not count a failed gift toward the raised line", async () => {
     const npo = await org();
     await campaign(npo.id);

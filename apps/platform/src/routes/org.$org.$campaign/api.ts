@@ -25,12 +25,11 @@ function prefill_amount(raw: string | null) {
 function thanks_from(url: URL): {
   thanks_amount: string | null;
   thanks_name: string | null;
-  usd: boolean;
 } {
   const raw = url.searchParams.get("donation_amount");
   const amount = raw == null ? Number.NaN : Number(raw);
   if (!Number.isFinite(amount) || amount <= 0) {
-    return { thanks_amount: null, thanks_name: null, usd: false };
+    return { thanks_amount: null, thanks_name: null };
   }
   const currency = url.searchParams.get("donation_currency")?.trim() ?? "";
   const usd = currency === "" || currency.toUpperCase() === "USD";
@@ -38,7 +37,6 @@ function thanks_from(url: URL): {
   return {
     thanks_amount: usd ? to_usd(amount) : `${amount} ${currency}`,
     thanks_name: name === "" ? "You" : name,
-    usd,
   };
 }
 
@@ -50,7 +48,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const donation_id = url.searchParams.get("donation_id")?.trim() ?? "";
   const redirect_failed =
     url.searchParams.get("redirect_status")?.trim() === "failed";
-  const count_base = donation_id !== "" && thanks.usd && !redirect_failed;
+  const count_base = donation_id !== "" && !redirect_failed;
   const [
     npo,
     donor_count,
@@ -107,9 +105,10 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     donor_count,
     thanks_amount: thanks.thanks_amount,
     thanks_name: thanks.thanks_name,
-    // the return amount is the rail charge. a usd return counts the gift base
-    // before settlement, net of tip and the donor-covered fee. a stripe
-    // redirect_status of failed will not settle, so it adds nothing.
+    // the return amount is the rail charge in the url currency. any return
+    // with a donation id counts the gift base before settlement, net of tip
+    // and the donor-covered fee. a stripe redirect_status of failed will not
+    // settle, so it adds nothing.
     thanks_usd: count_base && !thanks_settled ? base_usd : null,
     thanks_settled,
     thanks_repeat,

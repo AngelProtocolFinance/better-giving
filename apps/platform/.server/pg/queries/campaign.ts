@@ -151,7 +151,7 @@ export async function campaign_donor_count(
   return row?.n ?? 0;
 }
 
-/** usd preview for a gift that can still settle: `amount_base / upusd`, and only while status is intent or confirmed. tip and the donor-covered fee are not part of it. a blank id, a missing row, any other status, a rate that is not a positive finite number, or a base that is not positive is unknown. */
+/** usd preview for a gift that can still settle: `amount_base / upusd`, and only while status is created, intent, or confirmed. a return can land before the row leaves created. tip and the donor-covered fee are not part of it. a blank id, a missing row, any other status, a rate that is not a positive finite number, or a base that is not positive is unknown. */
 export async function campaign_donation_base_usd(
   campaign_id: string,
   donation_id: string
@@ -168,7 +168,11 @@ export async function campaign_donation_base_usd(
       and(
         eq(donations.id, id),
         eq(donations.campaign_id, campaign_id),
-        or(eq(donations.status, "intent"), eq(donations.status, "confirmed"))
+        or(
+          eq(donations.status, "created"),
+          eq(donations.status, "intent"),
+          eq(donations.status, "confirmed")
+        )
       )
     )
     .limit(1);
