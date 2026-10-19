@@ -235,6 +235,7 @@ export function CampaignPage(props: ICampaignPage) {
         classes="bg-surface"
         scrim="bg-gray-12/56"
         title="Donate"
+        adoptStripeChallenge
         initialFocusEl={() => {
           // lib.dom FocusOptions stops at preventScroll; the flag is what skips :focus-visible
           close_ref.current?.focus({ focusVisible: false } as FocusOptions);
