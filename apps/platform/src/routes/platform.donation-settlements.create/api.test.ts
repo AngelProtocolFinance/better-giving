@@ -821,18 +821,24 @@ describe("settlement create — an unattributable match", () => {
     expect(send_email).not.toHaveBeenCalled();
   });
 
-  test("an id typed against a cheque or DAF is inert", async () => {
-    const gift = await seed_gift();
+  test.each(["cheque", "daf", "stocks"] as const)(
+    "an id typed against a %s is inert",
+    async (from) => {
+      const gift = await seed_gift();
 
-    await settle({ from: "cheque", for_donation_id: gift });
+      const res = await settle({ from, for_donation_id: gift });
 
-    expect(await events()).toHaveLength(0);
-    expect(send_email).not.toHaveBeenCalled();
-  });
+      // recorded on its own rail, not refused and not attached to the gift
+      expect(res).toEqual({ ok: true });
+      expect((await dons()).filter((d) => d.via === from)).toHaveLength(1);
+      expect(await events()).toHaveLength(0);
+      expect(send_email).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe("settlement create — the paths that came before", () => {
-  test.each(["cheque", "daf"] as const)(
+  test.each(["cheque", "daf", "stocks"] as const)(
     "%s still records the donor's own details and sends nothing",
     async (from) => {
       const res = await settle({
@@ -904,6 +910,7 @@ describe("settlement create — a confirm sent twice", () => {
   test.each([
     ["cheque", {}],
     ["daf", {}],
+    ["stocks", {}],
     ["match", { for_donation_id: "" }],
   ] as const)(
     "a %s replayed under the same key settles once, and reports the success it already had",

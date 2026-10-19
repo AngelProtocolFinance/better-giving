@@ -41,7 +41,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
     )
     .where(
       and(
-        inArray(donations.via, ["cheque", "daf"]),
+        inArray(donations.via, ["cheque", "daf", "stocks"]),
         decoded ? sql`${donations.created_at} < ${decoded}` : undefined
       )
     )
