@@ -41,7 +41,7 @@ const text = (fallback: string) =>
 const stale_page_msg = "This page is out of date. Reload it and confirm again.";
 
 const schema = v.object({
-  from: v.optional(v.picklist(["cheque", "daf", "match"]), "cheque"),
+  from: v.optional(v.picklist(["cheque", "daf", "stocks", "match"]), "cheque"),
   /**
    * the nonprofit the admin picked. absent when a matched gift names the
    * recipient instead — a fund gift has no nonprofit of its own to pick.
@@ -350,8 +350,9 @@ export const action = async ({ request }: Route.ActionArgs) => {
   }
   const parsed = result.output;
 
-  // only a match attaches to anything; the field is inert for the other two, and
-  // an empty box is the same as an unnamed employer cheque, not a bad id
+  // only a match attaches to anything; the field is inert for the other
+  // sources, and an empty box is the same as an unnamed employer cheque, not a
+  // bad id
   const for_id = parsed.from === "match" ? parsed.for_donation_id.trim() : "";
 
   // `donation_get` also resolves legacy v1 ids, so every write below keys off
@@ -411,7 +412,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
 
   const now = new Date().toISOString();
 
-  const via = parsed.from; // "cheque" | "daf" | "match"
+  const via = parsed.from;
   // the employer's name as the donor typed it, falling back to whatever the
   // admin read off the payment. the employer is not a donor: `donor_email`
   // keeps its settlement placeholder, because no address for them is held.
@@ -446,8 +447,8 @@ export const action = async ({ request }: Route.ActionArgs) => {
   );
 
   // a matched gift settles through the same fan-out the queue runs for the gift
-  // itself, so a fund's match reaches each of its active members. cheque, DAF
-  // and a match naming no donation keep their single npo destination.
+  // itself, so a fund's match reaches each of its active members. cheque, DAF,
+  // stocks and a match naming no donation keep their single npo destination.
   //
   // resolved before the transaction opens: it is all reads, and they run on the
   // shared connection rather than the tx handle.

@@ -169,7 +169,7 @@ function render_app(initial = "/platform/donation-settlements") {
 async function fill_form_and_preview(
   screen: Awaited<ReturnType<typeof render>>,
   opts: {
-    from?: "cheque" | "daf" | "match";
+    from?: "cheque" | "daf" | "stocks" | "match";
     donor_name?: string;
     net: string;
     reference: string;
@@ -203,9 +203,7 @@ async function fill_form_and_preview(
     await screen.getByPlaceholder("Anonymous").fill(opts.donor_name);
   }
   await screen.getByPlaceholder("0.00").fill(opts.net);
-  await screen
-    .getByPlaceholder("e.g. Fidelity deposit #123")
-    .fill(opts.reference);
+  await screen.getByLabelText("Reference / Grant ID").fill(opts.reference);
 
   if (opts.for_donation_id) {
     await screen
@@ -383,6 +381,41 @@ describe("settle donation — full flow", () => {
       .element(screen.getByRole("cell", { name: "DAF", exact: true }))
       .toBeVisible();
     await expect.element(screen.getByText("DAF grant #555")).toBeVisible();
+  });
+
+  it("settles a stock gift → listed with method 'Stocks'", async () => {
+    const screen = await render_app();
+
+    (
+      screen.getByRole("link", { name: /new/i }).element() as HTMLElement
+    ).click();
+
+    await fill_form_and_preview(screen, {
+      from: "stocks",
+      donor_name: "Stella Stockwell",
+      net: "1250",
+      reference: "10 AAPL via Schwab",
+    });
+
+    (
+      screen.getByRole("button", { name: /confirm/i }).element() as HTMLElement
+    ).click();
+
+    await expect
+      .element(screen.getByText("Settlement created"), { timeout: 10_000 })
+      .toBeInTheDocument();
+
+    (
+      screen.getByRole("button", { name: /close/i }).element() as HTMLElement
+    ).click();
+
+    await expect
+      .element(screen.getByText("Stella Stockwell"), { timeout: 5000 })
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("cell", { name: "Stocks", exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText("10 AAPL via Schwab")).toBeVisible();
   });
 
   // the field only exists for a match, and only reaches the action if the

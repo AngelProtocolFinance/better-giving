@@ -33,7 +33,7 @@ const donor_email = v.optional(
 );
 
 const fields = {
-  from: v.picklist(["cheque", "daf", "match"]),
+  from: v.picklist(["cheque", "daf", "stocks", "match"]),
   donor_name: v.optional(v.string(), ""),
   donor_email,
   net: v.pipe(v.string(), v.nonEmpty("Enter a valid amount")),
@@ -106,6 +106,7 @@ export function SettleForm({
           >
             <option value="cheque">Cheque</option>
             <option value="daf">DAF</option>
+            <option value="stocks">Stocks</option>
             <option value="match">Employer match</option>
           </select>
         </div>
@@ -164,13 +165,17 @@ export function SettleForm({
           {...register("reference")}
           label="Reference / Grant ID"
           required
-          placeholder="e.g. Fidelity deposit #123"
+          placeholder={
+            from === "stocks"
+              ? "e.g. AAPL 10 shares, Schwab"
+              : "e.g. Fidelity deposit #123"
+          }
           classes={{ input: "w-full" }}
           error={errors.reference?.message}
         />
 
         {/* only an employer's payment attaches to anything, so the field is
-            hidden for the other two rather than left to be filled in and
+            hidden for the other sources rather than left to be filled in and
             silently ignored */}
         {from === "match" && (
           <Field

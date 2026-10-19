@@ -131,3 +131,31 @@ describe("settlement create — a confirm that never answered", () => {
     expect(keys[1]).not.toBe(keys[0]);
   });
 });
+
+describe("settlement create — source-specific fields", () => {
+  test("stock hides the donation id and shows its own reference hint; match shows the id", async () => {
+    const { Stub } = setup();
+    const screen = await render(
+      <Stub initialEntries={["/settlements/create"]} />
+    );
+    await expect
+      .element(screen.getByRole("heading", { name: "New settlement" }))
+      .toBeVisible();
+
+    await screen.getByLabelText("From").selectOptions("match");
+    await expect
+      .element(screen.getByLabelText("For donation ID"))
+      .toBeVisible();
+    await expect
+      .element(screen.getByLabelText("Reference / Grant ID"))
+      .toHaveAttribute("placeholder", "e.g. Fidelity deposit #123");
+
+    await screen.getByLabelText("From").selectOptions("stocks");
+    await expect
+      .element(screen.getByLabelText("For donation ID"))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByLabelText("Reference / Grant ID"))
+      .toHaveAttribute("placeholder", "e.g. AAPL 10 shares, Schwab");
+  });
+});

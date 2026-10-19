@@ -5,7 +5,7 @@ export interface INpoOpt {
   name: string;
 }
 
-export type TFrom = "cheque" | "daf" | "match";
+export type TFrom = "cheque" | "daf" | "stocks" | "match";
 
 export interface IFormValues {
   from: TFrom;
