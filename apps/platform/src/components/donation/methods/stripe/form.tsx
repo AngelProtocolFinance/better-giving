@@ -140,7 +140,20 @@ export function Form(props: TMethodState<"stripe">) {
   // pin stacks the rails under the card button the same way wallets_below does.
   // unset mounts keep `wallets_below` as the only signal.
   const stack_wallets = wallets_below || pin;
-  const wallet_flow = `${sx_flow}|${pp_flow}`;
+  // both rails reload on a currency change or when the gift crosses between
+  // one-time and recurring. monthly and annual share one paypal effect and
+  // one stripe elements mode, and neither calls on_shown again, so the raw
+  // frequency must not collapse a button that is still mounted.
+  const rail_load = (currency: string, frequency: string) =>
+    `${currency}-${frequency === "one-time" ? "one-time" : "recurring"}`;
+  const wallet_flow = [
+    rhf.stripe_express
+      ? rail_load(rhf.stripe_express.currency, rhf.stripe_express.frequency)
+      : "",
+    rhf.paypal_express
+      ? rail_load(rhf.paypal_express.currency, rhf.paypal_express.frequency)
+      : "",
+  ].join("|");
   const wallets_below_ref = useRef(stack_wallets);
   wallets_below_ref.current = stack_wallets;
   const wallet_flow_ref = useRef(wallet_flow);

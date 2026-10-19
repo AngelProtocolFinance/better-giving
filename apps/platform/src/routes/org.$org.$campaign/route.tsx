@@ -189,7 +189,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
             base_url={base_url}
             recipient={{
               id: String(npo.id),
-              name: campaign.name,
+              name: npo.name,
               hide_bg_tip: npo.hide_bg_tip,
               members: [String(npo.id)],
               donor_address_required: npo.donor_address_required,
@@ -202,6 +202,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
               increments: campaign.increments ?? undefined,
               campaign_id: campaign.id,
               campaign_url: canonical,
+              campaign_name: campaign.name,
               prefill_amount_usd: loaderData.prefill_amount_usd,
               prefill_frequency: loaderData.prefill_frequency,
             }}

@@ -25,13 +25,14 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
   const total = +props.amount + tipv;
   const url = `${don.base_url}${path}`;
   const project = don.config?.campaign_url ?? url;
-  const name = don.recipient.name;
+  const grantee = don.recipient.name;
+  const reference = don.config?.campaign_name ?? grantee;
 
   const instructions_text = [
     `Payee name: ${LEGAL_NAME}`,
     `EIN: ${EIN}`,
     `Mailing address: ${ADDRESS}`,
-    `Reference: ${name}`,
+    `Reference: ${reference}`,
     `Project URL: ${project}`,
     `Amount: $${total.toFixed(2)}`,
     ...(props.custodian ? [`Custodian: ${props.custodian}`] : []),
@@ -78,15 +79,15 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
             ))}
           </span>
         </div>
-        <Row label="Reference" value={name} />
-        <Row label="Project URL" value={url} />
+        <Row label="Reference" value={reference} />
+        <Row label="Project URL" value={project} />
         <Row label="Amount" value={`$${total.toFixed(2)}`} />
         {props.custodian && <Row label="Custodian" value={props.custodian} />}
       </div>
 
       <div className="flex justify-center gap-4 mt-6">
         <a
-          href={email_link(name, project, total)}
+          href={email_link(reference, project, total)}
           className="btn btn-sm btn-secondary font-normal"
         >
           Generate Email
@@ -173,7 +174,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
         </button>
       )}
 
-      <DonationTerms endowName={name} classes="mt-5 border-t pt-4" />
+      <DonationTerms endowName={grantee} classes="mt-5 border-t pt-4" />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { HttpResponse, http } from "msw";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { mailto_fields } from "#/__tests__/fixtures/mailto";
 import { mswWorker } from "#/setup-tests-browser";
@@ -14,7 +14,10 @@ const don_mock = vi.hoisted(() => ({
   recipient: { id: "1", name: "Boys & Girls Club #7 (100% volunteer)" },
   source: "bg-marketplace",
   mode: "live",
-  config: null,
+  config: null as {
+    campaign_name?: string;
+    campaign_url?: string;
+  } | null,
   base_url: "https://test.example.com",
 }));
 const don_set_mock = vi.hoisted(() => vi.fn());
@@ -34,6 +37,11 @@ const fv: IraQcdDonationDetails = {
 };
 
 describe("ira qcd checkout", () => {
+  afterEach(() => {
+    don_mock.recipient.name = NAME;
+    don_mock.config = null;
+  });
+
   test("a recipient named with &, # and % reaches the custodian email whole", async () => {
     const screen = await render(<IraQcdCheckout {...fv} />);
 
@@ -56,6 +64,29 @@ describe("ira qcd checkout", () => {
       ])
     );
     expect(fields.get("cc")).toBe(emails.hi);
+  });
+
+  test("a campaign stays on the transfer line and the nonprofit stays in the terms", async () => {
+    don_mock.recipient.name = "Harbor Nonprofit";
+    don_mock.config = {
+      campaign_name: "Winter Drive",
+      campaign_url: "https://test.example.com/org/harbor/winter",
+    };
+    const screen = await render(<IraQcdCheckout {...fv} />);
+
+    const reference = screen.getByText("Reference:", { exact: true });
+    expect(
+      (reference.element() as HTMLElement).parentElement?.textContent
+    ).toContain("Winter Drive");
+    const project = screen.getByText("Project URL:", { exact: true });
+    expect(
+      (project.element() as HTMLElement).parentElement?.textContent
+    ).toContain("/org/harbor/winter");
+    await expect
+      .element(
+        screen.getByText(/grants unrestricted funds to Harbor Nonprofit/)
+      )
+      .toBeVisible();
   });
 
   const refuse = (body: object) =>
