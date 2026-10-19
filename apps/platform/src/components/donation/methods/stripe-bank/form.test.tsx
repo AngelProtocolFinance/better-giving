@@ -342,6 +342,7 @@ describe("Bank transfer form", () => {
         id: null,
         success_redirect: undefined,
         method_ids: ["stripe", "stripe_bank"],
+        freq_opts: undefined,
       },
       method: "stripe_bank",
       pin: true,
@@ -368,7 +369,7 @@ describe("Bank transfer form", () => {
     const column = field.closest(".p-5");
     expect(column?.classList.contains("sm:p-6")).toBe(true);
 
-    const pad = (el: HTMLElement) => {
+    const pad = (el: Element) => {
       const box = el.getBoundingClientRect();
       const style = getComputedStyle(el);
       return {
@@ -405,6 +406,7 @@ describe("Bank transfer form", () => {
         id: null,
         success_redirect: undefined,
         method_ids: ["stripe", "stripe_bank"],
+        freq_opts: undefined,
       },
       method: "stripe_bank",
     };

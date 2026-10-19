@@ -12,6 +12,16 @@ function hours_ago(hours: number) {
   return new Date(Date.now() - hours * HOUR - 60_000).toISOString();
 }
 
+function same_local_day(iso: string) {
+  const then = new Date(iso);
+  const now = new Date();
+  return (
+    then.getFullYear() === now.getFullYear() &&
+    then.getMonth() === now.getMonth() &&
+    then.getDate() === now.getDate()
+  );
+}
+
 function days_ago(days: number) {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -98,13 +108,16 @@ describe("donor messages", () => {
   });
 
   test("a feed card shows the amount, the message, and a relative time", async () => {
+    const ada_date = hours_ago(2);
+    // calendar day wins: two hours ago reads Yesterday once local midnight has passed
+    const ada_time = same_local_day(ada_date) ? "2 hours ago" : "Yesterday";
     donors("feed-1", {
       "": {
         items: [
           row("Ada Lovelace", {
             amount: 40,
             message: "For the Tuesday stew.",
-            date: hours_ago(2),
+            date: ada_date,
           }),
           row("Grace Hopper", { amount: 15, date: days_ago(1) }),
           row("Katherine Johnson", {
@@ -126,8 +139,16 @@ describe("donor messages", () => {
     await expect
       .element(screen.getByText("For the Tuesday stew."))
       .toBeVisible();
-    await expect.element(screen.getByText("2 hours ago")).toBeVisible();
-    await expect.element(screen.getByText("Yesterday")).toBeVisible();
+    const ada = screen.getByText("Ada Lovelace").element().closest("article");
+    if (!ada) throw new Error("ada card missing");
+    await expect
+      .element(page.elementLocator(ada).getByText(ada_time))
+      .toBeVisible();
+    const grace = screen.getByText("Grace Hopper").element().closest("article");
+    if (!grace) throw new Error("grace card missing");
+    await expect
+      .element(page.elementLocator(grace).getByText("Yesterday"))
+      .toBeVisible();
     await expect.element(screen.getByText("3 days ago")).toBeVisible();
     await expect.element(screen.getByText("$1,250")).toBeVisible();
     const quiet = screen.getByText("Quiet Donor").element().closest("article");
