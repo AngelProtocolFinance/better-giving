@@ -4,7 +4,13 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
-import { type FormEventHandler, useState } from "react";
+import { CircleAlert } from "lucide-react";
+import {
+  type FormEventHandler,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { error_prompt, user_error_prompt } from "#/helpers/error-prompt";
 import type { IDonationIntent } from "@/donations";
 import { ErrorTrigger } from "../../../error";
@@ -66,6 +72,45 @@ interface Props extends IDonationIntent {
  */
 const PROMPT_SLOT = "stripe-checkout";
 
+/** height of a sticky bar sitting on the scroller's top edge. the campaign
+ * dialog's close control is one, and an alert parked at 0 would sit under it. */
+function sticky_top_cover(scroller: HTMLElement): number {
+  const scroller_top = scroller.getBoundingClientRect().top;
+  let cover = 0;
+  for (const child of scroller.children) {
+    if (!(child instanceof HTMLElement)) continue;
+    if (getComputedStyle(child).position !== "sticky") continue;
+    const rect = child.getBoundingClientRect();
+    if (rect.top - scroller_top > 1 || rect.bottom <= scroller_top) continue;
+    cover = Math.max(cover, rect.height);
+  }
+  return cover;
+}
+
+/** the alert sits under the summary. the dialog body is the scroller, and
+ * putting the alert at its top is what a donor who has scrolled the card
+ * fields can actually read. */
+function scroll_alert_to_top(node: HTMLElement) {
+  let parent = node.parentElement;
+  while (parent) {
+    const overflow = getComputedStyle(parent).overflowY;
+    if (
+      (overflow === "auto" || overflow === "scroll") &&
+      parent.scrollHeight > parent.clientHeight
+    ) {
+      const top =
+        node.getBoundingClientRect().top -
+        parent.getBoundingClientRect().top +
+        parent.scrollTop -
+        sticky_top_cover(parent);
+      parent.scrollTo({ top: Math.max(0, top) });
+      return;
+    }
+    parent = parent.parentElement;
+  }
+  node.scrollIntoView({ block: "start" });
+}
+
 export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   const { don } = use_donation();
   const ask_prompt = use_ask_prompt();
@@ -88,9 +133,22 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   // to the receipt has to outlive it.
   const [stuck, set_stuck] = useState<IDonationDest>();
   const redirect = use_donation_redirect();
+  // the campaign dialog only. a confirm failure stays on this form instead of
+  // opening a second dialog over it. other mounts keep the prompt.
+  const pinned = don.pin === true;
+  const [notice, set_notice] = useState<string | null>(null);
+  const notice_ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const node = notice_ref.current;
+    if (!notice || !node) return;
+    scroll_alert_to_top(node);
+  }, [notice]);
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
+    // a new attempt replaces the last failure.
+    if (pinned) set_notice(null);
 
     if (!stripe || !elements) {
       // stripe.js hasn't yet loaded.
@@ -124,7 +182,12 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
     // successful payments and errors.
     if (error) {
       const donor_message = donor_card_message(error);
-      if (donor_message) {
+      if (pinned) {
+        const shown =
+          donor_message ??
+          error_prompt(error, { context: "processing payment" }).children;
+        set_notice(typeof shown === "string" ? shown : null);
+      } else if (donor_message) {
         ask_prompt(user_error_prompt(donor_message), { key: PROMPT_SLOT });
       } else {
         ask_prompt(error_prompt(error, { context: "processing payment" }), {
@@ -171,6 +234,16 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
       onSubmit={handleSubmit}
       className="contents"
     >
+      {notice && (
+        <div
+          ref={notice_ref}
+          role="alert"
+          className="mt-4 flex items-start gap-2 rounded border border-destructive bg-destructive-subtle p-3 text-destructive-subtle-fg"
+        >
+          <CircleAlert className="icon-sm mt-0.5 shrink-0" />
+          <p>{notice}</p>
+        </div>
+      )}
       <PaymentElement
         className="mt-4"
         options={{
@@ -189,7 +262,12 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
         onReady={() => set_status("ready")}
         onLoadError={(error) => set_status({ error })}
         onLoaderStart={() => set_status("loading")}
-        onChange={(x) => set_complete(x.complete)}
+        onChange={(x) => {
+          set_complete(x.complete);
+          // an edit or a method change retires the failure. stripe's own
+          // field errors stay under the fields; this only clears ours.
+          set_notice((current) => (current == null ? current : null));
+        }}
       />
       {status === "init" ? (
         <Loader />

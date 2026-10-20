@@ -1,7 +1,7 @@
 import { AskHost } from "@better-giving/ui";
 import type { Stripe, StripeError } from "@stripe/stripe-js";
 import { HttpResponse, http } from "msw";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { createRoutesStub, href } from "react-router";
 import { SWRConfig } from "swr";
 import {
@@ -62,16 +62,29 @@ vi.mock("../../common/redirect", () => ({
   use_donation_redirect: () => redirect_mock,
 }));
 
+// the latest change handler, so a test can type into the field after mount.
+// the element itself fires once: a parent render is not the donor editing.
+const payment_change = vi.hoisted(() => ({
+  current: null as
+    | ((event: { complete: boolean; value?: { type: string } }) => void)
+    | null,
+}));
+
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: vi.fn(({ children }) => children),
   PaymentElement: vi.fn(({ onReady, onChange }: any) => {
+    const ready = useRef(onReady);
+    const change = useRef(onChange);
+    ready.current = onReady;
+    change.current = onChange;
+    payment_change.current = onChange;
     useEffect(() => {
-      onChange({ complete: true });
-      const id = setTimeout(onReady, 50);
+      change.current({ complete: true });
+      const id = setTimeout(() => ready.current(), 50);
       return () => {
         clearTimeout(id);
       };
-    }, [onReady, onChange]);
+    }, []);
     return <div />;
   }),
   useStripe: vi.fn(() => {
@@ -461,6 +474,142 @@ describe("stripe checkout", () => {
         "href",
         "https://test.example.com/donations/fake_order_id"
       );
+  });
+
+  test("a pinned confirm failure stays on the form", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    const scrolled = vi
+      .spyOn(HTMLElement.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    const Stub = stb(<Checkout {...fv} />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockResolvedValueOnce({
+      error: {
+        type: "invalid_request_error",
+        code: "payment_intent_authentication_failure",
+        message: "We are unable to authenticate your payment method.",
+      } satisfies StripeError,
+    });
+
+    await donateBtn.click();
+    const alert = screen.getByRole("alert");
+    await expect
+      .element(alert)
+      .toMatchTextContent(/bank couldn't verify this card/i);
+    expect(screen.getByRole("dialog").query()).toBeNull();
+    expect(screen.getByRole("button", { name: /^ok$/i }).query()).toBeNull();
+    expect(reported).toHaveLength(0);
+    expect(scrolled).toHaveBeenCalled();
+
+    const form = screen
+      .getByTestId("stripe-checkout-form")
+      .element() as HTMLElement;
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.disabled).toBe(false);
+
+    payment_change.current?.({ complete: true, value: { type: "card" } });
+    await vi.waitFor(() =>
+      expect(screen.getByRole("alert").query()).toBeNull()
+    );
+    expect(submit?.disabled).toBe(false);
+    scrolled.mockRestore();
+  });
+
+  test("a pinned decline uses the processor's message", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    const Stub = stb(<Checkout {...fv} amount="103" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockResolvedValueOnce({
+      error: {
+        type: "card_error",
+        code: "card_declined",
+        message: "Your card was declined.",
+      } satisfies StripeError,
+    });
+
+    await donateBtn.click();
+    const alert = screen.getByRole("alert");
+    await expect.element(alert).toMatchTextContent(/your card was declined/i);
+    expect(screen.getByRole("dialog").query()).toBeNull();
+    expect(reported).toHaveLength(0);
+  });
+
+  test("a pinned failure leaves when the donor submits again", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    const Stub = stb(<Checkout {...fv} amount="104" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockResolvedValueOnce({
+      error: {
+        type: "card_error",
+        message: "Your card has insufficient funds.",
+      } satisfies StripeError,
+    });
+    confirm_payment_mock.mockImplementationOnce(() => new Promise(() => {}));
+
+    await donateBtn.click();
+    await expect
+      .element(screen.getByRole("alert"))
+      .toMatchTextContent(/insufficient funds/i);
+
+    await donateBtn.click();
+    await vi.waitFor(() =>
+      expect(screen.getByRole("alert").query()).toBeNull()
+    );
+    const form = screen
+      .getByTestId("stripe-checkout-form")
+      .element() as HTMLElement;
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.disabled).toBe(true);
+  });
+
+  test("a pinned outage is reported and shown in the same slot", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    const Stub = stb(<Checkout {...fv} amount="105" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    const err: StripeError = {
+      type: "api_connection_error",
+      message: "network down",
+    };
+    confirm_payment_mock.mockResolvedValueOnce({ error: err });
+
+    await donateBtn.click();
+    const alert = screen.getByRole("alert");
+    await expect
+      .element(alert)
+      .toMatchTextContent(
+        /unexpected error occurred while processing payment/i
+      );
+    expect(screen.getByRole("dialog").query()).toBeNull();
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toBe(err);
   });
 
   test("form_id included in intent", async () => {
