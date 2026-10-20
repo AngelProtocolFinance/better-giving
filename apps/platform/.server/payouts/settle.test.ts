@@ -19,8 +19,31 @@ const send_alert = vi.hoisted(() => vi.fn());
 /** makes the next `payouts_move` out of this status throw, as a dropped socket would */
 const fail_move = vi.hoisted(() => ({ from: null as string | null }));
 const deductions = vi.hoisted(() => ({ on: false }));
+/** npo row and owed-row locks, in the order they are taken: pglite runs one
+ * connection, so two transactions can't race here, only show their lock order */
+const locks = vi.hoisted(() => [] as ("npo" | "owed")[]);
 
 vi.mock("#/errors/report", () => ({ report_error }));
+vi.mock("../pg/queries/npo", async (io) => {
+  const actual = await io<typeof import("../pg/queries/npo")>();
+  return {
+    ...actual,
+    npo_get_locked: (...args: Parameters<typeof actual.npo_get_locked>) => {
+      locks.push("npo");
+      return actual.npo_get_locked(...args);
+    },
+  };
+});
+vi.mock("../pg/queries/owed", async (io) => {
+  const actual = await io<typeof import("../pg/queries/owed")>();
+  return {
+    ...actual,
+    unrecover_owed: (...args: Parameters<typeof actual.unrecover_owed>) => {
+      locks.push("owed");
+      return actual.unrecover_owed(...args);
+    },
+  };
+});
 vi.mock("../pg/queries/payout", async (io) => {
   const actual = await io<typeof import("../pg/queries/payout")>();
   return {
@@ -98,6 +121,7 @@ beforeEach(async () => {
   send_alert.mockReset();
   fail_move.from = null;
   deductions.on = false;
+  locks.length = 0;
   await db().delete(bal_txs);
   await db().delete(loss_logs);
   await db().delete(owed_amounts);
@@ -1117,6 +1141,25 @@ describe("settle_npo_payouts: owed deductions", () => {
     ]);
     expect(await npo_cash(npo.id)).toBe(500);
     expect(send_alert).not.toHaveBeenCalled();
+  });
+
+  test("switched on, an unfunded run's release locks the npo before the owed rows it gives back, as a refund does", async () => {
+    deductions.on = true;
+    const npo = await seed_npo({ cash: 500 });
+    await seed_payout(npo.id, "p-1", 500);
+    await seed_owed(npo.id, "don-owed", 93.2);
+    const pay = vi.fn<Pay>(async () => {
+      locks.length = 0;
+      throw new NotFundedError(new Error("insufficient balance"));
+    });
+
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
+
+    expect(res.status).toBe("released");
+    expect(locks).toEqual(["npo", "owed"]);
   });
 
   test("switched on, an unfunded run whose deductions can't be undone stays claimed, and tells ops to undo them in the reset", async () => {
