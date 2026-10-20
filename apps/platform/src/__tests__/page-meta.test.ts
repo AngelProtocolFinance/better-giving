@@ -139,6 +139,15 @@ describe("page canonicals", () => {
     expect(robots_of(ds)).toBe("noindex");
     expect(urls_of(ds).canonical).toBeUndefined();
   });
+
+  test("form edit stays noindex when the loader has no form", () => {
+    const ds = form_edit({
+      loaderData: undefined,
+      params: { id: "form-9" },
+    } as never) as (MetaDescriptor & Record<string, unknown>)[];
+    expect(robots_of(ds)).toBe("noindex");
+    expect(urls_of(ds).canonical).toBeUndefined();
+  });
 });
 
 describe("home faq json-ld", () => {

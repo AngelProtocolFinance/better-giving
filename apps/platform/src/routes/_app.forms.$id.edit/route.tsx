@@ -20,7 +20,7 @@ function row_target(r: FormRow): "smart" | number | null {
 export { ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 export const meta: Route.MetaFunction = ({ loaderData: d, params }) => {
-  if (!d || !params.id) return [];
+  if (!d || !params.id) return [{ name: "robots", content: "noindex" }];
   return [
     { title: `Form - ${d.name}` },
     { name: "robots", content: "noindex" },
