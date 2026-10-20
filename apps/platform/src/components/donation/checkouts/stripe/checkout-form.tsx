@@ -259,7 +259,10 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
           role="alert"
           className="mt-4 flex items-start gap-2 rounded border border-destructive bg-destructive-subtle p-3 text-destructive-subtle-fg"
         >
-          <CircleAlert className="icon-sm mt-0.5 shrink-0" />
+          {/* one line tall, so a wrap keeps the icon on the first line */}
+          <span className="flex h-lh shrink-0 items-center">
+            <CircleAlert className="icon-sm" />
+          </span>
           <p>{notice}</p>
         </div>
       )}
