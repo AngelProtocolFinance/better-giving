@@ -6,6 +6,7 @@ export const pin_bar =
 
 /** the card step pads its summary, and this footer sits inside that padding.
  * the width has to grow by the same amount the negative margin pulls, or
- * the right edge stays short of the dialog. */
+ * the right edge stays short of the dialog. `w-full` on the bar is the same
+ * layer and wins an unforced calc, which is why these are marked important. */
 export const pin_bleed =
-  "-mx-5 w-[calc(100%+2.5rem)] sm:-mx-6 sm:w-[calc(100%+3rem)]";
+  "-mx-5 w-[calc(100%+2.5rem)]! sm:-mx-6 sm:w-[calc(100%+3rem)]!";
