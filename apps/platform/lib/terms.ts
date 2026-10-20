@@ -1,8 +1,9 @@
-/** the day the nonprofit, donor and referral terms' recovery right takes
- * effect. it begins at midnight in New York (`TERMS_ZONE`);
- * `terms_effective_at` turns it into that instant. seven days after
- * `TERMS_POSTED` lands on this same day. */
-export const TERMS_EFFECTIVE = "2026-10-23";
+/** the day the nonprofit, donor and referral terms' recovery right starts:
+ * the floor `terms_recovery_at` takes, so the cut-off for recording recovery
+ * rows begins at midnight in New York (`TERMS_ZONE`) on the later of this day
+ * and seven days after `TERMS_POSTED`. the terms pages' "Effective" header
+ * dates are their own and do not follow it. */
+export const TERMS_RECOVERY_FROM = "2026-10-23";
 
 /** the nonprofit and referral terms print it beside "Eastern Time" as the
  * cut-off's zone, so a zone outside that one needs their wording changed too */
@@ -24,7 +25,7 @@ function utc_midnight_of(date: string): number | null {
 
 /** the calendar day this amended terms page is posted. section 9(d) makes an
  * amendment effective seven days later unless the posting states a later
- * date. seven days after this posting is `TERMS_EFFECTIVE`, so recovery
+ * date. seven days after this posting is `TERMS_RECOVERY_FROM`, so recovery
  * begins at midnight in New York on that day. move this with the day the
  * page actually goes up. */
 export const TERMS_POSTED = "2026-10-16";
@@ -44,7 +45,7 @@ export function add_calendar_days(date: string, days: number): string | null {
  * received — falls under the recovery cutoff. an unparsable cutoff or
  * instant covers none */
 export function recovery_covers(at: string | null | undefined): boolean {
-  const cutoff = terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
+  const cutoff = terms_recovery_at(TERMS_RECOVERY_FROM, TERMS_POSTED);
   if (!cutoff || !at) return false;
   const made = new Date(at).getTime();
   if (Number.isNaN(made)) return false;

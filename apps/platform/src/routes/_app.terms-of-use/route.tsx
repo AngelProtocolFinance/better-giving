@@ -1,11 +1,12 @@
 import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
-import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
+import { terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
 
-const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
+const EFFECTIVE = terms_date_label("2026-10-23");
 
 const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>
@@ -15,7 +16,10 @@ export const headers: Route.HeadersFunction = () => ({
 });
 
 export const meta: Route.MetaFunction = () =>
-  metas({ title: "Terms of use (donor)" });
+  metas({
+    url: `${base_url}${href("/terms-of-use")}`,
+    title: "Terms of use (donor)",
+  });
 
 export default function TermsDonors() {
   return (
@@ -61,7 +65,8 @@ export default function TermsDonors() {
       </p>
       <p>
         We may revise and update these Terms from time to time at our sole
-        discretion. All changes are effective immediately when posted.
+        discretion. A change takes effect seven (7) days after we post it,
+        unless the posting states a later date.
       </p>
       <p>
         The headings and subheadings are for reference only and do not limit the

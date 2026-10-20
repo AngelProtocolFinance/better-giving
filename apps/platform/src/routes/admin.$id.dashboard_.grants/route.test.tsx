@@ -434,7 +434,7 @@ describe("the npo's grant history", () => {
   });
 
   it("shows nothing for a gift made before the effective date", async () => {
-    // a second before midnight in New York on TERMS_EFFECTIVE
+    // a second before midnight in New York on TERMS_RECOVERY_FROM
     await refunded("don-before", "2026-10-23T03:59:59.000Z");
     const screen = await render_page();
     await expect.element(screen.getByText("No amounts owed yet")).toBeVisible();

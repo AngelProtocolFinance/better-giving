@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// idempotent fixture for the connector-allow flow. launch.sh sets DATABASE_URL
-// to the local verify database after seed.sql. prints neither the url nor the
-// password.
+// idempotent fixture: the credential member the connector-allow flow signs in
+// as, and a platform admin (role `admin`) for `/platform/*` screens. launch.sh
+// sets DATABASE_URL to the local verify database after seed.sql. prints
+// neither the url nor the passwords.
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,10 +11,22 @@ const HERE = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = path.resolve(HERE, "../../../..");
 const APP = path.join(ROOT, "apps/platform");
 
-const EMAIL = "verify-member@example.com";
-const USER_ID = "verify-member";
-const ACCOUNT_ID = "verify-member-credential";
-const PASSWORD = "Verify-member-1";
+const MEMBER = {
+  id: "verify-member",
+  email: "verify-member@example.com",
+  first_name: "Verify",
+  last_name: "Member",
+  role: "user",
+  password: "Verify-member-1",
+};
+const ADMIN = {
+  id: "verify-admin",
+  email: "verify-admin@example.com",
+  first_name: "Verify",
+  last_name: "Admin",
+  role: "admin",
+  password: "Verify-admin-1",
+};
 
 process.stdout.on("error", (e) => {
   if (e.code === "EPIPE") process.exit(0);
@@ -47,13 +60,63 @@ const { hashPassword, verifyPassword } = await import(
   pathToFileURL(app_req.resolve("better-auth/crypto")).href
 );
 
-const password_matches = async (hash) => {
+const password_matches = async (hash, password) => {
   if (!hash) return false;
   try {
-    return await verifyPassword({ hash, password: PASSWORD });
+    return await verifyPassword({ hash, password });
   } catch {
     return false;
   }
+};
+
+/** the user row and its credential account; returns the user's id */
+const upsert_user = async (client, u) => {
+  const user = await client.query(
+    `insert into "user" (
+       id, name, email, email_verified, first_name, last_name, role
+     )
+     values ($1, $2, $3, true, $4, $5, $6)
+     on conflict (email) do update set
+       name = excluded.name,
+       email_verified = true,
+       first_name = excluded.first_name,
+       last_name = excluded.last_name,
+       role = excluded.role
+     returning id`,
+    [
+      u.id,
+      `${u.first_name} ${u.last_name}`,
+      u.email,
+      u.first_name,
+      u.last_name,
+      u.role,
+    ]
+  );
+  const user_id = user.rows[0].id;
+  const existing = await client.query(
+    `select id, password from account
+     where user_id = $1 and provider_id = 'credential'
+     limit 1`,
+    [user_id]
+  );
+  const row = existing.rows[0];
+  if (await password_matches(row?.password, u.password)) return user_id;
+  const hash = await hashPassword(u.password);
+  if (row) {
+    await client.query(
+      `update account set password = $1, updated_at = now() where id = $2`,
+      [hash, row.id]
+    );
+  } else {
+    await client.query(
+      `insert into account (
+         id, account_id, provider_id, user_id, password, created_at, updated_at
+       )
+       values ($1, $2, 'credential', $2, $3, now(), now())`,
+      [`${u.id}-credential`, user_id, hash]
+    );
+  }
+  return user_id;
 };
 
 const seed = async (client) => {
@@ -71,58 +134,22 @@ const seed = async (client) => {
          select 1 from npos where registration_number = 'VERIFY-0002'
        )`
     );
-    const user = await client.query(
-      `insert into "user" (
-         id, name, email, email_verified, first_name, last_name
-       )
-       values ($1, 'Verify Member', $2, true, 'Verify', 'Member')
-       on conflict (email) do update set
-         name = excluded.name,
-         email_verified = true,
-         first_name = excluded.first_name,
-         last_name = excluded.last_name
-       returning id`,
-      [USER_ID, EMAIL]
-    );
-    const user_id = user.rows[0].id;
-    const existing = await client.query(
-      `select id, password from account
-       where user_id = $1 and provider_id = 'credential'
-       limit 1`,
-      [user_id]
-    );
-    const row = existing.rows[0];
-    if (!(await password_matches(row?.password))) {
-      const hash = await hashPassword(PASSWORD);
-      if (row) {
-        await client.query(
-          `update account set password = $1, updated_at = now() where id = $2`,
-          [hash, row.id]
-        );
-      } else {
-        await client.query(
-          `insert into account (
-             id, account_id, provider_id, user_id, password, created_at, updated_at
-           )
-           values ($1, $2, 'credential', $2, $3, now(), now())`,
-          [ACCOUNT_ID, user_id, hash]
-        );
-      }
-    }
+    const user_id = await upsert_user(client, MEMBER);
+    await upsert_user(client, ADMIN);
     await client.query(
       `insert into user_npo_memberships (user_id, npo_id)
-       select $1, id from npos where registration_number = 'VERIFY-0001'
+       select $1, id from npos where registration_number = 'VERIFY0001'
        on conflict do nothing`,
       [user_id]
     );
     const member = await client.query(
       `select 1 from user_npo_memberships m
        join npos n on n.id = m.npo_id
-       where m.user_id = $1 and n.registration_number = 'VERIFY-0001'`,
+       where m.user_id = $1 and n.registration_number = 'VERIFY0001'`,
       [user_id]
     );
     if (member.rowCount === 0) {
-      throw new Error("VERIFY-0001 is missing; seed.sql did not run");
+      throw new Error("VERIFY0001 is missing; seed.sql did not run");
     }
     await client.query(
       `delete from user_npo_memberships m
@@ -149,7 +176,7 @@ if (url) {
     } finally {
       client.release();
     }
-    process.stdout.write("seeded member of VERIFY-0001\n");
+    process.stdout.write("seeded member of VERIFY0001 and platform admin\n");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`seed-member: ${safe(message)}`);

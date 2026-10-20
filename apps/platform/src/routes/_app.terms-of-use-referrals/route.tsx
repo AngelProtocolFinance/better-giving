@@ -1,15 +1,21 @@
+import { href } from "react-router";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
-import { TERMS_EFFECTIVE, TERMS_ZONE, terms_date_label } from "@/terms";
+import { TERMS_RECOVERY_FROM, TERMS_ZONE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
 
-const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
+const EFFECTIVE = terms_date_label("2026-10-23");
+const RECOVERY_FROM = terms_date_label(TERMS_RECOVERY_FROM);
 
 export const headers: Route.HeadersFunction = () => ({
   "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
 });
 
 export const meta: Route.MetaFunction = () =>
-  metas({ title: "Referral Program Terms of Use" });
+  metas({
+    url: `${base_url}${href("/terms-of-use-referrals")}`,
+    title: "Referral Program Terms of Use",
+  });
 
 export default function TermsReferrals() {
   return (
@@ -113,8 +119,8 @@ export default function TermsReferrals() {
             and may waive any amount in whole or in part at its discretion. This
             section applies only to donations made on or after the later of (i)
             12:00 a.m. Eastern Time ({TERMS_ZONE}) on{" "}
-            {/* same TERMS_EFFECTIVE as the effective line; a later cutoff needs its own date */}
-            {EFFECTIVE} and (ii) the date these revised Program Terms take
+            {/* the recovery cut-off follows TERMS_RECOVERY_FROM, not the effective line */}
+            {RECOVERY_FROM} and (ii) the date these revised Program Terms take
             effect.
           </p>
         </li>
@@ -171,8 +177,9 @@ export default function TermsReferrals() {
           <h3>Modifications</h3>
           <p>
             Better Giving reserves the right to modify these Terms at any time.
-            Continued participation after any changes constitutes acceptance of
-            the new Terms.
+            A change takes effect seven (7) days after we post it, unless the
+            posting states a later date. Continued participation after a change
+            takes effect constitutes acceptance of the new Terms.
           </p>
         </li>
         <li>

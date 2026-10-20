@@ -9,10 +9,12 @@ export function NewsletterForm() {
 
   const {
     register,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useRemixForm<IEmailSubs>({
     fetcher,
   });
+  // the form posts natively through fetcher.Form, so remix-hook-form's isSubmitting never flips
+  const pending = fetcher.state !== "idle";
 
   return (
     <fetcher.Form action="/" method="POST" className="grid content-start">
@@ -22,14 +24,14 @@ export function NewsletterForm() {
           aria-label="Email address"
           className="min-w-0 flex-1 rounded bg-primary-fg/10 border border-primary-fg/20 px-3.5 py-3 text-sm text-primary-fg placeholder:text-primary-fg/50 outline-ring"
           placeholder="you@nonprofit.org"
-          disabled={isSubmitting}
+          disabled={pending}
         />
         <button
           type="submit"
           name="intent"
           value="subscribe"
           className="btn btn-secondary"
-          disabled={isSubmitting}
+          disabled={pending}
         >
           Subscribe
         </button>

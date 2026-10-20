@@ -103,6 +103,7 @@ describe("to_receipt", () => {
     amount: { base: 100, tip: 0, fee_allowance: 0 },
     upusd: 1,
     currency: "USD",
+    via: "stripe:card",
     ...o,
   });
   const ctx = {
