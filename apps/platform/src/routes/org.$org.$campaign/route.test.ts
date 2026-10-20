@@ -778,7 +778,8 @@ describe("public campaign page", () => {
     const feed = await npo_donors(String(npo.id), undefined, "camp-public");
     const amounts = feed.items.map((item) => item.amount);
     expect(amounts).toEqual([5, 10]);
-    expect(amounts.reduce((sum, n) => sum + n, 0)).toBe(shown.raised);
+    const total = amounts.reduce<number>((sum, n) => sum + (n ?? 0), 0);
+    expect(total).toBe(shown.raised);
   });
 
   it("does not count a php intent toward the raised line when the bank redirect failed", async () => {
