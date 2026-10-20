@@ -10,7 +10,7 @@
 - New campaign is the button on the campaigns list.
 
 ## Driving it with drive.mjs
-- `node scripts/drive.mjs campaign-admin` signs in as the seeded npo admin (`verify-admin@example.com`), clicks **Verify Campaign Nonprofit**, clicks sidebar **Campaigns**.
+- `node scripts/drive.mjs campaign-admin` signs in as the seeded npo admin (`verify-campaign@example.com`), clicks **Verify Campaign Nonprofit**, clicks sidebar **Campaigns**.
 - The first card is **Better Giving profile**. Clicking it opens **Public profile information**.
 - **New campaign**: name, address, story, a hero image (the blob stub stores it as `/logo.png`), a fixed goal, an end date, the Card method, and a 100 increment. **Publish**. The editor shows a Campaign QR. The drive turns the center logo off, screenshots the code, and decodes it with `zbarimg`. The decoded URL is `/org/verify-campaign/<slug>`.
 - Back on the list, the new row is `live` with `$0` raised, and **Harbor Listing** (the seeded fund) is on the same list. The word fundraiser is absent.

@@ -42,7 +42,9 @@ const ORG = "verify-campaign";
 const SEEDED_CAMPAIGN = "winter";
 const SEEDED_CAMPAIGN_ID = "c0ffee00-0000-4000-8000-000000000001";
 const SEEDED_FUND = "f0000000-0000-4000-8000-000000000001";
-const ADMIN_EMAIL = "verify-admin@example.com";
+// seed.sql's campaign admin. seed-member.mjs owns verify-admin@example.com and
+// replaces its password, so this flow cannot sign in as that address.
+const ADMIN_EMAIL = "verify-campaign@example.com";
 const ADMIN_PASSWORD = "Verify-password-123!";
 
 class Blocked extends Error {}

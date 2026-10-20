@@ -61,12 +61,13 @@ select 'VERIFY0003', 'Verify Campaign Nonprofit', 'Charity', 'United States',
        true, true, 'verify-campaign', '/logo.png', '/logo.png'
 where not exists (select 1 from npos where registration_number = 'VERIFY0003');
 
--- npo admin. password is the local fixture Verify-password-123!
+-- campaign npo admin. password is the local fixture Verify-password-123!
 -- (better-auth scrypt, salt:hash). email_verified so sign-in does not mail a link.
+-- not verify-admin@example.com: seed-member.mjs owns that address and replaces its password.
 -- the id is a uuid: the listing page accepts a creator id that is an email, a uuid, or a number.
 insert into "user" (id, name, email, email_verified, first_name, last_name, updated_at)
 values (
-  'a0000000-0000-4000-8000-0000000000aa', 'Verify Admin', 'verify-admin@example.com', true,
+  'a0000000-0000-4000-8000-0000000000aa', 'Verify Admin', 'verify-campaign@example.com', true,
   'Verify', 'Admin', now()
 );
 insert into account (id, account_id, provider_id, user_id, password, updated_at)
