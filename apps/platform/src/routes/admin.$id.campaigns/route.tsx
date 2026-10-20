@@ -51,10 +51,10 @@ function fund_meta(f: IListedFund) {
   return `${fund_row_status(f)} · ${to_usd(f.donation_total_usd)} raised · ${fund_end(f.expiration)}`;
 }
 
-/** inactive: the editor only says the fund is closed, so the name opens the public page */
-function fund_row(f: IListedFund): IRow {
+/** an inactive editor only says the fund is closed; assert_fund_editor returns 403 on a fund this org does not own */
+function fund_row(f: IListedFund, owned: boolean): IRow {
   const public_to = href("/fundraisers/:fund_id", { fund_id: f.id });
-  if (!f.active) {
+  if (!owned || !f.active) {
     return { name: f.name, name_to: public_to, meta: fund_meta(f) };
   }
   return {
@@ -156,7 +156,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                   );
                 })}
                 {org_funds.map((f) => (
-                  <Row key={f.id} {...fund_row(f)} />
+                  <Row key={f.id} {...fund_row(f, true)} />
                 ))}
               </ul>
             </section>
@@ -166,7 +166,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
               <h2 className="font-semibold">Supporter fundraisers</h2>
               <ul className="grid gap-3">
                 {supporter_funds.map((f) => (
-                  <Row key={f.id} {...fund_row(f)} />
+                  <Row key={f.id} {...fund_row(f, false)} />
                 ))}
               </ul>
             </section>

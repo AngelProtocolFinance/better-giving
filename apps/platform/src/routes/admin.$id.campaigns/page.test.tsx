@@ -220,7 +220,7 @@ describe("campaign list", () => {
       .elementLocator(section as HTMLElement)
       .getByRole("link", { name: "Guest page" });
     expect((guest.element() as HTMLAnchorElement).pathname).toBe(
-      "/fundraisers/f-guest/edit"
+      "/fundraisers/f-guest"
     );
   });
 
@@ -321,7 +321,7 @@ describe("campaign list", () => {
       .element(screen.getByText("Ended · $4 raised · No end date"))
       .toBeVisible();
     expect(screen.getByRole("link", { name: "View" }).elements().length).toBe(
-      1
+      0
     );
 
     const supporters = screen
@@ -330,17 +330,16 @@ describe("campaign list", () => {
     const supporter = page.elementLocator(supporters as HTMLElement);
     const open = supporter.getByRole("link", { name: "Open page" });
     expect((open.element() as HTMLAnchorElement).pathname).toBe(
-      "/fundraisers/f-live/edit"
+      "/fundraisers/f-live"
     );
     const closed = supporter.getByRole("link", { name: "Closed page" });
     expect((closed.element() as HTMLAnchorElement).pathname).toBe(
       "/fundraisers/f-ended"
     );
     expect(closed.elements().length).toBe(1);
-    const view = screen.getByRole("link", { name: "View", exact: true });
-    expect((view.element() as HTMLAnchorElement).pathname).toBe(
-      "/fundraisers/f-live"
-    );
+    expect(
+      supporter.getByRole("link", { name: "View", exact: true }).query()
+    ).toBeNull();
     await expect
       .element(screen.getByText("Live · $9 raised · No end date"))
       .toBeVisible();
