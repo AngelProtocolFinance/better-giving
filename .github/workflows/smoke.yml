@@ -65,6 +65,9 @@ jobs:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     # the 30m ci wait, install, then migrate.ts's advisory-lock wait.
     timeout-minutes: 50
+    # `true` only on a superseded hit. smoke-dispatch skips on that value.
+    outputs:
+      superseded: ${{ steps.superseded.outputs.superseded }}
     steps:
       # a deploy with no git metadata has no commit to hold a status. failing
       # here, before any status write, leaves it held with this error as the
@@ -146,42 +149,66 @@ jobs:
       # a deployment completes, after the checks this run is part of. last
       # before migrate to keep the window — a newer deployment that starts
       # after this step and promotes before smoke ends — as short as it gets.
+      # a hit does not fail the step (a gh/api error still does). this job's
+      # check run lands on main's HEAD, so a failed step here is a red main
+      # run and fires the CI alert. migrate is skipped, the job stays green,
+      # and `status failure` writes commit-status `failure`: `success` would
+      # let vercel promote the old deployment, and the `pending` from above
+      # would hold it with no terminal state. the output is what skips smoke,
+      # so smoke cannot request paths or write `success` over that status.
       - name: not superseded
+        id: superseded
         env:
           VERCEL_CONTEXT: Vercel – ${{ github.event.client_payload.project.name }}
         run: |
           set -euo pipefail
+          superseded=false
           newer=$(gh api "repos/$GITHUB_REPOSITORY/compare/$SHA...main" \
             --jq 'if .total_commits > (.commits | length) then "too-far" else (.commits | reverse | .[].sha) end')
           if [ "$newer" = too-far ]; then
-            echo "::error::$SHA is over 250 commits behind main; treating it as superseded"
-            exit 1
+            echo "::warning::$SHA is over 250 commits behind main; treating it as superseded"
+            superseded=true
+          else
+            for c in $newer; do
+              # the combined status keeps one entry per context, newest first;
+              # take only the first match so a repeated context can't yield two lines
+              state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$c/status" \
+                --jq '[.statuses[] | select(.context == env.VERCEL_CONTEXT)] | first | .state // ""')
+              case "$state" in
+                pending | success)
+                  echo "::warning::superseded by $c ($VERCEL_CONTEXT: $state); not migrating production"
+                  superseded=true
+                  break
+                  ;;
+              esac
+            done
           fi
-          for c in $newer; do
-            # the combined status keeps one entry per context, newest first;
-            # take only the first match so a repeated context can't yield two lines
-            state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$c/status" \
-              --jq '[.statuses[] | select(.context == env.VERCEL_CONTEXT)] | first | .state // ""')
-            case "$state" in
-              pending | success)
-                echo "::error::superseded by $c ($VERCEL_CONTEXT: $state); not migrating production"
-                exit 1
-                ;;
-            esac
-          done
-          echo "no newer $VERCEL_CONTEXT deployment on main"
+          echo "superseded=$superseded" >> "$GITHUB_OUTPUT"
+          if [ "$superseded" = false ]; then
+            echo "no newer $VERCEL_CONTEXT deployment on main"
+          fi
 
       # the migration guard, then drizzle-orm's migrator under the advisory lock
       # (apps/platform/.server/pg/migrate.ts). empty url fails closed.
+      # explicit `success()`: this `if` names a status function, so Actions does
+      # not add the default one. a failed gate must not run ddl.
       - name: migrate production
+        if: success() && steps.superseded.outputs.superseded != 'true'
         env:
           GH_TOKEN: ""
           DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
         run: pnpm --filter platform run migrate
 
-      # a failure here leaves the context failed even if smoke never starts.
+      # real failures and cancels land here, and so does a superseded hit:
+      # that path skips migrate without failing the job, so without this write
+      # the pending status above would hold the deployment forever. smoke does
+      # not start in any of these cases. `failure()`/`cancelled()` are in the
+      # expression, so the default `success()` check is not applied and the
+      # superseded arm can run while the job is still green.
       - name: status failure
-        if: (failure() || cancelled()) && env.SHA != ''
+        if: >-
+          (failure() || cancelled() || steps.superseded.outputs.superseded == 'true')
+          && env.SHA != ''
         run: gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=failure -f context="$STATUS_CONTEXT" -f target_url="$RUN_URL" --silent
 
   # this job's name is not the check to require in vercel — its check run sits
@@ -194,12 +221,17 @@ jobs:
     # cancelled after migrate succeeded, so the pending context still gets a
     # final state (stopping it then takes a force-cancel). a failed or
     # cancelled migrate already wrote the failure status, so this job only
-    # runs on success or skip.
+    # runs on success or skip. a superseded production deploy also wrote
+    # `failure` and left migrate green — the output is `true` only then, and
+    # this job skips so it cannot request paths or write `success`. a skipped
+    # migrate leaves the output empty, which is not `true`, so a non-production
+    # dispatch still reaches the project-id check.
     # docs and emails-preview share this repo and dispatch the same event;
     # their runs skip here and write no status. only platform is gated.
     if: >-
       always()
       && contains(fromJSON('["success", "skipped"]'), needs.migrate.result)
+      && needs.migrate.outputs.superseded != 'true'
       && github.event.client_payload.project.id == 'prj_xpN1ud1WKyuw84TLzlhXyAzYNo3f'
     # a curl loop — 2 vcpu is plenty. the label is the whole blacksmith
     # integration (see ci.yml).
