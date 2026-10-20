@@ -16,10 +16,12 @@ export function Context({
   ...initState
 }: PropsWithChildren<TDonation & { on_pay_busy?: (busy: boolean) => void }>) {
   const [state, set_state] = useState<TDonation>(initState);
+  const [pay_busy, set_pay_busy] = useState(false);
   const on_pay_busy_ref = useRef(on_pay_busy);
   on_pay_busy_ref.current = on_pay_busy;
   const report_pay_busy = useCallback((busy: boolean) => {
     on_pay_busy_ref.current?.(busy);
+    set_pay_busy(busy);
   }, []);
 
   const don_set: StateSetter = (new_state) =>
@@ -30,7 +32,9 @@ export function Context({
     );
 
   return (
-    <context.Provider value={{ don: state, don_set, report_pay_busy }}>
+    <context.Provider
+      value={{ don: state, don_set, report_pay_busy, pay_busy }}
+    >
       {children}
     </context.Provider>
   );

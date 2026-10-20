@@ -359,7 +359,7 @@ function Notice(props: ICampaignPage) {
             to={props.thanks.receipt}
             className="text-sm font-semibold underline"
           >
-            Your receipt
+            View your receipt
           </Link>
         )}
       </section>

@@ -16,11 +16,11 @@ const don_mock = vi.hoisted(() => ({
   config: null as Config | null,
   base_url: "https://test.example.com",
 }));
+const use_donation_mock = vi.hoisted(() => vi.fn());
 vi.mock("../../context", () => ({
-  use_donation: vi
-    .fn()
-    .mockReturnValue({ don: don_mock, don_set: don_set_mock }),
+  use_donation: use_donation_mock,
 }));
+use_donation_mock.mockReturnValue({ don: don_mock, don_set: don_set_mock });
 
 // leaving for the thank-you page is one shared helper with its own tests
 // (../../common/redirect.test.ts) — what's asserted here is what the donor is
@@ -32,6 +32,11 @@ vi.mock("../../common/redirect", () => ({
 
 describe("daf checkout: a grant that goes through but never lands", () => {
   afterEach(() => {
+    use_donation_mock.mockReturnValue({
+      don: don_mock,
+      don_set: don_set_mock,
+    });
+    don_set_mock.mockClear();
     redirect_mock.mockReset();
     for (const s of document.querySelectorAll(`script[src="${CDN_SRC}"]`)) {
       s.remove();
@@ -47,6 +52,19 @@ describe("daf checkout: a grant that goes through but never lands", () => {
     s.src = CDN_SRC;
     document.head.appendChild(s);
   };
+
+  test("go back stays shut while a payment is in flight", async () => {
+    use_donation_mock.mockReturnValue({
+      don: don_mock,
+      don_set: don_set_mock,
+      pay_busy: true,
+    });
+    const screen = await render(<ChariotCheckout {...fv} />);
+    const back = screen.getByRole("button", { name: "Go Back" });
+    await expect.element(back).toBeDisabled();
+    await back.click({ force: true });
+    expect(don_set_mock).not.toHaveBeenCalled();
+  });
 
   test("the way to the receipt outlives the modal, and the widget stays up", async () => {
     mswWorker.use(

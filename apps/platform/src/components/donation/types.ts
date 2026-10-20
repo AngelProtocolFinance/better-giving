@@ -451,6 +451,8 @@ export type State = {
   don_set: StateSetter;
   /** set while a payment's result is unknown. absent on mounts that never hold the dialog. */
   report_pay_busy?: (busy: boolean) => void;
+  /** steps read this so Go Back cannot unmount the hold. */
+  pay_busy?: boolean;
 };
 
 export const to_step = <T extends TMethod>(

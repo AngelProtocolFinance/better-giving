@@ -44,11 +44,11 @@ const don_mock = vi.hoisted(() => ({
     last_name: "Doe",
   },
 }));
+const use_donation_mock = vi.hoisted(() => vi.fn());
 vi.mock("../../context", () => ({
-  use_donation: vi
-    .fn()
-    .mockReturnValue({ don: don_mock, don_set: don_set_mock }),
+  use_donation: use_donation_mock,
 }));
+use_donation_mock.mockReturnValue({ don: don_mock, don_set: don_set_mock });
 
 const confirm_payment_mock = vi.hoisted(() => vi.fn());
 const confirm_setup_mock = vi.hoisted(() => vi.fn());
@@ -116,6 +116,11 @@ describe("stripe checkout", () => {
   });
   afterEach(() => {
     reported.length = 0;
+    use_donation_mock.mockReturnValue({
+      don: don_mock,
+      don_set: don_set_mock,
+    });
+    don_set_mock.mockClear();
   });
 
   const crash_msg = /unexpected error occurred and has been reported/i;
@@ -200,6 +205,19 @@ describe("stripe checkout", () => {
     await expect.element(screen.getByText("nope")).toBeVisible();
     await new Promise((r) => setTimeout(r, 300));
     expect(calls).toBe(1);
+  });
+
+  test("go back stays shut while a payment is in flight", async () => {
+    use_donation_mock.mockReturnValue({
+      don: don_mock,
+      don_set: don_set_mock,
+      pay_busy: true,
+    });
+    const screen = await render(fresh_swr(<Checkout {...fv} />));
+    const back = screen.getByRole("button", { name: "Go Back" });
+    await expect.element(back).toBeDisabled();
+    await back.click({ force: true });
+    expect(don_set_mock).not.toHaveBeenCalled();
   });
 
   test("stripe loading", async () => {

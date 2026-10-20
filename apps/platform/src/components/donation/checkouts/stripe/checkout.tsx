@@ -37,7 +37,8 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
     currency,
     bank_only,
   } = props;
-  const { don, don_set } = use_donation();
+  const { don, don_set, pay_busy } = use_donation();
+  const paying = pay_busy === true;
 
   const parts = stripe_amounts({
     amount: +amount,
@@ -78,9 +79,13 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
           ? "flex min-h-full flex-1 flex-col px-5 pt-5 sm:px-6 sm:pt-6"
           : "grid content-start p-4 @xl/steps:p-8"
       }
-      on_back={() =>
-        to_step(bank_only ? "stripe_bank" : "stripe", props, "donor", don_set)
-      }
+      // leaving unmounts the hold, which unlocks the dialog while the bank
+      // check is still out
+      on_back={() => {
+        if (paying) return;
+        to_step(bank_only ? "stripe_bank" : "stripe", props, "donor", don_set);
+      }}
+      back_disabled={paying}
       Amount={currencyfn(currency)}
       amount={parts.base}
       fee_allowance={parts.fee_allowance}

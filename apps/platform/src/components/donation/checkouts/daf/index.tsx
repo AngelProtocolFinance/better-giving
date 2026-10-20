@@ -74,7 +74,8 @@ function split_in_cents(amount: IAmount, grant_cents: number): IAmount {
 }
 
 export function ChariotCheckout(props: DafDonationDetails) {
-  const { don_set, don } = use_donation();
+  const { don_set, don, pay_busy } = use_donation();
+  const paying = pay_busy === true;
   const ask_prompt = use_ask_prompt();
   // where a grant that has already been recommended ended up. set the moment
   // the money moves, not when the trip to the receipt is declared lost: what
@@ -305,7 +306,12 @@ export function ChariotCheckout(props: DafDonationDetails) {
   return (
     <Summary
       classes="group grid content-start p-4 @xl/steps:p-8 [&_#connectContainer]:mt-8"
-      on_back={() => to_step("daf", props, "form", don_set)}
+      // leaving unmounts the hold while a grant may already exist
+      on_back={() => {
+        if (paying) return;
+        to_step("daf", props, "form", don_set);
+      }}
+      back_disabled={paying}
       Amount={currency(usd_option)}
       amount={+props.amount}
       fee_allowance={mfa}

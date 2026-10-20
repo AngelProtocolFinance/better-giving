@@ -234,7 +234,7 @@ describe("campaign page", () => {
     await expect
       .element(screen.getByText("Your $100 gift is in."))
       .toBeVisible();
-    const receipt = screen.getByRole("link", { name: "Your receipt" });
+    const receipt = screen.getByRole("link", { name: "View your receipt" });
     await expect.element(receipt).toBeVisible();
     expect(receipt.element().getAttribute("href")).toBe("/donations/gift-1");
   });
