@@ -278,6 +278,8 @@ async function release(
     type: "pending",
   });
   if (run) {
+    // payout, then npo, then owed row: the order a refund locks them in
+    await npo_get_locked(tx, run.npo_id);
     await unrecover_owed(tx, { ...run, now: new Date().toISOString() });
   }
   const not_released = ids.filter((id) => !released.includes(id));
