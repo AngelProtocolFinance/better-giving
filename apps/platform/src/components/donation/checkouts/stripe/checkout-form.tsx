@@ -133,8 +133,8 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   // to the receipt has to outlive it.
   const [stuck, set_stuck] = useState<IDonationDest>();
   const redirect = use_donation_redirect();
-  // the campaign dialog only. a confirm failure stays on this form instead of
-  // opening a second dialog over it. other mounts keep the prompt.
+  // the campaign dialog only. a failure the element does not paint stays on
+  // this form instead of opening a second dialog. other mounts keep the prompt.
   const pinned = don.pin === true;
   const [notice, set_notice] = useState<string | null>(null);
   const notice_ref = useRef<HTMLDivElement>(null);
@@ -186,7 +186,10 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
     // successful payments and errors.
     if (error) {
       const donor_message = donor_card_message(error);
-      if (pinned) {
+      // a card_error is already under the field, so the banner would repeat it.
+      if (pinned && error.type === "card_error") {
+        set_notice(null);
+      } else if (pinned) {
         const shown =
           donor_message ??
           error_prompt(error, { context: "processing payment" }).children;

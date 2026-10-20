@@ -527,7 +527,7 @@ describe("stripe checkout", () => {
     scrolled.mockRestore();
   });
 
-  test("a pinned decline uses the processor's message", async () => {
+  test("a pinned card error stays under the field", async () => {
     use_donation_mock.mockReturnValue({
       don: { ...don_mock, pin: true },
       don_set: don_set_mock,
@@ -544,14 +544,13 @@ describe("stripe checkout", () => {
         error: {
           type: "card_error",
           code: "card_declined",
-          message: "Your card was declined.",
+          message: "Your card has been declined.",
         } satisfies StripeError,
       });
     });
 
     await donateBtn.click();
-    const alert = screen.getByRole("alert");
-    await expect.element(alert).toMatchTextContent(/your card was declined/i);
+    expect(screen.getByRole("alert").query()).toBeNull();
     expect(screen.getByRole("dialog").query()).toBeNull();
     expect(reported).toHaveLength(0);
     const form = screen
@@ -560,7 +559,7 @@ describe("stripe checkout", () => {
     const submit = form.querySelector<HTMLButtonElement>(
       'button[type="submit"]'
     );
-    expect(submit?.disabled).toBe(false);
+    expect(submit?.disabled).toBe(true);
   });
 
   test("a pinned failure leaves when the donor submits again", async () => {
@@ -575,8 +574,9 @@ describe("stripe checkout", () => {
 
     confirm_payment_mock.mockResolvedValueOnce({
       error: {
-        type: "card_error",
-        message: "Your card has insufficient funds.",
+        type: "invalid_request_error",
+        code: "payment_intent_authentication_failure",
+        message: "We are unable to authenticate your payment method.",
       } satisfies StripeError,
     });
     confirm_payment_mock.mockImplementationOnce(() => new Promise(() => {}));
@@ -584,7 +584,7 @@ describe("stripe checkout", () => {
     await donateBtn.click();
     await expect
       .element(screen.getByRole("alert"))
-      .toMatchTextContent(/insufficient funds/i);
+      .toMatchTextContent(/bank couldn't verify this card/i);
 
     await donateBtn.click();
     await vi.waitFor(() =>
