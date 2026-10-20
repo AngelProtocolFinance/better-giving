@@ -1,5 +1,10 @@
+import type { MetaFunction } from "react-router";
 import { DepositForm } from "#/pages/admin/shared/deposit-form";
 import { use_admin_data } from "#/pages/admin/use-admin-data";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
+
+export const meta: MetaFunction = ({ matches }) =>
+  admin_page_meta("Deposit Funds", matches);
 
 export default function Page() {
   const data = use_admin_data();

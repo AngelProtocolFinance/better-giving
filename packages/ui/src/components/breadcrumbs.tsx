@@ -12,7 +12,7 @@ type Props = {
 
 export function Breadcrumbs({ items, classes = "" }: Props) {
   return (
-    <div className={`flex justify-center items-center gap-1 ${classes}`}>
+    <div className={`flex justify-start items-center gap-1 ${classes}`}>
       {items.map((item, i) => (
         <Fragment key={i}>
           <NavLink

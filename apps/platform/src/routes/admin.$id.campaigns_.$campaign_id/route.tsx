@@ -1,6 +1,7 @@
 import { Breadcrumbs } from "@better-giving/ui";
 import { href, type LinksFunction } from "react-router";
 import { richtext_styles } from "#/components/rich-text";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { QrCode } from "#/routes/admin.$id.assets/qr-code";
 import { STATUS_WORD } from "../admin.$id.campaigns/copy";
 import { CampaignForm } from "../admin.$id.campaigns/form";
@@ -8,6 +9,12 @@ import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
+
+export const meta: Route.MetaFunction = ({ matches, loaderData }) =>
+  admin_page_meta(
+    loaderData ? `Edit ${loaderData.campaign.name}` : "Edit campaign",
+    matches
+  );
 export const links: LinksFunction = () => [...richtext_styles];
 
 export default function Page({ loaderData }: Route.ComponentProps) {

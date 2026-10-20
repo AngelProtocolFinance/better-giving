@@ -6,6 +6,7 @@ import {
 } from "remix-client-cache";
 import { TransferForm } from "#/pages/admin/shared/transfer-form";
 import { transfer_action } from "#/pages/admin/shared/transfer-form/transfer-action";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 
 export { transfer_loader as loader } from "#/pages/admin/shared/transfer-form/transfer-loader";
@@ -19,6 +20,9 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   actionStatus,
   defaultShouldRevalidate,
 }) => actionStatus === 400 || defaultShouldRevalidate;
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Transfer", matches);
 
 export default CacheRoute(Page);
 function Page({

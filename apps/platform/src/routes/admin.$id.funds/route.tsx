@@ -1,6 +1,7 @@
 import { EmptyState, Select } from "@better-giving/ui";
 import { useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { FundItem } from "./fund-item";
 
@@ -9,6 +10,11 @@ type Creator = "" | "ours" | "others";
 export { action, loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export { ErrorBoundary } from "#/components/error";
+// block body: the copy sweep reads `=>` … `<` as text, and `Record<` is the next `<`
+export const meta: Route.MetaFunction = ({ matches }) => {
+  return admin_page_meta("Fundraiser opt-outs", matches);
+};
+
 export default CacheRoute(Page);
 
 const LABELS: Record<Creator, string> = {

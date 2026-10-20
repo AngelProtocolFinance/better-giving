@@ -6,6 +6,7 @@ import {
 } from "remix-client-cache";
 import { WithdrawForm } from "#/pages/admin/shared/withdraw-form";
 import { withdraw_action } from "#/pages/admin/shared/withdraw-form/withdraw-action";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 
 export { withdraw_loader as loader } from "#/pages/admin/shared/withdraw-form/withdraw-loader";
@@ -19,6 +20,9 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   actionStatus,
   defaultShouldRevalidate,
 }) => actionStatus === 400 || defaultShouldRevalidate;
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Withdraw", matches);
 
 export default CacheRoute(Page);
 function Page({

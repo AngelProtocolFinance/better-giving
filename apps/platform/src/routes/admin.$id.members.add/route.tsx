@@ -1,11 +1,16 @@
 import { Field, Modal, RmxForm } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
+import type { MetaFunction } from "react-router";
 import { useNavigate, useNavigation, useRouteLoaderData } from "react-router";
 import { useRemixForm } from "remix-hook-form";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { type ISchema, schema } from "./schema";
 
 export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { add_action as action } from "./api";
+
+export const meta: MetaFunction = ({ matches }) =>
+  admin_page_meta("Invite User", matches);
 
 export default function Page() {
   const navigate = useNavigate();

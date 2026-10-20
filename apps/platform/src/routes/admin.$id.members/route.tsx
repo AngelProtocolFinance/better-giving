@@ -1,10 +1,14 @@
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { List } from "./list";
 
 export { delete_action as action, members as loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export { ErrorBoundary } from "#/components/error";
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Manage Members", matches);
+
 export default CacheRoute(Page);
 
 function Page({ loaderData: data }: Route.ComponentProps) {

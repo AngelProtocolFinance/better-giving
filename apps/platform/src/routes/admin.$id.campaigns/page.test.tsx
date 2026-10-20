@@ -221,7 +221,7 @@ describe("campaign list", () => {
       .element(screen.getByRole("heading", { name: "Supporter fundraisers" }))
       .toBeVisible();
 
-    const winter = screen.getByRole("link", { name: "Winter" });
+    const winter = screen.getByRole("link", { name: "Winter", exact: true });
     expect((winter.element() as HTMLAnchorElement).pathname).toBe(
       "/admin/7/campaigns/c-live"
     );
@@ -229,17 +229,28 @@ describe("campaign list", () => {
       .element(screen.getByText("Ended · $12 raised · Jan 2, 2020"))
       .toBeVisible();
     const winter_row = (
-      screen.getByRole("link", { name: "Winter" }).element() as HTMLElement
+      screen
+        .getByRole("link", { name: "Winter", exact: true })
+        .element() as HTMLElement
     ).closest("li");
     const winter_view = page
       .elementLocator(winter_row as HTMLElement)
-      .getByRole("link", { name: "View" });
+      .getByRole("link", { name: "/org/acme/winter", exact: true });
+    expect((winter_view.element() as HTMLAnchorElement).textContent).toBe(
+      "/org/acme/winter"
+    );
     expect(
       (winter_view.element() as HTMLAnchorElement).getAttribute("href")
     ).toBe("/org/acme/winter");
     expect(
       (winter_view.element() as HTMLAnchorElement).getAttribute("target")
     ).toBe("_blank");
+    expect(
+      (winter_view.element() as HTMLAnchorElement).getAttribute("rel")
+    ).toBe("noopener noreferrer");
+    expect(
+      screen.getByRole("link", { name: "/org/acme/spring" }).query()
+    ).toBeNull();
 
     await expect
       .element(screen.getByText("Draft · $1 raised · No end date"))
@@ -251,7 +262,7 @@ describe("campaign list", () => {
       .element(screen.getByText("Ended · $4 raised · No end date"))
       .toBeVisible();
     expect(screen.getByRole("link", { name: "View" }).elements().length).toBe(
-      2
+      1
     );
 
     const open = screen.getByRole("link", { name: "Open page" });
@@ -324,9 +335,22 @@ describe("campaign form", () => {
     expect(
       draft.screen.getByRole("button", { name: "End", exact: true }).query()
     ).toBeNull();
+    const address = draft.screen.getByLabelText(/address/i);
+    await address.fill("winter-drive");
+    await expect
+      .element(
+        draft.screen.getByText(
+          "Used in the public link. Letters, numbers, and - . _ ~. This address locks when you publish."
+        )
+      )
+      .toBeVisible();
     await draft.screen.getByRole("button", { name: "Publish" }).click();
     await expect
-      .element(draft.screen.getByText("This address can't be changed later."))
+      .element(
+        draft.screen.getByText(
+          "The address winter-drive locks when you publish and can't be changed later."
+        )
+      )
       .toBeVisible();
     expect(draft.posted()).toBeUndefined();
     const dialog = draft.screen.getByRole("dialog").element();
@@ -345,8 +369,32 @@ describe("campaign form", () => {
     expect(
       live.screen.getByRole("button", { name: "Save", exact: true }).query()
     ).toBeNull();
+    await expect
+      .element(
+        live.screen.getByText(
+          "The address is locked. Changing it would break links that already point here."
+        )
+      )
+      .toBeVisible();
+    expect(
+      live.screen.getByText("This address locks when you publish.").query()
+    ).toBeNull();
     await live.screen.getByRole("button", { name: "Save changes" }).click();
     await vi_posted(live.posted, "save");
+  });
+
+  it("does not confirm publish when the address is empty", async () => {
+    const { screen, posted } = await render_form("draft");
+    const address = screen.getByLabelText(/address/i);
+    await address.clear();
+    await screen.getByRole("button", { name: "Publish" }).click();
+    expect(screen.getByRole("dialog").query()).toBeNull();
+    await expect
+      .element(
+        screen.getByText("Enter an address. Use letters, numbers, and - . _ ~.")
+      )
+      .toBeVisible();
+    expect(posted()).toBeUndefined();
   });
 
   it("leaves an ended campaign without save or publish", async () => {

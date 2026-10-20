@@ -126,6 +126,11 @@ describe("donor messages", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Donors" }))
       .toBeVisible();
+    expect(
+      screen
+        .getByRole("heading", { name: "Recent supporters", exact: true })
+        .query()
+    ).toBeNull();
     await expect.element(screen.getByText("Ada Lovelace")).toBeVisible();
     await expect
       .element(screen.getByText("For the Tuesday stew."))
@@ -194,6 +199,16 @@ describe("donor messages", () => {
     expect(card?.classList.contains("p-3")).toBe(true);
     expect(card?.classList.contains("bg-panel")).toBe(false);
     expect(card?.classList.contains("card")).toBe(false);
+    const heading = screen.getByRole("heading", {
+      name: "Recent supporters",
+      exact: true,
+    });
+    await expect.element(heading).toBeVisible();
+    if (!card) throw new Error("ada card missing");
+    expect(
+      heading.element().compareDocumentPosition(card) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Donors" }).query()).toBeNull();
   });
 
@@ -204,12 +219,22 @@ describe("donor messages", () => {
       highlight: { name: "You", amount: "$25" },
     });
     await expect.element(screen.getByText("You")).toBeVisible();
+    const heading = screen.getByRole("heading", {
+      name: "Recent supporters",
+      exact: true,
+    });
+    await expect.element(heading).toBeVisible();
     const gift = screen.getByText("$25");
     await expect.element(gift).toBeVisible();
     expect(gift.element().className).toContain("font-bold");
     expect(gift.element().className).toContain("text-success-subtle-fg");
     await expect.element(screen.getByText("Just now")).toBeVisible();
     const card = screen.getByText("You").element().closest("article");
+    if (!card) throw new Error("highlight card missing");
+    expect(
+      heading.element().compareDocumentPosition(card) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(card?.classList.contains("bg-green-3")).toBe(true);
     expect(card?.classList.contains("border-green-6")).toBe(true);
     expect(card?.textContent).toBe("You$25Just now");
@@ -301,13 +326,27 @@ describe("donor messages", () => {
       layout: "feed",
       highlight: { name: "You", amount: "$25" },
     });
+    const heading = screen.getByRole("heading", {
+      name: "Recent supporters",
+      exact: true,
+    });
+    await expect.element(heading).toBeVisible();
     await expect.element(screen.getByText("You")).toBeVisible();
     const message = screen.getByText("Couldn't load donors.");
     await expect.element(message).toBeVisible();
     const card = screen.getByText("You").element().closest("article");
     if (!card) throw new Error("highlight card missing");
     expect(
+      heading.element().compareDocumentPosition(card) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
       card.compareDocumentPosition(message.element()) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    const retry = screen.getByRole("button", { name: "Retry", exact: true });
+    expect(
+      heading.element().compareDocumentPosition(retry.element()) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(document.querySelector("[data-feed-pending]")).toBeNull();
@@ -319,12 +358,23 @@ describe("donor messages", () => {
   test("a failed feed without a highlight shows the error instead of the pending marker", async () => {
     fail_donors("feed-fail");
     const screen = await mount("feed-fail", { layout: "feed" });
-    await expect
-      .element(screen.getByText("Couldn't load donors."))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Retry", exact: true }))
-      .toBeVisible();
+    const heading = screen.getByRole("heading", {
+      name: "Recent supporters",
+      exact: true,
+    });
+    await expect.element(heading).toBeVisible();
+    const message = screen.getByText("Couldn't load donors.");
+    await expect.element(message).toBeVisible();
+    const retry = screen.getByRole("button", { name: "Retry", exact: true });
+    await expect.element(retry).toBeVisible();
+    expect(
+      heading.element().compareDocumentPosition(message.element()) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      heading.element().compareDocumentPosition(retry.element()) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(document.querySelector("[data-feed-pending]")).toBeNull();
     expect(screen.getByRole("heading", { name: "Donors" }).query()).toBeNull();
   });
@@ -345,10 +395,57 @@ describe("donor messages", () => {
       const marker = document.querySelector("[data-feed-pending]");
       expect(marker).not.toBeNull();
       expect((marker as HTMLElement).hidden).toBe(true);
+      expect(marker?.textContent ?? "").not.toContain("Recent supporters");
+      expect(
+        screen
+          .getByRole("heading", { name: "Recent supporters", exact: true })
+          .query()
+      ).toBeNull();
       expect(screen.getByText("Couldn't load donors.").query()).toBeNull();
       pending.release();
       await expect.element(screen.getByText("Ada Lovelace")).toBeVisible();
+      const heading = screen.getByRole("heading", {
+        name: "Recent supporters",
+        exact: true,
+      });
+      await expect.element(heading).toBeVisible();
       expect(document.querySelector("[data-feed-pending]")).toBeNull();
+    } finally {
+      pending.release();
+    }
+  });
+
+  test("a pending feed with a highlight shows Recent supporters above the card", async () => {
+    const pending = hold_open();
+    mswWorker.use(
+      http.get("/api/npo/feed-pending-you/donors", async () => {
+        await pending.hold;
+        return HttpResponse.json({ items: [], next: null });
+      })
+    );
+    try {
+      const screen = await mount("feed-pending-you", {
+        layout: "feed",
+        highlight: { name: "You", amount: "$25" },
+      });
+      const heading = screen.getByRole("heading", {
+        name: "Recent supporters",
+        exact: true,
+      });
+      await expect.element(heading).toBeVisible();
+      const card = screen.getByText("You").element().closest("article");
+      if (!card) throw new Error("highlight card missing");
+      expect(
+        heading.element().compareDocumentPosition(card) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      const marker = document.querySelector("[data-feed-pending]");
+      expect(marker).not.toBeNull();
+      expect((marker as HTMLElement).hidden).toBe(false);
+      expect(
+        screen.getByRole("heading", { name: "Donors" }).query()
+      ).toBeNull();
+      expect(document.activeElement).not.toBe(heading.element());
     } finally {
       pending.release();
     }
@@ -431,6 +528,16 @@ describe("donor messages", () => {
         .getByRole("button", { name: "See all donors", exact: true })
         .click();
       const loading = await expect_loading_donors(screen);
+      const heading = screen.getByRole("heading", {
+        name: "Recent supporters",
+        exact: true,
+      });
+      await expect.element(heading).toBeVisible();
+      expect(
+        heading.element().compareDocumentPosition(loading.element()) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(document.activeElement).toBe(loading.element());
       expect(
         loading.element().querySelector(".animate-spin.icon-md")
       ).not.toBeNull();

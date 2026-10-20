@@ -3,11 +3,15 @@ import { href } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import hexagon_badge from "#/assets/images/alliance-member-badge-hexagon.png";
 import rectangle_badge from "#/assets/images/alliance-member-badge-rectangle.png";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { QrCode } from "./qr-code";
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Alliance Member Badges", matches);
 
 export default CacheRoute(Page);
 function Page({ loaderData: d, params }: Route.ComponentProps) {

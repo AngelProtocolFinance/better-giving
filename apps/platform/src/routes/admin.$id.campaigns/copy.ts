@@ -13,6 +13,12 @@ export function fund_row_status(row: { active: boolean; published: boolean }) {
 export const SLUG_LOCK_NOTE =
   "The address is locked. Changing it would break links that already point here.";
 
+export const SLUG_PUBLISH_LOCK = "This address locks when you publish.";
+
+export function publish_lock_body(address: string) {
+  return `The address ${address} locks when you publish and can't be changed later.`;
+}
+
 export const ORG_SLUG_PROMPT =
   "Set your organization slug on Organization before creating a campaign.";
 

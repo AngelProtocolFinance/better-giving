@@ -1,9 +1,13 @@
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { Form } from "./form";
 import type { FV } from "./schema";
 
 export { action, loader } from "./api";
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Organization", matches);
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export { ErrorBoundary } from "#/components/error";
 

@@ -13,6 +13,7 @@ import { NavLink, Outlet } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { category_colors } from "#/pages/admin/ticker-category-colors";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { humanize } from "@/helpers/decimal";
 import type { TickerCategory } from "@/nav/interfaces";
 import { group_by_category } from "@/nav/interfaces";
@@ -22,6 +23,9 @@ import { Txs } from "./txs";
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Investments", matches);
 
 export default CacheRoute(Page);
 function Page({ loaderData }: Route.ComponentProps) {

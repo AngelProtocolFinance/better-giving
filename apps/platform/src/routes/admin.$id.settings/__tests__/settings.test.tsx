@@ -757,6 +757,23 @@ async function render_tab_history(npo_id: number, entry: string) {
 }
 
 describe("settings tabs", () => {
+  it("opens Fundraisers for the previous campaign param", async () => {
+    const npo = await seed_npo();
+    const screen = await render_tab_history(
+      npo.id,
+      `/admin/${npo.id}/settings?tab=campaign`
+    );
+    await expect
+      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(screen.getByLabelText(/allow campaigns/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toHaveTextContent("?tab=campaign");
+  });
+
   it("names the page and opens Donation when tab is missing or unknown", async () => {
     const npo = await seed_npo();
     const screen = await render_tab_history(
@@ -789,7 +806,7 @@ describe("settings tabs", () => {
     await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
     await expect
       .element(screen.getByTestId("url-search"))
-      .toHaveTextContent("?tab=campaign");
+      .toHaveTextContent("?tab=fundraisers");
     await expect
       .element(screen.getByLabelText(/allow campaigns/i))
       .toBeVisible();

@@ -33,7 +33,7 @@ import { CAMPAIGN_TYPES } from "@/campaign";
 import { to_freq_bools, to_freqs } from "@/helpers/donation";
 import type { DonateMethodId, TFrequency } from "@/schemas";
 import { increment_label_max_chars } from "@/schemas";
-import { SLUG_LOCK_NOTE } from "./copy";
+import { publish_lock_body, SLUG_LOCK_NOTE, SLUG_PUBLISH_LOCK } from "./copy";
 import { type FV, form_schema } from "./form-schema";
 
 const TYPE_LABEL: Record<(typeof CAMPAIGN_TYPES)[number], string> = {
@@ -65,7 +65,6 @@ const ASK = {
   },
   publish: {
     title: "Publish this campaign?",
-    body: "This address can't be changed later.",
     confirm: "Publish",
   },
 } as const;
@@ -342,7 +341,11 @@ export function CampaignForm({
         >
           <div className="p-6 grid gap-4">
             <h2 className="text-lg font-bold">{ASK[ask].title}</h2>
-            <p>{ASK[ask].body}</p>
+            <p>
+              {ask === "publish"
+                ? publish_lock_body(values.slug.trim())
+                : ASK[ask].body}
+            </p>
             <div className="flex justify-end gap-3">
               <button
                 ref={cancel_ref}
@@ -377,7 +380,7 @@ export function CampaignForm({
         sub={
           locked
             ? SLUG_LOCK_NOTE
-            : "Used in the public link. Letters, numbers, and - . _ ~."
+            : `Used in the public link. Letters, numbers, and - . _ ~. ${SLUG_PUBLISH_LOCK}`
         }
         required
         disabled={locked}
@@ -611,6 +614,11 @@ export function CampaignForm({
             onClick={(e) => {
               block(e);
               if (busy) return;
+              if (!getValues("slug").trim()) {
+                void trigger("slug");
+                setFocus("slug");
+                return;
+              }
               set_ask("publish");
             }}
           >

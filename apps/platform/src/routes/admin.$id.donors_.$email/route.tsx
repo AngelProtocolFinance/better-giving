@@ -1,6 +1,7 @@
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { ISub } from "@/subscriptions";
 import type { Route } from "./+types/route";
 import { since_label, sub_color } from "./helpers";
@@ -9,6 +10,9 @@ import { GiftsTable } from "./table";
 
 export { ErrorBoundary } from "#/components/error";
 export { loader } from "./api";
+
+export const meta: Route.MetaFunction = ({ matches, loaderData }) =>
+  admin_page_meta(loaderData?.name || loaderData?.email || "Donor", matches);
 
 export default function Page({
   loaderData: { name, email, since, subs, dists, pend_month, pend_year },

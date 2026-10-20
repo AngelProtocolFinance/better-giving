@@ -138,6 +138,7 @@ export function Form({ init, id, base_url }: Props) {
           <CountryCombo
             required
             clearable
+            flags={false}
             label="Headquarters"
             value={form.hq_country.value || undefined}
             on_change={(c) => form.hq_country.onChange(c ?? "")}

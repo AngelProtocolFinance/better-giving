@@ -7,12 +7,16 @@ import {
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
 import { Txs } from "./txs";
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Savings", matches);
+
 export default CacheRoute(Page);
 
 function Page({ loaderData }: Route.ComponentProps) {

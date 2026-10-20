@@ -1,9 +1,11 @@
 import { Button } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
+import type { MetaFunction } from "react-router";
 import { useFetcher, useParams } from "react-router";
 import { admin_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
 import { RouteModal } from "#/components/route-modal";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { resp } from "@/helpers/https";
 import { form_get, form_update } from "$/pg/queries/form";
 
@@ -28,6 +30,9 @@ export const action = async (x: {
 
 // keyed, so the modal shell reads the submission Content makes
 const fetcher_key = "disable-form";
+
+export const meta: MetaFunction = ({ matches }) =>
+  admin_page_meta("Disable form", matches);
 
 export default function DisablePrompt() {
   const fetcher = useFetcher({ key: fetcher_key });

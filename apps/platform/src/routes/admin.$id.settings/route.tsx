@@ -1,6 +1,7 @@
 import { TabPanel, Tabs } from "@better-giving/ui";
 import { Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { DonateMethodId } from "@/schemas";
 import type { Route } from "./+types/route";
 import { DonationTab } from "./donation";
@@ -10,19 +11,24 @@ import { FundraiserTab } from "./fundraiser";
 export { action, loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export { ErrorBoundary } from "#/components/error";
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Settings", matches);
+
 export default CacheRoute(Page);
 
 const TABS = [
   { id: "donation", name: "Donation" },
-  { id: "campaign", name: "Fundraisers" },
+  { id: "fundraisers", name: "Fundraisers" },
   { id: "donation-form", name: "Donation Form" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
-/** a missing or unknown `tab` is Donation; the param stays so Back still works */
+/** a missing or unknown `tab` is Donation; `campaign` is the previous Fundraisers value */
 function shown_tab(raw: string | null): TabId {
-  if (raw === "campaign" || raw === "donation-form") return raw;
+  if (raw === "fundraisers" || raw === "campaign") return "fundraisers";
+  if (raw === "donation-form") return "donation-form";
   return "donation";
 }
 
@@ -30,7 +36,7 @@ function Page({ loaderData: endow }: Route.ComponentProps) {
   const [params, set_params] = useSearchParams();
   const tab = shown_tab(params.get("tab"));
   return (
-    <div className="w-full max-w-4xl">
+    <div className="w-full max-w-4xl px-6 md:px-10">
       <Tabs
         items={TABS.map((item) => ({ value: item.id, label: item.name }))}
         value={tab}
@@ -40,7 +46,7 @@ function Page({ loaderData: endow }: Route.ComponentProps) {
           set_params(next, { preventScrollReset: true });
         }}
       >
-        <div className="px-6 py-4 md:px-10 md:py-8">
+        <div className="py-4 md:py-8">
           <h1 className="mb-6 text-3xl font-bold">Settings</h1>
           <TabPanel value="donation">
             <DonationTab
@@ -49,7 +55,7 @@ function Page({ loaderData: endow }: Route.ComponentProps) {
               hide_bg_tip={endow.hide_bg_tip ?? false}
             />
           </TabPanel>
-          <TabPanel value="campaign">
+          <TabPanel value="fundraisers">
             <FundraiserTab fund_opt_in={endow.fund_opt_in ?? false} />
           </TabPanel>
 

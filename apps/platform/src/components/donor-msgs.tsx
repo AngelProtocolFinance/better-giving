@@ -18,7 +18,7 @@ interface Props {
   campaign_id?: string;
   /** campaign page stays one column until lg. other walls keep sm. */
   columns?: "sm" | "lg";
-  /** omitted: the donor wall. `"feed"`: one column, no heading. */
+  /** omitted: the donor wall. `"feed"`: one column, headed once it is on screen. */
   layout?: "wall" | "feed";
   /** feed only. one card above the fetched list. */
   highlight?: IDonorHighlight;
@@ -228,6 +228,10 @@ function FeedCard({
   );
 }
 
+function FeedHeading() {
+  return <h2 className="text-xl font-bold">Recent supporters</h2>;
+}
+
 function HighlightCard({ highlight }: { highlight: IDonorHighlight }) {
   return (
     <article className="flex items-start gap-3 rounded border border-green-6 bg-green-3 p-3">
@@ -310,6 +314,7 @@ export function DonorMsgs({
       if (feed) {
         return (
           <section data-feed="" className={`${classes} flex flex-col gap-3`}>
+            <FeedHeading />
             {highlight && <HighlightCard highlight={highlight} />}
             <DonorLoadError busy={first_pending} on_retry={retry_first} />
           </section>
@@ -341,6 +346,7 @@ export function DonorMsgs({
           data-feed-pending=""
           className={`${classes} flex flex-col gap-3`}
         >
+          <FeedHeading />
           <HighlightCard highlight={highlight} />
         </section>
       );
@@ -405,6 +411,7 @@ export function DonorMsgs({
     const overflow = items.length > cap;
     return (
       <section data-feed="" className={`${classes} flex flex-col gap-3`}>
+        <FeedHeading />
         {highlight && <HighlightCard highlight={highlight} />}
         {items.map((donor, i) => (
           <FeedCard

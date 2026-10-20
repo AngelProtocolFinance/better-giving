@@ -1,11 +1,15 @@
 import { RmxForm, useRmxForm } from "@better-giving/ui";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { List } from "./list";
 
 export { action, loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export { ErrorBoundary } from "#/components/error";
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Programs", matches);
+
 export default CacheRoute(Page);
 
 function Page({ loaderData: { programs } }: Route.ComponentProps) {

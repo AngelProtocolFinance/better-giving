@@ -1,10 +1,12 @@
 import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
+import type { MetaFunction } from "react-router";
 import { useFetcher, useSearchParams } from "react-router";
 import * as v from "valibot";
 import { RouteModal } from "#/components/route-modal";
 import { endowUpdate } from "#/pages/admin/endow-update-action";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { search } from "@/helpers/https";
 import type { INpoUpdate } from "@/npo";
 import { min_payout_amount } from "@/npo/schema";
@@ -22,6 +24,9 @@ export const amount = v.pipe(
   v.minValue(min_payout_amount, (x) => `minimum is $${x.requirement}`),
   v.transform((x) => x.toString())
 );
+
+export const meta: MetaFunction = ({ matches }) =>
+  admin_page_meta("Payout threshold", matches);
 
 export default function PayoutMin() {
   const [params] = useSearchParams();

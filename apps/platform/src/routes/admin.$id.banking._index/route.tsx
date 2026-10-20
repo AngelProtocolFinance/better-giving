@@ -4,6 +4,7 @@ import { NavLink } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { StripeConnectCard } from "#/components/stripe-connect/connect-card";
 import { use_strip_connect_params } from "#/hooks/use-strip-connect-params";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { Table } from "./table";
 
@@ -14,6 +15,9 @@ export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 export { ErrorBoundary } from "#/components/error";
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Current Banking Details", matches);
+
 export default CacheRoute(Page);
 function Page({ loaderData }: Route.ComponentProps) {
   const { methods, stripe, connect_routing } = loaderData;

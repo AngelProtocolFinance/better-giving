@@ -3,11 +3,15 @@ import { Link, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { use_table } from "#/hooks/use-table";
 import { OwedHistory } from "#/routes/_helpers/owed-history";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { Table } from "./table";
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Payouts", matches);
 
 export default CacheRoute(Page);
 function Page({ loaderData }: Route.ComponentProps) {

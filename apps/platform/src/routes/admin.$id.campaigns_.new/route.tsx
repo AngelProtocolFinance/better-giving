@@ -1,12 +1,16 @@
 import { Breadcrumbs } from "@better-giving/ui";
 import { href, Link, type LinksFunction } from "react-router";
 import { richtext_styles } from "#/components/rich-text";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { ORG_SLUG_PROMPT } from "../admin.$id.campaigns/copy";
 import { blank_init, CampaignForm } from "../admin.$id.campaigns/form";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("New campaign", matches);
 export const links: LinksFunction = () => [...richtext_styles];
 
 export default function Page({ loaderData }: Route.ComponentProps) {

@@ -1,12 +1,16 @@
 import { EmptyState } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import { href, Link } from "react-router";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 import type { Route } from "./+types/route";
 import { fund_row_status, STATUS_WORD } from "./copy";
 
 export { ErrorBoundary } from "#/components/error";
 export { loader } from "./api";
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Campaigns", matches);
 
 const NO_END_MS = Date.parse(MAX_EXPIRATION_ISO);
 
@@ -31,9 +35,10 @@ interface IRow {
   name_to: string;
   meta: string;
   view_to?: string;
+  view_label?: string;
 }
 
-function Row({ name, name_to, meta, view_to }: IRow) {
+function Row({ name, name_to, meta, view_to, view_label }: IRow) {
   return (
     <li className="card grid gap-1">
       <Link to={name_to} className="link font-semibold">
@@ -47,7 +52,7 @@ function Row({ name, name_to, meta, view_to }: IRow) {
           rel="noopener noreferrer"
           className="link text-sm"
         >
-          View
+          {view_label ?? "View"}
         </Link>
       )}
     </li>
@@ -97,25 +102,28 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             <section className="grid gap-3">
               <h2 className="font-semibold">Campaigns</h2>
               <ul className="grid gap-3">
-                {campaigns.map((c) => (
-                  <Row
-                    key={c.id}
-                    name={c.name}
-                    name_to={href("/admin/:id/campaigns/:campaign_id", {
-                      id: String(endow.id),
-                      campaign_id: c.id,
-                    })}
-                    meta={`${STATUS_WORD[c.status_label]} · ${to_usd(c.raised)} raised · ${when(c.ends_at)}`}
-                    view_to={
-                      c.status !== "draft" && endow.slug
-                        ? href("/org/:org/:campaign", {
-                            org: endow.slug,
-                            campaign: c.slug,
-                          })
-                        : undefined
-                    }
-                  />
-                ))}
+                {campaigns.map((c) => {
+                  const public_to =
+                    c.status !== "draft" && endow.slug
+                      ? href("/org/:org/:campaign", {
+                          org: endow.slug,
+                          campaign: c.slug,
+                        })
+                      : undefined;
+                  return (
+                    <Row
+                      key={c.id}
+                      name={c.name}
+                      name_to={href("/admin/:id/campaigns/:campaign_id", {
+                        id: String(endow.id),
+                        campaign_id: c.id,
+                      })}
+                      meta={`${STATUS_WORD[c.status_label]} · ${to_usd(c.raised)} raised · ${when(c.ends_at)}`}
+                      view_to={public_to}
+                      view_label={public_to}
+                    />
+                  );
+                })}
               </ul>
             </section>
           )}
