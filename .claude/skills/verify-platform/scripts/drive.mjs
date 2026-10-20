@@ -14,6 +14,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import zlib from "node:zlib";
+import { ADMIN, MEMBER } from "./fixture-accounts.mjs";
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const APP = path.resolve(HERE, "../../../../apps/platform");
@@ -33,19 +34,16 @@ const NPO =
     : "1");
 const T = 60_000;
 const HOME_TITLE = "Fundraising Platform for Nonprofits - Better Giving";
-const MEMBER_EMAIL = "verify-member@example.com";
-// same fixture scripts/seed-member.mjs hashes; login checks that hash
-const MEMBER_PASSWORD = "Verify-member-1";
-// these match scripts/seed.sql. the password is a local fixture, not a credential.
+const MEMBER_EMAIL = MEMBER.email;
+const MEMBER_PASSWORD = MEMBER.password;
 // campaign pages. org-slug sets verify-test on Verify Test Nonprofit, which starts without a slug.
 const ORG = "verify-campaign";
 const SEEDED_CAMPAIGN = "winter";
 const SEEDED_CAMPAIGN_ID = "c0ffee00-0000-4000-8000-000000000001";
 const SEEDED_FUND = "f0000000-0000-4000-8000-000000000001";
-// seed.sql's campaign admin. seed-member.mjs owns verify-admin@example.com and
-// replaces its password, so this flow cannot sign in as that address.
-const ADMIN_EMAIL = "verify-campaign@example.com";
-const ADMIN_PASSWORD = "Verify-password-123!";
+// seed.sql's campaign admin and seed-member.mjs share fixture-accounts.mjs.
+const ADMIN_EMAIL = ADMIN.email;
+const ADMIN_PASSWORD = ADMIN.password;
 
 class Blocked extends Error {}
 const expect_ok = (cond, msg) => {
