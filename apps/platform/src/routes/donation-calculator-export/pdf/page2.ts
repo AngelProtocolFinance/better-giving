@@ -193,7 +193,7 @@ export function draw_page2(
 
   // amber callout — measure text height first, then draw bg
   const amber_text =
-    "Illustrative example, not a forecast: 4% for Savings Account, 20% for Sustainability Fund. Returns vary, and past performance isn't a guarantee.";
+    "Illustrative example, not a forecast: 3.4% for Savings Account, 11% for Sustainability Fund. Returns vary, and past performance isn't a guarantee.";
   const amber_text_h = draw_wrapped(
     page,
     amber_text,

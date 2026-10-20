@@ -29,7 +29,7 @@ export function Form2({ classes = "", state, setState }: Props) {
       </p>
       <PctSlider
         range={[0, 1]}
-        label="Savings account (4% yield, illustrative example)"
+        label="Savings account (3.4% variable interest rate, illustrative example)"
         classes="mt-2"
         value={1 - +state.investRate}
         onChange={(x) => setState({ ...state, investRate: 1 - x })}
@@ -37,7 +37,7 @@ export function Form2({ classes = "", state, setState }: Props) {
       />
       <PctSlider
         range={[0, 1]}
-        label="Sustainability Fund (20% avg. return, illustrative example)"
+        label="Sustainability Fund (11% avg. return, illustrative example)"
         classes="mt-2"
         value={+state.investRate}
         onChange={(x) => setState({ ...state, investRate: x })}

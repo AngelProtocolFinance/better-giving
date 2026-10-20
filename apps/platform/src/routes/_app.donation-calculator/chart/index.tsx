@@ -31,9 +31,9 @@ export function Chart({ classes = "", ...v }: Props) {
     <div
       className={`${classes} p-6 rounded grid content-start bg-panel @container`}
     >
-      <h1 className="text-lg sm:text-xl font-bold mb-4 text-primary">
+      <h2 className="text-lg sm:text-xl font-bold mb-4 text-primary">
         {yrs}-Year Financial Advantage
-      </h1>
+      </h2>
 
       <p className="text-sm mb-4">
         This chart shows the financial advantage of Better Giving over time.
@@ -79,8 +79,8 @@ export function Chart({ classes = "", ...v }: Props) {
       <div className="mt-4 text-sm flex items-center">
         <Info width={16} className="shrink-0 mr-2 text-warning" />
         <span>
-          Illustrative example, not a forecast: 4% for the savings account and
-          20% for the Sustainability Fund. Returns vary, and past performance
+          Illustrative example, not a forecast: 3.4% for the savings account and
+          11% for the Sustainability Fund. Returns vary, and past performance
           isn't a guarantee.
         </span>
       </div>

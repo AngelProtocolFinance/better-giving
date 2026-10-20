@@ -63,9 +63,12 @@ export function Docs({ classes = "" }) {
         <section>
           <h4 className="font-semibold mb-4">Investment Returns</h4>
           <ul className="space-y-4 list-disc pl-6">
-            <li>Savings account: 4% annual yield (illustrative example)</li>
             <li>
-              Sustainability Fund: 20% average annual return (illustrative
+              Savings account: 3.4% variable interest rate (illustrative
+              example)
+            </li>
+            <li>
+              Sustainability Fund: 11% average annual return (illustrative
               example)
             </li>
             <li>Returns compound daily</li>
