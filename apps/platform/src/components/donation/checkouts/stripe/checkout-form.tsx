@@ -142,6 +142,15 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   // that update is not the donor editing, and it must not retire the failure
   // that was just shown. two frames is past that update and before a keystroke.
   const hold_notice = useRef(false);
+  // an edit retires the failure. the change payload has the method and
+  // whether the field is complete, not the card number or the cvc, so a
+  // replacement that leaves those alone never emits change. focusing or
+  // clicking the element is that edit. our own inputs bubble to the form.
+  // stripe's field errors stay under the fields; this only clears ours.
+  const retire_notice = () => {
+    if (hold_notice.current) return;
+    set_notice((current) => (current == null ? current : null));
+  };
 
   useLayoutEffect(() => {
     const node = notice_ref.current;
@@ -251,6 +260,7 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
     <form
       data-testid="stripe-checkout-form"
       onSubmit={handleSubmit}
+      onChange={retire_notice}
       className="contents"
     >
       {notice && (
@@ -286,11 +296,10 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
         onLoaderStart={() => set_status("loading")}
         onChange={(x) => {
           set_complete(x.complete);
-          if (hold_notice.current) return;
-          // an edit or a method change retires the failure. stripe's own
-          // field errors stay under the fields; this only clears ours.
-          set_notice((current) => (current == null ? current : null));
+          retire_notice();
         }}
+        onFocus={retire_notice}
+        onClick={retire_notice}
       />
       {status === "init" ? (
         <Loader />

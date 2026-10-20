@@ -69,15 +69,22 @@ const payment_change = vi.hoisted(() => ({
     | ((event: { complete: boolean; value?: { type: string } }) => void)
     | null,
 }));
+// focus and click, for an edit stripe does not report as change.
+const payment_focus = vi.hoisted(() => ({
+  current: null as (() => void) | null,
+}));
+// one test renders a field we own, to check the form's own change clears too.
+const own_field = vi.hoisted(() => ({ current: false }));
 
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: vi.fn(({ children }) => children),
-  PaymentElement: vi.fn(({ onReady, onChange }: any) => {
+  PaymentElement: vi.fn(({ onReady, onChange, onFocus }: any) => {
     const ready = useRef(onReady);
     const change = useRef(onChange);
     ready.current = onReady;
     change.current = onChange;
     payment_change.current = onChange;
+    payment_focus.current = onFocus;
     useEffect(() => {
       change.current({ complete: true });
       const id = setTimeout(() => ready.current(), 50);
@@ -85,7 +92,7 @@ vi.mock("@stripe/react-stripe-js", () => ({
         clearTimeout(id);
       };
     }, []);
-    return <div />;
+    return own_field.current ? <input aria-label="gift note" /> : <div />;
   }),
   useStripe: vi.fn(() => {
     const stripe: Stripe = {
@@ -525,6 +532,59 @@ describe("stripe checkout", () => {
     );
     expect(submit?.disabled).toBe(false);
     scrolled.mockRestore();
+  });
+
+  test("a pinned failure leaves when the donor edits the card", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    own_field.current = true;
+    try {
+      const Stub = stb(<Checkout {...fv} amount="106" />);
+      const screen = await render(<Stub />);
+      const donateBtn = screen.getByRole("button", { name: /donate now/i });
+      await expect.element(donateBtn).toBeVisible();
+
+      const auth_error = {
+        error: {
+          type: "invalid_request_error",
+          code: "payment_intent_authentication_failure",
+          message: "We are unable to authenticate your payment method.",
+        } satisfies StripeError,
+      };
+      confirm_payment_mock.mockResolvedValueOnce(auth_error);
+      confirm_payment_mock.mockResolvedValueOnce(auth_error);
+
+      await donateBtn.click();
+      await expect
+        .element(screen.getByRole("alert"))
+        .toMatchTextContent(/bank couldn't verify this card/i);
+
+      // past the two frames where stripe's own field update is ignored.
+      // a replacement that leaves the change payload alone only focuses the field.
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      payment_focus.current?.();
+      await vi.waitFor(() =>
+        expect(screen.getByRole("alert").query()).toBeNull()
+      );
+
+      await donateBtn.click();
+      await expect
+        .element(screen.getByRole("alert"))
+        .toMatchTextContent(/bank couldn't verify this card/i);
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      await screen.getByRole("textbox", { name: "gift note" }).fill("thanks");
+      await vi.waitFor(() =>
+        expect(screen.getByRole("alert").query()).toBeNull()
+      );
+    } finally {
+      own_field.current = false;
+    }
   });
 
   test("a pinned card error stays under the field", async () => {
