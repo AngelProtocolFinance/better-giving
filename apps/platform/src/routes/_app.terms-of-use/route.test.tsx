@@ -72,4 +72,17 @@ describe("donor terms", () => {
       "If a dispute that closed in Better Giving’s favor is later reopened, appealed or reversed"
     );
   });
+
+  test("a revision takes effect seven days after posting, not immediately", async () => {
+    const screen = await render(<Stub initialEntries={["/terms-of-use"]} />);
+    const text = (
+      screen.getByText(/^We may revise and update these Terms/).element()
+        .textContent ?? ""
+    ).replace(/\s+/g, " ");
+
+    expect(text).toContain(
+      "We may revise and update these Terms from time to time at our sole discretion. A change takes effect seven (7) days after we post it, unless the posting states a later date."
+    );
+    expect(screen.container.textContent).not.toContain("effective immediately");
+  });
 });

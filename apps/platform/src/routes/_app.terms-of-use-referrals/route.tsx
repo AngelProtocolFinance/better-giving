@@ -177,8 +177,9 @@ export default function TermsReferrals() {
           <h3>Modifications</h3>
           <p>
             Better Giving reserves the right to modify these Terms at any time.
-            Continued participation after any changes constitutes acceptance of
-            the new Terms.
+            A change takes effect seven (7) days after we post it, unless the
+            posting states a later date. Continued participation after a change
+            takes effect constitutes acceptance of the new Terms.
           </p>
         </li>
         <li>

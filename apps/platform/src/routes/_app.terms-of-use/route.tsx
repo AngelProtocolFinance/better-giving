@@ -65,7 +65,8 @@ export default function TermsDonors() {
       </p>
       <p>
         We may revise and update these Terms from time to time at our sole
-        discretion. All changes are effective immediately when posted.
+        discretion. A change takes effect seven (7) days after we post it,
+        unless the posting states a later date.
       </p>
       <p>
         The headings and subheadings are for reference only and do not limit the

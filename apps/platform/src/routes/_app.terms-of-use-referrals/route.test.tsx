@@ -98,4 +98,18 @@ describe("referral terms", () => {
       `This section applies only to donations made on or after the later of (i) 12:00 a.m. Eastern Time (${TERMS_ZONE}) on ${RECOVERY_FROM} and (ii) the date these revised Program Terms take effect.`
     );
   });
+
+  test("a modification takes effect seven days after posting, and continued participation accepts it from then", async () => {
+    const screen = await render_terms();
+    const text = (
+      screen
+        .getByRole("heading", { name: "Modifications", exact: true })
+        .element()
+        .closest("li")?.textContent ?? ""
+    ).replace(/\s+/g, " ");
+
+    expect(text).toContain(
+      "Better Giving reserves the right to modify these Terms at any time. A change takes effect seven (7) days after we post it, unless the posting states a later date. Continued participation after a change takes effect constitutes acceptance of the new Terms."
+    );
+  });
 });
