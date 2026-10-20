@@ -18,14 +18,14 @@ Versions below are the pins in this repo. Do not bump them as part of unrelated 
 
 **Members with a `CLAUDE.md`** — their layout, build, public API and conventions live there, not here:
 
-- **`apps/platform/`** — the web app (package `platform`). Read `apps/platform/CLAUDE.md` before writing app code: path aliases, the `src`/`lib`/`.server` layer boundaries, stack, testing. Summary of those boundaries is under Architecture.
+- **`apps/platform/`** — the web app (package `platform`). Read `apps/platform/CLAUDE.md` before writing app code: test cost, design system, UI sweeps, gotchas, skew protection. The layer boundaries are under Architecture below.
 - **`apps/blog/`** — Sanity Studio; content source for platform's `/blog`. Read `apps/blog/CLAUDE.md` **before any `schemaTypes/` or `queries.ts` edit** — nothing guards against drift, and the edit is only half-done until its typegen step and the regenerated `blog-types` artifacts are staged with it. Local studio: `pnpm dev:blog` (port 3333, per that file).
 - **`apps/emails-preview/`** — react-email preview site on its own Vercel project. Read `apps/emails-preview/CLAUDE.md` when adding a preview entry, bumping `react-email`, or touching its `vercel.json` — both the version floor and the `buildCommand` prefix are load-bearing. Dev server: `pnpm dev:emails-preview` (port 3001).
 - **`packages/emails/`** — React Email templates, source-only, transpiled by platform. See `packages/emails/CLAUDE.md`.
 - **`packages/paypal/`, `packages/chariot/`** — built server-side SDKs (`PayPalSDK`, `Chariot`) over `openapi-typescript` types, emitting via raw `tsc`. See each member's `CLAUDE.md`.
 - **`packages/crypto/`, `packages/stocks/`** — built zero-dep data libs (crypto tokens + chains; stock tickers + broker-dealers), emitting via tsup. See each member's `CLAUDE.md`.
 
-Two conventions those four built packages share, and a fifth would inherit: `src/generated/**` is **committed source** refreshed by an occasional `generate` script — never a turbo `output`; and none carries a pre-commit `type-check` hook, because the package's build in turbo/CI is the type gate.
+Two conventions those four built packages share, and a fifth would inherit: `src/generated/**` is **committed source** refreshed by an occasional `generate` script — never a turbo `output`, never deleted; and none carries a pre-commit `type-check` hook, because the package's build in turbo/CI is the type gate.
 
 **Members with no `CLAUDE.md`** — this is their only documentation:
 
@@ -50,7 +50,7 @@ Run these from the repo root. They are the root `package.json` scripts unless no
 | Dev | `pnpm dev` | local; platform only |
 | Migrate | `pnpm --filter platform migrate` | local dev database; production is the `migrate` job in `.github/workflows/smoke.yml` |
 
-Cloud agents get Node and pnpm from `.cursor/install.sh` (see `.cursor/environment.json`). The script resolves `.nvmrc` the same way `actions/setup-node` does, installs that Node into `/usr/local`, activates the `packageManager` pnpm with corepack, and runs the same frozen install. When nvm is already on the login `PATH`, it selects that same Node as nvm's default so an older nvm Node does not stay in front. It does not install Playwright; the test command above does, matching CI. If `core.hooksPath` is already set (Cursor's own hooks), the script moves that setting aside for the install and restores it afterward, because root `prepare` runs `lefthook install`, which exits 1 while that path is set. GitHub Actions does not set it, so CI's install needs no such step.
+Cursor cloud agents get Node, pnpm and the frozen install from `.cursor/install.sh` (`.cursor/environment.json`); its comments carry the nvm and `core.hooksPath` handling. It does not install Playwright — the Playwright row above does, matching CI.
 
 `pnpm typecheck` depends on `^build` (`turbo.json`). That builds workspace dependencies that define `build` — including the dist-exporting packages platform's typecheck resolves types from (`@better-giving/paypal`, `@better-giving/chariot`, `@better-giving/crypto`, `@better-giving/stocks`) and `@better-giving/ui`'s CSS build. It does not run `platform`, `docs`, or `emails-preview`'s own `build`. CI says not to add `turbo run build` here: Vercel already builds the apps.
 
@@ -66,7 +66,7 @@ Cloud agents get Node and pnpm from `.cursor/install.sh` (see `.cursor/environme
 
 Paths relative to `apps/platform/`. Three layers:
 
-- **`src/`** — React Router routes, components, client code. Inside `src/`, use `#/` for cross-folder imports. Reserve relative paths for a route folder importing its own `./api` or `./schema`.
+- **`src/`** — React Router routes, components, client code. Inside `src/`, use `#/` for cross-folder imports — routes are deeply nested (filesystem-routed), and `../../../components/foo` is worse than `#/components/foo`. Reserve relative paths for a route folder importing its own `./api` or `./schema`.
 - **`lib/`** — shared business logic, types, schemas. Isomorphic.
 - **`.server/`** — server-only code: pg schema, migrations, auth, queues.
 
@@ -74,13 +74,9 @@ Inside `lib/` and `.server/`, sibling imports are relative (`../foo`). `@/` and 
 
 Also present: `jobs/` (one-off jobs), `scripts/` (dev tooling), `plugins/`, `utils/`, `public/`. One-off scripts in `scripts/` and `jobs/` run with bun.
 
-**Database:** Neon. Dev and staging share one branch; production is its own (`apps/platform/CLAUDE.md`).
+**Database:** Neon. Dev and staging share one branch; production is its own.
 
-**Migrations are expand/contract.** An additive change ships with its code. A destructive one ships in a later release than the one that stopped reading the old shape (for a new `NOT NULL` column: the release that started writing it), with `-- contract: <sha> <what that release changed>` above that statement in its `.sql`, nothing but comments between — one marker per statement. `run_migrate` runs the guard first and stops, migrating nothing, on an unmarked destructive statement after `0045` (the grandfathered set, `LAST_GRANDFATHERED` in `.server/pg/migration-guard.ts`) or on a `_journal.json` drizzle-kit would silently skip. What counts as destructive is `RULES` in that file. `migration-guard.test.ts` runs the same check in CI's `test` job.
-
-Production migrates in `.github/workflows/smoke.yml`'s `migrate` job, after `ci.yml`'s `gate` is green on `main`, and only then does smoke run. Preview and staging migrate in `apps/platform`'s `postbuild` during the Vercel build (`postbuild` runs `migrate` only when `CI` is set and `VERCEL_ENV` is not `production`; a production build runs the guard and does not migrate). Either way the migration lands while the previous deployment still serves traffic.
-
-The rest of platform's conventions — testing split, design system, UI sweeps, gotchas, skew protection — live in `apps/platform/CLAUDE.md`. Read that file before editing the app.
+**Migrations are expand/contract**, because every migration lands while the previous deployment still serves traffic (Deploy → Production migration; preview/staging migrate in `postbuild`). An additive change ships with its code. A destructive one ships in a later release than the one that stopped reading the old shape (for a new `NOT NULL` column: the release that started writing it), with `-- contract: <sha> <what that release changed>` above that statement in its `.sql`, nothing but comments between — one marker per statement. `run_migrate` runs the guard first and stops, migrating nothing, on an unmarked destructive statement after `0045` (the grandfathered set, `LAST_GRANDFATHERED` in `.server/pg/migration-guard.ts`) or on a `_journal.json` drizzle-kit would silently skip. What counts as destructive is `RULES` in that file. `migration-guard.test.ts` runs the same check in CI's `test` job.
 
 ### Boundaries that cross members
 
@@ -97,7 +93,7 @@ The rest of platform's conventions — testing split, design system, UI sweeps, 
 - **`build` outputs must cover every artifact Vercel's build step reads, not just the app's own build dir.** A cache-hit build that drops one fails silently by construction: turbo reports success and Vercel ships whatever partial output survived. This already cost a deployment with no serverless function at all — see the `outputs` comments in `turbo.json`. When a member adds a Vercel preset or adapter, check what it writes on disk and list it.
 - **A build env var only one member reads goes in that member's own `turbo.json`, never the root `tasks.build.env`.** Every root key hashes into every member's build, so a per-commit value there (`VERCEL_GIT_COMMIT_SHA`) misses the remote cache for every package on every commit. `apps/platform/turbo.json` carries the sha for platform alone, appending to the root list with `$TURBO_EXTENDS$` — without it the package array replaces the root's.
 - **Pre-commit:** lefthook runs biome check plus per-member, staged-file-scoped tsc-files; `lefthook.yml` documents each hook's anchor and each deliberate omission. Let the hooks run — `--no-verify` is not the fix for a red one.
-- **Package manager:** always `pnpm`. Local bins are `pnpm <bin>` (or `pnpm exec`); one-shots are `pnpm dlx`. Pin new deps with `pnpm add <pkg> --save-exact` (no `^` / `~`).
+- **Package manager:** always `pnpm` — never npm, npx or yarn. Local bins are `pnpm <bin>` (or `pnpm exec`); one-shots are `pnpm dlx`. Pin new deps with `pnpm add <pkg> --save-exact` (no `^` / `~`).
 - **Claude config:** a single root `.claude/`. Skills live at `.claude/skills/<name>/SKILL.md` (a directory with `SKILL.md`, never a bare `<name>.md`), always at root even when member-scoped — a skill under `apps/*/.claude` is directory-scoped and missing from `/` autocomplete. A member-scoped skill declares its jurisdiction in the body, and any `globs:` are repo-root-relative.
 
 ## Deploy
@@ -115,13 +111,7 @@ The rest of platform's conventions — testing split, design system, UI sweeps, 
 ## Never
 
 - **Never commit a secret.** The repo is public. Gitignored on purpose: `.env`, `.env.local`, `.env.staging`, `.env.production`, `.env.production.local`, `.env.test.local`, `apps/platform/.env.verify`. The only committed env files are placeholders — `apps/platform/.env.example`, `apps/platform/.env.test` (its header says every value is throwaway filler), and `apps/docs/.env.example`. Do not put real credentials in those files, in `.cursor/environment.json`, in Dockerfiles, or in docs. `.cursor/install.sh` must stay free of tokens.
-- **Never use production keys or the production database.** Do not point `DATABASE_URL` or `DATABASE_URL_UNPOOLED` at production, and do not run migrate, drizzle-kit, or a job against it. Production DDL is the `migrate` job in `.github/workflows/smoke.yml` only. `.env.production` is gitignored and deliberately has no `DATABASE_URL_UNPOOLED` for drizzle-kit. Dev and staging are one Neon branch; production is another.
-- **Never edit a shipped migration.** SQL, `meta/_journal.json`, and snapshots under `apps/platform/.server/pg/migrations/` that are already on `main` are applied history. Add a new migration. Do not change a journal `when`: drizzle-kit skips a tag whose `when` is not after the previous tag wherever that previous tag has run. Do not run `drizzle-kit migrate`.
+- **Never use production keys or the production database.** Do not point `DATABASE_URL` or `DATABASE_URL_UNPOOLED` at production, and do not run migrate, drizzle-kit, or a job against it. Production DDL is the `migrate` job in `.github/workflows/smoke.yml` only. `.env.production` is gitignored and deliberately has no `DATABASE_URL_UNPOOLED` for drizzle-kit.
+- **Never edit a shipped migration.** SQL, `meta/_journal.json`, and snapshots under `apps/platform/.server/pg/migrations/` that are already on `main` are applied history. Add a new migration. Do not change a journal `when`: drizzle-kit skips a tag whose `when` is not after the previous tag wherever that previous tag has run.
 - **Do not edit CI or deploy config unless asked.** That includes `.github/workflows/`, `vercel.json`, and turbo `build.outputs` / `build.env` that the Vercel build reads. Renaming the `checks`, `test`, or `gate` jobs changes the identifier Vercel matches.
-- **Do not use npm, npx, or yarn.** pnpm only. No `^` or `~` on newly added dependencies.
-- **Do not skip git hooks** (`--no-verify`).
-- **Do not add the apps' `build` to CI.** `pnpm typecheck` already builds the library dependencies it needs.
-- **Do not force-push or delete `main`.**
 - **Do not run `sanity deploy`.** Blog is the Vercel project `better-giving-blog`. `sanity deploy` creates a second, Sanity-hosted studio (`apps/blog/CLAUDE.md`).
-- **Do not treat `src/generated/**` as a build artifact** in paypal, chariot, crypto, or stocks, and do not delete it.
-- **Do not treat `apps/platform/.env.test` as usable credentials.** The values exist so imports can parse. They open nothing.

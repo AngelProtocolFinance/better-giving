@@ -1,23 +1,6 @@
 # Better Giving Web App
 
-Paths here are relative to `apps/platform/`.
-
-## Path Aliases
-
-Resolved via `tsconfig.json` (+ vite `resolve.tsconfigPaths`):
-
-- inside `lib/` and `.server/`, use relative paths (`../foo`) for siblings — `@/` and `$/` are for cross-layer imports only. `lib/` stays portable; `.server/` stays coherent.
-- inside `src/`, use `#/` freely — routes are deeply nested (filesystem-routed) and `../../../components/foo` is worse than `#/components/foo`. Reserve relative paths for tight co-located groups (a route folder importing its own `./api`, `./schema`).
-
-## Architecture
-
-Three-layer structure:
-
-- **`src/`** — React Router routes, components, client code
-- **`lib/`** — shared business logic, types, schemas (isomorphic)
-- **`.server/`** — server-only code, pg schema, migrations, auth, queues
-- also: `jobs/` (one-off jobs), `scripts/` (dev/tooling), `plugins/`, `utils/`, `public/`
-- **DB**: neon everywhere — dev/staging share one branch, prod is its own.
+Paths here are relative to `apps/platform/`. Layers, path aliases and the database split are root `AGENTS.md` → Architecture.
 
 ## Testing
 
@@ -28,7 +11,6 @@ Three-layer structure:
 
 - casing: `snake_case` (vars/fns), `PascalCase` (classes/components), `SCREAMING_SNAKE_CASE` (constants), `kebab-case` (filenames)
 - component props: declare a named interface (`IFoo`) — no inline type literals in params
-- one-off scripts (`scripts/`, `jobs/`): run with `bun`
 
 ## Design system
 
@@ -70,4 +52,4 @@ Ships as **`@better-giving/ui`** (`packages/ui/`) — the components, the style 
 - assets durable via vercel blob (vite `base` + `utils/upload-client-assets.ts`); no `.data` pinning (no `__vdpl` cookie, no header/query patch)
 - keep loader/action contracts **additive-only** so old js hitting newer deploys is safe — never rename/remove response fields, request params, or routes; add new fields with safe defaults
 - removed routes need server-side redirects to avoid old `<Link to>` 404s
-- **migrations are expand/contract.** production migrates in `.github/workflows/smoke.yml`'s `migrate` job, ordered before promotion as root `AGENTS.md` → **Production migration** describes; preview/staging migrate in `postbuild` during the Vercel build. Either way the migration lands while the previous deployment still serves traffic. Both run `pnpm migrate` → `.server/pg/migrate.ts` → `run_migrate` (`migrate-run.ts`): the guard, then drizzle-orm's migrator in-process on the `DATABASE_URL_UNPOOLED` session that holds a Postgres advisory lock (`migrate-lock.ts`), so concurrent runs against one database apply one at a time and a lost session takes the lock and the open migration with it. An additive change ships with its code; a destructive one ships in a **later** release than the one that stopped reading the old shape (for a new `NOT NULL` column: the one that started writing it), with `-- contract: <sha> <what that release changed>` above that statement in its `.sql`, nothing but comments between — one marker per statement. `run_migrate` runs the `.server/pg/check-migrations.ts` guard first (a production `postbuild` runs it too, to fail the build early) and stops, migrating nothing, on an unmarked destructive statement after `0045` (the grandfathered set) or a `_journal.json` drizzle-kit would silently skip; what counts as destructive is `RULES` in `.server/pg/migration-guard.ts`. `migration-guard.test.ts` runs the same check in CI's `test` job, which gates the production migrate. For preview/staging it runs in parallel with the build and only reports.
+- **migrations are expand/contract** — the rule, the guard and where each environment migrates are root `AGENTS.md` → Architecture and Deploy. Two things that file leaves out: the advisory lock lives on the `DATABASE_URL_UNPOOLED` session (`migrate-lock.ts`), so a lost session takes the lock and the open migration with it; and `migration-guard.test.ts` gates the production migrate through CI's `test` job, while for preview/staging it runs in parallel with the build and only reports.

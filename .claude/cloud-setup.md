@@ -22,7 +22,7 @@ mcp.context7.com
 
 ```bash
 #!/bin/bash
-# kru v0.138.0
+# kru v0.159.0
 set -uo pipefail
 exec > >(tee -a /tmp/setup.log) 2>&1
 
@@ -56,6 +56,8 @@ try claude plugin marketplace add ap-justin/kru
 try claude plugin install kru@kru --scope user
 try claude plugin enable cc-plugin-you-should-know@builtin --scope user
 try claude plugin install vercel@claude-plugins-official --scope user
+try claude plugin install neon@claude-plugins-official --scope user
+try claude plugin install sanity@claude-plugins-official --scope user
 
 node --version; pnpm --version; claude plugin list
 exit 0
