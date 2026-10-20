@@ -421,7 +421,7 @@ export function draw_page1(
   );
   draw_text(
     page,
-    " to High-Yield Savings Account (3.4% Variable Interest Rate)",
+    " to Savings (3.4% variable interest)",
     alloc_x + w["2"] + sr_w,
     y + fs.base,
     fonts.regular,
@@ -549,10 +549,10 @@ function draw_impact_card(
   );
   y += hdr_h + w["8"];
 
-  // savings account (3.4%)
+  // savings (3.4%)
   draw_text_right(
     page,
-    "Savings Account (3.4%)",
+    "Savings (3.4% variable interest)",
     x + width - pad,
     y + fs.base,
     fonts.semibold,

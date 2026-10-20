@@ -150,9 +150,9 @@ export function draw_page4(
   y += fs.lg + w["8"];
 
   const inv_items = [
-    "Savings Account: 3.4% variable interest rate (illustrative example)",
+    "Savings: 3.4% variable interest (illustrative example)",
     "Sustainability Fund: 11% average annual return (illustrative example)",
-    "Returns compound daily",
+    "Calculated with daily compounding",
   ];
   for (const item of inv_items) {
     draw_text(

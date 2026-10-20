@@ -11,7 +11,9 @@ import { meta as reset } from "#/routes/_app.login_.reset/route";
 import { meta as marketplace } from "#/routes/_app.marketplace/route";
 import { meta as privacy } from "#/routes/_app.privacy-policy/route";
 import { meta as product } from "#/routes/_app.product/route";
+import { meta as register } from "#/routes/_app.register/route";
 import { meta as resources } from "#/routes/_app.resources/route";
+import { meta as campaigns } from "#/routes/_app.resources_.campaigns/route";
 import { meta as security } from "#/routes/_app.security-policy/route";
 import { meta as signup } from "#/routes/_app.signup/route";
 import { meta as signup_index } from "#/routes/_app.signup._index/route";
@@ -64,10 +66,24 @@ const pages = [
   ["/the-smart-move-to-make-for-accepting-crypto-donations", crypto],
   ["/unlock-us-donations", unlock],
   ["/about-us", about],
-  ["/login", login],
-  ["/login/reset", reset],
-  ["/signup", signup],
+  ["/resources/campaigns", campaigns],
 ] as const;
+
+const robots_of = (ds: (MetaDescriptor & Record<string, unknown>)[]) =>
+  ds.find((d) => d.name === "robots")?.content;
+
+describe("logged-in and auth pages stay out of the index", () => {
+  test.each([
+    ["login", login],
+    ["reset", reset],
+    ["signup", signup],
+    ["register", register],
+  ] as const)("%s is noindex and has no canonical", (_name, meta) => {
+    const ds = descriptors(meta);
+    expect(robots_of(ds)).toBe("noindex");
+    expect(urls_of(ds).canonical).toBeUndefined();
+  });
+});
 
 describe("page canonicals", () => {
   test.each(pages)("%s canonicalizes to its own url", (path, meta) => {
@@ -80,17 +96,13 @@ describe("page canonicals", () => {
   });
 
   test.each(["/", "/dashboard/referrals"])(
-    "signup index (%s) canonicalizes to /signup",
+    "signup index (%s) is noindex and has no canonical",
     (to) => {
-      const url = `${base_url}/signup`;
       const ds = signup_index({
         loaderData: to,
       } as never) as (MetaDescriptor & Record<string, unknown>)[];
-      expect(urls_of(ds)).toEqual({
-        canonical: url,
-        og: url,
-        twitter: url,
-      });
+      expect(robots_of(ds)).toBe("noindex");
+      expect(urls_of(ds).canonical).toBeUndefined();
     }
   );
 
@@ -119,17 +131,13 @@ describe("page canonicals", () => {
     });
   });
 
-  test("form edit canonicalizes to /forms/:id/edit", () => {
-    const url = `${base_url}/forms/form-9/edit`;
+  test("form edit is noindex and has no canonical", () => {
     const ds = form_edit({
       loaderData: { name: "Spring appeal" },
       params: { id: "form-9" },
     } as never) as (MetaDescriptor & Record<string, unknown>)[];
-    expect(urls_of(ds)).toEqual({
-      canonical: url,
-      og: url,
-      twitter: url,
-    });
+    expect(robots_of(ds)).toBe("noindex");
+    expect(urls_of(ds).canonical).toBeUndefined();
   });
 });
 

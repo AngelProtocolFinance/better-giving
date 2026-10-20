@@ -1,10 +1,8 @@
 import { Target } from "@better-giving/ui";
 import { ChevronLeftIcon, TagIcon } from "lucide-react";
-import { href, NavLink, useFetcher } from "react-router";
+import { NavLink, useFetcher } from "react-router";
 import { fill } from "#/components/donate-methods";
 import { to_form_target } from "#/components/goal-selector";
-import { base_url } from "#/constants/env";
-import { metas } from "#/helpers/seo";
 import { to_freq_bools } from "@/helpers/donation";
 import type { FormRow } from "$/pg/queries/form";
 import type { Route } from "./+types/route";
@@ -23,10 +21,10 @@ export { ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 export const meta: Route.MetaFunction = ({ loaderData: d, params }) => {
   if (!d || !params.id) return [];
-  return metas({
-    title: `Form - ${d.name}`,
-    url: `${base_url}${href("/forms/:id/edit", { id: params.id })}`,
-  });
+  return [
+    { title: `Form - ${d.name}` },
+    { name: "robots", content: "noindex" },
+  ];
 };
 
 export default function Page({ loaderData }: Route.ComponentProps) {

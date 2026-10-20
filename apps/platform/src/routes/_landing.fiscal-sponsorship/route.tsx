@@ -98,8 +98,8 @@ export default function Page() {
             2.9%, the lowest sponsorship fee we know of
           </h2>
           <p className="mt-3.5 text-gray-11 text-center max-w-xl mx-auto text-pretty">
-            Typical fiscal sponsors charge 4-10%. Ours covers the real costs of
-            compliance and granting, and we're working to make it
+            Typical fiscal sponsors charge 4-10% (as of 2026). Ours covers the
+            real costs of compliance and granting, and we're working to make it
             donor-coverable, so you'd keep 100%.
           </p>
           <div className="grid gap-4 mt-11">
@@ -112,7 +112,7 @@ export default function Page() {
             </div>
             <div className="grid sm:grid-cols-[220px_1fr] gap-x-5 gap-y-1.5 items-center">
               <span className="text-gray-11 sm:text-right">
-                Typical market range
+                Typical market range (as of 2026)
               </span>
               <div className="flex items-center gap-3">
                 <div

@@ -158,13 +158,13 @@ export default function Post({ loaderData: post }: Route.ComponentProps) {
       </h1>
 
       <p className="text-sm mt-8 text-gray-11">
-        Posted:{" "}
+        Posted{" "}
         <time dateTime={post.publishedAt}>
           {format_post_date(post.publishedAt)}
         </time>
         {updated_more_than_a_day_later(post.publishedAt, post._updatedAt) && (
           <>
-            {" Updated "}
+            {" · Updated "}
             <time dateTime={post._updatedAt}>
               {format_post_date(post._updatedAt)}
             </time>

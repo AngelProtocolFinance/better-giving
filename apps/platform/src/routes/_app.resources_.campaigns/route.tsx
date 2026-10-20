@@ -1,9 +1,11 @@
 import { href, Link } from "react-router";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/resources/campaigns")}`,
     title: "Create a campaign",
     description:
       "How to create a campaign, choose its address, set payment options, and read the amount raised.",

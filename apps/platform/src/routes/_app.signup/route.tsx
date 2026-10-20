@@ -1,13 +1,10 @@
-import { href, Outlet } from "react-router";
-import { base_url } from "#/constants/env";
-import { metas } from "#/helpers/seo";
+import { Outlet } from "react-router";
 import type { Route } from "./+types/route";
 
-export const meta: Route.MetaFunction = () =>
-  metas({
-    url: `${base_url}${href("/signup")}`,
-    title: "Sign Up - Better Giving",
-  });
+export const meta: Route.MetaFunction = () => [
+  { title: "Sign Up - Better Giving" },
+  { name: "robots", content: "noindex" },
+];
 
 export default function Layout() {
   return (

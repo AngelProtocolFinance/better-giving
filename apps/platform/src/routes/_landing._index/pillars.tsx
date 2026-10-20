@@ -28,7 +28,7 @@ const pillars = [
   },
   {
     title: "Go global with fiscal sponsorship",
-    body: "Organizations abroad or without a 501(c)(3) can accept tax-deductible U.S. gifts through us: just 2.9%, vs 4-10% market as of 2026.",
+    body: "Organizations abroad or without a 501(c)(3) can accept tax-deductible U.S. gifts through us: just 2.9%, vs the 4-10% market rate (as of 2026).",
     cta: "Unlock U.S. donors",
     to: href("/fiscal-sponsorship"),
   },

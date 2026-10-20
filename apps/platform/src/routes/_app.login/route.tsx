@@ -22,10 +22,8 @@ import { check_email_url, request_login_link } from "#/.server/auth/login-link";
 import { is_sign_in_throttled } from "#/.server/auth/sign-in";
 import { dataWithError } from "#/.server/toast";
 import googleIcon from "#/assets/icons/google.svg";
-import { base_url } from "#/constants/env";
 import { report_error } from "#/errors/report";
 import { login_url, signup_url } from "#/helpers/login-url";
-import { metas } from "#/helpers/seo";
 import type { IFormInvalid } from "#/types/action";
 import { type ISignIn, sign_in } from "#/types/auth";
 import { search } from "@/helpers/https";
@@ -185,11 +183,10 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
   return to || href("/marketplace");
 };
 
-export const meta: Route.MetaFunction = () =>
-  metas({
-    url: `${base_url}${href("/login")}`,
-    title: "Login - Better Giving",
-  });
+export const meta: Route.MetaFunction = () => [
+  { title: "Login - Better Giving" },
+  { name: "robots", content: "noindex" },
+];
 
 interface IOAuthError {
   /** better-auth's `error` code on a failed google sign-in */

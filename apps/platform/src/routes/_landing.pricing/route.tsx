@@ -43,8 +43,9 @@ export default function Page() {
         <div className="max-w-3xl mx-auto grid gap-5 justify-items-center text-center">
           <h2 className="section-heading">How much does Better Giving cost?</h2>
           <p className="text-gray-11 leading-relaxed max-w-2xl text-pretty">
-            Donors do, voluntarily. At checkout, donors can add an optional
-            contribution to Better Giving. It's always{" "}
+            There is no platform fee while the optional donor contribution stays
+            on. Turning that ask off is a 1.5% fee. At checkout, donors can add
+            an optional contribution to Better Giving. It's always{" "}
             <strong className="text-gray-12">
               opt-in and never pre-selected
             </strong>

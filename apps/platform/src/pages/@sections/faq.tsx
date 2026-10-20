@@ -211,7 +211,8 @@ export const faqs = [
       <p key={1}>
         That 2.9% comes out of the sponsored gift.
         <br />
-        This is well below the industry average of 4–10% for similar services
+        This is well below the industry average of 4-10% for similar services
+        (as of 2026)
       </p>,
       <p key={2}>
         There is no platform fee while the optional donor contribution stays on.

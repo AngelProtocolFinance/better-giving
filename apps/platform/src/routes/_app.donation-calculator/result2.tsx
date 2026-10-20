@@ -20,7 +20,7 @@ export function Result2({ classes = "", ...v }: Props) {
       <div className="space-y-3 mb-6">
         <div className="flex gap-x-4 @max-md:flex-col justify-between @md:items-center">
           <p className="max-sm:text-sm text-gray-11">
-            Savings account growth (3.4%, illustrative example):
+            Savings growth (3.4% variable interest, illustrative example):
           </p>
           <p className=" font-semibold">{to_usd(y1.liq)}</p>
         </div>

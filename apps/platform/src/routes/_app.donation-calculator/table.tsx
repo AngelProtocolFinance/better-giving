@@ -74,7 +74,9 @@ export function Table({ classes = "", ...v }: Props) {
                   </thead>
                   <tbody>
                     <tr>
-                      <td>Savings account (3.4%, illustrative example)</td>
+                      <td>
+                        Savings (3.4% variable interest, illustrative example)
+                      </td>
                       <td>{to_usd(x.end.liq - x.liq)}</td>
                       <td>{to_usd(x.end.liq)}</td>
                       <td>{to_usd(x.liq)}</td>

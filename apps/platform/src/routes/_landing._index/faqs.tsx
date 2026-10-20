@@ -10,12 +10,12 @@ export const home_faqs = [
   home_faq(
     0,
     "Is Better Giving really free? How do you sustain operations?",
-    "Yes, all features included. Donors can add an optional contribution at checkout. It is opt-in and starts off. There is no platform fee while that ask stays on the form. Turning it off is a 1.5% fee. Fiscal sponsorship is 2.9% of each sponsored gift. There are no gated features."
+    "Yes, all features included. The optional donor contribution is on the form by default and is not pre-selected. There is no platform fee while that ask stays on. Turning the ask off is a 1.5% fee. Fiscal sponsorship is 2.9% of each sponsored gift. There are no gated features."
   ),
   home_faq(
     1,
     "What types of donations can I accept?",
-    "Card, bank/ACH, PayPal, Apple Pay and Google Pay, stock, donor-advised funds (DAF), IRA/QCD, and crypto. All in one embeddable form. We accept stock and crypto gifts."
+    "Card, bank/ACH, PayPal, Apple Pay and Google Pay, stock, donor-advised funds (DAF), IRA/QCD, and crypto. All in one embeddable form."
   ),
   home_faq(
     2,
