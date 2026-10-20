@@ -35,7 +35,7 @@ import {
 // once its notice is sent
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
-  TERMS_EFFECTIVE: "2025-01-01",
+  TERMS_RECOVERY_FROM: "2025-01-01",
   TERMS_POSTED: "",
 }));
 

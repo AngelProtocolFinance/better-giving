@@ -34,7 +34,7 @@ import {
 const terms = vi.hoisted(() => ({ date: "", posted: "" }));
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
-  get TERMS_EFFECTIVE() {
+  get TERMS_RECOVERY_FROM() {
     return terms.date;
   },
   get TERMS_POSTED() {

@@ -2,10 +2,11 @@ import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
 import { metas } from "#/helpers/seo";
-import { TERMS_EFFECTIVE, TERMS_ZONE, terms_date_label } from "@/terms";
+import { TERMS_RECOVERY_FROM, TERMS_ZONE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
 
-const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
+const EFFECTIVE = terms_date_label("2026-10-23");
+const RECOVERY_FROM = terms_date_label(TERMS_RECOVERY_FROM);
 
 const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>
@@ -471,8 +472,8 @@ export default function TermsNonprofits() {
               and Section 4(i) as it applies to Recovery Amounts, apply only to
               donations made on or after the later of (i) 12:00 a.m. Eastern
               Time ({TERMS_ZONE}) on{" "}
-              {/* same TERMS_EFFECTIVE as the effective line; a later cutoff needs its own date */}
-              {EFFECTIVE} and (ii) the date these Terms take effect under
+              {/* the recovery cut-off follows TERMS_RECOVERY_FROM, not the effective line */}
+              {RECOVERY_FROM} and (ii) the date these Terms take effect under
               Section 9(d). A donation is “made” when the Donor’s payment is
               authorized or, for securities, cryptocurrency or other digital
               assets, when Better Giving receives the asset. The terms “Reversed

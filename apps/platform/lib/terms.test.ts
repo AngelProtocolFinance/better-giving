@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   recovery_covers,
-  TERMS_EFFECTIVE,
   TERMS_POSTED,
+  TERMS_RECOVERY_FROM,
   terms_date_label,
   terms_effective_at,
   terms_recovery_at,
@@ -14,12 +14,12 @@ describe("terms_effective_at", () => {
   });
 
   test("the shipped date's instant reads as midnight in New York on that date", () => {
-    const at = terms_effective_at(TERMS_EFFECTIVE);
+    const at = terms_effective_at(TERMS_RECOVERY_FROM);
 
     // sv-SE prints iso order, a separate path from the one under test
     expect(
       new Date(at!).toLocaleString("sv-SE", { timeZone: "America/New_York" })
-    ).toBe(`${TERMS_EFFECTIVE} 00:00:00`);
+    ).toBe(`${TERMS_RECOVERY_FROM} 00:00:00`);
   });
 
   test("a date in standard time is midnight five hours behind utc", () => {
@@ -52,18 +52,18 @@ describe("terms_recovery_at", () => {
   });
 
   test("a blank posting is the fixed date alone", () => {
-    expect(terms_recovery_at(TERMS_EFFECTIVE, "")).toBe(
-      terms_effective_at(TERMS_EFFECTIVE)
+    expect(terms_recovery_at(TERMS_RECOVERY_FROM, "")).toBe(
+      terms_effective_at(TERMS_RECOVERY_FROM)
     );
-    expect(terms_recovery_at(TERMS_EFFECTIVE, "   ")).toBe(
-      terms_effective_at(TERMS_EFFECTIVE)
+    expect(terms_recovery_at(TERMS_RECOVERY_FROM, "   ")).toBe(
+      terms_effective_at(TERMS_RECOVERY_FROM)
     );
   });
 
   test("the shipped posting's seventh day is midnight in New York on the fixed date", () => {
-    const at = terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
+    const at = terms_recovery_at(TERMS_RECOVERY_FROM, TERMS_POSTED);
 
-    expect(at).toBe(terms_effective_at(TERMS_EFFECTIVE));
+    expect(at).toBe(terms_effective_at(TERMS_RECOVERY_FROM));
     expect(at).toBe("2026-10-23T04:00:00.000Z");
   });
 
@@ -113,7 +113,7 @@ describe("terms_date_label", () => {
   });
 
   test("the shipped date prints as a long date, not as the raw string", () => {
-    expect(terms_date_label(TERMS_EFFECTIVE)).toMatch(
+    expect(terms_date_label(TERMS_RECOVERY_FROM)).toMatch(
       /^[A-Z][a-z]+ \d{1,2}, \d{4}$/
     );
   });

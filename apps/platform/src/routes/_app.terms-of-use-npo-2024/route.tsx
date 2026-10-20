@@ -2,13 +2,13 @@ import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
 import { metas } from "#/helpers/seo";
-import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
+import { TERMS_RECOVERY_FROM, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
 
 /** the October 2024 nonprofit terms, kept word for word below the "Prior
- * version" banner as they stood before the version effective
- * `TERMS_EFFECTIVE` replaced them */
-const SUPERSEDED = terms_date_label(TERMS_EFFECTIVE);
+ * version" banner as they stood before the current version replaced them;
+ * the banner's "until" date is `TERMS_RECOVERY_FROM` */
+const SUPERSEDED = terms_date_label(TERMS_RECOVERY_FROM);
 
 const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>

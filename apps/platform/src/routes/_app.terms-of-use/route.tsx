@@ -2,10 +2,10 @@ import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
 import { metas } from "#/helpers/seo";
-import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
+import { terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
 
-const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
+const EFFECTIVE = terms_date_label("2026-10-23");
 
 const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>
