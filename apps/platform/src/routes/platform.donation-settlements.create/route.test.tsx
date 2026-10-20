@@ -64,11 +64,17 @@ const press = (screen: Screen, name: string) =>
     screen.getByRole("button", { name, exact: true }).element() as HTMLElement
   ).click();
 
+// the control shows the label; the action still receives the machine value
+async function choose_from(screen: Screen, label: string) {
+  await screen.getByRole("combobox", { name: /^From/ }).click();
+  await screen.getByRole("option", { name: label, exact: true }).click();
+}
+
 async function preview_and_confirm(screen: Screen, net: string) {
   await expect
     .element(screen.getByRole("heading", { name: "New settlement" }))
     .toBeVisible();
-  await screen.getByLabelText("From").selectOptions("match");
+  await choose_from(screen, "Employer match");
   await screen.getByLabelText("For donation ID").fill("gift-1");
   await screen.getByLabelText("Net amount (USD)").fill(net);
   await screen.getByLabelText("Reference / Grant ID").fill("ACME #42");
@@ -142,7 +148,7 @@ describe("settlement create — source-specific fields", () => {
       .element(screen.getByRole("heading", { name: "New settlement" }))
       .toBeVisible();
 
-    await screen.getByLabelText("From").selectOptions("match");
+    await choose_from(screen, "Employer match");
     await expect
       .element(screen.getByLabelText("For donation ID"))
       .toBeVisible();
@@ -150,7 +156,7 @@ describe("settlement create — source-specific fields", () => {
       .element(screen.getByLabelText("Reference / Grant ID"))
       .toHaveAttribute("placeholder", "e.g. Fidelity deposit #123");
 
-    await screen.getByLabelText("From").selectOptions("stocks");
+    await choose_from(screen, "Stocks");
     await expect
       .element(screen.getByLabelText("For donation ID"))
       .not.toBeInTheDocument();
