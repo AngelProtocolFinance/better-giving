@@ -1,6 +1,7 @@
 import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
@@ -15,7 +16,10 @@ export const headers: Route.HeadersFunction = () => ({
 });
 
 export const meta: Route.MetaFunction = () =>
-  metas({ title: "Terms of use (donor)" });
+  metas({
+    url: `${base_url}${href("/terms-of-use")}`,
+    title: "Terms of use (donor)",
+  });
 
 export default function TermsDonors() {
   return (

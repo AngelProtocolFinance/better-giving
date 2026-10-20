@@ -1,3 +1,5 @@
+import { href } from "react-router";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { TERMS_RECOVERY_FROM, TERMS_ZONE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
@@ -10,7 +12,10 @@ export const headers: Route.HeadersFunction = () => ({
 });
 
 export const meta: Route.MetaFunction = () =>
-  metas({ title: "Referral Program Terms of Use" });
+  metas({
+    url: `${base_url}${href("/terms-of-use-referrals")}`,
+    title: "Referral Program Terms of Use",
+  });
 
 export default function TermsReferrals() {
   return (

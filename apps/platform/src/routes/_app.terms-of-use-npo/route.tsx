@@ -1,6 +1,7 @@
 import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { TERMS_RECOVERY_FROM, TERMS_ZONE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
@@ -18,6 +19,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/terms-of-use-npo")}`,
     title: "Terms of use (NPO)",
   });
 export default function TermsNonprofits() {
