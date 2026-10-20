@@ -17,6 +17,7 @@ import * as schema from "../pg/schema";
 import { bal_txs } from "../pg/schema/bal-tx";
 import { dists } from "../pg/schema/dist";
 import { donation_donors, donations } from "../pg/schema/donation";
+import { donation_messages } from "../pg/schema/donation-message";
 import { nav_logs } from "../pg/schema/nav";
 import { npos } from "../pg/schema/npo";
 import { payouts } from "../pg/schema/payout";
@@ -62,6 +63,9 @@ vi.mock("../env", async (importOriginal) => {
 const { settle_npo, settle_unrouted } = await import("./settle-npo");
 const { preview_settlement } = await import("./preview");
 const { npo_donations } = await import("../pg/queries/dist");
+const { donation_message_list } = await import(
+  "../pg/queries/donation-message"
+);
 const { npo_donor_list } = await import("../pg/queries/donor");
 const { npo_program_get } = await import("../pg/queries/program");
 const { loader: zapier_samples } = await import(
@@ -198,6 +202,7 @@ describe("settle_npo on a card donation to a connected npo", () => {
     await db().delete(bal_txs);
     await db().delete(rev_logs);
     await db().delete(dists);
+    await db().delete(donation_messages);
     await db().delete(donation_donors);
     await db().delete(donations);
     await db().delete(programs);
@@ -443,6 +448,49 @@ describe("settle_npo on a card donation to a connected npo", () => {
       expect.objectContaining({ amount: 100, donor_email: "ada@test.com" }),
     ]);
     expect(routed_reads.program_total).toBe(100);
+  });
+
+  test("a public message stores the settlement dollars in the gift's currency", async () => {
+    const npo = await seed_npo(db(), {
+      ...ROUTABLE,
+      registration_number: "EIN-PHP-MSG",
+    });
+    const don_id = "don-php-msg";
+    await db().insert(donations).values({
+      id: don_id,
+      upusd: 50,
+      status: "settled",
+      amount_base: 500,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "PHP",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe:card",
+    });
+    const input = make_input(npo!.id, "stripe:card", don_id);
+    await settle({
+      ...input,
+      ps: { ...input.ps, sttl: amt(10) },
+      tx: {
+        ...input.tx,
+        currency: "PHP",
+        upusd: 50,
+        from_public: true,
+        from_public_msg_to_npo: "Salamat",
+        from_name: "Ivy",
+      },
+    });
+
+    const [stored] = await db()
+      .select()
+      .from(donation_messages)
+      .where(eq(donation_messages.donation_id, don_id));
+    expect(stored?.amount).toBe(500);
+    const page = await donation_message_list(String(npo!.id));
+    expect(page.items).toEqual([
+      expect.objectContaining({ amount: 10, donor_message: "Salamat" }),
+    ]);
   });
 });
 

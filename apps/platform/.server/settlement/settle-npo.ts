@@ -261,7 +261,9 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
   if (plan.kind === "pooled") await book_pooled(db, +i.id, plan, txs);
 
   if (i.tx.from_public) {
-    // fa_added = net + bg/fsa fees (recovers credit_fa output from dist)
+    // fa_added = net + bg/fsa fees (recovers credit_fa output from dist).
+    // that figure is dollars. the message column is the gift's currency, and
+    // the feed divides by upusd once, so store it in those units.
     const fa_added = dist.net + dist.fees.base + dist.fees.fsa;
     await donation_message_put(db, {
       id: don.id,
@@ -270,7 +272,7 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
       donor_message: i.tx.from_public_msg_to_npo ?? "",
       donor_name: i.tx.from_name || "Anonymous",
       npo_id: npo.id.toString(),
-      amount: fa_added,
+      amount: fa_added * don.upusd,
     });
   }
 
