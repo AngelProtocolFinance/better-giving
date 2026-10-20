@@ -49,6 +49,23 @@ export function percent_label(raised: number, goal: number): string {
   return `${n}%`;
 }
 
+/** the page joins this with the website, so the separating dot stays there. */
+export function legal_line(ein: string | null): string | undefined {
+  if (!ein) return;
+  return `501(c)(3) · EIN ${ein}`;
+}
+
+export function website_link(
+  url: string | null
+): { href: string; label: string } | undefined {
+  if (!url) return;
+  try {
+    return { href: url, label: new URL(url).host };
+  } catch {
+    return { href: url, label: url };
+  }
+}
+
 export function donor_label(n: number): string {
   if (n === 1) return "1 donor";
   return `${n.toLocaleString("en-US")} donors`;
@@ -85,6 +102,28 @@ export function closed_body(ends_at: string | null): string {
     return "It no longer takes donations. Thank you to everyone who gave.";
   }
   return `It stopped taking donations on ${format_ended_date(ends_at)}. Thank you to everyone who gave.`;
+}
+
+/** display only. a settled match is already inside raised and donors. a repeat donor is already inside the count. */
+export function shown_totals(input: {
+  raised: number;
+  donors: number;
+  open: boolean;
+  thanks_usd: number | null;
+  thanks_present: boolean;
+  already_settled: boolean;
+  repeat_donor: boolean;
+}): { raised: number; donors: number; no_gifts: boolean } {
+  const extra =
+    input.thanks_usd != null && input.thanks_usd > 0 && !input.already_settled
+      ? input.thanks_usd
+      : 0;
+  const donors = input.donors + (extra > 0 && !input.repeat_donor ? 1 : 0);
+  return {
+    raised: input.raised + extra,
+    donors,
+    no_gifts: input.open && donors === 0 && !input.thanks_present,
+  };
 }
 
 /** null once the end has passed. the caller shows the ended label instead. */

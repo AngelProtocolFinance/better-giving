@@ -14,6 +14,7 @@ import { MethodBenefits } from "../../common/method-benefits";
 import { TipField } from "../../common/tip-field";
 import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
+import { pin_bar } from "../../pin";
 import {
   type StocksDonationDetails as FV,
   type ITickerFv,
@@ -173,20 +174,10 @@ export function Form(props: TMethodState<"stocks">) {
     />
   );
 
-  return (
-    <FormContainer
-      className="flex flex-col gap-y-2 h-full"
-      onSubmit={handleSubmit(
-        (fv) =>
-          // skip donor step
-          to_step("stocks", fv, "checkout", don_set),
-        // usdpu is 0 until the estimate lands, so the schema rejects every
-        // submit in that window — say why instead of failing silently
-        () => {
-          if (ticker_state === "loading") set_submitted_while_estimating(true);
-        }
-      )}
-    >
+  const pin = don.pin === true;
+
+  const fields = (
+    <>
       <TokenField
         combobox={combobox}
         ref={ticker.ref}
@@ -235,13 +226,53 @@ export function Form(props: TMethodState<"stocks">) {
       )}
 
       <MethodBenefits subject="stock" classes="mt-4" />
-      <button
-        disabled={isSubmitting}
-        className="mt-auto btn btn-form-primary"
-        type="submit"
+    </>
+  );
+
+  const continue_btn = (
+    <button
+      disabled={isSubmitting}
+      className={`${pin ? "" : "mt-auto "}btn btn-form-primary`}
+      type="submit"
+    >
+      Continue
+    </button>
+  );
+
+  const on_submit = handleSubmit(
+    (fv) =>
+      // skip donor step
+      to_step("stocks", fv, "checkout", don_set),
+    // usdpu is 0 until the estimate lands, so the schema rejects every
+    // submit in that window — say why instead of failing silently
+    () => {
+      if (ticker_state === "loading") set_submitted_while_estimating(true);
+    }
+  );
+
+  if (!pin) {
+    return (
+      <FormContainer
+        className="flex flex-col gap-y-2 h-full"
+        onSubmit={on_submit}
       >
-        Continue
-      </button>
+        {fields}
+        {continue_btn}
+      </FormContainer>
+    );
+  }
+
+  return (
+    <FormContainer
+      className="flex min-h-full flex-1 flex-col"
+      onSubmit={on_submit}
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-y-2 p-5 sm:p-6">
+        {fields}
+      </div>
+      <div data-pin="" className={pin_bar}>
+        {continue_btn}
+      </div>
     </FormContainer>
   );
 }

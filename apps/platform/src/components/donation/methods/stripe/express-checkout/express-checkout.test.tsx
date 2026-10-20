@@ -135,7 +135,7 @@ vi.mock("@stripe/react-stripe-js", () => ({
 }));
 
 const load_failed =
-  "Express checkout failed to load — please try another payment method.";
+  "Express checkout failed to load. Please try another payment method.";
 
 // every mount here carries the flag — it's the mount that degrades quietly, so
 // anything that still reaches on_error proves it isn't over-swallowing.

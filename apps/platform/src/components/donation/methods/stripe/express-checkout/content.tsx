@@ -25,7 +25,7 @@ import type { IStripeExpress } from "../use-rhf";
 /** the element never came up. same copy for both ways that happens: stripe.js
  * itself was blocked (no element to fail), or the element loaded and failed. */
 export const LOAD_FAILED =
-  "Express checkout failed to load — please try another payment method.";
+  "Express checkout failed to load. Please try another payment method.";
 
 export interface IContentExternal
   extends Omit<IStripeExpress, "items" | "is_partial"> {

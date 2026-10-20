@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -9,6 +10,7 @@ import {
 } from "vitest";
 import { user } from "$/pg/schema/auth";
 import { npos } from "$/pg/schema/npo";
+import { registrations } from "$/pg/schema/registration";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -34,6 +36,7 @@ vi.mock("#/.server/auth", async () =>
 
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
 const { donation_donors, donations } = await import("$/pg/schema/donation");
+const { donation_messages } = await import("$/pg/schema/donation-message");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { loader } = await import("./api");
 
@@ -49,10 +52,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const db = test_db.current!.db;
+  await db.delete(donation_messages);
   await db.delete(donation_donors);
   await db.delete(donations);
   await db.delete(campaign_members);
   await db.delete(campaigns);
+  await db.delete(registrations);
   await db.delete(npos);
   await db.delete(user);
   await db.insert(user).values({
@@ -67,7 +72,7 @@ beforeEach(async () => {
   });
 });
 
-async function org(active = true) {
+async function org(active = true, url: string | null = null) {
   const [row] = await test_db
     .current!.db.insert(npos)
     .values({
@@ -78,6 +83,7 @@ async function org(active = true) {
       overview_pt: "[]",
       hq_country: "United States",
       active,
+      url,
     })
     .returning();
   return row!;
@@ -113,6 +119,50 @@ async function campaign(
     campaign_id: id,
     npo_id,
   });
+}
+
+async function gift(o: {
+  id: string;
+  email: string;
+  status: string;
+  name: string;
+  campaign_id?: string;
+  with_donor?: boolean;
+}) {
+  const db = test_db.current!.db;
+  await db.insert(donations).values({
+    id: o.id,
+    upusd: 40,
+    status: o.status,
+    amount_base: 40,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "stripe",
+    campaign_id: o.campaign_id ?? "camp-public",
+  });
+  if (o.with_donor !== false) {
+    await db.insert(donation_donors).values({
+      donation_id: o.id,
+      email: o.email,
+      name: o.name,
+    });
+  }
+  await db.insert(donation_messages).values({
+    id: `msg-${o.id}`,
+    donation_id: o.id,
+    donor_name: o.name,
+  });
+}
+
+function email_keys(value: unknown): string[] {
+  if (value == null || typeof value !== "object") return [];
+  if (Array.isArray(value)) return value.flatMap(email_keys);
+  return Object.entries(value).flatMap(([key, child]) =>
+    key === "email" ? [key] : email_keys(child)
+  );
 }
 
 function load(url: string) {
@@ -211,6 +261,603 @@ describe("public campaign page", () => {
     await gift("g4", "Cara@test.com", "intent");
     const data = await load("https://x/org/acme/winter");
     expect(data.donor_count).toBe(2);
+  });
+
+  it("returns no ein and no website when the nonprofit has no registration", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load("https://x/org/acme/winter");
+    expect(data.npo.ein).toBeNull();
+    expect(data.npo.url).toBeNull();
+    expect(data.thanks_amount).toBeNull();
+    expect(data.thanks_name).toBeNull();
+  });
+
+  it("returns the approved 501(c)(3) ein and the nonprofit website", async () => {
+    const npo = await org(true, "https://acme.example/give");
+    await campaign(npo.id);
+    await test_db.current!.db.insert(registrations).values({
+      id: "approved",
+      r_id: "approved@test.com",
+      status: "03",
+      o_type: "501c3",
+      o_ein: "22-2222222",
+      status_approved_npo_id: npo.id,
+      updated_at: "2026-06-01T00:00:00.000Z",
+    });
+    const data = await load("https://x/org/acme/winter");
+    expect(data.npo.ein).toBe("22-2222222");
+    expect(data.npo.url).toBe("https://acme.example/give");
+    expect(data.npo).not.toHaveProperty("registration_number");
+    expect(data.npo).not.toHaveProperty("tagline");
+  });
+
+  it("reads a finished gift from the return query without counting it", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada"
+    );
+    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_name).toBe("Ada");
+    expect(data.donor_count).toBe(0);
+    expect(data.campaign.raised).toBe(0);
+  });
+
+  it("formats a non-USD gift as the amount plus its currency code", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=40&donation_currency=EUR"
+    );
+    expect(data.thanks_amount).toBe("40 EUR");
+    expect(data.thanks_name).toBe("You");
+    expect(data.thanks_usd).toBeNull();
+    expect(data.thanks_settled).toBe(false);
+  });
+
+  it("formats a gift with no currency as dollars and a blank name as You", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=25&donor_name=%20"
+    );
+    expect(data.thanks_amount).toBe("$25");
+    expect(data.thanks_name).toBe("You");
+    expect(data.thanks_usd).toBeNull();
+    expect(data.thanks_settled).toBe(false);
+  });
+
+  it("ignores a gift amount that is not a positive number", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=0&donation_currency=USD&donor_name=Ada"
+    );
+    expect(data.thanks_amount).toBeNull();
+    expect(data.thanks_name).toBeNull();
+  });
+
+  it("does not count a charge when the return has no donation id", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    async function gift(
+      id: string,
+      status: string,
+      currency: string,
+      amount: number,
+      donor_name: string
+    ) {
+      await db.insert(donations).values({
+        id,
+        upusd: amount,
+        status,
+        amount_base: amount,
+        amount_tip: 0,
+        amount_fee_allowance: 0,
+        currency,
+        frequency: "one-time",
+        source: "bg-marketplace",
+        via: "stripe",
+        campaign_id: "camp-public",
+      });
+      await db.insert(donation_messages).values({
+        id: `msg-${id}`,
+        donation_id: id,
+        donor_name,
+      });
+    }
+    await gift("intent-ada", "intent", "USD", 100, "Ada");
+    await gift("settled-bea", "settled", "USD", 100, "Bea");
+    await gift("settled-eur", "settled", "EUR", 100, "Ada");
+    await gift("settled-other", "settled", "USD", 40, "Ada");
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada"
+    );
+    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_usd).toBeNull();
+    expect(data.thanks_settled).toBe(false);
+    expect(data.donor_count).toBe(0);
+    expect(data.campaign.raised).toBe(0);
+  });
+
+  it("counts the same email once when an earlier gift on this campaign already settled", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "prior-ada",
+      email: "Ada@test.com",
+      status: "settled",
+      name: "Not Ada",
+    });
+    await gift({
+      id: "current-ada",
+      email: " ada@test.com ",
+      status: "intent",
+      name: "Ada",
+    });
+    const url =
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=current-ada";
+    const again = await load(url);
+    expect(again.thanks_repeat).toBe(true);
+    expect(again.thanks_name).toBe("Ada");
+    expect(again.thanks_settled).toBe(false);
+    await test_db
+      .current!.db.update(donation_donors)
+      .set({ email: "bea@test.com" })
+      .where(eq(donation_donors.donation_id, "current-ada"));
+    const other = await load(url);
+    expect(other.thanks_repeat).toBe(false);
+  });
+
+  it("counts two donors who share a display name", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "ada-one",
+      email: "ada.one@test.com",
+      status: "settled",
+      name: "Ada",
+    });
+    await gift({
+      id: "ada-two",
+      email: "ada.two@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=ada-two"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("counts two Anonymous givers separately", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "anon-one",
+      email: "anon.one@test.com",
+      status: "settled",
+      name: "Anonymous",
+    });
+    await gift({
+      id: "anon-two",
+      email: "anon.two@test.com",
+      status: "intent",
+      name: "Anonymous",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Anonymous&donation_id=anon-two"
+    );
+    expect(data.thanks_repeat).toBe(false);
+    expect(data.thanks_name).toBe("Anonymous");
+  });
+
+  it("does not count a named return with no donation id as a repeat", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "settled-ada",
+      email: "ada@test.com",
+      status: "settled",
+      name: "Ada",
+    });
+    const named = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada"
+    );
+    expect(named.thanks_repeat).toBe(false);
+    expect(named.thanks_name).toBe("Ada");
+    const blank = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=%20"
+    );
+    expect(blank.thanks_repeat).toBe(false);
+  });
+
+  it("keeps the donor email off the loader payload", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "prior-secret",
+      email: "repeat-secret@test.com",
+      status: "settled",
+      name: "Ada",
+    });
+    await gift({
+      id: "current-secret",
+      email: "repeat-secret@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=current-secret"
+    );
+    expect(data.thanks_repeat).toBe(true);
+    expect(email_keys(data)).toEqual([]);
+    expect(JSON.stringify(data)).not.toContain("repeat-secret@test.com");
+  });
+
+  it("does not count a donor's only gift as a repeat of itself", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "only-ada",
+      email: "ada@test.com",
+      status: "settled",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=only-ada"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("ignores a settled gift on a different campaign", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await campaign(npo.id, { id: "camp-other", slug: "spring" });
+    await gift({
+      id: "elsewhere",
+      email: "ada@test.com",
+      status: "settled",
+      name: "Ada",
+      campaign_id: "camp-other",
+    });
+    await gift({
+      id: "here",
+      email: "ada@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=here"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("does not count an unfinished gift as an earlier donation", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "intent-prior",
+      email: "ada@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    await gift({
+      id: "intent-current",
+      email: "ada@test.com",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=intent-current"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("does not count a return whose donation has no donor row", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "named-settled",
+      email: "ada@test.com",
+      status: "settled",
+      name: "Ada",
+    });
+    await gift({
+      id: "no-donor",
+      email: "ada@test.com",
+      status: "intent",
+      name: "Ada",
+      with_donor: false,
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=no-donor"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("does not count a blank email as a repeat of another blank email", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await gift({
+      id: "blank-prior",
+      email: "   ",
+      status: "settled",
+      name: "Ada",
+    });
+    await gift({
+      id: "blank-current",
+      email: "   ",
+      status: "intent",
+      name: "Ada",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=blank-current"
+    );
+    expect(data.thanks_repeat).toBe(false);
+  });
+
+  it("reports a thanks gift settled when that donation is settled on this campaign", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    await db.insert(donations).values({
+      id: "settled-card",
+      upusd: 80,
+      status: "settled",
+      amount_base: 80,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    await db.insert(donation_donors).values({
+      donation_id: "settled-card",
+      email: "pat@test.com",
+      name: "Pat",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=settled-card"
+    );
+    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_name).toBe("Ada");
+    expect(data.thanks_usd).toBeNull();
+    expect(data.thanks_settled).toBe(true);
+  });
+
+  it("leaves a thanks gift unsettled while that donation is still an intent", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    await db.insert(donations).values({
+      id: "settled-card",
+      upusd: 1,
+      status: "intent",
+      amount_base: 80,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    await db.insert(donation_donors).values({
+      donation_id: "settled-card",
+      email: "pat@test.com",
+      name: "Pat",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=settled-card"
+    );
+    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_usd).toBe(80);
+    expect(data.thanks_settled).toBe(false);
+  });
+
+  it("counts a php return toward the raised line while that row is still created", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    await db.insert(donations).values({
+      id: "php-created",
+      upusd: 50,
+      status: "created",
+      amount_base: 400,
+      amount_tip: 60,
+      amount_fee_allowance: 40,
+      currency: "PHP",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    await db.insert(donation_donors).values({
+      donation_id: "php-created",
+      email: "ivy@test.com",
+      name: "Ivy",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=500&donation_currency=PHP&donor_name=Ivy%20Verify&donation_id=php-created"
+    );
+    expect(data.thanks_amount).toBe("500 PHP");
+    expect(data.thanks_usd).toBe(8);
+    expect(data.thanks_settled).toBe(false);
+  });
+
+  it("does not count a php intent toward the raised line when the bank redirect failed", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await test_db.current!.db.insert(donations).values({
+      id: "php-intent",
+      upusd: 50,
+      status: "intent",
+      amount_base: 500,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "PHP",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=500&donation_currency=PHP&donor_name=Ivy%20Verify&donation_id=php-intent&redirect_status=failed"
+    );
+    expect(data.thanks_amount).toBe("500 PHP");
+    expect(data.thanks_usd).toBeNull();
+  });
+
+  it("does not count a failed gift toward the raised line", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await test_db.current!.db.insert(donations).values({
+      id: "failed-card",
+      upusd: 1,
+      status: "failed",
+      amount_base: 80,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=failed-card"
+    );
+    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_usd).toBeNull();
+  });
+
+  it("does not count a cancelled or refunded gift toward the raised line", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    for (const status of ["cancelled", "refunded"] as const) {
+      await db.insert(donations).values({
+        id: status,
+        upusd: 1,
+        status,
+        amount_base: 80,
+        amount_tip: 15,
+        amount_fee_allowance: 5,
+        currency: "USD",
+        frequency: "one-time",
+        source: "bg-marketplace",
+        via: "stripe",
+        campaign_id: "camp-public",
+      });
+      const data = await load(
+        `https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=${status}`
+      );
+      expect(data.thanks_amount).toBe("$100");
+      expect(data.thanks_usd).toBeNull();
+    }
+  });
+
+  it("counts a confirmed gift as its base, not the charge", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await test_db.current!.db.insert(donations).values({
+      id: "confirmed-card",
+      upusd: 1,
+      status: "confirmed",
+      amount_base: 80,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=confirmed-card"
+    );
+    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_usd).toBe(80);
+  });
+
+  it("does not count an intent when the bank redirect failed", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await test_db.current!.db.insert(donations).values({
+      id: "intent-redirect",
+      upusd: 1,
+      status: "intent",
+      amount_base: 80,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    const url =
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=intent-redirect&redirect_status=";
+    const data = await load(`${url}failed`);
+    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_usd).toBeNull();
+    const padded = await load(`${url}${encodeURIComponent(" failed ")}`);
+    expect(padded.thanks_amount).toBe("$100");
+    expect(padded.thanks_usd).toBeNull();
+  });
+
+  it("leaves a thanks gift unsettled when that donation settled on another campaign", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await campaign(npo.id, { id: "camp-other", slug: "spring" });
+    await test_db.current!.db.insert(donations).values({
+      id: "settled-elsewhere",
+      upusd: 80,
+      status: "settled",
+      amount_base: 80,
+      amount_tip: 15,
+      amount_fee_allowance: 5,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-other",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=settled-elsewhere"
+    );
+    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_usd).toBeNull();
+    expect(data.thanks_settled).toBe(false);
+  });
+
+  it("leaves a thanks gift unsettled when the return has no donation id", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    await test_db.current!.db.insert(donations).values({
+      id: "settled-anon",
+      upusd: 25,
+      status: "settled",
+      amount_base: 25,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "camp-public",
+    });
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=25&donor_name=%20"
+    );
+    expect(data.thanks_amount).toBe("$25");
+    expect(data.thanks_usd).toBeNull();
+    expect(data.thanks_settled).toBe(false);
   });
 
   it("marks an ended campaign and a live campaign past its end as closed", async () => {

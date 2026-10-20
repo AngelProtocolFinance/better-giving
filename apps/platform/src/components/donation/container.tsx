@@ -22,6 +22,7 @@ type Components = {
   base_url: string;
   hide_unavailable_express?: boolean;
   wallets_below?: boolean;
+  pin?: boolean;
 };
 
 type InitState = {
@@ -40,11 +41,17 @@ export function Donation({ classes = "", ...props }: Props) {
     "--form-secondary": state?.config?.accent_secondary,
   };
 
+  const pinned = state?.pin === true;
+
   return (
     <div
       id="donation-container"
       style={styles}
-      className={`grid ${classes} w-full @container/steps overflow-clip bg-background min-h-96`}
+      className={
+        pinned
+          ? `flex min-h-full ${classes} w-full flex-col @container/steps bg-background`
+          : `grid ${classes} w-full @container/steps overflow-clip bg-background min-h-96`
+      }
     >
       <Context {...("init" in props ? props.init : init_state(props))}>
         <CurrentStep />
@@ -63,6 +70,7 @@ function init_state({
   program,
   hide_unavailable_express,
   wallets_below,
+  pin,
 }: Components): TDonation {
   const init: Init = {
     base_url,
@@ -74,6 +82,7 @@ function init_state({
     program,
     hide_unavailable_express,
     wallets_below,
+    pin,
   };
 
   const donor_init_prefilled = user

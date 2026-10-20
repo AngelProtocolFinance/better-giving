@@ -33,6 +33,7 @@ describe("where a completed donation lands", () => {
     expect(Object.fromEntries(u.searchParams)).toEqual({
       donation_amount: "125",
       donation_currency: "USD",
+      donation_id: "don_1",
       payment_method: "google_pay",
       donor_name: "John Doe",
     });

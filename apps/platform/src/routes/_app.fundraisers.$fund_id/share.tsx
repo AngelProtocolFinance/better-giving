@@ -40,12 +40,60 @@ type ShareProps = {
   url: string;
   /** sentence after the invite. the fundraiser page keeps the invested line. */
   line?: string;
+  /**
+   * omitted: the heading and the icon row.
+   * `"button"`: one Share button that opens the same four networks.
+   * that trigger does not append the invested line unless `line` is set.
+   */
+  trigger?: "button";
 };
 
 const invested_line =
   "Every gift is invested to provide sustainable funding for nonprofits: Give once, give forever.";
 
 export function Share(props: ShareProps) {
+  const [chooser, set_chooser] = useState(false);
+  if (props.trigger === "button") {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => set_chooser(true)}
+          className={`h-12 w-full rounded border border-gray-7 bg-surface text-base font-semibold text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${props.classes ?? ""}`}
+        >
+          Share
+        </button>
+        <Modal
+          open={chooser}
+          onClose={() => set_chooser(false)}
+          title="Share"
+          classes="grid content-start border bg-surface"
+        >
+          <div className="flex justify-end px-2 pt-2">
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => set_chooser(false)}
+              className="grid size-11 place-items-center rounded text-2xl leading-none text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex items-center justify-center gap-2 px-4 pb-6">
+            {socials.map((s) => (
+              <ShareBtn
+                key={s.id}
+                {...s}
+                url={props.url}
+                recipientName={props.recipientName}
+                line={props.line ?? ""}
+              />
+            ))}
+          </div>
+        </Modal>
+      </>
+    );
+  }
   return (
     <div className={`${props.classes ?? ""} grid py-2`}>
       <h2 data-heading="" className="w-full pt-2 font-bold text-primary mb-2">

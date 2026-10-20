@@ -105,7 +105,7 @@ export function Stocks(props: StocksDonationDetails) {
         </p>
       ) : status === "error" ? (
         <p className="mt-6 text-sm text-destructive-subtle-fg">
-          Something went wrong — please email {emails.hi} instead.
+          Something went wrong. Please email {emails.hi} instead.
         </p>
       ) : (
         <button

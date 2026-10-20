@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { to_text } from "#/components/rich-text/helpers";
 import type { DonateMethodId, IIncrement, TFrequency } from "@/schemas";
 import { db } from "../db";
@@ -149,6 +149,90 @@ export async function campaign_donor_count(
       )
     );
   return row?.n ?? 0;
+}
+
+/** usd preview for a gift that can still settle: `amount_base / upusd`, and only while status is created, intent, or confirmed. a return can land before the row leaves created. tip and the donor-covered fee are not part of it. a blank id, a missing row, any other status, a rate that is not a positive finite number, or a base that is not positive is unknown. */
+export async function campaign_donation_base_usd(
+  campaign_id: string,
+  donation_id: string
+): Promise<number | null> {
+  const id = donation_id.trim();
+  if (id === "") return null;
+  const [row] = await db
+    .select({
+      amount_base: donations.amount_base,
+      upusd: donations.upusd,
+    })
+    .from(donations)
+    .where(
+      and(
+        eq(donations.id, id),
+        eq(donations.campaign_id, campaign_id),
+        or(
+          eq(donations.status, "created"),
+          eq(donations.status, "intent"),
+          eq(donations.status, "confirmed")
+        )
+      )
+    )
+    .limit(1);
+  if (!row) return null;
+  if (!Number.isFinite(row.upusd) || row.upusd <= 0) return null;
+  if (!Number.isFinite(row.amount_base) || row.amount_base <= 0) return null;
+  const usd = row.amount_base / row.upusd;
+  if (!Number.isFinite(usd) || usd <= 0) return null;
+  return usd;
+}
+
+/** this donation is settled on this campaign. a card return is base plus tip plus fee, and settlement writes a donor name only when from_public is set, so neither identifies the row. a blank id is unknown. */
+export async function campaign_settled_donation(
+  campaign_id: string,
+  donation_id: string
+): Promise<boolean> {
+  const id = donation_id.trim();
+  if (id === "") return false;
+  const [row] = await db
+    .select({ id: donations.id })
+    .from(donations)
+    .where(
+      and(
+        eq(donations.id, id),
+        eq(donations.campaign_id, campaign_id),
+        eq(donations.status, "settled")
+      )
+    )
+    .limit(1);
+  return row != null;
+}
+
+/** another settled gift on this campaign shares this donation's donor email. names are not identity; a missing row or a blank email is unknown. */
+export async function campaign_repeat_donor(
+  campaign_id: string,
+  donation_id: string
+): Promise<boolean> {
+  const id = donation_id.trim();
+  if (id === "") return false;
+  const [donor] = await db
+    .select({ email: donation_donors.email })
+    .from(donation_donors)
+    .where(eq(donation_donors.donation_id, id))
+    .limit(1);
+  const email = donor?.email.trim() ?? "";
+  if (email === "") return false;
+  const [row] = await db
+    .select({ id: donations.id })
+    .from(donations)
+    .innerJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
+    .where(
+      and(
+        eq(donations.campaign_id, campaign_id),
+        eq(donations.status, "settled"),
+        ne(donations.id, id),
+        sql`lower(btrim(${donation_donors.email})) = lower(${email})`
+      )
+    )
+    .limit(1);
+  return row != null;
 }
 
 export async function campaign_live_for_npo(

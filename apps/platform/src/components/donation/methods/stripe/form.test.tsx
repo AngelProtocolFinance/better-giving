@@ -1036,6 +1036,7 @@ describe("Stripe form: wallets under the card button", () => {
       express.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING
     ).not.toBe(0);
     expect(screen.getByTestId("wallet-group").query()).toBeNull();
+    expect(document.querySelector("[data-pin]")).toBeNull();
     expect(express.getAttribute("data-classes")).toContain("mt-4");
     expect(btn.className).toContain("mt-auto");
   });
@@ -1067,6 +1068,7 @@ describe("Stripe form: wallets under the card button", () => {
     expect(divider?.className).toContain("text-xs");
     expect(divider?.className).toContain("text-gray-11");
     expect(group.querySelector(".gap-2")).not.toBeNull();
+    expect(document.querySelector("[data-pin]")).toBeNull();
   });
 
   test("the group fades open once a wallet draws, without animating height", async () => {
@@ -1109,6 +1111,42 @@ describe("Stripe form: wallets under the card button", () => {
         .element()
         .compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING
     ).not.toBe(0);
+    expect(document.querySelector("[data-pin]")).toBeNull();
+  });
+
+  test("a pin mount sticks the card button, then or, then the wallets", async () => {
+    rails.sx_shown = true;
+    don_mock.value = init({ wallets_below: true, pin: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    const pin = document.querySelector("[data-pin]");
+    expect(pin).not.toBeNull();
+    const btn = screen
+      .getByRole("button", { name: /continue with card/i })
+      .element();
+    expect(pin?.contains(btn)).toBe(true);
+    await vi.waitFor(() => {
+      const group = document.querySelector("[data-testid=wallet-group]");
+      expect(group?.className).not.toContain("h-0");
+    });
+    const group = document.querySelector("[data-testid=wallet-group]");
+    const or = group?.querySelector("p");
+    const express = group?.querySelector("[data-testid=express-mock]");
+    const paypal = group?.querySelector("[data-testid=paypal-mock]");
+    expect(or?.textContent).toBe("or");
+    expect(
+      btn.compareDocumentPosition(or!) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0);
+    expect(
+      or!.compareDocumentPosition(express!) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0);
+    expect(
+      express!.compareDocumentPosition(paypal!) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0);
+    expect(group?.className).not.toContain("-mt-2");
+    expect(btn.className).not.toContain("mt-auto");
   });
 
   test("monthly to annual keeps a drawn paypal button open", async () => {

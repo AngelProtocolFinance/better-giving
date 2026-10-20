@@ -26,6 +26,7 @@ import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { TipField } from "../../common/tip-field";
 import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
+import { pin_bar } from "../../pin";
 import { type TMethodState, to_step } from "../../types";
 import { Paypal } from "../paypal";
 import { ExpressCheckout } from "./express-checkout";
@@ -135,6 +136,10 @@ export function Form(props: TMethodState<"stripe">) {
     : "";
 
   const wallets_below = don.wallets_below === true;
+  const pin = don.pin === true;
+  // pin stacks the rails under the card button the same way wallets_below does.
+  // unset mounts keep `wallets_below` as the only signal.
+  const stack_wallets = wallets_below || pin;
   // both rails reload on a currency change or when the gift crosses between
   // one-time and recurring. monthly and annual share one paypal effect and
   // one stripe elements mode, and neither calls on_shown again, so the raw
@@ -149,8 +154,8 @@ export function Form(props: TMethodState<"stripe">) {
       ? rail_load(rhf.paypal_express.currency, rhf.paypal_express.frequency)
       : "",
   ].join("|");
-  const wallets_below_ref = useRef(wallets_below);
-  wallets_below_ref.current = wallets_below;
+  const wallets_below_ref = useRef(stack_wallets);
+  wallets_below_ref.current = stack_wallets;
   const wallet_flow_ref = useRef(wallet_flow);
   wallet_flow_ref.current = wallet_flow;
   const phase = wallet_phase.flow === wallet_flow ? wallet_phase.phase : "shut";
@@ -255,7 +260,7 @@ export function Form(props: TMethodState<"stripe">) {
           return valid;
         }}
         classes={
-          wallets_below
+          stack_wallets
             ? shut
               ? "opacity-50"
               : ""
@@ -286,9 +291,11 @@ export function Form(props: TMethodState<"stripe">) {
   const notices = (
     <div
       className={
-        wallets_below
-          ? "mt-4 flex flex-col gap-1 empty:hidden"
-          : "mb-2 flex flex-col gap-1 empty:hidden"
+        pin
+          ? "flex flex-col gap-1 empty:hidden"
+          : wallets_below
+            ? "mt-4 flex flex-col gap-1 empty:hidden"
+            : "mb-2 flex flex-col gap-1 empty:hidden"
       }
     >
       {!prompt && unavailable(sx_unavailable, sx_flow)}
@@ -300,20 +307,19 @@ export function Form(props: TMethodState<"stripe">) {
       disabled={
         shut || currency.isLoading || currency.isValidating || rhf.isSubmitting
       }
-      className={`${wallets_below ? "" : "mt-auto "}btn btn-form-primary`}
+      className={`${stack_wallets ? "" : "mt-auto "}btn btn-form-primary min-h-11`}
       type="submit"
     >
       Continue with Card
     </button>
   );
 
-  return (
-    <FieldSet
-      onSubmit={rhf.handleSubmit((fv) =>
-        to_step("stripe", fv, "donor", don_set)
-      )}
-      className="flex flex-col h-full gap-y-2"
-    >
+  const on_submit = rhf.handleSubmit((fv) =>
+    to_step("stripe", fv, "donor", don_set)
+  );
+
+  const fields = (
+    <>
       {freqs && (
         <Frequency
           opts={freqs}
@@ -385,15 +391,11 @@ export function Form(props: TMethodState<"stripe">) {
         checked={rhf.cpf.value}
         checked_changed={(x) => rhf.cpf.onChange(x)}
       />
-      {/* nothing here unmounts a rail to stop it being used: a prompt raised
-          mid-payment, or a `paid` that lands while the donor's sheet is still
-          closing, would take the wallet element and its <Elements> wrapper —
-          or paypal's live session — out from under them. both rails refuse a
-          second payment at their own click gate instead, where the sheet has
-          not opened yet and there is nothing to strand. */}
-      {wallets_below ? null : express_slot}
-      {wallets_below ? null : paypal_slot}
-      {wallets_below ? null : notices}
+    </>
+  );
+
+  const after_rails = (
+    <>
       {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-gray-11" />}
       {/* rendered empty from mount so the notice lands as a change to announce.
           sr-only while empty rather than hidden: it takes no gap in the column
@@ -405,32 +407,77 @@ export function Form(props: TMethodState<"stripe">) {
         {unconfirmed &&
           "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt, or contact us."}
       </p>
-      {continue_btn}
-      {wallets_below && (
-        // the whole group, divider included, adds nothing until a wallet
-        // draws. -mt-2 cancels this column's gap either way, so the button
-        // never shifts and the divider's own margin is the space. the fade
-        // names no duration: the house default is --duration-fast (150ms),
-        // and a raw duration number is rejected by the motion gate.
+    </>
+  );
+
+  if (!pin) {
+    return (
+      <FieldSet onSubmit={on_submit} className="flex flex-col h-full gap-y-2">
+        {fields}
+        {/* nothing here unmounts a rail to stop it being used: a prompt raised
+            mid-payment, or a `paid` that lands while the donor's sheet is still
+            closing, would take the wallet element and its <Elements> wrapper —
+            or paypal's live session — out from under them. both rails refuse a
+            second payment at their own click gate instead, where the sheet has
+            not opened yet and there is nothing to strand. */}
+        {wallets_below ? null : express_slot}
+        {wallets_below ? null : paypal_slot}
+        {wallets_below ? null : notices}
+        {after_rails}
+        {continue_btn}
+        {wallets_below && (
+          // the whole group, divider included, adds nothing until a wallet
+          // draws. -mt-2 cancels this column's gap either way, so the button
+          // never shifts and the divider's own margin is the space. the fade
+          // names no duration: the house default is --duration-fast (150ms),
+          // and a raw duration number is rejected by the motion gate.
+          <div
+            data-testid="wallet-group"
+            inert={phase === "shut"}
+            className={
+              phase === "shut"
+                ? "h-0 -mt-2 overflow-hidden opacity-0"
+                : `-mt-2 flex flex-col transition-opacity ${
+                    phase === "open" ? "opacity-100" : "opacity-0"
+                  }`
+            }
+          >
+            <p className="my-4 text-center text-xs text-gray-11">or</p>
+            <div className="flex flex-col gap-2">
+              {express_slot}
+              {paypal_slot}
+            </div>
+            {notices}
+          </div>
+        )}
+        {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
+      </FieldSet>
+    );
+  }
+
+  return (
+    <FieldSet onSubmit={on_submit} className="flex min-h-full flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col gap-y-2 p-5 sm:p-6">
+        {fields}
+        {after_rails}
+      </div>
+      <div data-pin="" className={pin_bar}>
+        {continue_btn}
         <div
           data-testid="wallet-group"
           inert={phase === "shut"}
           className={
             phase === "shut"
-              ? "h-0 -mt-2 overflow-hidden opacity-0"
-              : `-mt-2 flex flex-col transition-opacity ${
-                  phase === "open" ? "opacity-100" : "opacity-0"
-                }`
+              ? "h-0 -mt-3 overflow-hidden opacity-0"
+              : "flex flex-col gap-3"
           }
         >
-          <p className="my-4 text-center text-xs text-gray-11">or</p>
-          <div className="flex flex-col gap-2">
-            {express_slot}
-            {paypal_slot}
-          </div>
+          <p className="text-center text-sm text-gray-11">or</p>
+          {express_slot}
+          {paypal_slot}
           {notices}
         </div>
-      )}
+      </div>
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </FieldSet>
   );

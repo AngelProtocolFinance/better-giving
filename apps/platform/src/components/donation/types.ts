@@ -399,6 +399,11 @@ export type Init = {
    * other donate pages leave this off and keep the wallets above the button.
    */
   wallets_below?: boolean;
+  /**
+   * stick the step's primary action to the bottom of the mount.
+   * unset donate pages leave this off and keep their layout.
+   */
+  pin?: boolean;
 };
 
 export type TMethod =
