@@ -1,14 +1,15 @@
 import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
-import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
+import { TERMS_RECOVERY_FROM, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
 
 /** the October 2024 nonprofit terms, kept word for word below the "Prior
- * version" banner as they stood before the version effective
- * `TERMS_EFFECTIVE` replaced them */
-const SUPERSEDED = terms_date_label(TERMS_EFFECTIVE);
+ * version" banner as they stood before the current version replaced them;
+ * the banner's "until" date is `TERMS_RECOVERY_FROM` */
+const SUPERSEDED = terms_date_label(TERMS_RECOVERY_FROM);
 
 const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>
@@ -18,10 +19,14 @@ export const headers: Route.HeadersFunction = () => ({
   "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
 });
 
-export const meta: Route.MetaFunction = () =>
-  metas({
+export const meta: Route.MetaFunction = () => [
+  ...metas({
+    url: `${base_url}${href("/terms-of-use-npo-2024")}`,
     title: "Terms of use (NPO), October 25, 2024 version",
-  });
+  }),
+  // superseded copy: kept reachable for the record, out of search results
+  { name: "robots", content: "noindex" },
+];
 export default function TermsNonprofits2024() {
   return (
     <div className="page prose lg:prose-lg py-20">

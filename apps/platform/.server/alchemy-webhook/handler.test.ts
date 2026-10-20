@@ -308,9 +308,11 @@ describe("alchemy webhook", () => {
     // https://docs.coingecko.com/docs/portfolio-tracking ; its price object is
     // the simple/price example, the other published usd figure
     const DAI = "0x6b175474e89094c44da98b954eedeac495271d0f" as const;
+    const seen: URL[] = [];
     coingecko_mock.mockImplementation(async (edit: (u: URL) => URL) => {
-      const href = edit(new URL("https://cg.test")).href;
-      if (href.includes(DAI)) {
+      const url = edit(new URL("https://cg.test"));
+      seen.push(url);
+      if (url.searchParams.get("contract_addresses") === DAI) {
         return Response.json({ [DAI]: simple_price.bitcoin });
       }
       return Response.json(simple_token_price);
@@ -342,6 +344,17 @@ describe("alchemy webhook", () => {
       "153950.00",
       "153950.00",
     ]);
+    expect(seen.map((url) => url.pathname)).toEqual([
+      "/api/v3/simple/token_price/ethereum",
+      "/api/v3/simple/token_price/ethereum",
+    ]);
+    expect(seen.map((url) => url.searchParams.get("vs_currencies"))).toEqual([
+      "usd",
+      "usd",
+    ]);
+    expect(
+      seen.map((url) => url.searchParams.get("contract_addresses"))
+    ).toEqual([WBTC.toLowerCase(), DAI]);
   });
   test("a checksum-cased deposit address matches a lowercase receive", async () => {
     quiet_console();

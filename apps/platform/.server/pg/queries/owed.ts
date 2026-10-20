@@ -11,7 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { alias, type PgUpdateSetSource } from "drizzle-orm/pg-core";
-import { TERMS_EFFECTIVE, TERMS_POSTED, terms_recovery_at } from "@/terms";
+import { TERMS_POSTED, TERMS_RECOVERY_FROM, terms_recovery_at } from "@/terms";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import { finite } from "../schema/columns";
@@ -35,7 +35,8 @@ export type OwedParty =
 
 /** midnight in New York of the later of the fixed terms date and seven days
  * after the page was posted. null while the fixed date does not parse */
-const recovery_cutoff = () => terms_recovery_at(TERMS_EFFECTIVE, TERMS_POSTED);
+const recovery_cutoff = () =>
+  terms_recovery_at(TERMS_RECOVERY_FROM, TERMS_POSTED);
 
 /** whether an owed row reaches its party — is mailed and shown in its
  * history: the gift was made at or after the recovery cutoff. a gift is

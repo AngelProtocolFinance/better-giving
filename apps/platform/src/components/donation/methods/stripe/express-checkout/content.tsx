@@ -232,18 +232,28 @@ export function Content({
           // pre-interaction: the element never came up, so nothing has been paid
           // and no donor action is waiting on an answer.
           //
-          // two unrelated failures arrive here. `api_connection_error` is
+          // three unrelated failures arrive here. `api_connection_error` is
           // stripe's error `type` for "the browser could not reach us" — the
-          // donor's network, nothing to fix. anything else is the request we
-          // sent, and an amount stripe rejects for the currency lands here too,
-          // so it has to stay loud.
+          // donor's network, nothing to fix. an `invalid_request_error` with a
+          // 403 and no `code` is stripe refusing to serve the donor's region
+          // (sanctioned countries) — nothing to fix either. anything else is the
+          // request we sent, and an amount stripe rejects for the currency lands
+          // here too, so it has to stay loud.
           //
           // stripe localises `message` to the donor's browser and the tracker
           // groups on the message, so the stable type/code is what gets reported
           // and the localised error rides along as context.
           const { type: kind, code } = ev.error;
+          // `status` rides on the error at runtime but isn't in stripe.js's types
+          const is_region_refusal =
+            kind === "invalid_request_error" &&
+            !code &&
+            "status" in ev.error &&
+            ev.error.status === 403;
           const report =
-            kind === "api_connection_error" ? report_degraded : report_error;
+            kind === "api_connection_error" || is_region_refusal
+              ? report_degraded
+              : report_error;
           report(
             new Error(
               `stripe express checkout failed to load: ${kind}${code ? ` (${code})` : ""}`

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { report_error } from "#/errors/report";
-import { TERMS_EFFECTIVE, terms_effective_at } from "@/terms";
+import { TERMS_RECOVERY_FROM, terms_effective_at } from "@/terms";
 import { owed_deductions, stage } from "../env";
 import { aws_monitor } from "../kit/discord";
 import type { DbOrTx } from "../pg/queries/helpers";
@@ -15,12 +15,12 @@ import type { IRecovery, NetPlan } from "./net-owed";
 let misconfig_reported = false;
 
 /** whether the grant and commission runs net what parties owe: the
- * `OWED_DEDUCTIONS` switch is on and the terms' effective date parses. on
+ * `OWED_DEDUCTIONS` switch is on and the recovery start date parses. on
  * with no date, they net nothing and say so once per server instance; the
  * rows' own rule (`owed_deductible`) holds back the rest until that date */
 export async function owed_netting_on(): Promise<boolean> {
   if (!owed_deductions) return false;
-  if (terms_effective_at(TERMS_EFFECTIVE)) return true;
+  if (terms_effective_at(TERMS_RECOVERY_FROM)) return true;
   if (!misconfig_reported) {
     misconfig_reported = true;
     await aws_monitor
@@ -28,7 +28,7 @@ export async function owed_netting_on(): Promise<boolean> {
         type: "ERROR",
         from: `owed-netting:${stage}`,
         title: "owed deductions on with no terms effective date",
-        body: `OWED_DEDUCTIONS is on but TERMS_EFFECTIVE (lib/terms.ts) is not a date: ${JSON.stringify(TERMS_EFFECTIVE)}. the grant and commission runs net nothing until it is.`,
+        body: `OWED_DEDUCTIONS is on but TERMS_RECOVERY_FROM (lib/terms.ts) is not a date: ${JSON.stringify(TERMS_RECOVERY_FROM)}. the grant and commission runs net nothing until it is.`,
       })
       .catch((err) =>
         report_error(err, { alert: "owed netting misconfigured" })

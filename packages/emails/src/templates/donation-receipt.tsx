@@ -33,6 +33,8 @@ export interface IData extends Omit<IDonation, "program_name"> {
   is_bg?: boolean;
   /** is donation to a fund, which Better Giving grants among its members */
   is_fund?: boolean;
+  /** is a gift of securities Better Giving sold; `amount` is the sale proceeds */
+  is_securities?: boolean;
   from: IDonor;
   /** tax receipt ID - if provided, shows as tax receipt */
   tax_receipt_id?: string;
@@ -158,6 +160,12 @@ function Jsx(d: IData) {
       <Hr />
       {/* a sibling of the beneficiaries heading, so the rows below leave its outline scope */}
       <h3 style={subheading_style}>Payment</h3>
+      {d.is_securities && (
+        <KeyValue
+          label="Gift type"
+          value="Securities (stock), sold — amount shown is the sale proceeds"
+        />
+      )}
       {extras.map((l, i) => (
         <KeyValue
           key={`${l.kind}-${i}`}
@@ -184,7 +192,9 @@ function Jsx(d: IData) {
         {LEGAL_NAME} ({APP_NAME}) is a US 501(c)(3) tax-exempt nonprofit with
         EIN {EIN}, {ADDRESS}.
         {d.tax_receipt_id &&
-          " No goods or services are provided to you in exchange for your gift, so the full amount you paid qualifies as a charitable contribution for US tax purposes."}
+          (d.is_securities
+            ? " No goods or services are provided to you in exchange for your gift."
+            : " No goods or services are provided to you in exchange for your gift, so the full amount you paid qualifies as a charitable contribution for US tax purposes.")}
         {n_grants > 0 &&
           (d.is_fund
             ? ` ${APP_NAME} then grants the donation among the fund's member nonprofits on your behalf.`

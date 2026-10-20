@@ -195,6 +195,12 @@ function ein_digits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function irs_query_rejected(query: string): boolean {
+  const trimmed = query.trim();
+  if (trimmed.length < 2 || trimmed.length > 200) return true;
+  return !/\p{L}|\p{N}/u.test(trimmed);
+}
+
 function eligible(org: INonprofitOrg): boolean {
   return (
     org.is501c3 === true && org.deductible === true && org.revoked === false
@@ -333,7 +339,9 @@ async function find_by_query(query: string, request: Request) {
         "active",
       ],
     }),
-    remote_search(request, query),
+    irs_query_rejected(query)
+      ? Promise.resolve({ status: "invalid_query" as const })
+      : remote_search(request, query),
   ]);
   if (remote.status !== "ok") {
     return {

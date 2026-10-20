@@ -1,6 +1,6 @@
 import { EMAILS } from "@better-giving/brand";
 import { href, Link } from "react-router";
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 
@@ -9,7 +9,10 @@ export const headers: Route.HeadersFunction = () => ({
 });
 
 export const meta: Route.MetaFunction = () =>
-  metas({ title: "SMS Terms & Conditions | Text-to-Give" });
+  metas({
+    url: `${base_url}${href("/terms-of-use-sms")}`,
+    title: "SMS Terms & Conditions | Text-to-Give",
+  });
 
 export default function TermsSms() {
   return (

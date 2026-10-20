@@ -9,7 +9,7 @@ const steps = [
   },
   {
     title: "Funds granted to your organization",
-    body: "We grant the funds to you: 97.1% of every gift. Track everything in your dashboard, and split into savings or long-term funds if you choose.",
+    body: "We grant the funds to you after the 2.9% fiscal sponsorship fee. Track everything in your dashboard, and split into savings or long-term funds if you choose.",
   },
 ] as const;
 

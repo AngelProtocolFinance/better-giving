@@ -11,7 +11,7 @@ vi.mock("../env", async (io) => ({
 }));
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
-  get TERMS_EFFECTIVE() {
+  get TERMS_RECOVERY_FROM() {
     return state.date;
   },
   TERMS_POSTED: "",

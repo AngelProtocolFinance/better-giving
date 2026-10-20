@@ -209,8 +209,7 @@ export const faqs = [
         donation.
       </p>,
       <p key={1}>
-        The 2.9% fee is often covered by the donor, in which case the nonprofit
-        does not pay that fee.
+        That 2.9% comes out of the sponsored gift.
         <br />
         This is well below the industry average of 4–10% for similar services
       </p>,

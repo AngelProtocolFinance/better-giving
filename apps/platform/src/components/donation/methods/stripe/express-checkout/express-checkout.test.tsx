@@ -222,6 +222,39 @@ describe("stripe express: an element that reports a load error", () => {
     expect(reported[0]![0]).toBe("degraded");
   });
 
+  test("a donor stripe won't serve where they are is not an application defect", async () => {
+    // a bare 403 at load is stripe declining the browser's region (production
+    // has it on donors in sanctioned countries), not our account or request
+    el.load_error = true;
+    el.error = {
+      type: "invalid_request_error",
+      status: 403,
+      message: "We're sorry, but we're unable to serve your request.",
+    };
+    const Stub = mount({ on_error: vi.fn(), on_unavailable: vi.fn() });
+    await render(<Stub />);
+
+    await vi.waitFor(() => expect(reported).toHaveLength(1));
+    expect(reported[0]![0]).toBe("degraded");
+  });
+
+  test.each([
+    { status: 400, code: "amount_too_small" },
+    { status: 403, code: "api_key_expired" },
+  ])(
+    "a request stripe rejects with a code stays a defect ($status $code)",
+    async ({ status, code }) => {
+      // the code is stripe naming what was wrong with what we sent — ours to fix
+      el.load_error = true;
+      el.error = { type: "invalid_request_error", status, code, message: "x" };
+      const Stub = mount({ on_error: vi.fn(), on_unavailable: vi.fn() });
+      await render(<Stub />);
+
+      await vi.waitFor(() => expect(reported).toHaveLength(1));
+      expect(reported[0]![0]).toBe("error");
+    }
+  );
+
   test("anything else stays a defect — an amount stripe rejects lands here too", async () => {
     el.load_error = true;
     el.error = { type: "validation_error", message: "Amount must be at least" };
