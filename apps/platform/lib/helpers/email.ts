@@ -80,6 +80,7 @@ type TReceiptDon = Pick<
   | "upusd"
   | "currency"
   | "program"
+  | "via"
 >;
 
 /**
@@ -169,6 +170,7 @@ export const to_receipt = (
     to_name,
     is_bg,
     is_fund: d.to_type === "fund",
+    is_securities: d.via === "stocks",
     tax_receipt_id: ctx.tax_receipt_id,
     from: ctx.from,
     lines,
