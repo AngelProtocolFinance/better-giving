@@ -71,7 +71,7 @@ A listed entry point the drive did not take is not verified. `results.json` reco
 | `campaign-page` | direct `GET /org/<org>/<campaign>` 200 with hero, story, video, goal, supporter wall, and badge; no Log In, About this campaign, Spread the word!, and no Videos heading. Click Donate, then Continue with Card. Click Share, then Share on LinkedIn. Head title, description, and hero. `GET /org/<org>` 302 to `/marketplace/<org>`. Draft and unknown slugs 404. |
 | `campaign-donate` | on the campaign page, `?amount=50&frequency=monthly` opens the donate dialog with those values; a plain load clicks Donate, then +100 USD → card → donor info → summary $100.00; the intent POST carries `campaign_id`. With filler keys the card step is blocked; with test keys, types 4242…. |
 
-`scripts/contract.mjs` checks keyless hello against an origin you pass; it does not run the browser Allow flow.
+`scripts/contract.mjs` checks keyless hello (including the served action list), keyless 401s on the MVP paths, and `unknown_action` on phase-2 paths against an origin you pass. `CONNECTOR_KEY` optionally checks the list reads. It does not run the browser Allow flow.
 
 On a cold dev server, scrolling the footer into view prefetches `/donate/1`. Vite reloads and cancels the click. `open_link` retries that same click (header `Log In` and footer `Marketplace`). It does not switch to `goto`. That prefetch can also leave the next direct `/donate/:id` load with a 504 on optimized dependencies, so the amount buttons stay disabled. The donate flow reloads that same URL and clicks `+100 USD` again. The campaign donate flow reloads the same way, and clicks Donate again after each reload because that closes the dialog.
 

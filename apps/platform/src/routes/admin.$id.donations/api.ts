@@ -3,7 +3,7 @@ import { admin_ctx } from "#/.server/auth";
 import { endowUpdate } from "#/pages/admin/endow-update-action";
 import { donations_search } from "@/donations/schema";
 import { resp, search } from "@/helpers/https";
-import { npo_donations } from "$/pg/queries/dist";
+import { npo_admin_donations } from "$/pg/queries/admin-donations";
 import type { Route } from "./+types/route";
 
 export const loader = async (x: Route.LoaderArgs) => {
@@ -12,7 +12,7 @@ export const loader = async (x: Route.LoaderArgs) => {
   const p = safeParse(donations_search, search(x.request));
   if (p.issues) throw resp.status(400, p.issues[0].message);
   const { limit = 10, ...q } = p.output;
-  const page = await npo_donations(id, { ...q, limit });
+  const page = await npo_admin_donations(id, { ...q, limit });
 
   return page;
 };

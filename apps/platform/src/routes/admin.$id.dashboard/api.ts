@@ -6,6 +6,7 @@ import { GRANTS_CRON, GRANTS_EXEC_DELAY_DAYS } from "@/constants/grants";
 import type { IComposition } from "@/nav/interfaces";
 import type { IPayout } from "@/payouts";
 import type { IPageKeyed } from "@/types/api";
+import { recorded_by_hand_usd } from "$/pg/queries/admin-donations";
 import { npo_default_bapp } from "$/pg/queries/banking";
 import { nav_ltd } from "$/pg/queries/nav";
 import { npo_get } from "$/pg/queries/npo";
@@ -25,6 +26,8 @@ export interface DashboardData {
   pm?: IBapp;
   composition: IComposition;
   total_inv_value: number;
+  /** hand-recorded gifts, in USD. Not part of bal_liq, bal_lock, or payouts. */
+  recorded_by_hand: number;
 }
 
 export const endowUpdateAction = endowUpdate({ redirect: "." });
@@ -42,13 +45,15 @@ export const loader = async (x: Route.LoaderArgs) => {
       ? exec_from_prev
       : new Date(interval.next().toDate().getTime() + ms_delay);
 
-  const [ltd, npo, recent_payouts, recent_settlements, pm] = await Promise.all([
-    nav_ltd(),
-    npo_get(id),
-    npo_payouts(id, { limit: 3 }),
-    npo_settlements(id, { limit: 3 }),
-    npo_default_bapp(id),
-  ]);
+  const [ltd, npo, recent_payouts, recent_settlements, pm, recorded_by_hand] =
+    await Promise.all([
+      nav_ltd(),
+      npo_get(id),
+      npo_payouts(id, { limit: 3 }),
+      npo_settlements(id, { limit: 3 }),
+      npo_default_bapp(id),
+      recorded_by_hand_usd(id),
+    ]);
 
   return {
     id,
@@ -61,5 +66,6 @@ export const loader = async (x: Route.LoaderArgs) => {
     pm,
     composition: ltd.composition,
     total_inv_value: ltd.value,
+    recorded_by_hand,
   } satisfies DashboardData;
 };

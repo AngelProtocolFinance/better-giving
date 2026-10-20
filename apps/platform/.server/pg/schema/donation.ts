@@ -39,6 +39,9 @@ export const donations = pgTable(
     currency: text("currency").notNull(),
     frequency: text("frequency").notNull(),
     source: text("source").notNull(),
+    // a hand-recorded gift's message. `source` stays the channel
+    // (`bg-connector-offline`); the note is not a source.
+    note: text("note"),
     via: text("via").notNull(),
     source_id: text("source_id"),
     form_id: text("form_id").references(() => forms.id),
@@ -90,6 +93,10 @@ export const donations = pgTable(
     index("donations_form_id_idx").on(t.form_id),
     index("donations_subscription_id_idx").on(t.subscription_id),
     index("donations_campaign_id_idx").on(t.campaign_id),
+    index("donations_created_at_id_idx").on(t.created_at, t.id),
+    index("donations_offline_created_idx")
+      .on(t.created_at, t.id)
+      .where(sql`${t.source} = 'bg-connector-offline'`),
   ]
 );
 
@@ -110,6 +117,7 @@ export const donation_recipients = pgTable(
     check("type_check", sql`${t.type} IN ('npo','fund')`),
     check("recipient_xor", sql`num_nonnulls(${t.npo_id}, ${t.fund_id}) = 1`),
     index("donation_recipients_fund_id_idx").on(t.fund_id),
+    index("donation_recipients_npo_id_idx").on(t.npo_id),
   ]
 );
 

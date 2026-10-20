@@ -11,6 +11,8 @@ describe("via_name", () => {
 
   test("leaves the neighbouring vias alone", () => {
     expect(via_name("cheque")).toBe("Cheque");
+    expect(via_name("check")).toBe("Cheque");
+    expect(via_name("cash")).toBe("Cash");
     expect(via_name("daf")).toBe("DAF");
   });
 });

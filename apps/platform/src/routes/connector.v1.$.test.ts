@@ -79,7 +79,15 @@ describe("unserved connector actions", () => {
     ["GET", "/connector/v1"],
     ["POST", "/connector/v1"],
     ["GET", "/connector/v1/no-such"],
-    ["POST", "/connector/v1/campaigns"],
+    ["POST", "/connector/v1/forms"],
+    ["PATCH", "/connector/v1/campaigns/some-id/blocks"],
+    ["GET", "/connector/v1/programs"],
+    ["POST", "/connector/v1/campaigns/some-id/unpublish"],
+    ["POST", "/connector/v1/campaigns/some-id/publish"],
+    ["PATCH", "/connector/v1/donation-page/blocks"],
+    ["POST", "/connector/v1/donation-page/reset"],
+    ["PUT", "/connector/v1/campaigns"],
+    ["PUT", "/connector/v1/donations"],
   ])("%s %s is unknown_action and not 405", async (method, pathname) => {
     const res = await hit(method, pathname);
 
@@ -89,6 +97,34 @@ describe("unserved connector actions", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await res.json()).toEqual({ code: "unknown_action", status: 404 });
   });
+});
+
+describe("served connector routes without a key", () => {
+  test.each([
+    ["GET", "/connector/v1/campaigns"],
+    ["POST", "/connector/v1/campaigns"],
+    ["GET", "/connector/v1/campaigns/some-id"],
+    ["GET", "/connector/v1/donation-page"],
+    ["GET", "/connector/v1/blocks/catalog"],
+    ["GET", "/connector/v1/forms"],
+    ["GET", "/connector/v1/forms/some-id"],
+    ["GET", "/connector/v1/results"],
+    ["GET", "/connector/v1/donations"],
+    ["POST", "/connector/v1/donations"],
+    ["GET", "/connector/v1/donors"],
+    ["GET", "/connector/v1/donors/some-id"],
+    ["GET", "/connector/v1/recurring"],
+  ])(
+    "%s %s is key_refused, not 405, and not a redirect",
+    async (method, pathname) => {
+      const res = await hit(method, pathname);
+
+      expect(res.status).toBe(401);
+      expect(res.status).not.toBe(405);
+      expect(res.status >= 300 && res.status < 400).toBe(false);
+      expect(await res.json()).toEqual({ code: "key_refused", status: 401 });
+    }
+  );
 });
 
 describe("connector routes do not redirect", () => {
@@ -101,6 +137,8 @@ describe("connector routes do not redirect", () => {
     "/connector/v1/disconnect/",
     "/connector/v1/missing",
     "/connector/v1/missing/",
+    "/connector/v1/programs",
+    "/connector/v1/programs/",
   ];
 
   test.each(

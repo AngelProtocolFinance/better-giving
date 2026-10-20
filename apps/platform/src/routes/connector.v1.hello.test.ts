@@ -33,7 +33,24 @@ describe("GET /connector/v1/hello", () => {
       contract: 1,
       release: "dev",
       name: "Better Giving",
-      actions: ["hello", "exchange", "disconnect"],
+      actions: [
+        "hello",
+        "exchange",
+        "disconnect",
+        "list_campaigns",
+        "get_campaign",
+        "create_campaign",
+        "get_donation_page",
+        "get_block_catalog",
+        "list_forms",
+        "get_form",
+        "get_results",
+        "list_donations",
+        "list_donors",
+        "get_donor",
+        "list_recurring_gifts",
+        "record_donation",
+      ],
     });
   });
 

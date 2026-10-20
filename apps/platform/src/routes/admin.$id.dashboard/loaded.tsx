@@ -114,6 +114,20 @@ export function Loaded({ classes = "", ...props }: Props) {
           }
           amount={`$ ${humanize(props.bal_lock, 2)}`}
         />
+        {props.recorded_by_hand > 0 ? (
+          <Figure
+            title="Recorded by hand"
+            to="../donations"
+            tooltip={
+              <Content className="text-sm max-w-xs">
+                Gifts entered by hand. They stay out of savings, investments,
+                and payouts.
+                <Arrow />
+              </Content>
+            }
+            amount={`$${humanize(props.recorded_by_hand, 2)}`}
+          />
+        ) : null}
       </div>
       <div className="flex items-center gap-4 mt-4">
         <NavLink to="deposit" className="btn btn-secondary gap-2">

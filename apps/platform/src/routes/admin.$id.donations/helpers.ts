@@ -1,6 +1,13 @@
 import type { IAllocation } from "@/donations";
 import { via_name } from "@/donations/helpers";
+import { OFFLINE_SOURCE, RECORDED_BY_HAND } from "@/donations/offline";
 import type { INpoDonation } from "$/pg/queries/dist";
+
+export function origin_text(source: string): string {
+  if (source === OFFLINE_SOURCE) return RECORDED_BY_HAND;
+  if (source === "bg-widget") return "Donation Form";
+  return "Marketplace";
+}
 
 export interface IFees {
   base: number;
@@ -64,7 +71,7 @@ export const to_csv_row = (x: INpoDonation): IRow => {
     payment_method: via_name(x.via),
     frequency: x.frequency,
     program_name: x.program_name ?? "",
-    donation_origin: x.source,
+    donation_origin: origin_text(x.source),
     donation_origin_id: x.form_id ?? "",
     donation_origin_tag: x.form_tag || x.form_name || "",
 
@@ -88,6 +95,7 @@ export const to_row = (x: INpoDonation): IRow => {
   const base = to_csv_row(x);
   return {
     ...base,
+    donation_origin: x.source,
     program_id: x.program_id ?? "",
     recipient_id: x.to_id ?? 0,
     allocation: x.alloc ?? undefined,
