@@ -144,9 +144,9 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   const hold_notice = useRef(false);
   // an edit retires the failure. the change payload has the method and
   // whether the field is complete, not the card number or the cvc, so a
-  // replacement that leaves those alone never emits change. focusing or
-  // clicking the element is that edit. our own inputs bubble to the form.
-  // stripe's field errors stay under the fields; this only clears ours.
+  // replacement that leaves those alone never emits change. focusing the
+  // element is that edit. our own inputs bubble to the form. stripe's
+  // field errors stay under the fields; this only clears ours.
   const retire_notice = () => {
     if (hold_notice.current) return;
     set_notice((current) => (current == null ? current : null));
@@ -299,7 +299,6 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
           retire_notice();
         }}
         onFocus={retire_notice}
-        onClick={retire_notice}
       />
       {status === "init" ? (
         <Loader />

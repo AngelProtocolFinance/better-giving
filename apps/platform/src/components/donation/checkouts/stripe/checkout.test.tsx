@@ -69,7 +69,7 @@ const payment_change = vi.hoisted(() => ({
     | ((event: { complete: boolean; value?: { type: string } }) => void)
     | null,
 }));
-// focus and click, for an edit stripe does not report as change.
+// focus, for an edit stripe does not report as change.
 const payment_focus = vi.hoisted(() => ({
   current: null as (() => void) | null,
 }));
