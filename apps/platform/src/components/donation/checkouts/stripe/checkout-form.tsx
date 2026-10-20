@@ -138,6 +138,10 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   const pinned = don.pin === true;
   const [notice, set_notice] = useState<string | null>(null);
   const notice_ref = useRef<HTMLDivElement>(null);
+  // stripe applies a failure to the element in the same turn it reports it.
+  // that update is not the donor editing, and it must not retire the failure
+  // that was just shown. two frames is past that update and before a keystroke.
+  const hold_notice = useRef(false);
 
   useLayoutEffect(() => {
     const node = notice_ref.current;
@@ -186,7 +190,17 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
         const shown =
           donor_message ??
           error_prompt(error, { context: "processing payment" }).children;
-        set_notice(typeof shown === "string" ? shown : null);
+        if (typeof shown === "string") {
+          hold_notice.current = true;
+          set_notice(shown);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              hold_notice.current = false;
+            });
+          });
+        } else {
+          set_notice(null);
+        }
       } else if (donor_message) {
         ask_prompt(user_error_prompt(donor_message), { key: PROMPT_SLOT });
       } else {
@@ -219,7 +233,9 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
       className={
         pin ? "btn btn-form-primary w-full" : "btn btn-form-primary w-full mt-6"
       }
-      disabled={!stripe || !elements || status !== "ready" || !complete}
+      disabled={
+        !stripe || !elements || status !== "ready" || (!complete && !notice)
+      }
       type="submit"
     >
       <LoadText text="Processing..." is_loading={status === "submitting"}>
@@ -264,6 +280,7 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
         onLoaderStart={() => set_status("loading")}
         onChange={(x) => {
           set_complete(x.complete);
+          if (hold_notice.current) return;
           // an edit or a method change retires the failure. stripe's own
           // field errors stay under the fields; this only clears ours.
           set_notice((current) => (current == null ? current : null));

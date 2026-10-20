@@ -515,6 +515,10 @@ describe("stripe checkout", () => {
     );
     expect(submit?.disabled).toBe(false);
 
+    // past the two frames where stripe's own field update is ignored
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
     payment_change.current?.({ complete: true, value: { type: "card" } });
     await vi.waitFor(() =>
       expect(screen.getByRole("alert").query()).toBeNull()
@@ -533,12 +537,16 @@ describe("stripe checkout", () => {
     const donateBtn = screen.getByRole("button", { name: /donate now/i });
     await expect.element(donateBtn).toBeVisible();
 
-    confirm_payment_mock.mockResolvedValueOnce({
-      error: {
-        type: "card_error",
-        code: "card_declined",
-        message: "Your card was declined.",
-      } satisfies StripeError,
+    confirm_payment_mock.mockImplementationOnce(() => {
+      // stripe marks the field incomplete in the same turn as the failure
+      payment_change.current?.({ complete: false, value: { type: "card" } });
+      return Promise.resolve({
+        error: {
+          type: "card_error",
+          code: "card_declined",
+          message: "Your card was declined.",
+        } satisfies StripeError,
+      });
     });
 
     await donateBtn.click();
@@ -546,6 +554,13 @@ describe("stripe checkout", () => {
     await expect.element(alert).toMatchTextContent(/your card was declined/i);
     expect(screen.getByRole("dialog").query()).toBeNull();
     expect(reported).toHaveLength(0);
+    const form = screen
+      .getByTestId("stripe-checkout-form")
+      .element() as HTMLElement;
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.disabled).toBe(false);
   });
 
   test("a pinned failure leaves when the donor submits again", async () => {
