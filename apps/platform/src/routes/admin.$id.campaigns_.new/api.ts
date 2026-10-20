@@ -12,6 +12,7 @@ import { npo_programs } from "$/pg/queries/program";
 import {
   ORG_SLUG_PROMPT,
   read_body,
+  refusal,
   slug_taken,
   slug_taken_message,
   to_fields,
@@ -35,21 +36,23 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
   const user = context.get(user_ctx);
   const endow = await npo_get(id);
   if (!endow) throw resp.status(404);
-  if (!endow.slug) return data({ error: ORG_SLUG_PROMPT }, { status: 400 });
+  if (!endow.slug) return data(refusal(ORG_SLUG_PROMPT), { status: 400 });
 
   const read = await read_body(request);
-  if ("error" in read) return data({ error: read.error }, { status: 400 });
+  if ("error" in read)
+    return data(refusal(read.error, read.field), { status: 400 });
   if (!("body" in read) || !read.body) {
-    return data(
-      { error: "Save the campaign before ending it." },
-      { status: 400 }
-    );
+    return data(refusal("Save the campaign before ending it."), {
+      status: 400,
+    });
   }
   const body = read.body;
   const fields = await to_fields(id, body, endow.hide_bg_tip);
-  if ("error" in fields) return data({ error: fields.error }, { status: 400 });
+  if ("error" in fields) {
+    return data(refusal(fields.error, fields.field), { status: 400 });
+  }
   if (await campaign_slug_taken(id, fields.slug)) {
-    return data({ error: slug_taken_message() }, { status: 400 });
+    return data(refusal(slug_taken_message(), "slug"), { status: 400 });
   }
 
   const campaign_id = crypto.randomUUID();
@@ -62,7 +65,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
     });
   } catch (err) {
     if (slug_taken(err)) {
-      return data({ error: slug_taken_message() }, { status: 400 });
+      return data(refusal(slug_taken_message(), "slug"), { status: 400 });
     }
     throw err;
   }

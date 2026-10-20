@@ -52,7 +52,7 @@ export default function Component() {
         />
       </div>
       <p className="text-gray-11 mt-2">
-        Please bear with us while we bring final pieces together 🙏
+        Please bear with us while we bring final pieces together
       </p>
       <p className="text-gray-11 text-sm mt-4">
         Changes are expected to be live in{" "}

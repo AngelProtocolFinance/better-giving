@@ -1,8 +1,6 @@
-import { Portal } from "@ark-ui/react/portal";
-import { createListCollection, Select } from "@ark-ui/react/select";
-import { EmptyRow, LoadMoreRow, popup_anim, Target } from "@better-giving/ui";
+import { EmptyRow, LoadMoreRow, Select, Target } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
-import { ChevronDownIcon, TagIcon } from "lucide-react";
+import { TagIcon } from "lucide-react";
 import { href, NavLink, useNavigate, useSearchParams } from "react-router";
 import type { IPaginator } from "#/types/components";
 import { toPP } from "@/helpers/date";
@@ -15,11 +13,6 @@ const FILTER_LABEL: Record<Filter, string> = {
   active: "Active",
   inactive: "Inactive",
 };
-const FILTER_COLLECTION = createListCollection({
-  items: FILTER_OPTS,
-  itemToString: (v) => FILTER_LABEL[v],
-});
-
 interface Props extends IPaginator<IFormListed> {
   status: string;
 }
@@ -157,36 +150,17 @@ function StatusFilter({ value }: { value: Filter }) {
   const [search] = useSearchParams();
   const navigate = useNavigate();
   return (
-    <Select.Root
-      collection={FILTER_COLLECTION}
-      value={[value]}
-      onValueChange={(e) => {
-        const v = e.value[0];
-        if (!v) return;
+    <Select
+      label="Status"
+      options={FILTER_OPTS}
+      value={value}
+      option_disp={(v) => FILTER_LABEL[v]}
+      onChange={(v) => {
         const p = new URLSearchParams(search);
         p.set("status", v);
         p.delete("next");
         navigate(`?${p.toString()}`);
       }}
-      positioning={{ placement: "bottom-start", gutter: 4 }}
-    >
-      <Select.Trigger className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide cursor-pointer">
-        <Select.ValueText placeholder="Status" />
-        <ChevronDownIcon className="text-gray-11 icon-sm" />
-      </Select.Trigger>
-      <Portal>
-        <Select.Positioner>
-          <Select.Content
-            className={`rounded border bg-panel text-gray-12 min-w-28 overflow-hidden z-10 ${popup_anim}`}
-          >
-            {FILTER_OPTS.map((v) => (
-              <Select.Item key={v} item={v} className="selector-opt text-sm">
-                <Select.ItemText>{FILTER_LABEL[v]}</Select.ItemText>
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Positioner>
-      </Portal>
-    </Select.Root>
+    />
   );
 }

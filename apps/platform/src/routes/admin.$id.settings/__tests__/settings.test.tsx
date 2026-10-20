@@ -1,4 +1,4 @@
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, useLocation, useNavigate } from "react-router";
 import {
   afterAll,
   beforeAll,
@@ -278,9 +278,9 @@ describe("fundraiser tab — defaults", () => {
 
     // switch to fundraiser tab
     await expect
-      .element(screen.getByRole("tab", { name: /campaign/i }))
+      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
       .toBeVisible();
-    await screen.getByRole("tab", { name: /campaign/i }).click();
+    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
 
     const checkbox = screen.getByLabelText(/allow campaigns/i);
     await expect.element(checkbox).toBeVisible();
@@ -302,9 +302,9 @@ describe("fundraiser tab — pre-filled", () => {
     const screen = await render_settings(npo.id);
 
     await expect
-      .element(screen.getByRole("tab", { name: /campaign/i }))
+      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
       .toBeVisible();
-    await screen.getByRole("tab", { name: /campaign/i }).click();
+    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
 
     await expect
       .element(screen.getByLabelText(/allow campaigns/i))
@@ -318,9 +318,9 @@ describe("fundraiser tab — toggle on", () => {
     const screen = await render_settings(npo.id);
 
     await expect
-      .element(screen.getByRole("tab", { name: /campaign/i }))
+      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
       .toBeVisible();
-    await screen.getByRole("tab", { name: /campaign/i }).click();
+    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
 
     const checkbox = screen.getByLabelText(/allow campaigns/i);
     await expect.element(checkbox).toBeVisible();
@@ -674,11 +674,12 @@ describe("donation form tab — set smart goal", () => {
         .element() as HTMLElement
     ).click();
 
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    const submit = screen
+      .getByRole("tabpanel", { name: "Donation Form" })
+      .getByRole("button", { name: /submit changes/i });
+    await submit.click();
 
-    await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
-      .toBeDisabled();
+    await expect.element(submit).toBeDisabled();
 
     await expect
       .element(screen.getByRole("radio", { name: /use smart milestones/i }))
@@ -714,5 +715,140 @@ describe("donation form tab — reset", () => {
     await expect
       .element(screen.getByRole("button", { name: /submit changes/i }))
       .toBeDisabled();
+  });
+});
+
+function AddressProbe() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="url-search">{useLocation().search}</output>
+      <button type="button" onClick={() => navigate(-1)}>
+        Back
+      </button>
+    </>
+  );
+}
+
+async function render_tab_history(npo_id: number, entry: string) {
+  const Stub = createRoutesStub([
+    {
+      path: "/admin/:id/settings",
+      Component: (props: any) => (
+        <>
+          <SettingsPage {...props} />
+          <AddressProbe />
+        </>
+      ),
+      HydrateFallback: () => null,
+      loader: loader as any,
+      action,
+      middleware: [
+        async ({ context }, next) => {
+          context.set(admin_ctx, npo_id);
+          return next();
+        },
+      ],
+    },
+  ]);
+  return render(
+    <Stub initialEntries={[entry]} future={{ v8_middleware: true }} />
+  );
+}
+
+describe("settings tabs", () => {
+  it("names the page and opens Donation when tab is missing or unknown", async () => {
+    const npo = await seed_npo();
+    const screen = await render_tab_history(
+      npo.id,
+      `/admin/${npo.id}/settings?tab=nope`
+    );
+    await expect
+      .element(screen.getByRole("heading", { level: 1, name: "Settings" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("tab", { name: "Donation", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(screen.getByLabelText(/tax receipt message/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
+      .toHaveAttribute("aria-selected", "false");
+  });
+
+  it("writes the tab into the address and Back returns to the previous one", async () => {
+    const npo = await seed_npo();
+    const screen = await render_tab_history(
+      npo.id,
+      `/admin/${npo.id}/settings`
+    );
+    await expect
+      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
+      .toBeVisible();
+    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toHaveTextContent("?tab=campaign");
+    await expect
+      .element(screen.getByLabelText(/allow campaigns/i))
+      .toBeVisible();
+
+    await screen.getByRole("button", { name: "Back", exact: true }).click();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("url-search").element().textContent).toBe("");
+    });
+    await expect
+      .element(screen.getByRole("tab", { name: "Donation", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(screen.getByLabelText(/allow campaigns/i))
+      .not.toBeVisible();
+  });
+
+  it("shows a refused save on the tab that submitted it", async () => {
+    const npo = await seed_npo();
+    const Stub = createRoutesStub([
+      {
+        path: "/admin/:id/settings",
+        Component: SettingsPage,
+        HydrateFallback: () => null,
+        loader: loader as any,
+        action: () => ({
+          ok: false,
+          error: "The nonprofit could not be saved",
+        }),
+        middleware: [
+          async ({ context }, next) => {
+            context.set(admin_ctx, npo.id);
+            return next();
+          },
+        ],
+      },
+    ]);
+    const screen = await render(
+      <Stub
+        initialEntries={[`/admin/${npo.id}/settings`]}
+        future={{ v8_middleware: true }}
+      />
+    );
+    const receipt = screen.getByLabelText(/tax receipt message/i);
+    await expect.element(receipt).toBeVisible();
+    await receipt.fill("A note for the receipt");
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await expect
+      .element(screen.getByRole("alert").nth(0))
+      .toHaveTextContent("The nonprofit could not be saved");
+
+    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
+    await vi.waitFor(() => {
+      const box = screen
+        .getByLabelText(/allow campaigns/i)
+        .element()
+        .closest("[role='tabpanel']");
+      expect(box?.textContent ?? "").not.toContain(
+        "The nonprofit could not be saved"
+      );
+    });
   });
 });

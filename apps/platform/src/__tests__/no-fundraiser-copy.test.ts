@@ -8,6 +8,13 @@ const SRC = join(import.meta.dirname, "..");
 const ALLOW =
   /\/fundraisers|fundraisers\/|_app\.fundraisers|fundraiser-moderation|\.pdf|professional fundraiser|Charities and\s+Fundraisers|@\/fundraiser|#\/components\/fundraiser|\.\/fundraiser/i;
 
+const EXACT = new Set([
+  "Fundraiser opt-outs",
+  "No fundraiser opt-outs found",
+  "Fundraisers",
+  "Supporter fundraisers",
+]);
+
 function files(dir: string, out: string[] = []) {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
@@ -43,7 +50,8 @@ describe("campaign copy", () => {
     const hits: string[] = [];
     for (const file of files(SRC)) {
       for (const text of visible(readFileSync(file, "utf8"))) {
-        if (!/fundraiser/i.test(text) || ALLOW.test(text)) continue;
+        if (!/fundraiser/i.test(text) || ALLOW.test(text) || EXACT.has(text))
+          continue;
         hits.push(`${file.replace(SRC, "src")}: ${text.slice(0, 160)}`);
       }
     }

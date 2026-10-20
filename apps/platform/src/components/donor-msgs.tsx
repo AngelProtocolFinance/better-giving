@@ -1,5 +1,6 @@
 import { Image } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
+import { LoaderCircle } from "lucide-react";
 import { useRef, useState } from "react";
 import use_swr from "swr/immutable";
 import laira from "#/assets/laira/laira-face.png";
@@ -28,20 +29,93 @@ interface Page {
   next: string | null;
 }
 
-const fetcher = ([, id, key, campaign_id]: [
+const fetcher = async ([, id, key, campaign_id]: [
   string,
   string,
   string | null,
   string | null,
-]) => {
+]): Promise<Page> => {
   const q = new URLSearchParams();
   if (key) q.set("next", key);
   if (campaign_id) q.set("campaign_id", campaign_id);
   const search = q.toString();
-  return fetch(`/api/npo/${id}/donors${search ? `?${search}` : ""}`).then<Page>(
-    (res) => res.json()
-  );
+  const res = await fetch(`/api/npo/${id}/donors${search ? `?${search}` : ""}`);
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
 };
+
+interface IPendingButton {
+  resting: string;
+  busy: boolean;
+  onClick: () => void;
+  className: string;
+  described_by?: string;
+}
+
+function PendingButton({
+  resting,
+  busy,
+  onClick,
+  className,
+  described_by,
+}: IPendingButton) {
+  return (
+    <button
+      type="button"
+      // disabled blurs the button, so the pending label is announced to nobody and focus leaves it
+      aria-busy={busy || undefined}
+      aria-disabled={busy || undefined}
+      aria-describedby={described_by}
+      onClick={(event) => {
+        if (busy) {
+          event.preventDefault();
+          return;
+        }
+        onClick();
+      }}
+      className={className}
+    >
+      {busy ? (
+        <span className="inline-flex items-center gap-2">
+          <LoaderCircle className="animate-spin icon-md" />
+          Loading donors
+        </span>
+      ) : (
+        resting
+      )}
+    </button>
+  );
+}
+
+interface IDonorLoadError {
+  on_retry: () => void;
+  classes?: string;
+  message_id?: string;
+  busy: boolean;
+}
+
+function DonorLoadError({
+  on_retry,
+  classes = "",
+  message_id,
+  busy,
+}: IDonorLoadError) {
+  return (
+    <div
+      className={`flex flex-col items-start gap-2${classes ? ` ${classes}` : ""}`}
+    >
+      <p id={message_id} role="alert" className="text-sm text-destructive">
+        Couldn't load donors.
+      </p>
+      <PendingButton
+        resting="Retry"
+        busy={busy}
+        onClick={on_retry}
+        className="min-h-11 text-left text-base font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      />
+    </div>
+  );
+}
 
 function skeleton_lines() {
   return (
@@ -199,6 +273,12 @@ export function DonorMsgs({
   const [open_id, set_open_id] = useState<string | null>(null);
   const expanded = open_id === id;
   const loading = useRef(false);
+  const first_inflight = useRef(false);
+  const [first_pending, set_first_pending] = useState(false);
+  const [page_pending, set_page_pending] = useState<null | "more" | "retry">(
+    null
+  );
+  const [failed_cursor, set_failed_cursor] = useState<string | null>(null);
 
   const campaign = campaign_id != null;
   const section = campaign
@@ -215,11 +295,41 @@ export function DonorMsgs({
       : "grid gap-y-4 sm:grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-4";
 
   const feed = layout === "feed";
+  const retry_first = () => {
+    if (first_inflight.current) return;
+    first_inflight.current = true;
+    set_first_pending(true);
+    void mutate().finally(() => {
+      first_inflight.current = false;
+      set_first_pending(false);
+    });
+  };
 
-  if (error) {
-    if (!(feed && highlight)) return null;
-  }
   if (!data) {
+    if (error || first_pending) {
+      if (feed) {
+        return (
+          <section data-feed="" className={`${classes} flex flex-col gap-3`}>
+            {highlight && <HighlightCard highlight={highlight} />}
+            <DonorLoadError busy={first_pending} on_retry={retry_first} />
+          </section>
+        );
+      }
+      return (
+        <section
+          className={`${classes} w-full rounded @container`}
+          {...section}
+        >
+          <h2
+            className="text-xl font-bold mb-2"
+            {...(campaign ? { "data-heading": "" } : {})}
+          >
+            Donors
+          </h2>
+          <DonorLoadError busy={first_pending} on_retry={retry_first} />
+        </section>
+      );
+    }
     if (feed) {
       // marker only: the campaign column waits on this before it sticks
       if (!highlight) {
@@ -228,7 +338,7 @@ export function DonorMsgs({
       return (
         <section
           data-feed=""
-          {...(error ? {} : { "data-feed-pending": "" })}
+          data-feed-pending=""
           className={`${classes} flex flex-col gap-3`}
         >
           <HighlightCard highlight={highlight} />
@@ -262,9 +372,10 @@ export function DonorMsgs({
   const next = data?.next ?? null;
   if (items.length === 0 && !(feed && highlight)) return null;
 
-  async function load(page: string) {
+  async function load(page: string, from: "more" | "retry") {
     if (loading.current) return;
     loading.current = true;
+    set_page_pending(from);
     try {
       const res = await fetcher(["txs", id, page, campaign_id ?? null]);
       mutate(
@@ -274,10 +385,20 @@ export function DonorMsgs({
         }),
         { revalidate: false }
       );
+      set_failed_cursor(null);
+    } catch {
+      set_failed_cursor(page);
     } finally {
       loading.current = false;
+      set_page_pending(null);
     }
   }
+
+  function retry_page() {
+    if (failed_cursor) load(failed_cursor, "retry");
+  }
+
+  const page_error_id = `donors-page-error-${id}`;
 
   if (feed) {
     const cap = 6 - (highlight ? 1 : 0);
@@ -293,16 +414,24 @@ export function DonorMsgs({
           />
         ))}
         {(next || (overflow && !expanded)) && (
-          <button
-            type="button"
+          <PendingButton
+            resting="See all donors"
+            busy={page_pending === "more"}
+            described_by={failed_cursor ? page_error_id : undefined}
             onClick={() => {
+              if (loading.current) return;
               set_open_id(id);
-              if (next) load(next);
+              if (next) load(next, "more");
             }}
             className={`min-h-11 text-left text-base font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring${next ? "" : " min-[1440px]:hidden"}`}
-          >
-            See all donors
-          </button>
+          />
+        )}
+        {failed_cursor && (
+          <DonorLoadError
+            busy={page_pending === "retry"}
+            message_id={page_error_id}
+            on_retry={retry_page}
+          />
         )}
       </section>
     );
@@ -323,13 +452,21 @@ export function DonorMsgs({
       </div>
 
       {next && (
-        <button
-          type="button"
-          onClick={() => load(next)}
+        <PendingButton
+          resting="View more"
+          busy={page_pending === "more"}
+          described_by={failed_cursor ? page_error_id : undefined}
+          onClick={() => load(next, "more")}
           className="text-primary font-medium mt-4 hover:text-primary"
-        >
-          View more
-        </button>
+        />
+      )}
+      {failed_cursor && (
+        <DonorLoadError
+          busy={page_pending === "retry"}
+          classes="mt-4"
+          message_id={page_error_id}
+          on_retry={retry_page}
+        />
       )}
     </section>
   );

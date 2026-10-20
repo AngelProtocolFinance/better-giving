@@ -1,10 +1,18 @@
-import { Actions, Field, Label } from "@better-giving/ui";
+import { Actions, Field, Select } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import type { Resolver } from "react-hook-form";
 import { useController, useForm, useWatch } from "react-hook-form";
 import * as v from "valibot";
 import { NpoSelector } from "#/pages/shared/form-create/form/npo-selector";
-import type { IFormValues, INpoOpt } from "./types";
+import type { IFormValues, INpoOpt, TFrom } from "./types";
+
+const FROM_OPTIONS: TFrom[] = ["cheque", "daf", "stocks", "match"];
+const FROM_LABEL: Record<TFrom, string> = {
+  cheque: "Cheque",
+  daf: "DAF",
+  stocks: "Stocks",
+  match: "Employer match",
+};
 
 /** a match that names a gift takes its recipient from that gift, fund or npo alike */
 const gift_decides = (o: { from: string; for_donation_id?: string }) =>
@@ -86,6 +94,7 @@ export function SettleForm({
   });
 
   const { field: npo_field } = useController({ name: "npo", control });
+  const { field: from_field } = useController({ name: "from", control });
   const from = useWatch({ control, name: "from" });
   const for_donation_id = useWatch({ control, name: "for_donation_id" });
   const from_gift = gift_decides({ from, for_donation_id });
@@ -95,21 +104,15 @@ export function SettleForm({
       <div className="p-6 sm:p-8 grid gap-4">
         <h3 className="text-lg font-bold">New settlement</h3>
 
-        <div>
-          <Label htmlFor="__from" required className="mb-1">
-            From
-          </Label>
-          <select
-            id="__from"
-            {...register("from")}
-            className="w-full rounded border border-gray-6 bg-panel px-3 py-2 text-sm font-medium text-gray-12 focus-visible:outline-2 outline-ring"
-          >
-            <option value="cheque">Cheque</option>
-            <option value="daf">DAF</option>
-            <option value="stocks">Stocks</option>
-            <option value="match">Employer match</option>
-          </select>
-        </div>
+        <Select
+          ref={from_field.ref}
+          label="From"
+          required
+          value={from_field.value}
+          onChange={from_field.onChange}
+          options={FROM_OPTIONS}
+          option_disp={(v) => FROM_LABEL[v]}
+        />
 
         <div>
           <NpoSelector

@@ -9,7 +9,7 @@ import {
   ArrowLeftRightIcon,
   ArrowUpFromLineIcon,
 } from "lucide-react";
-import { NavLink } from "react-router";
+import { href, NavLink } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 import { category_colors } from "#/pages/admin/ticker-category-colors";
 import { use_admin_data } from "#/pages/admin/use-admin-data";
@@ -114,6 +114,11 @@ export function Loaded({ classes = "", ...props }: Props) {
           }
           amount={`$ ${humanize(props.bal_lock, 2)}`}
         />
+        <Campaigns
+          id={props.id}
+          count={props.campaign_count}
+          live={props.campaign_live}
+        />
       </div>
       <div className="flex items-center gap-4 mt-4">
         <NavLink to="deposit" className="btn btn-secondary gap-2">
@@ -177,6 +182,33 @@ export function Loaded({ classes = "", ...props }: Props) {
           <EmptyState>No payout records yet</EmptyState>
         )}
       </div>
+    </div>
+  );
+}
+
+interface ICampaigns {
+  id: number;
+  count: number;
+  live: number;
+}
+
+function Campaigns(props: ICampaigns) {
+  const empty = props.count === 0;
+  return (
+    <div className="card">
+      <div className="flex items-center mb-4">
+        <h4>Campaigns</h4>
+      </div>
+      <NavLink
+        to={
+          empty
+            ? href("/admin/:id/campaigns/new", { id: String(props.id) })
+            : href("/admin/:id/campaigns", { id: String(props.id) })
+        }
+        className="link text-lg font-medium"
+      >
+        {empty ? "Start a campaign" : `${props.live} live`}
+      </NavLink>
     </div>
   );
 }

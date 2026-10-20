@@ -1,5 +1,5 @@
 import { ExtLink, Modal } from "@better-giving/ui";
-import { X } from "lucide-react";
+import { X, XIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import facebook from "#/assets/icons/social/facebook.webp";
 import linkedin from "#/assets/icons/social/linkedin.webp";
@@ -76,7 +76,7 @@ export function Share(props: ShareProps) {
               onClick={() => set_chooser(false)}
               className="grid size-11 place-items-center rounded text-2xl leading-none text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              ×
+              <XIcon className="icon-2xl" />
             </button>
           </div>
           <div className="flex items-center justify-center gap-2 px-4 pb-6">

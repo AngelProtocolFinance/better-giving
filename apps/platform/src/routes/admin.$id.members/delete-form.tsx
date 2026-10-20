@@ -35,6 +35,7 @@ export function DeleteForm({ user, to_remove, pending_email, label }: Props) {
           });
         }}
         type="button"
+        aria-label={`Remove ${label}`}
         className=" disabled:text-gray-11 hover:text-destructive active:text-destructive absolute-center"
       >
         {fetcher.state !== "idle" ? (

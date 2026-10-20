@@ -8,7 +8,6 @@ import {
 import type { ReactNode } from "react";
 
 interface Item {
-  emoji: string;
   title: string;
   description: string;
   result: string;
@@ -17,7 +16,6 @@ interface Item {
 
 export const items: Item[] = [
   {
-    emoji: "🎯",
     title: "One donation form. Every payment type.",
     description:
       "Accept cash, credit, stock, crypto, DAF donations. One simple form. No multiple platforms. No complexity.",
@@ -25,7 +23,6 @@ export const items: Item[] = [
     icon: <TargetIcon className="text-primary-fg pictogram-sm" />,
   },
   {
-    emoji: "⚡",
     title: "Register online",
     description:
       "No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.",
@@ -33,7 +30,6 @@ export const items: Item[] = [
     icon: <ZapIcon className="text-primary-fg pictogram-sm" />,
   },
   {
-    emoji: "🛡️",
     title: "Bulletproof Security & Compliance",
     description:
       "Card data is handled by Stripe (PCI SAQ A). Savings are held in FDIC-insured accounts.",
@@ -41,7 +37,6 @@ export const items: Item[] = [
     icon: <Shield className="text-primary-fg pictogram-sm" />,
   },
   {
-    emoji: "📊",
     title: "Real-Time Dashboard. Zero Spreadsheets.",
     description:
       "See every donation, track growth, download reports instantly. No more manual tracking.",
@@ -51,7 +46,6 @@ export const items: Item[] = [
     ),
   },
   {
-    emoji: "💰",
     title: "Your Money, Your Control",
     description:
       "Choose savings or the Sustainability Fund. Withdrawal requests are reviewed and processed on a monthly basis. Returns vary, and past performance isn't a guarantee.",
@@ -76,10 +70,7 @@ export function Features({ classes = "" }: { classes?: string }) {
               {item.icon}
             </div>
             <div className="ml-4">
-              <h4 className="text-2xl @max-3xl:text-center font-semibold relative">
-                <span className="absolute -left-8 text-2xl hidden @3xl:block">
-                  {item.emoji}
-                </span>
+              <h4 className="text-2xl @max-3xl:text-center font-semibold">
                 {item.title}
               </h4>
               <p className="mt-2 text-lg  @max-3xl:text-center">

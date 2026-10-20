@@ -12,6 +12,8 @@ interface Props {
   profile_url: string;
   donate_url: string;
   campaign_url?: string;
+  /** published pages open the address. drafts, and the assets page, keep text. */
+  link_url?: boolean;
 }
 
 export function QrCode({
@@ -20,6 +22,7 @@ export function QrCode({
   profile_url,
   donate_url,
   campaign_url,
+  link_url = false,
 }: Props) {
   const tabs: { id: QRCodeType; name: string }[] = campaign_url
     ? [{ id: "campaign", name: "Campaign" }]
@@ -135,7 +138,18 @@ export function QrCode({
             </Ark.Root>
             <p className="text-sm text-gray-11 mt-1">
               {tab.name}:{" "}
-              <span className="font-mono text-xs">{urls[tab.id]}</span>
+              {link_url ? (
+                <a
+                  href={urls[tab.id]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link font-mono text-xs"
+                >
+                  {urls[tab.id]}
+                </a>
+              ) : (
+                <span className="font-mono text-xs">{urls[tab.id]}</span>
+              )}
             </p>
           </TabPanel>
         ))}

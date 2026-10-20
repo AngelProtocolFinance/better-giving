@@ -224,7 +224,7 @@ describe("edit profile — renders pre-filled", () => {
 
     await expect.element(screen.getByText(/\/marketplace\/\d+$/)).toBeVisible();
     await expect
-      .element(screen.getByRole("link", { name: "Manage → Organization" }))
+      .element(screen.getByRole("link", { name: "Manage Organization" }))
       .toHaveAttribute("href", `/admin/${npo.id}/organization`);
     await expect
       .element(screen.getByLabelText(/address/i))
@@ -238,6 +238,23 @@ describe("edit profile — renders pre-filled", () => {
     await expect
       .element(screen.getByRole("button", { name: "Save general" }))
       .toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Save general" }).element().className
+    ).toContain("btn-primary");
+    expect(
+      screen.getByRole("button", { name: "Save organization" }).element()
+        .className
+    ).toContain("btn-secondary");
+    expect(
+      screen.getByRole("button", { name: "Save social media" }).element()
+        .className
+    ).toContain("btn-secondary");
+    expect(
+      screen
+        .getByRole("link", { name: "Manage Organization" })
+        .element()
+        .querySelector("svg")
+    ).not.toBeNull();
   });
 });
 
@@ -553,7 +570,7 @@ describe("edit profile — slug taken", () => {
     expect(screen.getByLabelText(/org slug/i).query()).toBeNull();
     expect(screen.getByLabelText(/custom profile url/i).query()).toBeNull();
     await expect
-      .element(screen.getByRole("link", { name: "Manage → Organization" }))
+      .element(screen.getByRole("link", { name: "Manage Organization" }))
       .toBeVisible();
     await expect
       .element(screen.getByText(new RegExp(`/marketplace/${npo.id}$`)))
@@ -1202,7 +1219,7 @@ describe("edit profile — every caption names something", () => {
     const url = screen.getByRole("link", { name: /\/marketplace\/kept-slug$/ });
     await expect.element(url).toBeVisible();
     await expect
-      .element(screen.getByRole("link", { name: "Manage → Organization" }))
+      .element(screen.getByRole("link", { name: "Manage Organization" }))
       .toHaveAttribute("href", `/admin/${npo.id}/organization`);
     expect(
       screen.getByText(/no risk of breaking existing links/i).query()

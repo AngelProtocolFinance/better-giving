@@ -1,3 +1,5 @@
+import { PercentIcon, TrendingUpIcon } from "lucide-react";
+
 const allocation = [
   { pct: "50%", label: "U.S. equities", swatch: "bg-primary" },
   { pct: "10%", label: "non-U.S. equities", swatch: "bg-primary/65" },
@@ -33,11 +35,8 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           </p>
           <div className="grid gap-3.5">
             <div className="card-on-band flex gap-3.5 items-start">
-              <span
-                className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
-                aria-hidden
-              >
-                %
+              <span className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold">
+                <PercentIcon aria-hidden className="icon-xl" />
               </span>
               <div>
                 <span className="font-bold">High-yield savings</span>
@@ -48,11 +47,8 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
               </div>
             </div>
             <div className="card-on-band flex gap-3.5 items-start">
-              <span
-                className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
-                aria-hidden
-              >
-                ↗
+              <span className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold">
+                <TrendingUpIcon aria-hidden className="icon-xl" />
               </span>
               <div>
                 <span className="font-bold">Sustainability Fund</span>

@@ -1,7 +1,9 @@
+import { EmptyState } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import { href, Link } from "react-router";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 import type { Route } from "./+types/route";
+import { fund_row_status, STATUS_WORD } from "./copy";
 
 export { ErrorBoundary } from "#/components/error";
 export { loader } from "./api";
@@ -24,67 +26,123 @@ function fund_end(expiration: number) {
   return when(new Date(expiration * 1000).toISOString());
 }
 
+interface IRow {
+  name: string;
+  name_to: string;
+  meta: string;
+  view_to?: string;
+}
+
+function Row({ name, name_to, meta, view_to }: IRow) {
+  return (
+    <li className="card grid gap-1">
+      <Link to={name_to} className="link font-semibold">
+        {name}
+      </Link>
+      <span className="text-sm text-gray-11">{meta}</span>
+      {view_to && (
+        <Link
+          to={view_to}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="link text-sm"
+        >
+          View
+        </Link>
+      )}
+    </li>
+  );
+}
+
 export default function Page({ loaderData }: Route.ComponentProps) {
   const { endow, campaigns, funds, profile_to } = loaderData;
   const profile = endow.slug
     ? `/marketplace/${endow.slug}`
     : `/marketplace/${endow.id}`;
+  const new_to = href("/admin/:id/campaigns/new", { id: String(endow.id) });
+  const empty = campaigns.length === 0 && funds.length === 0;
 
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8 gap-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">Campaigns</h1>
-        <Link
-          to={href("/admin/:id/campaigns/new", { id: String(endow.id) })}
-          className="btn btn-primary"
-        >
+        <Link to={new_to} className="btn btn-primary">
           New campaign
         </Link>
       </div>
 
-      <Link to={profile_to} className="card block">
+      <div className="card grid gap-1">
         <p className="text-sm text-gray-11">Better Giving profile</p>
-        <p className="mt-1 font-semibold">{profile}</p>
-      </Link>
+        <Link to={profile} className="link font-semibold">
+          {profile}
+        </Link>
+        <Link to={profile_to} className="link text-sm">
+          Edit profile
+        </Link>
+      </div>
 
-      <ul className="grid gap-3">
-        {campaigns.map((c) => (
-          <li key={c.id}>
-            <Link
-              to={href("/admin/:id/campaigns/:campaign_id", {
-                id: String(endow.id),
-                campaign_id: c.id,
-              })}
-              className="card grid gap-1"
-            >
-              <span className="font-semibold">{c.name}</span>
-              <span className="text-sm text-gray-11">
-                {c.status_label} · {to_usd(c.raised)} raised · {when(c.ends_at)}
-              </span>
+      {empty ? (
+        <EmptyState
+          action={
+            <Link to={new_to} className="btn btn-primary">
+              Create campaign
             </Link>
-          </li>
-        ))}
-        {funds.map((f) => (
-          <li key={f.id} className="card grid gap-1">
-            <Link
-              to={href("/fundraisers/:fund_id", { fund_id: f.id })}
-              className="link font-semibold"
-            >
-              {f.name}
-            </Link>
-            <span className="text-sm text-gray-11">
-              {f.active ? (f.published ? "live" : "draft") : "ended"} ·{" "}
-              {to_usd(f.donation_total_usd)} raised · {fund_end(f.expiration)}
-            </span>
-            <Link
-              to={href("/fundraisers/:fund_id/edit", { fund_id: f.id })}
-              className="link text-sm"
-            >
-              Edit
-            </Link>
-          </li>
-        ))}
-      </ul>
+          }
+        >
+          No campaigns yet
+        </EmptyState>
+      ) : (
+        <>
+          {campaigns.length > 0 && (
+            <section className="grid gap-3">
+              <h2 className="font-semibold">Campaigns</h2>
+              <ul className="grid gap-3">
+                {campaigns.map((c) => (
+                  <Row
+                    key={c.id}
+                    name={c.name}
+                    name_to={href("/admin/:id/campaigns/:campaign_id", {
+                      id: String(endow.id),
+                      campaign_id: c.id,
+                    })}
+                    meta={`${STATUS_WORD[c.status_label]} · ${to_usd(c.raised)} raised · ${when(c.ends_at)}`}
+                    view_to={
+                      c.status !== "draft" && endow.slug
+                        ? href("/org/:org/:campaign", {
+                            org: endow.slug,
+                            campaign: c.slug,
+                          })
+                        : undefined
+                    }
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+          {funds.length > 0 && (
+            <section className="grid gap-3">
+              <h2 className="font-semibold">Supporter fundraisers</h2>
+              <ul className="grid gap-3">
+                {funds.map((f) => (
+                  <Row
+                    key={f.id}
+                    name={f.name}
+                    name_to={href("/fundraisers/:fund_id/edit", {
+                      fund_id: f.id,
+                    })}
+                    meta={`${fund_row_status(f)} · ${to_usd(f.donation_total_usd)} raised · ${fund_end(f.expiration)}`}
+                    view_to={
+                      f.active && f.published
+                        ? href("/fundraisers/:fund_id", { fund_id: f.id })
+                        : undefined
+                    }
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }

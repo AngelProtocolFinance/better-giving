@@ -1,3 +1,15 @@
+export const STATUS_WORD = {
+  draft: "Draft",
+  live: "Live",
+  ended: "Ended",
+} as const;
+
+export function fund_row_status(row: { active: boolean; published: boolean }) {
+  if (!row.active) return STATUS_WORD.ended;
+  if (row.published) return STATUS_WORD.live;
+  return STATUS_WORD.draft;
+}
+
 export const SLUG_LOCK_NOTE =
   "The address is locked. Changing it would break links that already point here.";
 

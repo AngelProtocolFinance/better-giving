@@ -5,6 +5,7 @@ import {
   CircleDollarSign,
   CircleUserRound,
   Flag,
+  HandshakeIcon,
   Heart,
   Image,
   LayoutDashboard,
@@ -48,6 +49,7 @@ const group1: LinkGroup = {
         fn: MegaphoneIcon,
         size: 22,
       },
+      end: true,
     },
     {
       title: "Donation Forms",
@@ -66,7 +68,7 @@ const group1: LinkGroup = {
       },
     },
     {
-      title: "Campaign opt-outs",
+      title: "Fundraiser opt-outs",
       to: sidebar_routes.funds,
       icon: {
         fn: Flag,
@@ -183,7 +185,7 @@ const group4: LinkGroup = {
       title: "Referrals",
       to: sidebar_routes.referrals,
       icon: {
-        fn: MegaphoneIcon,
+        fn: HandshakeIcon,
         size: 22,
       },
     },

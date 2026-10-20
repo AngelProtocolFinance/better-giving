@@ -7,6 +7,7 @@ import type { IComposition } from "@/nav/interfaces";
 import type { IPayout } from "@/payouts";
 import type { IPageKeyed } from "@/types/api";
 import { npo_default_bapp } from "$/pg/queries/banking";
+import { campaign_list, campaign_live_for_npo } from "$/pg/queries/campaign";
 import { nav_ltd } from "$/pg/queries/nav";
 import { npo_get } from "$/pg/queries/npo";
 import type { SettlementRow } from "$/pg/queries/payout";
@@ -25,6 +26,8 @@ export interface DashboardData {
   pm?: IBapp;
   composition: IComposition;
   total_inv_value: number;
+  campaign_count: number;
+  campaign_live: number;
 }
 
 export const endowUpdateAction = endowUpdate({ redirect: "." });
@@ -42,13 +45,16 @@ export const loader = async (x: Route.LoaderArgs) => {
       ? exec_from_prev
       : new Date(interval.next().toDate().getTime() + ms_delay);
 
-  const [ltd, npo, recent_payouts, recent_settlements, pm] = await Promise.all([
-    nav_ltd(),
-    npo_get(id),
-    npo_payouts(id, { limit: 3 }),
-    npo_settlements(id, { limit: 3 }),
-    npo_default_bapp(id),
-  ]);
+  const [ltd, npo, recent_payouts, recent_settlements, pm, campaigns, live] =
+    await Promise.all([
+      nav_ltd(),
+      npo_get(id),
+      npo_payouts(id, { limit: 3 }),
+      npo_settlements(id, { limit: 3 }),
+      npo_default_bapp(id),
+      campaign_list(id),
+      campaign_live_for_npo(id),
+    ]);
 
   return {
     id,
@@ -61,5 +67,7 @@ export const loader = async (x: Route.LoaderArgs) => {
     pm,
     composition: ltd.composition,
     total_inv_value: ltd.value,
+    campaign_count: campaigns.length,
+    campaign_live: live.length,
   } satisfies DashboardData;
 };

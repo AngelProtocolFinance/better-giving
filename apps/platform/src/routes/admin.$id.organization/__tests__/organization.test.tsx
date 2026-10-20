@@ -180,7 +180,28 @@ describe("organization — slug unset", () => {
     await expect.element(slug).toHaveAttribute("placeholder", "TestCharity");
 
     await slug.fill("acme-org");
+    expect(
+      screen
+        .getByText("Logo of your organization")
+        .element()
+        .getAttribute("data-required")
+    ).toBe("true");
     await screen.getByRole("button", { name: "Save organization" }).click();
+    const cancel = screen.getByRole("button", { name: "Cancel", exact: true });
+    await expect
+      .element(screen.getByRole("heading", { name: "Lock this address?" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("This address can't be changed later."))
+      .toBeVisible();
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(cancel.element());
+    });
+    (
+      screen
+        .getByRole("button", { name: "Save", exact: true })
+        .element() as HTMLElement
+    ).click();
 
     await vi.waitFor(async () =>
       expect((await npo_get(npo.id))?.slug).toBe("acme-org")
@@ -208,6 +229,22 @@ describe("organization — slug unset", () => {
       );
     });
     expect((await npo_get(npo.id))?.registration_number).toBe("EIN123456");
+  });
+
+  it("asks before the first slug and cancel leaves it unset", async () => {
+    free_slug();
+    const npo = await seed_npo();
+    const screen = await render_org(npo.id);
+    await screen.getByLabelText("Org slug").fill("acme-org");
+    await screen.getByRole("button", { name: "Save organization" }).click();
+    const cancel = screen.getByRole("button", { name: "Cancel", exact: true });
+    await expect.element(cancel).toBeVisible();
+    (cancel.element() as HTMLElement).click();
+    await expect
+      .element(screen.getByRole("heading", { name: "Lock this address?" }))
+      .not.toBeInTheDocument();
+    expect((await npo_get(npo.id))?.slug).toBeFalsy();
+    await expect.element(screen.getByLabelText("Org slug")).toBeEnabled();
   });
 });
 
@@ -292,6 +329,11 @@ describe("organization — server refusal", () => {
     const screen = await render_org(npo.id);
     await screen.getByLabelText("Org slug").fill("donate");
     await screen.getByRole("button", { name: "Save organization" }).click();
+    (
+      screen
+        .getByRole("button", { name: "Save", exact: true })
+        .element() as HTMLElement
+    ).click();
     await expect
       .element(screen.getByText("donate matches a top-level route"))
       .toBeVisible();
@@ -323,6 +365,11 @@ describe("organization — server refusal", () => {
     const screen = await render_org(npo.id);
     await screen.getByLabelText("Org slug").fill("taken-slug");
     await screen.getByRole("button", { name: "Save organization" }).click();
+    (
+      screen
+        .getByRole("button", { name: "Save", exact: true })
+        .element() as HTMLElement
+    ).click();
     await expect
       .element(screen.getByText(/taken-slug.*already taken/i))
       .toBeVisible();

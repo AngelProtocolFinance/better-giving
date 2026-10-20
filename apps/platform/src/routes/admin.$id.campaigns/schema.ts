@@ -10,13 +10,15 @@ import {
   target,
 } from "@/schemas";
 
-const https = v.pipe(v.string(), v.trim(), v.url("invalid url"));
+const https = v.pipe(v.string(), v.trim(), v.url("Enter a valid https link."));
+
+const address = "Enter an address. Use letters, numbers, and - . _ ~.";
 
 export const campaign_body = v.object({
-  name: v.pipe($, v.nonEmpty("required")),
-  slug: v.pipe(segment_shape, v.nonEmpty("required")),
+  name: v.pipe($, v.nonEmpty("Enter a name.")),
+  slug: v.pipe(v.string(), v.trim(), v.nonEmpty(address), segment_shape),
   campaign_type: v.optional(v.picklist(CAMPAIGN_TYPES)),
-  description_pt: v.pipe($, v.nonEmpty("required")),
+  description_pt: v.pipe($, v.nonEmpty("Enter a story.")),
   banner: v.optional(v.union([v.literal(""), https])),
   logo: v.optional(v.union([v.literal(""), https])),
   videos: v.optional(v.array(https)),

@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 import * as v from "valibot";
 import { $, MAX_RECEIPT_MSG_CHAR } from "@/npo/schema";
+import { SaveAlert } from "./helpers";
 
 const schema = v.object({
   receipt_msg: v.pipe(
@@ -125,14 +126,21 @@ export function DonationTab({
         </span>
       </div>
 
-      <Actions classes="mt-8">
-        <button type="reset" className="btn-secondary btn" disabled={!isDirty}>
-          Reset changes
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!isDirty}>
-          Submit changes
-        </button>
-      </Actions>
+      <div className="mt-8">
+        <SaveAlert data={fetcher.data} />
+        <Actions>
+          <button
+            type="reset"
+            className="btn-secondary btn"
+            disabled={!isDirty}
+          >
+            Reset changes
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={!isDirty}>
+            Submit changes
+          </button>
+        </Actions>
+      </div>
     </F>
   );
 }

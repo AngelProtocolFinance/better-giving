@@ -1,4 +1,5 @@
 import { ExtLink, Image, Modal } from "@better-giving/ui";
+import { XIcon } from "lucide-react";
 import {
   type ReactNode,
   useEffect,
@@ -260,7 +261,7 @@ export function CampaignPage(props: ICampaignPage) {
             }}
             className={`${close_btn} disabled:opacity-40`}
           >
-            ×
+            <XIcon className="icon-2xl" />
           </button>
         </div>
         <div className="max-sm:flex max-sm:min-h-0 max-sm:flex-1 max-sm:flex-col max-sm:overflow-y-auto max-sm:scrollbars">
@@ -329,31 +330,7 @@ function Mast(props: ICampaignPage) {
 }
 
 function Notice(props: ICampaignPage) {
-  if (!props.open && props.ended_body) {
-    return (
-      <section className="order-1 lg:order-none">
-        <div className="rounded border border-gray-6 bg-panel">
-          <div className="flex flex-col gap-2 p-4">
-            <h2 className="text-xl font-bold">Giving has ended</h2>
-            <p>{props.ended_body}</p>
-          </div>
-        </div>
-      </section>
-    );
-  }
-  if (props.open && props.gift_failed) {
-    return (
-      <section className="order-1 lg:order-none">
-        <div className="rounded border border-gray-6 bg-panel">
-          <div className="flex flex-col gap-2 p-4">
-            <h2 className="text-xl font-bold">This gift didn't go through</h2>
-            <p>You can try again from this page.</p>
-          </div>
-        </div>
-      </section>
-    );
-  }
-  if (props.open && props.thanks) {
+  if (props.thanks) {
     return (
       <section className="order-1 flex flex-col gap-2 rounded border border-green-6 bg-green-2 p-4 lg:order-none">
         <h2 className="text-xl font-bold">Thank you</h2>
@@ -366,6 +343,45 @@ function Notice(props: ICampaignPage) {
             View your receipt
           </Link>
         )}
+      </section>
+    );
+  }
+  if (props.gift_failed) {
+    return (
+      <section className="order-1 lg:order-none">
+        <div className="rounded border border-gray-6 bg-panel">
+          <div className="flex flex-col gap-2 p-4">
+            <h2 className="text-xl font-bold">This gift didn't go through</h2>
+            {props.open ? (
+              <p>You can try again from this page.</p>
+            ) : (
+              <>
+                {props.ended_body ? <p>{props.ended_body}</p> : null}
+                <Link
+                  to={props.org_href}
+                  className="link text-sm font-semibold"
+                >
+                  Visit {props.org_name}
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
+  if (!props.open && props.ended_body) {
+    return (
+      <section className="order-1 lg:order-none">
+        <div className="rounded border border-gray-6 bg-panel">
+          <div className="flex flex-col gap-2 p-4">
+            <h2 className="text-xl font-bold">Giving has ended</h2>
+            <p>{props.ended_body}</p>
+            <Link to={props.org_href} className="link text-sm font-semibold">
+              Visit {props.org_name}
+            </Link>
+          </div>
+        </div>
       </section>
     );
   }

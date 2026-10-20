@@ -30,6 +30,7 @@ import { type ISignIn, sign_in } from "#/types/auth";
 import { search } from "@/helpers/https";
 import { safe_redirect } from "@/helpers/safe-redirect";
 import { db } from "$/pg/db";
+import { user_npos } from "$/pg/queries/user";
 import { account, user as userTable } from "$/pg/schema/auth";
 import type { Route } from "./+types/route";
 import { retry_form_action } from "./oauth-error";
@@ -48,9 +49,11 @@ export const action = async ({ request }: Route.ActionArgs) => {
       const res = await auth.api.signInSocial({
         body: {
           provider: "google",
-          callbackURL: redirect_to,
-          // better-auth appends `error`, which the login page explains
-          errorCallbackURL: login_url(redirect_to),
+          callbackURL: asked_to ?? href("/login"),
+          // better-auth appends `error`, which the login page explains.
+          // login_url() always writes ?redirect=, and that pin would win over
+          // the single-org home once they try again.
+          errorCallbackURL: asked_to ? login_url(asked_to) : href("/login"),
         },
         headers: request.headers,
         asResponse: true,
@@ -105,12 +108,13 @@ export const action = async ({ request }: Route.ActionArgs) => {
       // would be worse than useless: better-auth deletes credentials set before
       // verification the moment the next link is used.
       if (err.code === "EMAIL_NOT_VERIFIED" || accountless === "unverified") {
+        const link_to = asked_to ?? href("/login");
         await request_login_link({
           email,
-          redirect_to,
+          redirect_to: link_to,
           headers: request.headers,
         });
-        return redirect(check_email_url({ email, redirect_to }));
+        return redirect(check_email_url({ email, redirect_to: link_to }));
       }
 
       // MIGRATED ONLY — a proven address that predates the migration and so
@@ -147,7 +151,14 @@ export const action = async ({ request }: Route.ActionArgs) => {
     const headers = new Headers();
     const cookie = res.headers.get("set-cookie");
     if (cookie) headers.set("set-cookie", cookie);
-    return redirect(redirect_to, { headers });
+    const [signed_in] = await db
+      .select({ id: userTable.id, role: userTable.role })
+      .from(userTable)
+      .where(eq(userTable.email, email));
+    const home = signed_in
+      ? await post_auth_destination(signed_in)
+      : href("/marketplace");
+    return redirect(asked_to ?? home, { headers });
   } catch (err) {
     report_error(err);
     return dataWithError(null, "Unknown error occurred", { status: 500 });
@@ -177,10 +188,23 @@ async function accountless_user(
   return row.verified ? "verified" : "unverified";
 }
 
+// role "admin" is the platform role, not an org membership.
+async function post_auth_destination(user: {
+  id: string;
+  role?: string | null;
+}): Promise<string> {
+  if (user.role === "admin") return href("/marketplace");
+  const memberships = await user_npos(user.id);
+  if (memberships.length === 1) {
+    return href("/admin/:id/dashboard", { id: String(memberships[0].id) });
+  }
+  return href("/marketplace");
+}
+
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const { user } = await get_session(request);
   const to = safe_redirect(search(request).redirect, null);
-  if (user) return redirect(to || href("/marketplace"));
+  if (user) return redirect(to ?? (await post_auth_destination(user)));
   return to || href("/marketplace");
 };
 
