@@ -25,7 +25,9 @@ export function Stocks(props: StocksDonationDetails) {
   const tipv = tip_val(props.tip_format, props.tip, +props.ticker.amount);
   const shares = ru_vdec(tipv + +props.ticker.amount, props.ticker.usdpu);
   const url = `${don.base_url}${path}`;
-  const name = don.recipient.name;
+  const project = don.config?.campaign_url ?? url;
+  const grantee = don.recipient.name;
+  const reference = don.config?.campaign_name ?? grantee;
 
   const instructions_text = [
     `Shares: ${shares}`,
@@ -34,8 +36,8 @@ export function Stocks(props: StocksDonationDetails) {
     `DTC number: ${BROKERAGE.dtc}`,
     `Account number: ${BROKERAGE.account_no}`,
     `Account name: ${LEGAL_NAME}`,
-    `Reference: ${name}`,
-    `Project URL: ${url}`,
+    `Reference: ${reference}`,
+    `Project URL: ${project}`,
   ].join("\n");
 
   const [status, set_status] = useState<"idle" | "loading" | "ok" | "error">(
@@ -62,8 +64,8 @@ export function Stocks(props: StocksDonationDetails) {
         <Row label="DTC number" value={BROKERAGE.dtc} />
         <Row label="Account number" value={BROKERAGE.account_no} />
         <Row label="Account name" value={LEGAL_NAME} />
-        <Row label="Reference" value={name} />
-        <Row label="Project URL" value={url} />
+        <Row label="Reference" value={reference} />
+        <Row label="Project URL" value={project} />
       </div>
 
       <h4 className="text-sm font-medium mt-6 mb-1">
@@ -76,7 +78,7 @@ export function Stocks(props: StocksDonationDetails) {
 
       <div className="flex justify-center gap-4 mt-6">
         <a
-          href={email_link(name, url, shares, props.ticker.symbol)}
+          href={email_link(reference, project, shares, props.ticker.symbol)}
           className="btn btn-sm btn-secondary font-normal"
         >
           Generate Email
@@ -103,7 +105,7 @@ export function Stocks(props: StocksDonationDetails) {
         </p>
       ) : status === "error" ? (
         <p className="mt-6 text-sm text-destructive-subtle-fg">
-          Something went wrong — please email {emails.hi} instead.
+          Something went wrong. Please email {emails.hi} instead.
         </p>
       ) : (
         <button
@@ -118,6 +120,9 @@ export function Stocks(props: StocksDonationDetails) {
                 body: JSON.stringify({
                   type: "stocks",
                   recipient_id: id,
+                  ...(don.config?.campaign_id
+                    ? { campaign_id: don.config.campaign_id }
+                    : {}),
                   details: {
                     ticker: props.ticker.symbol,
                     shares,
@@ -138,7 +143,7 @@ export function Stocks(props: StocksDonationDetails) {
         </button>
       )}
 
-      <DonationTerms endowName={name} classes="mt-5 border-t pt-4" />
+      <DonationTerms endowName={grantee} classes="mt-5 border-t pt-4" />
     </div>
   );
 }

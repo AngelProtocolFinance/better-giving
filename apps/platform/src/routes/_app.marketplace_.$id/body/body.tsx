@@ -1,17 +1,33 @@
 import { Breadcrumbs, ExtLink, Target, to_target } from "@better-giving/ui";
 import { Globe, MapPin } from "lucide-react";
-import { href, NavLink } from "react-router";
+import { href, Link, NavLink } from "react-router";
 import { BookmarkBtn } from "#/components/bookmark-btn";
 import type { INpoPublic } from "$/pg/queries/npo";
+
+interface CampaignLink {
+  id: string;
+  name: string;
+  slug: string;
+  owner_slug: string | null;
+  status: string;
+}
 
 interface Props {
   npo: INpoPublic;
   classes?: string;
   children?: React.ReactNode;
   program?: string;
+  campaigns?: CampaignLink[];
 }
 
-export function Body({ classes = "", npo, children, program }: Props) {
+export function Body({
+  classes = "",
+  npo,
+  children,
+  program,
+  campaigns = [],
+}: Props) {
+  const live = campaigns.filter((c) => c.status === "live" && c.owner_slug);
   return (
     <div
       className={`flex justify-center items-center w-full h-full ${classes}`}
@@ -90,6 +106,24 @@ export function Body({ classes = "", npo, children, program }: Props) {
             )}
           </div>
         </div>
+
+        {live.length > 0 && (
+          <section className="order-4 lg:col-span-2 grid gap-3 w-full">
+            <h2 className="text-xl font-semibold">Campaigns</h2>
+            <ul className="grid gap-3">
+              {live.map((c) => (
+                <li key={c.id}>
+                  <Link
+                    to={`/org/${c.owner_slug}/${c.slug}`}
+                    className="card block font-semibold"
+                  >
+                    {c.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {children}
       </div>

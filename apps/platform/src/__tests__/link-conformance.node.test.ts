@@ -147,6 +147,9 @@ const exempt: Record<string, string[]> = {
   // table in packages/brand/design-system.md carries the blank.
   "apps/platform/src/layout/dashboard/sidebar/sidebar.tsx": ["text-primary"],
   "apps/platform/src/components/header/marketing-header.tsx": ["text-primary"],
+  // campaign identity name rests in gray-12 and shifts to primary on hover.
+  // `link` would paint the name brand blue at rest, which the page spec rejects.
+  "apps/platform/src/routes/org.$org.$campaign/page.tsx": ["text-primary"],
 };
 
 const recipe =

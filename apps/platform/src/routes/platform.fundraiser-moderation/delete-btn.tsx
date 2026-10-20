@@ -27,7 +27,7 @@ export function DeleteBtn({
         ref={dialog_ref}
         className={`p-6 backdrop:bg-overlay ${modal_box.panel}`}
       >
-        <h2 className="text-lg font-semibold mb-2">Delete Fundraiser</h2>
+        <h2 className="text-lg font-semibold mb-2">Delete campaign</h2>
         <p className="mb-4 whitespace-normal">
           Are you sure you want to delete{" "}
           <span className="font-bold">{name}</span> This action cannot be

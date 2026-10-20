@@ -21,7 +21,7 @@ const content: Record<
       "Donate stock directly and you may avoid capital gains tax while maximizing your charitable impact.",
     expanded: [
       "If you have held the stock for more than one year, you may be eligible for a tax deduction based on its full fair market value at the time of donation.",
-      "By donating appreciated stock directly to a nonprofit, you can avoid capital gains taxes that would apply if you sold it first — potentially making your gift up to 20% larger.",
+      "By donating appreciated stock directly to a nonprofit, you can avoid capital gains taxes that would apply if you sold it first. Potentially making your gift up to 20% larger.",
     ],
     disclaimer:
       "This is general information, not tax advice. Please consult your tax advisor or broker regarding your specific situation.",

@@ -58,7 +58,7 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
         />
       </div>
 
-      <Body npo={d.npo} program={params.program_id}>
+      <Body npo={d.npo} program={params.program_id} campaigns={d.campaigns}>
         <Outlet context={d} />
       </Body>
     </section>

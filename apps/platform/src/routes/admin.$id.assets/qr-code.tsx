@@ -4,28 +4,37 @@ import { ArrowDownToLineIcon } from "lucide-react";
 import { useState } from "react";
 import org_building from "#/assets/icons/org-building.svg";
 
-type QRCodeType = "profile" | "donation";
-
-const tabs: { id: QRCodeType; name: string }[] = [
-  { id: "profile", name: "Profile" },
-  { id: "donation", name: "Donation Page" },
-];
+type QRCodeType = "profile" | "donation" | "campaign";
 
 interface Props {
   classes?: string;
   logo?: string;
   profile_url: string;
   donate_url: string;
+  campaign_url?: string;
 }
 
-export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
+export function QrCode({
+  classes = "",
+  logo,
+  profile_url,
+  donate_url,
+  campaign_url,
+}: Props) {
+  const tabs: { id: QRCodeType; name: string }[] = campaign_url
+    ? [{ id: "campaign", name: "Campaign" }]
+    : [
+        { id: "profile", name: "Profile" },
+        { id: "donation", name: "Donation Page" },
+      ];
   const [color, set_color] = useState("#000000");
   const [show_logo, set_show_logo] = useState(true);
-  const [selected_tab, set_selected_tab] = useState<QRCodeType>("profile");
+  const [selected_tab, set_selected_tab] = useState<QRCodeType>(tabs[0].id);
 
   const urls: Record<QRCodeType, string> = {
     profile: profile_url,
     donation: donate_url,
+    campaign: campaign_url ?? donate_url,
   };
 
   const handle_download = () => {
@@ -96,7 +105,7 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
       <Tabs
         className="w-96"
         items={tabs.map((tab) => ({ value: tab.id, label: tab.name }))}
-        defaultValue="profile"
+        defaultValue={tabs[0].id}
         onValueChange={set_selected_tab}
       >
         {/* qr code panel */}

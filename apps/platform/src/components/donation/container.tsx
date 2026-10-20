@@ -21,6 +21,8 @@ type Components = {
   program: IProgram | undefined;
   base_url: string;
   hide_unavailable_express?: boolean;
+  wallets_below?: boolean;
+  pin?: boolean;
 };
 
 type InitState = {
@@ -29,9 +31,11 @@ type InitState = {
 
 type Props = {
   classes?: string;
+  /** the campaign dialog holds itself open while this reports a payment in flight. */
+  on_pay_busy?: (busy: boolean) => void;
 } & (Components | InitState);
 
-export function Donation({ classes = "", ...props }: Props) {
+export function Donation({ classes = "", on_pay_busy, ...props }: Props) {
   const state = "init" in props ? props.init : init_state(props);
 
   const styles: Record<string, string | undefined> = {
@@ -39,13 +43,22 @@ export function Donation({ classes = "", ...props }: Props) {
     "--form-secondary": state?.config?.accent_secondary,
   };
 
+  const pinned = state?.pin === true;
+
   return (
     <div
       id="donation-container"
       style={styles}
-      className={`grid ${classes} w-full @container/steps overflow-clip bg-background min-h-96`}
+      className={
+        pinned
+          ? `flex min-h-full ${classes} w-full flex-col @container/steps bg-background`
+          : `grid ${classes} w-full @container/steps overflow-clip bg-background min-h-96`
+      }
     >
-      <Context {...("init" in props ? props.init : init_state(props))}>
+      <Context
+        on_pay_busy={on_pay_busy}
+        {...("init" in props ? props.init : init_state(props))}
+      >
         <CurrentStep />
       </Context>
     </div>
@@ -61,6 +74,8 @@ function init_state({
   user,
   program,
   hide_unavailable_express,
+  wallets_below,
+  pin,
 }: Components): TDonation {
   const init: Init = {
     base_url,
@@ -71,6 +86,8 @@ function init_state({
     user,
     program,
     hide_unavailable_express,
+    wallets_below,
+    pin,
   };
 
   const donor_init_prefilled = user

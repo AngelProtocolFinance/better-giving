@@ -19,6 +19,8 @@ type Props = {
 
   Amount: (props: { amount: number | string; classes?: string }) => ReactNode;
   on_back(): void;
+  /** shut while a payment is in flight. leaving would drop the hold. */
+  back_disabled?: boolean;
   frequency?: TFrequency;
   classes?: Classes;
   children?: ReactNode;
@@ -33,7 +35,11 @@ export function Summary({ Amount, frequency = "one-time", ...props }: Props) {
 
   return (
     <div className={container}>
-      <BackBtn type="button" onClick={props.on_back} />
+      <BackBtn
+        type="button"
+        disabled={props.back_disabled}
+        onClick={props.on_back}
+      />
       <h4 className="flex items-center text-lg gap-2 my-4">
         <ListCheck className="icon-xl" />
         <span className="font-semibold text-sm">Your donation summary</span>

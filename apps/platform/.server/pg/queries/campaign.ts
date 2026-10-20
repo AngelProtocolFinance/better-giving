@@ -1,0 +1,481 @@
+import { and, count, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { to_text } from "#/components/rich-text/helpers";
+import type { DonateMethodId, IIncrement, TFrequency } from "@/schemas";
+import { db } from "../db";
+import { user } from "../schema/auth";
+import {
+  campaign_members,
+  campaigns,
+  type TCampaignStatus,
+  type TCampaignType,
+} from "../schema/campaign";
+import { donation_donors, donations } from "../schema/donation";
+import { npos } from "../schema/npo";
+import { v_campaign_total_usd } from "../schema/views";
+import { from_target, to_target } from "./fmt";
+import type { DbOrTx } from "./helpers";
+
+export interface ICampaignInput {
+  id: string;
+  owner_npo_id: number;
+  creator_id: string;
+  name: string;
+  slug: string;
+  campaign_type: TCampaignType | null;
+  description_pt: string;
+  banner: string | null;
+  logo: string | null;
+  videos: string[];
+  ends_at: string | null;
+  donate_methods: DonateMethodId[] | null;
+  donate_frequencies: TFrequency[] | null;
+  increments: IIncrement[] | null;
+  target: string | undefined;
+  hide_bg_tip: boolean;
+  program_id: string | null;
+  program_name: string | null;
+}
+
+export interface ICampaignPatch {
+  name?: string;
+  slug?: string;
+  campaign_type?: TCampaignType | null;
+  description_pt?: string;
+  banner?: string | null;
+  logo?: string | null;
+  videos?: string[];
+  ends_at?: string | null;
+  donate_methods?: DonateMethodId[] | null;
+  donate_frequencies?: TFrequency[] | null;
+  increments?: IIncrement[] | null;
+  target?: string | undefined;
+  hide_bg_tip?: boolean;
+  program_id?: string | null;
+  program_name?: string | null;
+}
+
+const raised = sql`COALESCE(${v_campaign_total_usd.total}, 0)`.mapWith(
+  v_campaign_total_usd.total
+);
+
+function campaign_query() {
+  return db
+    .select({
+      campaign: campaigns,
+      raised,
+      owner_slug: npos.slug,
+      owner_name: npos.name,
+      owner_image: npos.image,
+      owner_logo: npos.logo,
+      creator_name: sql<string>`${user.first_name} || ' ' || ${user.last_name}`,
+    })
+    .from(campaigns)
+    .innerJoin(npos, eq(npos.id, campaigns.owner_npo_id))
+    .innerJoin(user, eq(user.id, campaigns.creator_id))
+    .leftJoin(
+      v_campaign_total_usd,
+      eq(v_campaign_total_usd.campaign_id, campaigns.id)
+    );
+}
+
+function present(
+  row: Awaited<ReturnType<ReturnType<typeof campaign_query>["where"]>>[number]
+) {
+  const { target_number, target_smart, ...rest } = row.campaign;
+  return {
+    ...rest,
+    target: to_target(target_number, target_smart),
+    raised: row.raised ?? 0,
+    owner_slug: row.owner_slug,
+    owner_name: row.owner_name,
+    owner_image: row.owner_image,
+    owner_logo: row.owner_logo,
+    creator_name: row.creator_name,
+    hero: rest.banner ?? row.owner_image,
+    mark: rest.logo ?? row.owner_logo,
+  };
+}
+
+export type ICampaignRow = ReturnType<typeof present>;
+
+export async function campaign_list(npo_id: number): Promise<ICampaignRow[]> {
+  const rows = await campaign_query()
+    .where(eq(campaigns.owner_npo_id, npo_id))
+    .orderBy(desc(campaigns.created_at));
+  return rows.map(present);
+}
+
+export async function campaign_get(
+  npo_id: number,
+  id: string
+): Promise<ICampaignRow | undefined> {
+  const [row] = await campaign_query().where(
+    and(eq(campaigns.id, id), eq(campaigns.owner_npo_id, npo_id))
+  );
+  return row && present(row);
+}
+
+/** public page: draft and unknown stay absent. ended and live both return */
+export async function campaign_public(
+  org_slug: string,
+  campaign_slug: string
+): Promise<ICampaignRow | undefined> {
+  const [row] = await campaign_query().where(
+    and(
+      sql`LOWER(${npos.slug}) = LOWER(${org_slug})`,
+      sql`LOWER(${campaigns.slug}) = LOWER(${campaign_slug})`,
+      sql`${campaigns.status} <> 'draft'`
+    )
+  );
+  return row && present(row);
+}
+
+/** distinct donors with a settled gift. messages are not donors. */
+export async function campaign_donor_count(
+  campaign_id: string
+): Promise<number> {
+  const [row] = await db
+    .select({
+      n: sql<number>`count(distinct lower(${donation_donors.email}))`.mapWith(
+        Number
+      ),
+    })
+    .from(donations)
+    .innerJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
+    .where(
+      and(
+        eq(donations.campaign_id, campaign_id),
+        eq(donations.status, "settled")
+      )
+    );
+  return row?.n ?? 0;
+}
+
+/** usd preview for a gift that can still settle: `amount_base / upusd`, and only while status is created, intent, or confirmed. a return can land before the row leaves created. tip and the donor-covered fee are not part of it. a blank id, a missing row, any other status, a rate that is not a positive finite number, or a base that is not positive is unknown. */
+export async function campaign_donation_base_usd(
+  campaign_id: string,
+  donation_id: string
+): Promise<number | null> {
+  const id = donation_id.trim();
+  if (id === "") return null;
+  const [row] = await db
+    .select({
+      amount_base: donations.amount_base,
+      upusd: donations.upusd,
+    })
+    .from(donations)
+    .where(
+      and(
+        eq(donations.id, id),
+        eq(donations.campaign_id, campaign_id),
+        or(
+          eq(donations.status, "created"),
+          eq(donations.status, "intent"),
+          eq(donations.status, "confirmed")
+        )
+      )
+    )
+    .limit(1);
+  if (!row) return null;
+  if (!Number.isFinite(row.upusd) || row.upusd <= 0) return null;
+  if (!Number.isFinite(row.amount_base) || row.amount_base <= 0) return null;
+  const usd = row.amount_base / row.upusd;
+  if (!Number.isFinite(usd) || usd <= 0) return null;
+  return usd;
+}
+
+/** this donation is settled on this campaign. a card return is base plus tip plus fee, and settlement writes a donor name only when from_public is set, so neither identifies the row. a blank id is unknown. */
+export async function campaign_settled_donation(
+  campaign_id: string,
+  donation_id: string
+): Promise<boolean> {
+  const id = donation_id.trim();
+  if (id === "") return false;
+  const [row] = await db
+    .select({ id: donations.id })
+    .from(donations)
+    .where(
+      and(
+        eq(donations.id, id),
+        eq(donations.campaign_id, campaign_id),
+        eq(donations.status, "settled")
+      )
+    )
+    .limit(1);
+  return row != null;
+}
+
+/** another settled gift on this campaign shares this donation's donor email. names are not identity; a missing row or a blank email is unknown. */
+export async function campaign_repeat_donor(
+  campaign_id: string,
+  donation_id: string
+): Promise<boolean> {
+  const id = donation_id.trim();
+  if (id === "") return false;
+  const [donor] = await db
+    .select({ email: donation_donors.email })
+    .from(donation_donors)
+    .where(eq(donation_donors.donation_id, id))
+    .limit(1);
+  const email = donor?.email.trim() ?? "";
+  if (email === "") return false;
+  const [row] = await db
+    .select({ id: donations.id })
+    .from(donations)
+    .innerJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
+    .where(
+      and(
+        eq(donations.campaign_id, campaign_id),
+        eq(donations.status, "settled"),
+        ne(donations.id, id),
+        sql`lower(btrim(${donation_donors.email})) = lower(${email})`
+      )
+    )
+    .limit(1);
+  return row != null;
+}
+
+export async function campaign_live_for_npo(
+  npo_id: number
+): Promise<ICampaignRow[]> {
+  const rows = await campaign_query()
+    .where(
+      and(
+        eq(campaigns.owner_npo_id, npo_id),
+        eq(campaigns.status, "live"),
+        or(isNull(campaigns.ends_at), sql`${campaigns.ends_at} > now()`)
+      )
+    )
+    .orderBy(desc(campaigns.created_at));
+  return rows.map(present);
+}
+
+export async function campaign_by_id(
+  id: string
+): Promise<ICampaignRow | undefined> {
+  const [row] = await campaign_query().where(eq(campaigns.id, id));
+  return row && present(row);
+}
+
+/** stored `live` reads as ended once `ends_at` has passed. the row stays live. */
+export function campaign_shown_status(
+  row: { status: TCampaignStatus; ends_at: string | null },
+  now: Date = new Date()
+): TCampaignStatus {
+  if (row.status === "live" && !campaign_accepts(row, now)) return "ended";
+  return row.status;
+}
+
+export function campaign_accepts(
+  row: { status: TCampaignStatus; ends_at: string | null },
+  now: Date
+): boolean {
+  if (row.status !== "live") return false;
+  if (row.ends_at && new Date(row.ends_at).getTime() <= now.getTime()) {
+    return false;
+  }
+  return true;
+}
+
+export async function campaign_slug_taken(
+  npo_id: number,
+  slug: string,
+  except_id?: string
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(
+      and(
+        eq(campaigns.owner_npo_id, npo_id),
+        sql`LOWER(${campaigns.slug}) = LOWER(${slug})`
+      )
+    );
+  return rows.some((r) => r.id !== except_id);
+}
+
+function columns_target(target: string | undefined) {
+  if (!target || target === "0") {
+    return { target_number: null, target_smart: null };
+  }
+  return from_target(target);
+}
+
+export async function campaign_create(input: ICampaignInput) {
+  const target = columns_target(input.target);
+  await db.transaction(async (tx) => {
+    await tx.insert(campaigns).values({
+      id: input.id,
+      owner_npo_id: input.owner_npo_id,
+      creator_id: input.creator_id,
+      name: input.name,
+      slug: input.slug,
+      campaign_type: input.campaign_type,
+      description_pt: input.description_pt,
+      description_v2: to_text(input.description_pt),
+      banner: input.banner,
+      logo: input.logo,
+      videos: input.videos,
+      ends_at: input.ends_at,
+      donate_methods: input.donate_methods,
+      donate_frequencies: input.donate_frequencies,
+      increments: input.increments,
+      target_number: target.target_number,
+      target_smart: target.target_smart,
+      hide_bg_tip: input.hide_bg_tip,
+      program_id: input.program_id,
+      program_name: input.program_name,
+    });
+    await tx.insert(campaign_members).values({
+      campaign_id: input.id,
+      npo_id: input.owner_npo_id,
+      position: 0,
+    });
+  });
+}
+
+export async function campaign_update(
+  npo_id: number,
+  id: string,
+  patch: ICampaignPatch
+): Promise<"ok" | "missing" | "slug_locked"> {
+  const current = await campaign_get(npo_id, id);
+  if (!current) return "missing";
+  // the read above can sit before a concurrent publish. the write itself
+  // refuses a new address once published_at is set.
+  const slug_changes =
+    patch.slug !== undefined &&
+    patch.slug.toLowerCase() !== current.slug.toLowerCase();
+  const target =
+    patch.target !== undefined ? columns_target(patch.target) : undefined;
+  const desc =
+    patch.description_pt !== undefined
+      ? {
+          description_pt: patch.description_pt,
+          description_v2: to_text(patch.description_pt),
+        }
+      : {};
+  const rows = await db
+    .update(campaigns)
+    .set({
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.slug !== undefined ? { slug: patch.slug } : {}),
+      ...(patch.campaign_type !== undefined
+        ? { campaign_type: patch.campaign_type }
+        : {}),
+      ...desc,
+      ...(patch.banner !== undefined ? { banner: patch.banner } : {}),
+      ...(patch.logo !== undefined ? { logo: patch.logo } : {}),
+      ...(patch.videos !== undefined ? { videos: patch.videos } : {}),
+      ...(patch.ends_at !== undefined ? { ends_at: patch.ends_at } : {}),
+      ...(patch.donate_methods !== undefined
+        ? { donate_methods: patch.donate_methods }
+        : {}),
+      ...(patch.donate_frequencies !== undefined
+        ? { donate_frequencies: patch.donate_frequencies }
+        : {}),
+      ...(patch.increments !== undefined
+        ? { increments: patch.increments }
+        : {}),
+      ...(target
+        ? {
+            target_number: target.target_number,
+            target_smart: target.target_smart,
+          }
+        : {}),
+      ...(patch.hide_bg_tip !== undefined
+        ? { hide_bg_tip: patch.hide_bg_tip }
+        : {}),
+      ...(patch.program_id !== undefined
+        ? { program_id: patch.program_id }
+        : {}),
+      ...(patch.program_name !== undefined
+        ? { program_name: patch.program_name }
+        : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .where(
+      and(
+        eq(campaigns.id, id),
+        eq(campaigns.owner_npo_id, npo_id),
+        slug_changes ? sql`${campaigns.published_at} is null` : undefined
+      )
+    )
+    .returning({ id: campaigns.id });
+  if (rows.length > 0) return "ok";
+  const still = await campaign_get(npo_id, id);
+  if (!still) return "missing";
+  if (slug_changes && still.published_at) return "slug_locked";
+  return "missing";
+}
+
+/** false when the slug was locked and the caller tried to change it */
+export async function campaign_slug_refused(
+  npo_id: number,
+  id: string,
+  slug: string
+): Promise<boolean> {
+  const current = await campaign_get(npo_id, id);
+  if (!current?.published_at) return false;
+  return slug.toLowerCase() !== current.slug.toLowerCase();
+}
+
+export async function campaign_publish(
+  npo_id: number,
+  id: string
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  const rows = await db
+    .update(campaigns)
+    .set({
+      status: "live",
+      published_at: sql`COALESCE(${campaigns.published_at}, ${now})`,
+      updated_at: now,
+    })
+    .where(
+      and(
+        eq(campaigns.id, id),
+        eq(campaigns.owner_npo_id, npo_id),
+        sql`${campaigns.status} <> 'ended'`
+      )
+    )
+    .returning({ id: campaigns.id });
+  return rows.length > 0;
+}
+
+export async function campaign_end(
+  npo_id: number,
+  id: string
+): Promise<boolean> {
+  const rows = await db
+    .update(campaigns)
+    .set({ status: "ended", updated_at: new Date().toISOString() })
+    .where(and(eq(campaigns.id, id), eq(campaigns.owner_npo_id, npo_id)))
+    .returning({ id: campaigns.id });
+  return rows.length > 0;
+}
+
+export async function campaign_gift_count(
+  id: string,
+  conn: DbOrTx = db
+): Promise<number> {
+  const [row] = await conn
+    .select({ n: count() })
+    .from(donations)
+    .where(eq(donations.campaign_id, id));
+  return row?.n ?? 0;
+}
+
+/** false when another nonprofit owns it, it has gifts, or it is missing */
+export async function campaign_delete(
+  npo_id: number,
+  id: string
+): Promise<boolean> {
+  const current = await campaign_get(npo_id, id);
+  if (!current) return false;
+  if ((await campaign_gift_count(id)) > 0) return false;
+  await db
+    .delete(campaigns)
+    .where(and(eq(campaigns.id, id), eq(campaigns.owner_npo_id, npo_id)));
+  return true;
+}

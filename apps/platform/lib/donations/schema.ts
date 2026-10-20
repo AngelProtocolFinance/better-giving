@@ -216,6 +216,7 @@ export const intent = v.object({
   source: donation_source,
   form_id: v.optional($req),
   frequency,
+  campaign_id: v.optional(uuid),
 });
 
 export interface IDonationIntent extends v.InferOutput<typeof intent> {}

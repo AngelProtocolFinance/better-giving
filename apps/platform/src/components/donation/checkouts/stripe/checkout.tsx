@@ -6,6 +6,7 @@ import { report_error } from "#/errors/report";
 import type { IDonationIntent, IStripeIntentReturn } from "@/donations";
 import { HttpError, json_ok } from "@/helpers/https";
 import { ErrorBoundaryClass } from "../../../error";
+import { apply_campaign } from "../../apply-campaign";
 import { stripe_amounts } from "../../common/amounts";
 import { currency as currencyfn } from "../../common/currency";
 import { stripe_promise } from "../../common/stripe";
@@ -36,7 +37,8 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
     currency,
     bank_only,
   } = props;
-  const { don, don_set } = use_donation();
+  const { don, don_set, pay_busy } = use_donation();
+  const paying = pay_busy === true;
 
   const parts = stripe_amounts({
     amount: +amount,
@@ -60,6 +62,7 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
 
   if (don.program) intent.program = don.program;
   if (don.config?.id) intent.form_id = don.config.id;
+  apply_campaign(intent, don.config);
 
   // each request creates a donation row and a stripe intent
   const { data, error, isLoading } = use_swr(intent, fetcher, {
@@ -71,10 +74,18 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
 
   return (
     <Summary
-      classes="grid content-start p-4 @xl/steps:p-8"
-      on_back={() =>
-        to_step(bank_only ? "stripe_bank" : "stripe", props, "donor", don_set)
+      classes={
+        don.pin
+          ? "flex min-h-full flex-1 flex-col px-5 pt-5 sm:px-6 sm:pt-6"
+          : "grid content-start p-4 @xl/steps:p-8"
       }
+      // leaving unmounts the hold, which unlocks the dialog while the bank
+      // check is still out
+      on_back={() => {
+        if (paying) return;
+        to_step(bank_only ? "stripe_bank" : "stripe", props, "donor", don_set);
+      }}
+      back_disabled={paying}
       Amount={currencyfn(currency)}
       amount={parts.base}
       fee_allowance={parts.fee_allowance}

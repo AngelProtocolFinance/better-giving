@@ -1,5 +1,5 @@
 import { EIN } from "@better-giving/brand";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { mailto_fields } from "#/__tests__/fixtures/mailto";
@@ -11,7 +11,10 @@ const don_mock = vi.hoisted(() => ({
   recipient: { id: "1", name: "test npo", members: [] },
   source: "bg-marketplace",
   mode: "live",
-  config: null,
+  config: null as {
+    campaign_name?: string;
+    campaign_url?: string;
+  } | null,
   base_url: "https://test.example.com",
 }));
 vi.mock("../context", () => ({
@@ -34,6 +37,11 @@ async function email_fields(screen: Awaited<ReturnType<typeof render>>) {
 }
 
 describe("stocks checkout", () => {
+  afterEach(() => {
+    don_mock.recipient.name = "test npo";
+    don_mock.config = null;
+  });
+
   test("broker email carries the same tipped share count the screen shows", async () => {
     don_mock.recipient.name = "test npo";
     const screen = await render(<Stocks {...fv} />);
@@ -71,5 +79,37 @@ describe("stocks checkout", () => {
       ])
     );
     expect(fields.get("cc")).toBe(emails.hi);
+  });
+
+  test("a campaign stays on the transfer line and the nonprofit stays in the terms", async () => {
+    don_mock.recipient.name = "Harbor Nonprofit";
+    don_mock.config = {
+      campaign_name: "Winter Drive",
+      campaign_url: "https://test.example.com/org/harbor/winter",
+    };
+    const screen = await render(<Stocks {...fv} />);
+
+    const reference = screen.getByText("Reference:", { exact: true });
+    const reference_row = (reference.element() as HTMLElement).parentElement;
+    if (!reference_row) throw new Error("reference label has no row");
+    await expect
+      .element(page.elementLocator(reference_row))
+      .toMatchTextContent(/Winter Drive/);
+
+    const project = screen.getByText("Project URL:", { exact: true });
+    const project_row = (project.element() as HTMLElement).parentElement;
+    if (!project_row) throw new Error("project label has no row");
+    await expect
+      .element(page.elementLocator(project_row))
+      .toMatchTextContent(/org\/harbor\/winter/);
+
+    await expect
+      .element(
+        screen.getByText(/grants unrestricted funds to Harbor Nonprofit/)
+      )
+      .toBeVisible();
+    const body = (await email_fields(screen)).get("body") ?? "";
+    expect(body).toContain("in support of Winter Drive");
+    expect(body).toContain("/org/harbor/winter");
   });
 });

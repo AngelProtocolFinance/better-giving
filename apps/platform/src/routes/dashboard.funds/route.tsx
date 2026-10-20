@@ -1,5 +1,4 @@
 import { Info } from "@better-giving/ui";
-import { href, Link } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import type { Route } from "./+types/route";
 import { Fund } from "./fund";
@@ -12,7 +11,7 @@ export default CacheRoute(Page);
 function Page({ loaderData: { funds } }: Route.ComponentProps) {
   const items =
     funds.length === 0 ? (
-      <Info>You currently don't have any fundraisers</Info>
+      <Info>No campaigns yet</Info>
     ) : (
       <div className="grid @xl:grid-cols-2 @2xl:grid-cols-3 gap-4">
         {funds.map((fund) => (
@@ -23,10 +22,7 @@ function Page({ loaderData: { funds } }: Route.ComponentProps) {
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8">
       <div className="flex items-center justify-between mb-2 w-full border-b pb-4">
-        <h3 className="text-3xl">My Fundraisers</h3>
-        <Link to={href("/fundraisers/new")} className="btn btn-primary">
-          Create
-        </Link>
+        <h3 className="text-3xl">My campaigns</h3>
       </div>
       {items}
     </div>

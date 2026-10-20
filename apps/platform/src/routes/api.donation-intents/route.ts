@@ -9,6 +9,7 @@ import { to_from } from "@/donations/helpers";
 import { intent as schema } from "@/donations/schema";
 import { resp } from "@/helpers/https";
 import { $req } from "@/schemas";
+import { campaign_accepts, campaign_by_id } from "$/pg/queries/campaign";
 import { form_get } from "$/pg/queries/form";
 import { npo_program_get } from "$/pg/queries/program";
 import { chariot_intent } from "./chariot";
@@ -92,12 +93,20 @@ export const action: ActionFunction = async ({ request }) => {
   if (body === undefined) return refused("body is not json");
   const parsed = safeParse(schema, body);
   if (parsed.issues) return refused_issue(parsed.issues);
-  const { to_id, via, via_extra, donor, program, form_id, ...rest } =
-    parsed.output;
+  const {
+    to_id,
+    via,
+    via_extra,
+    donor,
+    program,
+    form_id,
+    campaign_id: requested_campaign,
+    ...rest
+  } = parsed.output;
 
   const to = await to_fn(to_id, { open_at: new Date() });
   if (!to) {
-    const recipient = typeof to_id === "number" ? "nonprofit" : "fundraiser";
+    const recipient = typeof to_id === "number" ? "nonprofit" : "campaign";
     console.info(`[resp] 404 - ${recipient}:${to_id} not found or closed`);
     return resp.refuse(
       `This ${recipient} isn't accepting donations right now.`,
@@ -106,18 +115,39 @@ export const action: ActionFunction = async ({ request }) => {
   }
   const from = to_from(donor);
 
+  // a campaign this nonprofit does not own is dropped and the gift is unattributed.
+  // one it owns that is not live, or is past its end, is refused.
+  let campaign_id: string | undefined;
+  let program_req = program;
+  if (requested_campaign) {
+    const campaign = await campaign_by_id(requested_campaign);
+    const owned =
+      campaign && typeof to_id === "number" && campaign.owner_npo_id === to_id;
+    if (!owned) {
+      campaign_id = undefined;
+    } else if (!campaign_accepts(campaign, new Date())) {
+      return resp.refuse("This campaign isn't accepting donations right now.");
+    } else {
+      campaign_id = campaign.id;
+      program_req = campaign.program_id
+        ? { id: campaign.program_id, name: campaign.program_name ?? "" }
+        : undefined;
+    }
+  }
+
   // settlement credits intent.program and the form's running total; a program
   // the recipient npo doesn't own, or a form raising for another recipient, is
   // dropped so the gift still goes through, just unattributed
   const [prog, form] = await Promise.all([
-    program && typeof to_id === "number"
-      ? npo_program_get(program.id, to_id)
+    program_req && typeof to_id === "number"
+      ? npo_program_get(program_req.id, to_id)
       : undefined,
     form_id ? form_get(form_id) : undefined,
   ]);
   const form_to = form && (form.recipient_fund_id ?? form.recipient_npo_id);
   const intent = {
     ...rest,
+    ...(campaign_id && { campaign_id }),
     ...(form_to === to_id && { form_id }),
     ...(prog && { program: { id: prog.id, name: prog.title } }),
   };

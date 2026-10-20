@@ -45,7 +45,7 @@ import DonatePage from "./route";
 const NOW = new Date("2027-09-23T12:00:00.000Z");
 const ms_before = (d: Date, ms: number) => new Date(d.getTime() - ms);
 const DAY_MS = 86_400_000;
-const closed_notice = /this fundraiser is already closed/i;
+const closed_notice = /this campaign is already closed/i;
 
 let creator_id: string;
 let npo_id: number;

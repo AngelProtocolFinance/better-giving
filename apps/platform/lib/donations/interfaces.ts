@@ -144,6 +144,9 @@ export interface IDonation extends ITo, IFrom, IFromLegacyOrPostDonation {
   /** links recurring charges to their parent subscription */
   subscription_id?: string;
 
+  /** set when the gift was made on a live campaign this nonprofit owns */
+  campaign_id?: string;
+
   //misc
   tribute?: ITribute;
 

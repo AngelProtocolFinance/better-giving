@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { name_from_heading } from "../helpers/dialog-name";
 import {
@@ -13,6 +14,7 @@ import {
   settle_return_target,
 } from "../helpers/ejected-focus";
 import { type ModalSize, modal_box } from "../helpers/modal-box";
+import { watch_stripe_challenge } from "./stripe-challenge";
 
 interface Props extends PropsWithChildren {
   classes?: string;
@@ -45,6 +47,14 @@ interface Props extends PropsWithChildren {
    */
   busy?: boolean;
   /**
+   * while open, a stripe 3ds or financial connections frame that stripe
+   * appends to `document.body` stays on body and stays usable over this
+   * dialog: clicks reach it, focus is not pulled back, and escape or a scrim
+   * click does not close. off unless a caller opts in — other dialogs leave
+   * those frames to the page.
+   */
+  adoptStripeChallenge?: boolean;
+  /**
    * where focus goes at close when the element that had it at open has since
    * left the document (a row the dialog's own action removed, a list reload
    * that remounted it), or nothing had it. called once per close, against the
@@ -54,11 +64,22 @@ interface Props extends PropsWithChildren {
    * live element left to return to, so it lands on `<body>`.
    */
   returnFocusFallback?: () => HTMLElement | null;
+  /** backdrop fill. the default is the system overlay. */
+  scrim?: string;
+  /** element focused when the dialog opens. zag's trap uses it when trap focus is on. */
+  initialFocusEl?: () => HTMLElement | null;
 }
-export function Modal({ size = "sm", busy = false, ...props }: Props) {
+export function Modal({
+  size = "sm",
+  busy = false,
+  scrim = "bg-overlay",
+  adoptStripeChallenge = false,
+  ...props
+}: Props) {
   const title_id = useId();
   const content_id = useId();
   const name_ref = useMemo(() => name_from_heading(title_id), [title_id]);
+  const [challenge, set_challenge] = useState(false);
   // zag records its own return target a frame after opening; by then a form
   // that raised this from its submit handler has its submit button disabled
   // and focus on `<body>`
@@ -66,6 +87,10 @@ export function Modal({ size = "sm", busy = false, ...props }: Props) {
   useLayoutEffect(() => {
     if (props.open) return_to.current = dialog_return_target();
   }, [props.open]);
+  useLayoutEffect(() => {
+    if (!props.open || !adoptStripeChallenge) return;
+    return watch_stripe_challenge(set_challenge);
+  }, [props.open, adoptStripeChallenge]);
   return (
     <Dialog.Root
       ids={{ title: title_id, content: content_id }}
@@ -77,8 +102,12 @@ export function Modal({ size = "sm", busy = false, ...props }: Props) {
         )
       }
       open={props.open}
-      closeOnEscape={!busy}
-      closeOnInteractOutside={!busy}
+      initialFocusEl={props.initialFocusEl}
+      // zag arms the trap on open and does not re-run it when this changes.
+      // watch_stripe_challenge keeps focus in the frame while one is up.
+      trapFocus={!challenge}
+      closeOnEscape={!busy && !challenge}
+      closeOnInteractOutside={!busy && !challenge}
       onOpenChange={(e) => {
         if (!e.open) props.onClose();
       }}
@@ -87,7 +116,9 @@ export function Modal({ size = "sm", busy = false, ...props }: Props) {
       onExitComplete={props.onExitComplete}
     >
       <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
+        <Dialog.Backdrop
+          className={`fixed inset-0 ${scrim} z-scrim data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out`}
+        />
         <Dialog.Positioner className="contents">
           <Dialog.Content
             ref={props.title ? undefined : name_ref}

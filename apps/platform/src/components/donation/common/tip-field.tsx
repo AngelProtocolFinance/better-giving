@@ -126,8 +126,8 @@ export function TipField({ classes = "", ...p }: Props) {
       {p.tip_format === "none" && (
         <p className="text-gray-11 text-sm w-full">
           <BgTxtLogoLink /> is a nonprofit and charges no platform fees. A small
-          optional contribution — separate from any payment processing fee —
-          helps keep this free for every nonprofit.
+          optional contribution, separate from any payment processing fee, helps
+          keep this free for every nonprofit.
         </p>
       )}
       {p.tip_format !== "none" && (

@@ -8,6 +8,8 @@ import {
   test,
   vi,
 } from "vitest";
+import { user } from "$/pg/schema/auth";
+import { campaign_members, campaigns } from "$/pg/schema/campaign";
 import {
   donation_donors,
   donation_recipients,
@@ -89,7 +91,10 @@ beforeEach(async () => {
   await db.delete(donation_recipients);
   await db.delete(donations);
   await db.delete(subscriptions);
+  await db.delete(campaign_members);
+  await db.delete(campaigns);
   await db.delete(npos);
+  await db.delete(user);
 
   const [npo] = await db
     .insert(npos)
@@ -421,5 +426,66 @@ describe("handle_intent_succeeded - recovery onto a reversed donation", () => {
     await handle_intent_succeeded(intent("pi_rebill") as any);
 
     expect(enqueue).toHaveBeenCalledOnce();
+  });
+});
+
+describe("handle_intent_succeeded - campaign attribution", () => {
+  const ON_GIFT = "11111111-1111-4111-8111-111111111111";
+  const ON_SUB = "22222222-2222-4222-8222-222222222222";
+
+  test("a rebill copies campaign_id from the prior donation, not the subscription", async () => {
+    const db = test_db.current!.db;
+    await db.insert(user).values({
+      id: "user-rebill",
+      name: "Ada Admin",
+      email: "ada-rebill@test.com",
+      emailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      first_name: "Ada",
+      last_name: "Admin",
+    });
+    await db.insert(campaigns).values([
+      {
+        id: ON_GIFT,
+        owner_npo_id: npo_id,
+        creator_id: "user-rebill",
+        name: "Gift",
+        slug: "gift",
+        description_pt: "[]",
+      },
+      {
+        id: ON_SUB,
+        owner_npo_id: npo_id,
+        creator_id: "user-rebill",
+        name: "Sub",
+        slug: "sub",
+        description_pt: "[]",
+      },
+    ]);
+    await db.insert(campaign_members).values([
+      { campaign_id: ON_GIFT, npo_id },
+      { campaign_id: ON_SUB, npo_id },
+    ]);
+    await seed_settled_order();
+    await db
+      .update(donations)
+      .set({ campaign_id: ON_GIFT })
+      .where(eq(donations.id, ORDER_ID));
+    await db
+      .update(subscriptions)
+      .set({ campaign_id: ON_SUB })
+      .where(eq(subscriptions.id, SUBS_ID));
+
+    await handle_intent_succeeded(intent("pi_rebill") as any);
+
+    const rows = await all_donations();
+    const clone = rows.find((r) => r.id !== ORDER_ID);
+    expect(clone?.campaign_id).toBe(ON_GIFT);
+    const [sub] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, SUBS_ID));
+    expect(sub?.campaign_id).toBe(ON_SUB);
   });
 });

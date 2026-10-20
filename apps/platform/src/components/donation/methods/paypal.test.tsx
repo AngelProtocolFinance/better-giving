@@ -11,8 +11,7 @@ import { Paypal } from "./paypal";
 // loadCoreSdkScript to null, which is exactly what a visitor with an adblocker
 // or a csp that blocks paypal.com gets.
 
-const load_failed =
-  "PayPal failed to load — please try another payment method.";
+const load_failed = "PayPal failed to load. Please try another payment method.";
 
 const init = (over?: Partial<TDonation>): TDonation => ({
   base_url: "",

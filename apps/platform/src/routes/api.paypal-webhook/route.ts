@@ -121,6 +121,7 @@ async function build_sub_record(args: {
     product_id: plan.product_id,
     to_npo_id: don.to_type === "npo" ? Number(don.to_id) : null,
     to_fund_id: don.to_type === "fund" ? don.to_id : null,
+    campaign_id: don.campaign_id ?? null,
     to_name: don.to_name,
     platform: "paypal",
     status,

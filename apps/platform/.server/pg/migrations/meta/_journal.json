@@ -470,6 +470,13 @@
       "when": 1792250324767,
       "tag": "0066_connector",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792280435218,
+      "tag": "0067_campaigns",
+      "breakpoints": true
     }
   ]
 }
