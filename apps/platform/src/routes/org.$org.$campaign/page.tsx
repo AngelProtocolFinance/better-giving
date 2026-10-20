@@ -343,9 +343,13 @@ function Notice(props: ICampaignPage) {
   }
   if (props.open && props.gift_failed) {
     return (
-      <section className="order-1 flex flex-col gap-2 rounded border border-gray-6 bg-panel p-4 lg:order-none">
-        <h2 className="text-xl font-bold">This gift didn't go through</h2>
-        <p>You can try again from this page.</p>
+      <section className="order-1 lg:order-none">
+        <div className="rounded border border-gray-6 bg-panel">
+          <div className="flex flex-col gap-2 p-4">
+            <h2 className="text-xl font-bold">This gift didn't go through</h2>
+            <p>You can try again from this page.</p>
+          </div>
+        </div>
       </section>
     );
   }
