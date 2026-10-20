@@ -5,7 +5,7 @@ import {
   Prompt,
 } from "@better-giving/ui";
 import { CheckIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { href } from "react-router";
 import use_swr from "swr/immutable";
 import { currency_precision } from "#/helpers/stripe";
@@ -26,6 +26,7 @@ import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
 import { pin_bar } from "../../pin";
 import { type TMethodState, to_step } from "../../types";
+import { preferred_currency_apply } from "../preferred-currency";
 import { use_rhf } from "../stripe/use-rhf";
 
 // us_bank_account → USD, acss_debit → CAD
@@ -48,6 +49,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
   };
 
   const rhf = use_rhf(fv);
+  const seed_amount = useRef(fv.amount);
 
   const tip = tip_handlers({
     format: rhf.tip_format,
@@ -67,12 +69,16 @@ export function Form(props: TMethodState<"stripe_bank">) {
       shouldRetryOnError: false,
       onSuccess: (data) => {
         if (!data.pref || !bank_currencies.has(data.pref.code)) return;
-        rhf.currency.onChange(data.pref);
-
-        const u1_usd_str = rhf.getValues("amount");
-        const u2 = u1_usd_str ? +u1_usd_str * data.pref.rate : 0;
-        const u2str = u2 ? ru(u2, currency_precision(data.pref.code)) : "";
-        rhf.amount.onChange(u2str);
+        const [current, amount] = rhf.getValues(["currency", "amount"]);
+        const next = preferred_currency_apply(
+          current,
+          amount,
+          seed_amount.current,
+          data.pref
+        );
+        if (!next) return;
+        rhf.currency.onChange(next.currency);
+        rhf.amount.onChange(next.amount);
       },
     }
   );

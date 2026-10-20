@@ -269,6 +269,82 @@ describe("stripe checkout", () => {
     expect(reported).toHaveLength(0);
   });
 
+  test("a peso amount is summarized in pesos", async () => {
+    const screen = await render(
+      <Checkout
+        {...fv}
+        amount="500"
+        currency={{ code: "PHP", min: 113, rate: 56.5 }}
+      />
+    );
+    await expect
+      .element(screen.getByText("Your donation summary"))
+      .toBeVisible();
+    const text = screen.container.textContent ?? "";
+    expect(text).toContain("PHP 500.00 ($8.84)");
+    expect(text).not.toContain("28,250");
+    expect(text).not.toContain("$500.00");
+  });
+
+  test("a failed card authentication tells the donor and is not reported", async () => {
+    const Stub = stb(<Checkout {...fv} />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockResolvedValueOnce({
+      error: {
+        type: "invalid_request_error",
+        code: "payment_intent_authentication_failure",
+        message:
+          "We are unable to authenticate your payment method. Please choose a different payment method and try again.",
+      } satisfies StripeError,
+    });
+
+    await donateBtn.click();
+    const errorModal = screen.getByRole("dialog");
+    await expect
+      .element(errorModal)
+      .toMatchTextContent(/bank couldn't verify this card/i);
+    await expect
+      .element(errorModal)
+      .toMatchTextContent(/try again or use another card/i);
+    expect(screen.getByText(/unexpected error occurred/i).query()).toBeNull();
+    expect(reported).toHaveLength(0);
+
+    const form = screen
+      .getByTestId("stripe-checkout-form")
+      .element() as HTMLElement;
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.disabled).toBe(false);
+  });
+
+  test("a failed setup authentication tells the donor and is not reported", async () => {
+    const Stub = stb(<Checkout {...fv} frequency="monthly" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_setup_mock.mockResolvedValueOnce({
+      error: {
+        type: "invalid_request_error",
+        code: "setup_intent_authentication_failure",
+        message: "We are unable to authenticate your payment method.",
+      } satisfies StripeError,
+    });
+
+    await donateBtn.click();
+    const errorModal = screen.getByRole("dialog");
+    await expect
+      .element(errorModal)
+      .toMatchTextContent(/bank couldn't verify this card/i);
+    expect(screen.getByText(/unexpected error occurred/i).query()).toBeNull();
+    expect(reported).toHaveLength(0);
+    expect(confirm_payment_mock).not.toHaveBeenCalled();
+  });
+
   test("unexpected error", async () => {
     const Stub = stb(<Checkout {...fv} tip_format="20" />);
     const screen = await render(<Stub />);

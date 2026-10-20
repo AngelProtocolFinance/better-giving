@@ -75,7 +75,7 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
     <Summary
       classes={
         don.pin
-          ? "flex min-h-full flex-1 flex-col p-4 @xl/steps:p-8"
+          ? "flex min-h-full flex-1 flex-col px-5 pt-5 sm:px-6 sm:pt-6"
           : "grid content-start p-4 @xl/steps:p-8"
       }
       on_back={() =>

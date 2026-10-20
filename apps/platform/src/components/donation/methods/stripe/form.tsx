@@ -29,6 +29,7 @@ import { use_donation } from "../../context";
 import { pin_bar } from "../../pin";
 import { type TMethodState, to_step } from "../../types";
 import { Paypal } from "../paypal";
+import { preferred_currency_apply } from "../preferred-currency";
 import { ExpressCheckout } from "./express-checkout";
 import { use_rhf } from "./use-rhf";
 
@@ -93,6 +94,10 @@ export function Form(props: TMethodState<"stripe">) {
   };
 
   const rhf = use_rhf(fv);
+  // the amount this mount opened with. a later currencies response must not
+  // treat a number the donor typed, or one already in another currency, as
+  // dollars.
+  const seed_amount = useRef(fv.amount);
 
   const tip = tip_handlers({
     format: rhf.tip_format,
@@ -110,16 +115,20 @@ export function Form(props: TMethodState<"stripe">) {
     (path) => fetch(path).then((res) => json_ok<ICurrenciesFv>(res)),
     {
       shouldRetryOnError: false,
-      // only runs once
+      // also runs when a remount reads the cached response, which is what
+      // coming back to this step does.
       onSuccess: (data) => {
         if (!data.pref) return;
-        rhf.currency.onChange(data.pref);
-
-        // translate init usd amount to preferred currency
-        const u1_usd_str = rhf.getValues("amount"); // init amount is in usd
-        const u2 = u1_usd_str ? +u1_usd_str * data.pref.rate : 0;
-        const u2str = u2 ? ru(u2, currency_precision(data.pref.code)) : "";
-        rhf.amount.onChange(u2str);
+        const [current, amount] = rhf.getValues(["currency", "amount"]);
+        const next = preferred_currency_apply(
+          current,
+          amount,
+          seed_amount.current,
+          data.pref
+        );
+        if (!next) return;
+        rhf.currency.onChange(next.currency);
+        rhf.amount.onChange(next.amount);
       },
     }
   );

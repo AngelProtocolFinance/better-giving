@@ -15,8 +15,32 @@ import {
 } from "../../common/return-url";
 import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { use_donation } from "../../context";
-import { pin_bar } from "../../pin";
+import { pin_bar, pin_bleed } from "../../pin";
 import { Loader } from "../loader";
+
+const BANK_COULD_NOT_VERIFY =
+  "Your bank couldn't verify this card. Try again or use another card.";
+
+/** what to tell the donor, or nothing when the failure is ours to report.
+ * authentication failures are not `card_error` — stripe sends them as
+ * `invalid_request_error` — and a card error's own message is the one the
+ * donor can act on. */
+function donor_card_message(error: {
+  type?: string;
+  code?: string;
+  message?: string;
+}): string | undefined {
+  if (
+    error.code === "payment_intent_authentication_failure" ||
+    error.code === "setup_intent_authentication_failure"
+  ) {
+    return BANK_COULD_NOT_VERIFY;
+  }
+  if (error.type === "card_error" || error.type === "validation_error") {
+    return error.message;
+  }
+  return undefined;
+}
 
 /** `done` is a paid donation whose trip to the receipt never happened: the
  * spinner has to stop, but the donate button must stay shut — a second click
@@ -94,11 +118,9 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
     // with redirect: "if_required", this point will be reached for both
     // successful payments and errors.
     if (error) {
-      if (error.type === "card_error" || error.type === "validation_error") {
-        // the donor's own input, echoed back to them — not a defect. see
-        // `user_error_prompt`; the stripe webhook handlers skip `card_error`
-        // for the same reason.
-        ask_prompt(user_error_prompt(error.message), { key: PROMPT_SLOT });
+      const donor_message = donor_card_message(error);
+      if (donor_message) {
+        ask_prompt(user_error_prompt(donor_message), { key: PROMPT_SLOT });
       } else {
         ask_prompt(error_prompt(error, { context: "processing payment" }), {
           key: PROMPT_SLOT,
@@ -167,10 +189,7 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
       {status === "init" ? (
         <Loader />
       ) : pin ? (
-        <div
-          data-pin=""
-          className={`${pin_bar} order-1 -mx-4 -mb-4 @xl/steps:-mx-8 @xl/steps:-mb-8`}
-        >
+        <div data-pin="" className={`${pin_bar} ${pin_bleed} order-1`}>
           {pay}
         </div>
       ) : (

@@ -622,6 +622,78 @@ const assert_form_live = async (
   don_set_mock.mockReset();
 };
 
+describe("Stripe form: preferred currency", () => {
+  const php = { code: "PHP", rate: 56.5, min: 113 };
+
+  afterEach(() => {
+    don_set_mock.mockReset();
+  });
+
+  test("a peso amount already on the form is not treated as dollars", async () => {
+    don_mock.value = init();
+    mswWorker.use(
+      http.get(href("/api/currencies"), () =>
+        HttpResponse.json({
+          pref: php,
+          all: [{ code: "USD", rate: 1, min: 2 }, php],
+        })
+      )
+    );
+    const fv: StripeDonationDetails = {
+      amount: "500",
+      currency: php,
+      frequency: "one-time",
+      cover_processing_fee: false,
+      tip: "",
+      tip_format: "none",
+    };
+    const screen = await render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <Form fv={fv} type="stripe" step="form" />
+      </SWRConfig>
+    );
+
+    await expect.element(screen.getByRole("combobox")).toHaveValue("PHP");
+    await expect
+      .element(screen.getByPlaceholder(/enter amount/i))
+      .toHaveValue("500");
+
+    await screen.getByRole("button", { name: /continue/i }).click();
+    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+    const next = don_set_mock.mock.calls[0][0]({ method: "stripe" });
+    expect(next.stripe.fv.amount).toBe("500");
+    expect(next.stripe.fv.currency.code).toBe("PHP");
+  });
+
+  test("500 pesos typed after PHP is showing stays 500 pesos", async () => {
+    don_mock.value = init();
+    mswWorker.use(
+      http.get(href("/api/currencies"), () =>
+        HttpResponse.json({
+          pref: php,
+          all: [{ code: "USD", rate: 1, min: 2 }, php],
+        })
+      )
+    );
+    const screen = await render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <Form type="stripe" step="form" />
+      </SWRConfig>
+    );
+
+    await expect.element(screen.getByRole("combobox")).toHaveValue("PHP");
+    await screen.getByPlaceholder(/enter amount/i).fill("500");
+    await expect
+      .element(screen.getByPlaceholder(/enter amount/i))
+      .toHaveValue("500");
+    await screen.getByRole("button", { name: /continue/i }).click();
+    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+    const next = don_set_mock.mock.calls[0][0]({ method: "stripe" });
+    expect(next.stripe.fv.amount).toBe("500");
+    expect(next.stripe.fv.currency.code).toBe("PHP");
+  });
+});
+
 describe("Stripe form: an express rail that can't be offered", () => {
   afterEach(() => {
     rails.pp_out = false;
