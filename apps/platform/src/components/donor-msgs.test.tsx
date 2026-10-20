@@ -609,6 +609,80 @@ describe("donor messages", () => {
     expect(page_hits).toBe(2);
   });
 
+  test("a failed next page does not follow the wall to another organization", async () => {
+    const next_for = { a: [] as string[], b: [] as string[] };
+    let b_page_hits = 0;
+    mswWorker.use(
+      http.get("/api/npo/wall-stale-a/donors", ({ request }) => {
+        const key = new URL(request.url).searchParams.get("next") ?? "";
+        if (key === "") {
+          return HttpResponse.json({
+            items: [row("Ada Lovelace", { amount: 40 })],
+            next: "cursor-a",
+          });
+        }
+        next_for.a.push(key);
+        return HttpResponse.json({ message: "unavailable" }, { status: 500 });
+      }),
+      http.get("/api/npo/wall-stale-b/donors", ({ request }) => {
+        const key = new URL(request.url).searchParams.get("next") ?? "";
+        if (key === "") {
+          return HttpResponse.json({
+            items: [row("Grace Hopper", { amount: 15 })],
+            next: "cursor-b",
+          });
+        }
+        b_page_hits += 1;
+        next_for.b.push(key);
+        if (b_page_hits === 1) {
+          return HttpResponse.json({ message: "unavailable" }, { status: 500 });
+        }
+        return HttpResponse.json({
+          items: [row("Katherine Johnson", { amount: 12 })],
+          next: null,
+        });
+      })
+    );
+    const screen = await mount("wall-stale-a");
+    await expect.element(screen.getByText("Ada Lovelace")).toBeVisible();
+    await screen
+      .getByRole("button", { name: "View more", exact: true })
+      .click();
+    await expect
+      .element(screen.getByText("Couldn't load donors."))
+      .toBeVisible();
+    expect(next_for.a).toEqual(["cursor-a"]);
+
+    await screen.rerender(
+      <SWRConfig
+        value={{ provider: () => new Map(), shouldRetryOnError: false }}
+      >
+        <DonorMsgs id="wall-stale-b" />
+      </SWRConfig>
+    );
+
+    await expect.element(screen.getByText("Grace Hopper")).toBeVisible();
+    await expect
+      .element(screen.getByText("Ada Lovelace"))
+      .not.toBeInTheDocument();
+    expect(screen.getByText("Couldn't load donors.").query()).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Retry", exact: true }).query()
+    ).toBeNull();
+    expect(next_for.b).toEqual([]);
+
+    await screen
+      .getByRole("button", { name: "View more", exact: true })
+      .click();
+    await expect
+      .element(screen.getByText("Couldn't load donors."))
+      .toBeVisible();
+    await expect.element(screen.getByText("Grace Hopper")).toBeVisible();
+    await screen.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect.element(screen.getByText("Katherine Johnson")).toBeVisible();
+    expect(next_for.b).toEqual(["cursor-b", "cursor-b"]);
+  });
+
   test("a failed See all donors keeps the donors and Retry loads that same page", async () => {
     await page.viewport(1440, 900);
     let page_hits = 0;

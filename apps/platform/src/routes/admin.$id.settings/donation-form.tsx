@@ -118,6 +118,7 @@ export function DonationFormTab(p: Props) {
       onReset={(e) => {
         e.preventDefault();
         reset();
+        fetcher.reset();
       }}
       onSubmit={onSubmit}
       className="grid content-start gap-6"

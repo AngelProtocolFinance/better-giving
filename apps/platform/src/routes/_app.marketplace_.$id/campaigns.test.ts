@@ -19,9 +19,12 @@ vi.mock("$/pg/db", () => ({
 }));
 
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
-const { campaign_live_for_npo, campaign_shown_status } = await import(
-  "$/pg/queries/campaign"
-);
+const {
+  campaign_count,
+  campaign_live_count,
+  campaign_live_for_npo,
+  campaign_shown_status,
+} = await import("$/pg/queries/campaign");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 
 beforeAll(async () => {
@@ -98,6 +101,16 @@ beforeAll(async () => {
       ends_at: "2099-01-01T00:00:00.000Z",
       description_pt: "[]",
     },
+    {
+      id: "open-1",
+      owner_npo_id: npo!.id,
+      creator_id: "user-mkt",
+      name: "Open",
+      slug: "open",
+      status: "live",
+      ends_at: null,
+      description_pt: "[]",
+    },
   ]);
   await db.insert(campaign_members).values([
     { campaign_id: "live-1", npo_id: npo!.id },
@@ -105,6 +118,7 @@ beforeAll(async () => {
     { campaign_id: "ended-1", npo_id: npo!.id },
     { campaign_id: "past-1", npo_id: npo!.id },
     { campaign_id: "future-1", npo_id: npo!.id },
+    { campaign_id: "open-1", npo_id: npo!.id },
   ]);
 }, 30_000);
 
@@ -116,7 +130,7 @@ describe("marketplace profile campaigns", () => {
   it("lists live campaigns only", async () => {
     const [npo] = await test_db.current!.db.select().from(npos);
     const rows = await campaign_live_for_npo(npo!.id);
-    expect(rows.map((c) => c.slug).sort()).toEqual(["future", "live"]);
+    expect(rows.map((c) => c.slug).sort()).toEqual(["future", "live", "open"]);
     expect(rows.every((c) => c.status === "live" && c.owner_slug)).toBe(true);
     const past = {
       status: "live" as const,
@@ -126,5 +140,11 @@ describe("marketplace profile campaigns", () => {
     expect(campaign_shown_status({ status: "live", ends_at: null })).toBe(
       "live"
     );
+  });
+
+  it("counts every campaign and only those still live", async () => {
+    const [npo] = await test_db.current!.db.select().from(npos);
+    expect(await campaign_count(npo!.id)).toBe(6);
+    expect(await campaign_live_count(npo!.id)).toBe(3);
   });
 });

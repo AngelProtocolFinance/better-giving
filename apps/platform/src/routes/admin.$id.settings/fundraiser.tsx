@@ -46,6 +46,7 @@ export function FundraiserTab({ fund_opt_in }: Props) {
       onReset={(e) => {
         e.preventDefault();
         reset();
+        fetcher.reset();
       }}
       onSubmit={onSubmit}
       className="grid content-start gap-6"

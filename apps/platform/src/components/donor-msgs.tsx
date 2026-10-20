@@ -282,7 +282,10 @@ export function DonorMsgs({
   const [page_pending, set_page_pending] = useState<null | "more" | "retry">(
     null
   );
-  const [failed_cursor, set_failed_cursor] = useState<string | null>(null);
+  const [failed, set_failed] = useState<{ id: string; cursor: string } | null>(
+    null
+  );
+  const failed_cursor = failed?.id === id ? failed.cursor : null;
 
   const campaign = campaign_id != null;
   const section = campaign
@@ -391,9 +394,9 @@ export function DonorMsgs({
         }),
         { revalidate: false }
       );
-      set_failed_cursor(null);
+      set_failed(null);
     } catch {
-      set_failed_cursor(page);
+      set_failed({ id, cursor: page });
     } finally {
       loading.current = false;
       set_page_pending(null);

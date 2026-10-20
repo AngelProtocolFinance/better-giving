@@ -151,6 +151,9 @@ export const action = async ({ request }: Route.ActionArgs) => {
     const headers = new Headers();
     const cookie = res.headers.get("set-cookie");
     if (cookie) headers.set("set-cookie", cookie);
+    // asked_to is already a safe path. the lookup below only picks a home
+    // when none was asked — a throw there is a 500 that drops this cookie.
+    if (asked_to != null) return redirect(asked_to, { headers });
     const [signed_in] = await db
       .select({ id: userTable.id, role: userTable.role })
       .from(userTable)

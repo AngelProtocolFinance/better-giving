@@ -9,7 +9,9 @@ import {
   it,
   vi,
 } from "vitest";
+import { seed_fund } from "#/__tests__/fixtures/funds";
 import { user } from "$/pg/schema/auth";
+import { fund_members, funds } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -41,6 +43,7 @@ const { admin_ctx, user_ctx } = await import("$/auth/test-utils");
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
 const { campaign_update } = await import("$/pg/queries/campaign");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
+const { loader: list_loader } = await import("./api");
 const { action: create_action } = await import(
   "../admin.$id.campaigns_.new/api"
 );
@@ -60,6 +63,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const db = test_db.current!.db;
+  await db.delete(fund_members);
+  await db.delete(funds);
   await db.delete(campaign_members);
   await db.delete(campaigns);
   await db.delete(npos);
@@ -402,5 +407,31 @@ describe("campaign slug", () => {
     expect(again.status).toBe(400);
     expect(again.error).toBe("An ended campaign stays ended.");
     expect(again.field).toBeUndefined();
+  });
+});
+
+describe("campaign list loader", () => {
+  it("puts an org-owned fund with campaigns and a member fund with supporters", async () => {
+    const org = await npo("EIN-LIST", "list-org");
+    await seed_fund(db(), {
+      id: "fund-owned",
+      name: "Owned drive",
+      npo_owner: org.id,
+      creator_id: USER,
+    });
+    await seed_fund(db(), {
+      id: "fund-supporter",
+      name: "Supporter drive",
+      npo_owner: null,
+      creator_id: USER,
+      members: [org.id],
+    });
+    const data = await list_loader({
+      request: new Request("https://x/admin/list/campaigns"),
+      params: { id: String(org.id) },
+      context: ctx(org.id),
+    } as any);
+    expect(data.org_funds.map((f) => f.id)).toEqual(["fund-owned"]);
+    expect(data.supporter_funds.map((f) => f.id)).toEqual(["fund-supporter"]);
   });
 });

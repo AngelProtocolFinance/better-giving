@@ -114,7 +114,11 @@ function press(locator: { element: () => Element }) {
 describe("campaign list", () => {
   const endow = { id: 7, slug: "acme" };
 
-  async function render_list(campaigns: unknown[], funds: unknown[]) {
+  async function render_list(
+    campaigns: unknown[],
+    org_funds: unknown[],
+    supporter_funds: unknown[]
+  ) {
     const Stub = createRoutesStub([
       {
         path: "/admin/:id/campaigns",
@@ -122,7 +126,8 @@ describe("campaign list", () => {
         loader: () => ({
           endow,
           campaigns,
-          funds,
+          org_funds,
+          supporter_funds,
           profile_to: "/admin/7/edit-profile",
         }),
       },
@@ -130,8 +135,8 @@ describe("campaign list", () => {
     return render(<Stub initialEntries={["/admin/7/campaigns"]} />);
   }
 
-  it("offers a create action only when both lists are empty", async () => {
-    const screen = await render_list([], []);
+  it("offers a create action when campaigns and funds are all absent", async () => {
+    const screen = await render_list([], [], []);
     await expect.element(screen.getByText("No campaigns yet")).toBeVisible();
     const create = screen.getByRole("link", { name: "Create campaign" });
     expect((create.element() as HTMLAnchorElement).getAttribute("href")).toBe(
@@ -142,7 +147,7 @@ describe("campaign list", () => {
     ).toBeNull();
   });
 
-  it("omits the section that has no rows", async () => {
+  it("omits the supporter heading when every fund belongs to the organization", async () => {
     const screen = await render_list(
       [
         {
@@ -155,6 +160,16 @@ describe("campaign list", () => {
           ends_at: null,
         },
       ],
+      [
+        {
+          id: "f-owned",
+          name: "Owned page",
+          active: true,
+          published: false,
+          donation_total_usd: 3,
+          expiration: NO_END,
+        },
+      ],
       []
     );
     await expect
@@ -164,6 +179,49 @@ describe("campaign list", () => {
       screen.getByRole("heading", { name: "Supporter fundraisers" }).query()
     ).toBeNull();
     expect(screen.getByText("No campaigns yet").query()).toBeNull();
+    const section = screen
+      .getByRole("heading", { name: "Campaigns", level: 2 })
+      .element().parentElement;
+    const text = section?.textContent ?? "";
+    expect(text.indexOf("Spring")).toBeGreaterThan(-1);
+    expect(text.indexOf("Spring")).toBeLessThan(text.indexOf("Owned page"));
+    const owned = screen.getByRole("link", { name: "Owned page" });
+    expect((owned.element() as HTMLAnchorElement).pathname).toBe(
+      "/fundraisers/f-owned/edit"
+    );
+  });
+
+  it("omits the campaigns heading when only a supporter fund is present", async () => {
+    const screen = await render_list(
+      [],
+      [],
+      [
+        {
+          id: "f-guest",
+          name: "Guest page",
+          active: true,
+          published: false,
+          donation_total_usd: 0,
+          expiration: NO_END,
+        },
+      ]
+    );
+    expect(
+      screen.getByRole("heading", { name: "Campaigns", level: 2 }).query()
+    ).toBeNull();
+    await expect
+      .element(screen.getByRole("heading", { name: "Supporter fundraisers" }))
+      .toBeVisible();
+    expect(screen.getByText("No campaigns yet").query()).toBeNull();
+    const section = screen
+      .getByRole("heading", { name: "Supporter fundraisers" })
+      .element().parentElement;
+    const guest = page
+      .elementLocator(section as HTMLElement)
+      .getByRole("link", { name: "Guest page" });
+    expect((guest.element() as HTMLAnchorElement).pathname).toBe(
+      "/fundraisers/f-guest/edit"
+    );
   });
 
   it("splits campaigns and supporter pages, and links the profile in the same tab", async () => {
@@ -188,6 +246,7 @@ describe("campaign list", () => {
           ends_at: null,
         },
       ],
+      [],
       [
         {
           id: "f-ended",
@@ -265,9 +324,22 @@ describe("campaign list", () => {
       1
     );
 
-    const open = screen.getByRole("link", { name: "Open page" });
+    const supporters = screen
+      .getByRole("heading", { name: "Supporter fundraisers" })
+      .element().parentElement;
+    const supporter = page.elementLocator(supporters as HTMLElement);
+    const open = supporter.getByRole("link", { name: "Open page" });
     expect((open.element() as HTMLAnchorElement).pathname).toBe(
       "/fundraisers/f-live/edit"
+    );
+    const closed = supporter.getByRole("link", { name: "Closed page" });
+    expect((closed.element() as HTMLAnchorElement).pathname).toBe(
+      "/fundraisers/f-ended"
+    );
+    expect(closed.elements().length).toBe(1);
+    const view = screen.getByRole("link", { name: "View", exact: true });
+    expect((view.element() as HTMLAnchorElement).pathname).toBe(
+      "/fundraisers/f-live"
     );
     await expect
       .element(screen.getByText("Live · $9 raised · No end date"))

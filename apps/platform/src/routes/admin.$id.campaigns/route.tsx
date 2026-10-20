@@ -38,6 +38,33 @@ interface IRow {
   view_label?: string;
 }
 
+interface IListedFund {
+  id: string;
+  name: string;
+  active: boolean;
+  published: boolean;
+  donation_total_usd: number;
+  expiration: number;
+}
+
+function fund_meta(f: IListedFund) {
+  return `${fund_row_status(f)} · ${to_usd(f.donation_total_usd)} raised · ${fund_end(f.expiration)}`;
+}
+
+/** inactive: the editor only says the fund is closed, so the name opens the public page */
+function fund_row(f: IListedFund): IRow {
+  const public_to = href("/fundraisers/:fund_id", { fund_id: f.id });
+  if (!f.active) {
+    return { name: f.name, name_to: public_to, meta: fund_meta(f) };
+  }
+  return {
+    name: f.name,
+    name_to: href("/fundraisers/:fund_id/edit", { fund_id: f.id }),
+    meta: fund_meta(f),
+    view_to: f.published ? public_to : undefined,
+  };
+}
+
 function Row({ name, name_to, meta, view_to, view_label }: IRow) {
   return (
     <li className="card grid gap-1">
@@ -60,12 +87,16 @@ function Row({ name, name_to, meta, view_to, view_label }: IRow) {
 }
 
 export default function Page({ loaderData }: Route.ComponentProps) {
-  const { endow, campaigns, funds, profile_to } = loaderData;
+  const { endow, campaigns, org_funds, supporter_funds, profile_to } =
+    loaderData;
   const profile = endow.slug
     ? `/marketplace/${endow.slug}`
     : `/marketplace/${endow.id}`;
   const new_to = href("/admin/:id/campaigns/new", { id: String(endow.id) });
-  const empty = campaigns.length === 0 && funds.length === 0;
+  const empty =
+    campaigns.length === 0 &&
+    org_funds.length === 0 &&
+    supporter_funds.length === 0;
 
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8 gap-6">
@@ -98,7 +129,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         </EmptyState>
       ) : (
         <>
-          {campaigns.length > 0 && (
+          {(campaigns.length > 0 || org_funds.length > 0) && (
             <section className="grid gap-3">
               <h2 className="font-semibold">Campaigns</h2>
               <ul className="grid gap-3">
@@ -124,27 +155,18 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                     />
                   );
                 })}
+                {org_funds.map((f) => (
+                  <Row key={f.id} {...fund_row(f)} />
+                ))}
               </ul>
             </section>
           )}
-          {funds.length > 0 && (
+          {supporter_funds.length > 0 && (
             <section className="grid gap-3">
               <h2 className="font-semibold">Supporter fundraisers</h2>
               <ul className="grid gap-3">
-                {funds.map((f) => (
-                  <Row
-                    key={f.id}
-                    name={f.name}
-                    name_to={href("/fundraisers/:fund_id/edit", {
-                      fund_id: f.id,
-                    })}
-                    meta={`${fund_row_status(f)} · ${to_usd(f.donation_total_usd)} raised · ${fund_end(f.expiration)}`}
-                    view_to={
-                      f.active && f.published
-                        ? href("/fundraisers/:fund_id", { fund_id: f.id })
-                        : undefined
-                    }
-                  />
+                {supporter_funds.map((f) => (
+                  <Row key={f.id} {...fund_row(f)} />
                 ))}
               </ul>
             </section>

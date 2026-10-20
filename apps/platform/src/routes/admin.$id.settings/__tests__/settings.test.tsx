@@ -868,4 +868,43 @@ describe("settings tabs", () => {
       );
     });
   });
+
+  it("clears a refused save when reset changes is pressed", async () => {
+    const npo = await seed_npo();
+    const Stub = createRoutesStub([
+      {
+        path: "/admin/:id/settings",
+        Component: SettingsPage,
+        HydrateFallback: () => null,
+        loader: loader as any,
+        action: () => ({
+          ok: false,
+          error: "The nonprofit could not be saved",
+        }),
+        middleware: [
+          async ({ context }, next) => {
+            context.set(admin_ctx, npo.id);
+            return next();
+          },
+        ],
+      },
+    ]);
+    const screen = await render(
+      <Stub
+        initialEntries={[`/admin/${npo.id}/settings`]}
+        future={{ v8_middleware: true }}
+      />
+    );
+    const receipt = screen.getByLabelText(/tax receipt message/i);
+    await expect.element(receipt).toBeVisible();
+    await receipt.fill("A note for the receipt");
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await expect
+      .element(screen.getByRole("alert").nth(0))
+      .toHaveTextContent("The nonprofit could not be saved");
+    await screen.getByRole("button", { name: /reset changes/i }).click();
+    await vi.waitFor(() => {
+      expect(screen.getByRole("alert").nth(0).element().textContent).toBe("");
+    });
+  });
 });

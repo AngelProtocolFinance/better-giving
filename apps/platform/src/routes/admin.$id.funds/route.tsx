@@ -5,7 +5,7 @@ import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { FundItem } from "./fund-item";
 
-type Creator = "" | "ours" | "others";
+type Creator = "all" | "ours" | "others";
 
 export { action, loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
@@ -18,17 +18,17 @@ export const meta: Route.MetaFunction = ({ matches }) => {
 export default CacheRoute(Page);
 
 const LABELS: Record<Creator, string> = {
-  "": "All",
+  all: "All",
   ours: "By Us",
   others: "By Our Supporters",
 };
-const OPTIONS: Creator[] = ["", "ours", "others"];
+const OPTIONS: Creator[] = ["all", "ours", "others"];
 
 function Page({ loaderData }: Route.ComponentProps) {
   const { funds, endow, user } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
-  const raw = searchParams.get("creator") ?? "";
-  const creator: Creator = raw === "ours" || raw === "others" ? raw : "";
+  const raw = searchParams.get("creator");
+  const creator: Creator = raw === "ours" || raw === "others" ? raw : "all";
 
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8">
@@ -40,7 +40,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           value={creator}
           option_disp={(v) => LABELS[v]}
           onChange={(v) => {
-            setSearchParams(v ? { creator: v } : {}, {
+            setSearchParams(v === "all" ? {} : { creator: v }, {
               preventScrollReset: true,
             });
           }}

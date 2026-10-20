@@ -64,6 +64,7 @@ export function DonationTab({
       onReset={(e) => {
         e.preventDefault();
         reset();
+        fetcher.reset();
       }}
       onSubmit={onSubmit}
       className="grid content-start gap-6"

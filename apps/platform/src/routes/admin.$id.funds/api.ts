@@ -32,11 +32,13 @@ export const loader = async (x: Route.LoaderArgs) => {
   if (!endow) throw resp.status(404);
 
   const { searchParams: s } = new URL(x.request.url);
-  const creator = s.get("creator") as "ours" | "others" | undefined;
+  const raw = s.get("creator");
+  const creator = raw === "ours" || raw === "others" ? raw : undefined;
 
-  const funds = await get_funds_npo_memberof(endow.id, {
-    creator: creator || undefined,
-  });
+  const funds = await get_funds_npo_memberof(
+    endow.id,
+    creator ? { creator } : {}
+  );
   return { endow, funds, user } satisfies LoaderData;
 };
 
