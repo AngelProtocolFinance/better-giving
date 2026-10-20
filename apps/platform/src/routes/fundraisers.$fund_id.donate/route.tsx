@@ -58,7 +58,7 @@ function Page({
         <div className="mx-0 border-b md:contents xs:border xs:mx-4 rounded">
           {!is_open ? (
             <Info classes="row-start-2 self-center bg-panel rounded h-80 content-center justify-items-center grid">
-              This fundraiser is already closed and can't accept any more
+              This campaign is already closed and can't accept any more
               donations
             </Info>
           ) : (

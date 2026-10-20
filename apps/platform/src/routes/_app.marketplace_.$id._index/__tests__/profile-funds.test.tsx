@@ -66,7 +66,7 @@ import ProfileIndex from "../route";
 // --- setup ---
 
 const COULDNT_LOAD =
-  "We couldn't load this nonprofit's fundraisers right now. Please try again later.";
+  "We couldn't load this nonprofit's campaigns right now. Please try again later.";
 
 const db = () => test_db.current!.db;
 

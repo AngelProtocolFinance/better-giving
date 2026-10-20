@@ -4,6 +4,7 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
+import { useRef } from "react";
 import { href } from "react-router";
 import { report_degraded, report_error } from "#/errors/report";
 import { GENERIC_ERROR_MESSAGE } from "@/constants/common";
@@ -12,6 +13,7 @@ import type {
   IDonorAddressFv,
   IStripeIntentReturn,
 } from "@/donations";
+import { apply_campaign } from "../../../apply-campaign";
 import { use_donation_redirect } from "../../../common/redirect";
 import {
   donation_return_url,
@@ -23,7 +25,7 @@ import type { IStripeExpress } from "../use-rhf";
 /** the element never came up. same copy for both ways that happens: stripe.js
  * itself was blocked (no element to fail), or the element loaded and failed. */
 export const LOAD_FAILED =
-  "Express checkout failed to load — please try another payment method.";
+  "Express checkout failed to load. Please try another payment method.";
 
 export interface IContentExternal
   extends Omit<IStripeExpress, "items" | "is_partial"> {
@@ -37,6 +39,8 @@ export interface IContentExternal
    * *during* a payment stays on `on_error`.
    */
   on_unavailable?: (msg: string) => void;
+  /** a wallet button is on screen. an empty ready event is not this. */
+  on_shown?: () => void;
   /**
    * the wallet charge went through. raised the moment it does, before the trip
    * to the thank-you page is even attempted — that trip can take up to nine
@@ -59,6 +63,7 @@ export function Content({
   on_click,
   on_error,
   on_unavailable,
+  on_shown,
   on_paid,
   on_stuck,
   ...x
@@ -67,6 +72,27 @@ export function Content({
   const elements = useElements();
   const stripe = useStripe();
   const redirect = use_donation_redirect();
+  const root_ref = useRef<HTMLDivElement>(null);
+  // read during render: a later render rebuilds className from this and would
+  // put h-0 and -mt-2 back on a slot that already has a button.
+  const shown = useRef(false);
+  const on_shown_ref = useRef(on_shown);
+  on_shown_ref.current = on_shown;
+
+  const show_if_wallet: NonNullable<ExpressCheckoutElementProps["onReady"]> = (
+    ev
+  ) => {
+    // ready with no method still mounts an empty frame. only a method that
+    // will draw a button is allowed to take height.
+    const open =
+      !!ev.availablePaymentMethods &&
+      Object.values(ev.availablePaymentMethods).some(Boolean);
+    shown.current = open;
+    root_ref.current?.classList.toggle("h-0", !open);
+    root_ref.current?.classList.toggle("overflow-hidden", !open);
+    root_ref.current?.classList.toggle("-mt-2", !open);
+    if (open) on_shown_ref.current?.();
+  };
 
   const on_confirm: ExpressCheckoutElementProps["onConfirm"] = async (ev) => {
     if (!stripe || !elements) return;
@@ -122,6 +148,7 @@ export function Content({
 
     if (don.program) intent.program = don.program;
     if (don.config?.id) intent.form_id = don.config.id;
+    apply_campaign(intent, don.config);
 
     // everything past here runs with the donor already authorized in the
     // sheet, so no path out of it may be silent — a throw owes the sheet the
@@ -189,54 +216,62 @@ export function Content({
   };
 
   return (
-    <ExpressCheckoutElement
-      id="express-checkout"
-      className={classes}
-      onConfirm={on_confirm}
-      onClick={on_click}
-      onLoadError={(ev) => {
-        // pre-interaction: the element never came up, so nothing has been paid
-        // and no donor action is waiting on an answer.
-        //
-        // three unrelated failures arrive here. `api_connection_error` is
-        // stripe's error `type` for "the browser could not reach us" — the
-        // donor's network, nothing to fix. an `invalid_request_error` with a
-        // 403 and no `code` is stripe refusing to serve the donor's region
-        // (sanctioned countries) — nothing to fix either. anything else is the
-        // request we sent, and an amount stripe rejects for the currency lands
-        // here too, so it has to stay loud.
-        //
-        // stripe localises `message` to the donor's browser and the tracker
-        // groups on the message, so the stable type/code is what gets reported
-        // and the localised error rides along as context.
-        const { type: kind, code } = ev.error;
-        // `status` rides on the error at runtime but isn't in stripe.js's types
-        const is_region_refusal =
-          kind === "invalid_request_error" &&
-          !code &&
-          "status" in ev.error &&
-          ev.error.status === 403;
-        const report =
-          kind === "api_connection_error" || is_region_refusal
-            ? report_degraded
-            : report_error;
-        report(
-          new Error(
-            `stripe express checkout failed to load: ${kind}${code ? ` (${code})` : ""}`
-          ),
-          { stripe_error: ev.error }
-        );
-        (on_unavailable ?? on_error)(LOAD_FAILED);
-      }}
-      options={{
-        layout: { overflow: "never" },
-        buttonTheme: {
-          googlePay: "white",
-          applePay: "white",
-        },
-        emailRequired: true,
-        billingAddressRequired: true,
-      }}
-    />
+    // empty frame before ready or loaderror. h-0 clips it; -mt-2 cancels the
+    // form column's gap so a collapsed slot adds no space.
+    <div
+      ref={root_ref}
+      className={shown.current ? undefined : "h-0 overflow-hidden -mt-2"}
+    >
+      <ExpressCheckoutElement
+        id="express-checkout"
+        className={classes}
+        onConfirm={on_confirm}
+        onClick={on_click}
+        onReady={show_if_wallet}
+        onLoadError={(ev) => {
+          // pre-interaction: the element never came up, so nothing has been paid
+          // and no donor action is waiting on an answer.
+          //
+          // three unrelated failures arrive here. `api_connection_error` is
+          // stripe's error `type` for "the browser could not reach us" — the
+          // donor's network, nothing to fix. an `invalid_request_error` with a
+          // 403 and no `code` is stripe refusing to serve the donor's region
+          // (sanctioned countries) — nothing to fix either. anything else is the
+          // request we sent, and an amount stripe rejects for the currency lands
+          // here too, so it has to stay loud.
+          //
+          // stripe localises `message` to the donor's browser and the tracker
+          // groups on the message, so the stable type/code is what gets reported
+          // and the localised error rides along as context.
+          const { type: kind, code } = ev.error;
+          // `status` rides on the error at runtime but isn't in stripe.js's types
+          const is_region_refusal =
+            kind === "invalid_request_error" &&
+            !code &&
+            "status" in ev.error &&
+            ev.error.status === 403;
+          const report =
+            kind === "api_connection_error" || is_region_refusal
+              ? report_degraded
+              : report_error;
+          report(
+            new Error(
+              `stripe express checkout failed to load: ${kind}${code ? ` (${code})` : ""}`
+            ),
+            { stripe_error: ev.error }
+          );
+          (on_unavailable ?? on_error)(LOAD_FAILED);
+        }}
+        options={{
+          layout: { overflow: "never" },
+          buttonTheme: {
+            googlePay: "white",
+            applePay: "white",
+          },
+          emailRequired: true,
+          billingAddressRequired: true,
+        }}
+      />
+    </div>
   );
 }

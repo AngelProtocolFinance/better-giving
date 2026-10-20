@@ -16,6 +16,7 @@ import {
 } from "@/donations/paypal-capture";
 import { donor_fv_init, type IDonationIntent } from "@/donations/schema";
 import { HttpError, json_ok } from "@/helpers/https";
+import { apply_campaign } from "../apply-campaign";
 import { use_donation_redirect } from "../common/redirect";
 import { retry_once } from "../common/retry";
 import { donation_return_url, type IDonationDest } from "../common/return-url";
@@ -32,6 +33,8 @@ interface Props extends IPayPalExpress {
    * everything that goes wrong *during* a payment stays on `on_error`.
    */
   on_unavailable?: (msg: string) => void;
+  /** a funding button is in the slot. not raised when none are eligible. */
+  on_shown?: () => void;
   /**
    * the payment went through. raised the moment it does, before the trip to
    * the thank-you page is even attempted — that trip can take up to nine
@@ -107,6 +110,7 @@ export function Paypal({
   classes = "",
   on_error,
   on_unavailable,
+  on_shown,
   on_paid,
   on_stuck,
   on_unconfirmed,
@@ -116,6 +120,11 @@ export function Paypal({
 }: Props) {
   const { don } = use_donation();
   const container_ref = useRef<HTMLDivElement>(null);
+  const root_ref = useRef<HTMLDivElement>(null);
+  // read during render: a later render rebuilds className from props and would
+  // put h-0 back. state would re-render and wipe the buttons this effect adds.
+  // -mt-2 rides with the clip: it cancels the form column's gap while empty.
+  const shown = useRef(false);
 
   const { currency, frequency, is_partial } = p;
   const is_recurring = frequency !== "one-time";
@@ -130,6 +139,8 @@ export function Paypal({
   on_error_ref.current = on_error;
   const on_unavailable_ref = useRef(on_unavailable ?? on_error);
   on_unavailable_ref.current = on_unavailable ?? on_error;
+  const on_shown_ref = useRef(on_shown);
+  on_shown_ref.current = on_shown;
   const on_paid_ref = useRef(on_paid);
   on_paid_ref.current = on_paid;
   const on_stuck_ref = useRef(on_stuck);
@@ -147,6 +158,8 @@ export function Paypal({
   useEffect(() => {
     let mounted = true;
     let cleanup: (() => void) | null = null;
+    shown.current = false;
+    root_ref.current?.classList.add("h-0", "overflow-hidden", "-mt-2");
 
     const init = async () => {
       // get_sdk clears its cache on failure, so the second call re-runs the
@@ -175,6 +188,12 @@ export function Paypal({
         );
       }
 
+      const reveal = () => {
+        shown.current = true;
+        root_ref.current?.classList.remove("h-0", "overflow-hidden", "-mt-2");
+        on_shown_ref.current?.();
+      };
+
       // returns both ids so each click can capture its own (no shared mutable
       // state — a rapid double-click must not let intent B's don_id overwrite
       // intent A's and silently misroute capture).
@@ -201,6 +220,7 @@ export function Paypal({
         };
         if (d.program) intent.program = d.program;
         if (d.config?.id) intent.form_id = d.config.id;
+        apply_campaign(intent, d.config);
 
         const { tx_id, don_id, amount } = await fetch(
           href("/api/donation-intents"),
@@ -259,7 +279,7 @@ export function Paypal({
         // surface a friendly fallback so donor can try another method.
         console.warn("paypal session error", err);
         on_error_ref.current(
-          "PayPal failed — please try another payment method."
+          "PayPal failed. Please try another payment method."
         );
       };
 
@@ -367,7 +387,7 @@ export function Paypal({
                 } catch (err) {
                   report_error(err);
                   on_error_ref.current(
-                    "Subscription failed — please contact support."
+                    "Subscription failed. Please contact support."
                   );
                 }
               },
@@ -433,6 +453,7 @@ export function Paypal({
       cleanup = () => {
         for (const b of mounted_btns) b.remove();
       };
+      if (mounted_btns.length > 0) reveal();
     };
 
     init().catch((err) => {
@@ -444,7 +465,7 @@ export function Paypal({
       report_degraded(err);
       if (mounted) {
         on_unavailable_ref.current(
-          "PayPal failed to load — please try another payment method."
+          "PayPal failed to load. Please try another payment method."
         );
       }
     });
@@ -456,7 +477,10 @@ export function Paypal({
   }, [currency, is_recurring]);
 
   return (
-    <div className={`relative isolate ${classes}`}>
+    <div
+      ref={root_ref}
+      className={`relative isolate ${shown.current ? "" : "h-0 overflow-hidden -mt-2"} ${classes}`}
+    >
       {is_partial && (
         // a shield over the sdk's own buttons, not a control: its whole job is
         // to swallow a click on an unfilled form and run validation, so it is

@@ -22,7 +22,7 @@ fi
 
 # drive.mjs reads the whole stub log, so a 400 left by an earlier filler-key
 # launch would mark this run's flows blocked
-rm -f "$STATE/stripe-stub.log" "$STATE/nonprofits-stub.log"
+rm -f "$STATE/stripe-stub.log" "$STATE/nonprofits-stub.log" "$STATE/blob-stub.log"
 "$HERE/pg-up.sh"
 # pg-up.sh's per-cluster password (hex, so it needs no url-escaping)
 export PGPASSWORD; PGPASSWORD=$(cat "$STATE/pg.pass")
@@ -53,7 +53,7 @@ chmod 600 "$APP/.env.verify"
 (cd "$ROOT" && pnpm exec turbo run build --filter='./packages/*' --output-logs=errors-only >"$STATE/packages-build.log" 2>&1) \
   || { echo "package build failed: $STATE/packages-build.log" >&2; exit 1; }
 
-PRELOAD="--import $HERE/neon-local.mjs --import $HERE/stripe-stub.mjs --import $HERE/nonprofits-stub.mjs"
+PRELOAD="--import $HERE/neon-local.mjs --import $HERE/stripe-stub.mjs --import $HERE/nonprofits-stub.mjs --import $HERE/blob-stub.mjs"
 (cd "$APP" && DATABASE_URL=$DB DATABASE_URL_UNPOOLED=$DB node $PRELOAD .server/pg/migrate.ts) >"$STATE/migrate.log" 2>&1 \
   || { echo "migrate failed: $STATE/migrate.log" >&2; exit 1; }
 PSQL=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)/psql
@@ -62,7 +62,7 @@ echo "$NPO_ID" > "$STATE/npo_id"
 DATABASE_URL=$DB node "$HERE/seed-member.mjs"
 
 cd "$APP"
-DATABASE_URL=$DB STRIPE_SECRET_KEY=$(grep -m1 "^STRIPE_SECRET_KEY=" "$APP/.env.verify" | cut -d= -f2-) NONPROFITS_API_KEY=$(grep -m1 "^NONPROFITS_API_KEY=" "$APP/.env.verify" | cut -d= -f2-) VERIFY_STATE=$STATE NODE_OPTIONS="$PRELOAD" VERIFY_WS_PORT=${VERIFY_WS_PORT:-5488} \
+DATABASE_URL=$DB STRIPE_SECRET_KEY=$(grep -m1 "^STRIPE_SECRET_KEY=" "$APP/.env.verify" | cut -d= -f2-) NONPROFITS_API_KEY=$(grep -m1 "^NONPROFITS_API_KEY=" "$APP/.env.verify" | cut -d= -f2-) BLOB_READ_WRITE_TOKEN=$(grep -m1 "^BLOB_READ_WRITE_TOKEN=" "$APP/.env.verify" | cut -d= -f2-) VERIFY_STATE=$STATE NODE_OPTIONS="$PRELOAD" VERIFY_WS_PORT=${VERIFY_WS_PORT:-5488} \
   setsid nohup pnpm exec react-router dev --mode verify --host 127.0.0.1 --port "$PORT" >"$STATE/dev.log" 2>&1 &
 echo $! > "$STATE/dev.pid"; echo "$PORT" > "$STATE/port"
 # start time (/proc stat field 22) pins the pid's identity for cleanup.sh; if

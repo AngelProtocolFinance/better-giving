@@ -32,6 +32,8 @@ export interface ISub {
   product_id: string;
   to_npo_id: number | null;
   to_fund_id: string | null;
+  /** copied from the order; rebills keep charging after the campaign ends */
+  campaign_id?: string | null;
   to_name: string;
 
   platform: TPlatform;

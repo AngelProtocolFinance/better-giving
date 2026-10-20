@@ -118,7 +118,7 @@ function Prompt({
         I just donated to <span className="font-bold">{recipient.name}</span> on{" "}
         <span className="font-bold">@BetterDotGiving</span>!{" "}
         {is_fund(recipient.id)
-          ? "My gift to this fundraiser helps raise funds for causes they love. Why don't you donate as well?"
+          ? "My gift to this campaign helps raise funds for causes they love. Why don't you donate as well?"
           : "They can choose to use my gift today, or save and invest it for sustainable growth"}
         . When you give today, you give forever.
       </p>

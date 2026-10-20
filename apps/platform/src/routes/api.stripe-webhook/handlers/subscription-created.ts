@@ -92,6 +92,7 @@ export function to_sub_record(
     product_id: str_id(p.product),
     to_npo_id: order.to_type === "npo" ? Number(order.to_id) : null,
     to_fund_id: order.to_type === "fund" ? order.to_id : null,
+    campaign_id: order.campaign_id ?? null,
     to_name: order.to_name,
     platform: "stripe",
     ...(sub.status === "incomplete"

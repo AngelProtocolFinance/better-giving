@@ -85,8 +85,8 @@ export default function Page() {
               resolve={funds}
               errorElement={
                 <p className="mt-4 px-8 text-sm text-gray-11">
-                  We couldn't load this nonprofit's fundraisers right now.
-                  Please try again later.
+                  We couldn't load this nonprofit's campaigns right now. Please
+                  try again later.
                 </p>
               }
             >

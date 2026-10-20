@@ -15,7 +15,9 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   const id = p.output;
 
   const { next } = search(request);
+  const campaign_id =
+    new URL(request.url).searchParams.get("campaign_id") || undefined;
 
-  const page = await npo_donors(id.toString(), next);
+  const page = await npo_donors(id.toString(), next, campaign_id);
   return resp.json(page, 200, { "cache-control": cache });
 };

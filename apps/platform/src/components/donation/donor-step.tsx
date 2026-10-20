@@ -12,6 +12,7 @@ import { country_names } from "@/constants/countries";
 import { donor_fv, type IDonorFv as FV } from "@/donations/schema";
 import { BackBtn } from "./common/back-btn";
 import { use_donation } from "./context";
+import { pin_bar } from "./pin";
 
 interface Props {
   value: FV;
@@ -46,11 +47,10 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
     "--secondary-active": don.config?.accent_secondary,
   };
 
-  return (
-    <form
-      onSubmit={handleSubmit((x) => on_change(x))}
-      className={`flex flex-col p-4 @xl/steps:p-8 gap-4 content-start ${classes}`}
-    >
+  const pin = don.pin === true;
+  const on_submit = handleSubmit((x) => on_change(x));
+  const fields = (
+    <>
       <BackBtn
         className=""
         type="button"
@@ -122,13 +122,45 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
           popup_vars={popup_vars}
         />
       )}
-      <button
-        disabled={isSubmitting}
-        className="mt-auto btn btn-form-primary col-span-full"
-        type="submit"
+    </>
+  );
+  const cont = (
+    <button
+      disabled={isSubmitting}
+      className={
+        pin
+          ? "btn btn-form-primary w-full"
+          : "mt-auto btn btn-form-primary col-span-full"
+      }
+      type="submit"
+    >
+      Continue
+    </button>
+  );
+
+  if (!pin) {
+    return (
+      <form
+        onSubmit={on_submit}
+        className={`flex flex-col p-4 @xl/steps:p-8 gap-4 content-start ${classes}`}
       >
-        Continue
-      </button>
+        {fields}
+        {cont}
+      </form>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={on_submit}
+      className={`flex min-h-full flex-1 flex-col ${classes}`}
+    >
+      <div className="flex min-h-0 flex-1 flex-col content-start gap-4 p-5 sm:p-6">
+        {fields}
+      </div>
+      <div data-pin="" className={pin_bar}>
+        {cont}
+      </div>
     </form>
   );
 }

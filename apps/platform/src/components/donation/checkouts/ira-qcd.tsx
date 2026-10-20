@@ -24,14 +24,16 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
   const tipv = tip_val(props.tip_format, props.tip, +props.amount);
   const total = +props.amount + tipv;
   const url = `${don.base_url}${path}`;
-  const name = don.recipient.name;
+  const project = don.config?.campaign_url ?? url;
+  const grantee = don.recipient.name;
+  const reference = don.config?.campaign_name ?? grantee;
 
   const instructions_text = [
     `Payee name: ${LEGAL_NAME}`,
     `EIN: ${EIN}`,
     `Mailing address: ${ADDRESS}`,
-    `Reference: ${name}`,
-    `Project URL: ${url}`,
+    `Reference: ${reference}`,
+    `Project URL: ${project}`,
     `Amount: $${total.toFixed(2)}`,
     ...(props.custodian ? [`Custodian: ${props.custodian}`] : []),
   ].join("\n");
@@ -77,15 +79,15 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
             ))}
           </span>
         </div>
-        <Row label="Reference" value={name} />
-        <Row label="Project URL" value={url} />
+        <Row label="Reference" value={reference} />
+        <Row label="Project URL" value={project} />
         <Row label="Amount" value={`$${total.toFixed(2)}`} />
         {props.custodian && <Row label="Custodian" value={props.custodian} />}
       </div>
 
       <div className="flex justify-center gap-4 mt-6">
         <a
-          href={email_link(name, url, total)}
+          href={email_link(reference, project, total)}
           className="btn btn-sm btn-secondary font-normal"
         >
           Generate Email
@@ -130,7 +132,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
         </div>
       ) : status === "error" ? (
         <p className="mt-6 text-sm text-destructive-subtle-fg">
-          Something went wrong — please email {emails.hi} instead.
+          Something went wrong. Please email {emails.hi} instead.
         </p>
       ) : (
         <button
@@ -145,6 +147,9 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
                 body: JSON.stringify({
                   type: "ira_qcd",
                   recipient_id: id,
+                  ...(don.config?.campaign_id
+                    ? { campaign_id: don.config.campaign_id }
+                    : {}),
                   details: {
                     amount: String(total),
                     ...(props.custodian ? { custodian: props.custodian } : {}),
@@ -169,7 +174,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
         </button>
       )}
 
-      <DonationTerms endowName={name} classes="mt-5 border-t pt-4" />
+      <DonationTerms endowName={grantee} classes="mt-5 border-t pt-4" />
     </div>
   );
 }

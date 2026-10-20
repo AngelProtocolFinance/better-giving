@@ -59,7 +59,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
               to="../fundraisers"
             >
               <ArrowLeft className="icon-md" />
-              <span>Fundraisers</span>
+              <span>Campaigns</span>
             </Link>
             <FundStatus
               status={status}

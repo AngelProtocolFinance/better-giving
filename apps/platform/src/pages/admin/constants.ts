@@ -48,7 +48,7 @@ const group1: LinkGroup = {
       },
     },
     {
-      title: "Fundraisers",
+      title: "Campaign opt-outs",
       to: sidebar_routes.funds,
       icon: {
         fn: Heart,

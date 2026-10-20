@@ -1,7 +1,7 @@
 import { AskHost } from "@better-giving/ui";
 import type { Stripe, StripeError } from "@stripe/stripe-js";
 import { HttpResponse, http } from "msw";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { createRoutesStub, href } from "react-router";
 import { SWRConfig } from "swr";
 import {
@@ -44,11 +44,11 @@ const don_mock = vi.hoisted(() => ({
     last_name: "Doe",
   },
 }));
+const use_donation_mock = vi.hoisted(() => vi.fn());
 vi.mock("../../context", () => ({
-  use_donation: vi
-    .fn()
-    .mockReturnValue({ don: don_mock, don_set: don_set_mock }),
+  use_donation: use_donation_mock,
 }));
+use_donation_mock.mockReturnValue({ don: don_mock, don_set: don_set_mock });
 
 const confirm_payment_mock = vi.hoisted(() => vi.fn());
 const confirm_setup_mock = vi.hoisted(() => vi.fn());
@@ -62,17 +62,37 @@ vi.mock("../../common/redirect", () => ({
   use_donation_redirect: () => redirect_mock,
 }));
 
+// the latest change handler, so a test can type into the field after mount.
+// the element itself fires once: a parent render is not the donor editing.
+const payment_change = vi.hoisted(() => ({
+  current: null as
+    | ((event: { complete: boolean; value?: { type: string } }) => void)
+    | null,
+}));
+// focus, for an edit stripe does not report as change.
+const payment_focus = vi.hoisted(() => ({
+  current: null as (() => void) | null,
+}));
+// one test renders a field we own, to check the form's own change clears too.
+const own_field = vi.hoisted(() => ({ current: false }));
+
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: vi.fn(({ children }) => children),
-  PaymentElement: vi.fn(({ onReady, onChange }: any) => {
+  PaymentElement: vi.fn(({ onReady, onChange, onFocus }: any) => {
+    const ready = useRef(onReady);
+    const change = useRef(onChange);
+    ready.current = onReady;
+    change.current = onChange;
+    payment_change.current = onChange;
+    payment_focus.current = onFocus;
     useEffect(() => {
-      onChange({ complete: true });
-      const id = setTimeout(onReady, 50);
+      change.current({ complete: true });
+      const id = setTimeout(() => ready.current(), 50);
       return () => {
         clearTimeout(id);
       };
-    }, [onReady, onChange]);
-    return <div />;
+    }, []);
+    return own_field.current ? <input aria-label="gift note" /> : <div />;
   }),
   useStripe: vi.fn(() => {
     const stripe: Stripe = {
@@ -116,6 +136,11 @@ describe("stripe checkout", () => {
   });
   afterEach(() => {
     reported.length = 0;
+    use_donation_mock.mockReturnValue({
+      don: don_mock,
+      don_set: don_set_mock,
+    });
+    don_set_mock.mockClear();
   });
 
   const crash_msg = /unexpected error occurred and has been reported/i;
@@ -202,6 +227,19 @@ describe("stripe checkout", () => {
     expect(calls).toBe(1);
   });
 
+  test("go back stays shut while a payment is in flight", async () => {
+    use_donation_mock.mockReturnValue({
+      don: don_mock,
+      don_set: don_set_mock,
+      pay_busy: true,
+    });
+    const screen = await render(fresh_swr(<Checkout {...fv} />));
+    const back = screen.getByRole("button", { name: "Go Back" });
+    await expect.element(back).toBeDisabled();
+    await back.click({ force: true });
+    expect(don_set_mock).not.toHaveBeenCalled();
+  });
+
   test("stripe loading", async () => {
     const screen = await render(
       <Checkout {...fv} tip_format="20" /** reset cache */ />
@@ -267,6 +305,82 @@ describe("stripe checkout", () => {
     await expect.element(errorModal).toMatchTextContent(/must be at least/i);
 
     expect(reported).toHaveLength(0);
+  });
+
+  test("a peso amount is summarized in pesos", async () => {
+    const screen = await render(
+      <Checkout
+        {...fv}
+        amount="500"
+        currency={{ code: "PHP", min: 113, rate: 56.5 }}
+      />
+    );
+    await expect
+      .element(screen.getByText("Your donation summary"))
+      .toBeVisible();
+    const text = screen.container.textContent ?? "";
+    expect(text).toContain("PHP 500.00 ($8.84)");
+    expect(text).not.toContain("28,250");
+    expect(text).not.toContain("$500.00");
+  });
+
+  test("a failed card authentication tells the donor and is not reported", async () => {
+    const Stub = stb(<Checkout {...fv} />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockResolvedValueOnce({
+      error: {
+        type: "invalid_request_error",
+        code: "payment_intent_authentication_failure",
+        message:
+          "We are unable to authenticate your payment method. Please choose a different payment method and try again.",
+      } satisfies StripeError,
+    });
+
+    await donateBtn.click();
+    const errorModal = screen.getByRole("dialog");
+    await expect
+      .element(errorModal)
+      .toMatchTextContent(/bank couldn't verify this card/i);
+    await expect
+      .element(errorModal)
+      .toMatchTextContent(/try again or use another card/i);
+    expect(screen.getByText(/unexpected error occurred/i).query()).toBeNull();
+    expect(reported).toHaveLength(0);
+
+    const form = screen
+      .getByTestId("stripe-checkout-form")
+      .element() as HTMLElement;
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.disabled).toBe(false);
+  });
+
+  test("a failed setup authentication tells the donor and is not reported", async () => {
+    const Stub = stb(<Checkout {...fv} frequency="monthly" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_setup_mock.mockResolvedValueOnce({
+      error: {
+        type: "invalid_request_error",
+        code: "setup_intent_authentication_failure",
+        message: "We are unable to authenticate your payment method.",
+      } satisfies StripeError,
+    });
+
+    await donateBtn.click();
+    const errorModal = screen.getByRole("dialog");
+    await expect
+      .element(errorModal)
+      .toMatchTextContent(/bank couldn't verify this card/i);
+    expect(screen.getByText(/unexpected error occurred/i).query()).toBeNull();
+    expect(reported).toHaveLength(0);
+    expect(confirm_payment_mock).not.toHaveBeenCalled();
   });
 
   test("unexpected error", async () => {
@@ -367,6 +481,210 @@ describe("stripe checkout", () => {
         "href",
         "https://test.example.com/donations/fake_order_id"
       );
+  });
+
+  test("a pinned confirm failure stays on the form", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    const scrolled = vi
+      .spyOn(HTMLElement.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    const Stub = stb(<Checkout {...fv} />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockResolvedValueOnce({
+      error: {
+        type: "invalid_request_error",
+        code: "payment_intent_authentication_failure",
+        message: "We are unable to authenticate your payment method.",
+      } satisfies StripeError,
+    });
+
+    await donateBtn.click();
+    const alert = screen.getByRole("alert");
+    await expect
+      .element(alert)
+      .toMatchTextContent(/bank couldn't verify this card/i);
+    expect(screen.getByRole("dialog").query()).toBeNull();
+    expect(screen.getByRole("button", { name: /^ok$/i }).query()).toBeNull();
+    expect(reported).toHaveLength(0);
+    expect(scrolled).toHaveBeenCalled();
+
+    const form = screen
+      .getByTestId("stripe-checkout-form")
+      .element() as HTMLElement;
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.disabled).toBe(false);
+
+    // past the two frames where stripe's own field update is ignored
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    payment_change.current?.({ complete: true, value: { type: "card" } });
+    await vi.waitFor(() =>
+      expect(screen.getByRole("alert").query()).toBeNull()
+    );
+    expect(submit?.disabled).toBe(false);
+    scrolled.mockRestore();
+  });
+
+  test("a pinned failure leaves when the donor edits the card", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    own_field.current = true;
+    try {
+      const Stub = stb(<Checkout {...fv} amount="106" />);
+      const screen = await render(<Stub />);
+      const donateBtn = screen.getByRole("button", { name: /donate now/i });
+      await expect.element(donateBtn).toBeVisible();
+
+      const auth_error = {
+        error: {
+          type: "invalid_request_error",
+          code: "payment_intent_authentication_failure",
+          message: "We are unable to authenticate your payment method.",
+        } satisfies StripeError,
+      };
+      confirm_payment_mock.mockResolvedValueOnce(auth_error);
+      confirm_payment_mock.mockResolvedValueOnce(auth_error);
+
+      await donateBtn.click();
+      await expect
+        .element(screen.getByRole("alert"))
+        .toMatchTextContent(/bank couldn't verify this card/i);
+
+      // past the two frames where stripe's own field update is ignored.
+      // a replacement that leaves the change payload alone only focuses the field.
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      payment_focus.current?.();
+      await vi.waitFor(() =>
+        expect(screen.getByRole("alert").query()).toBeNull()
+      );
+
+      await donateBtn.click();
+      await expect
+        .element(screen.getByRole("alert"))
+        .toMatchTextContent(/bank couldn't verify this card/i);
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      await screen.getByRole("textbox", { name: "gift note" }).fill("thanks");
+      await vi.waitFor(() =>
+        expect(screen.getByRole("alert").query()).toBeNull()
+      );
+    } finally {
+      own_field.current = false;
+    }
+  });
+
+  test("a pinned card error stays under the field", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    const Stub = stb(<Checkout {...fv} amount="103" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockImplementationOnce(() => {
+      // stripe marks the field incomplete in the same turn as the failure
+      payment_change.current?.({ complete: false, value: { type: "card" } });
+      return Promise.resolve({
+        error: {
+          type: "card_error",
+          code: "card_declined",
+          message: "Your card has been declined.",
+        } satisfies StripeError,
+      });
+    });
+
+    await donateBtn.click();
+    expect(screen.getByRole("alert").query()).toBeNull();
+    expect(screen.getByRole("dialog").query()).toBeNull();
+    expect(reported).toHaveLength(0);
+    const form = screen
+      .getByTestId("stripe-checkout-form")
+      .element() as HTMLElement;
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.disabled).toBe(true);
+  });
+
+  test("a pinned failure leaves when the donor submits again", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    const Stub = stb(<Checkout {...fv} amount="104" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockResolvedValueOnce({
+      error: {
+        type: "invalid_request_error",
+        code: "payment_intent_authentication_failure",
+        message: "We are unable to authenticate your payment method.",
+      } satisfies StripeError,
+    });
+    confirm_payment_mock.mockImplementationOnce(() => new Promise(() => {}));
+
+    await donateBtn.click();
+    await expect
+      .element(screen.getByRole("alert"))
+      .toMatchTextContent(/bank couldn't verify this card/i);
+
+    await donateBtn.click();
+    await vi.waitFor(() =>
+      expect(screen.getByRole("alert").query()).toBeNull()
+    );
+    const form = screen
+      .getByTestId("stripe-checkout-form")
+      .element() as HTMLElement;
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.disabled).toBe(true);
+  });
+
+  test("a pinned outage is reported and shown in the same slot", async () => {
+    use_donation_mock.mockReturnValue({
+      don: { ...don_mock, pin: true },
+      don_set: don_set_mock,
+    });
+    const Stub = stb(<Checkout {...fv} amount="105" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    const err: StripeError = {
+      type: "api_connection_error",
+      message: "network down",
+    };
+    confirm_payment_mock.mockResolvedValueOnce({ error: err });
+
+    await donateBtn.click();
+    const alert = screen.getByRole("alert");
+    await expect
+      .element(alert)
+      .toMatchTextContent(
+        /unexpected error occurred while processing payment/i
+      );
+    expect(screen.getByRole("dialog").query()).toBeNull();
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toBe(err);
   });
 
   test("form_id included in intent", async () => {

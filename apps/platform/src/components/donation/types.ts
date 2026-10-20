@@ -350,6 +350,14 @@ export type Config = {
   /** amount the form opens with, in usd; the stored row still carries it
    * under `defaults.stripe.amount_usd` and the loader flattens it here */
   prefill_amount_usd?: string;
+  /** opening frequency when it is one of `freq_opts`; anything else is ignored */
+  prefill_frequency?: TFrequency;
+  /** set on a campaign page so the gift is attributed; absent on every other form */
+  campaign_id?: string;
+  /** public campaign address, for transfer instructions the donor copies */
+  campaign_url?: string;
+  /** campaign title on those instructions. the legal grantee stays recipient.name */
+  campaign_name?: string;
   /** origin of the page framing this form, when its embed script told us.
    * already validated (see `common/parent-origin.ts`); absent means the
    * wildcard every embed used before the parameter existed. */
@@ -384,6 +392,18 @@ export type Init = {
    * fails **mid-flight** always announces itself, on every mount.
    */
   hide_unavailable_express?: boolean;
+  /**
+   * the card button is the main action and must not move once the form is
+   * up. express wallets and their load failures render under it, behind an
+   * "or", and that group stays collapsed until a wallet has actually drawn.
+   * other donate pages leave this off and keep the wallets above the button.
+   */
+  wallets_below?: boolean;
+  /**
+   * stick the step's primary action to the bottom of the mount.
+   * unset donate pages leave this off and keep their layout.
+   */
+  pin?: boolean;
 };
 
 export type TMethod =
@@ -429,6 +449,10 @@ export type StateSetter = (
 export type State = {
   don: TDonation;
   don_set: StateSetter;
+  /** set while a payment's result is unknown. absent on mounts that never hold the dialog. */
+  report_pay_busy?: (busy: boolean) => void;
+  /** steps read this so Go Back cannot unmount the hold. */
+  pay_busy?: boolean;
 };
 
 export const to_step = <T extends TMethod>(

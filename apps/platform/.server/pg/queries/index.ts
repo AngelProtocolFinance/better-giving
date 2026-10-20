@@ -1,6 +1,7 @@
 export * from "./api-key";
 export * from "./bal-tx";
 export * from "./banking";
+export * from "./campaign";
 export * from "./country";
 export * from "./dist";
 export * from "./donation";

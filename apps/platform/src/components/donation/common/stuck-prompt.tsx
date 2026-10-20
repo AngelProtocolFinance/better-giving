@@ -14,7 +14,7 @@ interface IStuckMsg {
 export function StuckMsg({ dest, classes = "" }: IStuckMsg) {
   return (
     <p className={classes}>
-      Your donation went through — thank you. We couldn't open your receipt
+      Your donation went through. Thank you. We couldn't open your receipt
       automatically.{" "}
       <a
         // `--form-primary` is set on #donation-container, which the prompt is

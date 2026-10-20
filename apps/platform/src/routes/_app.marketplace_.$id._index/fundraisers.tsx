@@ -11,7 +11,7 @@ interface Props {
 export function Fundraisers({ classes = "", funds }: Props) {
   return (
     <div className={`${classes} p-8 border rounded`}>
-      <h3 className="mb-4 border-b pb-2">Fundraisers</h3>
+      <h3 className="mb-4 border-b pb-2">Campaigns</h3>
       <div className="grid gap-y-8">
         {funds.map((f) => (
           <Fund key={f.id} {...f} />
@@ -26,7 +26,7 @@ function Fund(props: IFundItem) {
     <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 py-2">
       <img
         src={props.logo}
-        alt="fundraiser logo"
+        alt=""
         width={40}
         height={40}
         className="row-span-2 shrink-0"

@@ -6,27 +6,11 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { ADMIN, MEMBER } from "./fixture-accounts.mjs";
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = path.resolve(HERE, "../../../..");
 const APP = path.join(ROOT, "apps/platform");
-
-const MEMBER = {
-  id: "verify-member",
-  email: "verify-member@example.com",
-  first_name: "Verify",
-  last_name: "Member",
-  role: "user",
-  password: "Verify-member-1",
-};
-const ADMIN = {
-  id: "verify-admin",
-  email: "verify-admin@example.com",
-  first_name: "Verify",
-  last_name: "Admin",
-  role: "admin",
-  password: "Verify-admin-1",
-};
 
 process.stdout.on("error", (e) => {
   if (e.code === "EPIPE") process.exit(0);

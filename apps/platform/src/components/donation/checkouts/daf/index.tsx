@@ -14,6 +14,7 @@ import type {
 } from "@/donations/schema";
 import { to_units } from "@/helpers/decimal";
 import { HttpError, json_ok } from "@/helpers/https";
+import { apply_campaign } from "../../apply-campaign";
 import { donation_amounts } from "../../common/amounts";
 import { usd_option } from "../../common/constants";
 import { currency } from "../../common/currency";
@@ -26,6 +27,7 @@ import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { Summary } from "../../common/summary";
 import { use_donation } from "../../context";
 import { type DafDonationDetails, tip_from_val, to_step } from "../../types";
+import { use_pay_hold } from "../../use-pay-hold";
 import { DonationTerms } from "../donation-terms";
 
 const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
@@ -72,7 +74,8 @@ function split_in_cents(amount: IAmount, grant_cents: number): IAmount {
 }
 
 export function ChariotCheckout(props: DafDonationDetails) {
-  const { don_set, don } = use_donation();
+  const { don_set, don, pay_busy } = use_donation();
+  const paying = pay_busy === true;
   const ask_prompt = use_ask_prompt();
   // where a grant that has already been recommended ended up. set the moment
   // the money moves, not when the trip to the receipt is declared lost: what
@@ -87,6 +90,9 @@ export function ChariotCheckout(props: DafDonationDetails) {
   // session from here would be a second one
   const [sent, set_sent] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
+  // sent stays set when the grant may already exist. paid is the trip to the
+  // receipt. the dialog stays up for both so a second grant cannot start.
+  use_pay_hold(sent || paid != null);
 
   const { tip: tipv, fee_allowance: mfa } = whole_dollar_amounts(
     donation_amounts(
@@ -239,6 +245,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
 
         if (d.program) intent.program = d.program;
         if (d.config?.id) intent.form_id = d.config.id;
+        apply_campaign(intent, d.config);
 
         set_sent(true);
         const res = await fetch(href("/api/donation-intents"), {
@@ -299,7 +306,12 @@ export function ChariotCheckout(props: DafDonationDetails) {
   return (
     <Summary
       classes="group grid content-start p-4 @xl/steps:p-8 [&_#connectContainer]:mt-8"
-      on_back={() => to_step("daf", props, "form", don_set)}
+      // leaving unmounts the hold while a grant may already exist
+      on_back={() => {
+        if (paying) return;
+        to_step("daf", props, "form", don_set);
+      }}
+      back_disabled={paying}
       Amount={currency(usd_option)}
       amount={+props.amount}
       fee_allowance={mfa}

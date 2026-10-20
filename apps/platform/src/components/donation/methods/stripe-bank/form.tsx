@@ -5,7 +5,7 @@ import {
   Prompt,
 } from "@better-giving/ui";
 import { CheckIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { href } from "react-router";
 import use_swr from "swr/immutable";
 import { currency_precision } from "#/helpers/stripe";
@@ -15,12 +15,18 @@ import { json_ok } from "@/helpers/https";
 import { btn_disp, TokenField } from "../../../token-field";
 import { usd_option } from "../../common/constants";
 import { CpfToggle } from "../../common/cpf-toggle";
-import { Frequency, freqs_shown } from "../../common/frequency";
+import {
+  Frequency,
+  freqs_shown,
+  opening_frequency,
+} from "../../common/frequency";
 import { Incrementers } from "../../common/incrementers";
 import { TipField } from "../../common/tip-field";
 import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
+import { pin_bar } from "../../pin";
 import { type TMethodState, to_step } from "../../types";
+import { preferred_currency_apply } from "../preferred-currency";
 import { use_rhf } from "../stripe/use-rhf";
 
 // us_bank_account → USD, acss_debit → CAD
@@ -33,13 +39,17 @@ export function Form(props: TMethodState<"stripe_bank">) {
   const fv = props.fv || {
     amount: don.config?.prefill_amount_usd || "",
     currency: usd_option,
-    frequency: "one-time",
+    frequency: opening_frequency(
+      don.config?.freq_opts,
+      don.config?.prefill_frequency
+    ),
     tip: "",
     cover_processing_fee: false,
     tip_format: "none",
   };
 
   const rhf = use_rhf(fv);
+  const seed_amount = useRef(fv.amount);
 
   const tip = tip_handlers({
     format: rhf.tip_format,
@@ -59,12 +69,16 @@ export function Form(props: TMethodState<"stripe_bank">) {
       shouldRetryOnError: false,
       onSuccess: (data) => {
         if (!data.pref || !bank_currencies.has(data.pref.code)) return;
-        rhf.currency.onChange(data.pref);
-
-        const u1_usd_str = rhf.getValues("amount");
-        const u2 = u1_usd_str ? +u1_usd_str * data.pref.rate : 0;
-        const u2str = u2 ? ru(u2, currency_precision(data.pref.code)) : "";
-        rhf.amount.onChange(u2str);
+        const [current, amount] = rhf.getValues(["currency", "amount"]);
+        const next = preferred_currency_apply(
+          current,
+          amount,
+          seed_amount.current,
+          data.pref
+        );
+        if (!next) return;
+        rhf.currency.onChange(next.currency);
+        rhf.amount.onChange(next.amount);
       },
     }
   );
@@ -117,13 +131,10 @@ export function Form(props: TMethodState<"stripe_bank">) {
     />
   );
 
-  return (
-    <FieldSet
-      onSubmit={rhf.handleSubmit((fv) =>
-        to_step("stripe_bank", fv, "donor", don_set)
-      )}
-      className="flex flex-col h-full gap-y-2"
-    >
+  const pin = don.pin === true;
+
+  const fields = (
+    <>
       {freqs && (
         <Frequency
           opts={freqs}
@@ -194,18 +205,43 @@ export function Form(props: TMethodState<"stripe_bank">) {
       />
 
       <p className="text-xs text-gray-11">
-        0.8% fee, capped at $5 — save vs. card (2.2% + $0.30)
+        0.8% fee, capped at $5. Saves vs. card (2.2% + $0.30).
       </p>
+    </>
+  );
 
-      <button
-        disabled={
-          currency.isLoading || currency.isValidating || rhf.isSubmitting
-        }
-        className="mt-auto btn btn-form-primary"
-        type="submit"
-      >
-        Continue
-      </button>
+  const continue_btn = (
+    <button
+      disabled={currency.isLoading || currency.isValidating || rhf.isSubmitting}
+      className={`${pin ? "" : "mt-auto "}btn btn-form-primary`}
+      type="submit"
+    >
+      Continue
+    </button>
+  );
+
+  const on_submit = rhf.handleSubmit((fv) =>
+    to_step("stripe_bank", fv, "donor", don_set)
+  );
+
+  if (!pin) {
+    return (
+      <FieldSet onSubmit={on_submit} className="flex flex-col h-full gap-y-2">
+        {fields}
+        {continue_btn}
+        {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
+      </FieldSet>
+    );
+  }
+
+  return (
+    <FieldSet onSubmit={on_submit} className="flex min-h-full flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col gap-y-2 p-5 sm:p-6">
+        {fields}
+      </div>
+      <div data-pin="" className={pin_bar}>
+        {continue_btn}
+      </div>
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </FieldSet>
   );

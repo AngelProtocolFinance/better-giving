@@ -37,6 +37,7 @@ export function donation_return_url(x: IDonationReturnUrl): IDonationDest {
   if (custom) {
     url.searchParams.set("donation_amount", x.amount.toString());
     url.searchParams.set("donation_currency", x.currency);
+    url.searchParams.set("donation_id", x.donation_id);
     url.searchParams.set("payment_method", x.payment_method);
     // omitted rather than sent empty or invented: this lands in someone's
     // "Thank you, ___" verbatim.

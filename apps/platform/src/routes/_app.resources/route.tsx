@@ -2,7 +2,7 @@ import { EmptyState } from "@better-giving/ui";
 import Fuse from "fuse.js";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { href } from "react-router";
+import { href, Link } from "react-router";
 import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
@@ -70,6 +70,10 @@ export default function Resources() {
 
       {/* filters + grid */}
       <div className="page mt-8 grid gap-6">
+        <Link to={href("/resources/campaigns")} className="link text-sm">
+          How to create a campaign
+        </Link>
+
         {/* filter tabs */}
         <div className="flex flex-wrap gap-2">
           <FilterTab

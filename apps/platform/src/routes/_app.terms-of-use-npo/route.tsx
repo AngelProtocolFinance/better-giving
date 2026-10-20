@@ -501,7 +501,7 @@ export default function TermsNonprofits() {
                 <li>
                   <U>Better Giving Alliance and Grant Procurement Fees</U>: On
                   occasion, Better Giving provides special services including:
-                  (1) launching exclusive fundraisers with partner organizations
+                  (1) launching exclusive campaigns with partner organizations
                   (2) seeking grant funding on behalf of our Fiscally Sponsored
                   NPOs. For these efforts, Better Giving assesses a 2.9% flat
                   fee on all donations made.

@@ -63,7 +63,7 @@ export type { StatusProps } from "./components/status/types";
 // not in the published set: a part of `Tabs`, not a card of its own.
 export { TabPanel } from "./components/tabs";
 export type { ITarget, TTarget } from "./components/target";
-export { to_target } from "./components/target";
+export { smart_next, to_target } from "./components/target";
 export { show_toast } from "./components/toaster";
 export * from "./design-system";
 export type {

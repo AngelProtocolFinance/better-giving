@@ -5,6 +5,7 @@ export const routes = {
   program_editor: "program-editor",
   banking: "banking",
   forms: "forms",
+  campaigns: "campaigns",
   donations: "donations",
   settings: "settings",
   organization: "organization",

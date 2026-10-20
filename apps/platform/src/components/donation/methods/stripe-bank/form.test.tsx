@@ -5,11 +5,14 @@ import { afterAll, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { mock_usd } from "#/services/api/mock";
 import { mswWorker } from "#/setup-tests-browser";
+import { donor_fv_blank } from "@/donations/schema";
 import {
   donation_recipient_init,
   type Init,
   type StripeDonationDetails,
+  type TDonation,
 } from "../../types";
+import { DonateMethods } from "../methods";
 import { Form } from "./form";
 
 const don_set_mock = vi.hoisted(() => vi.fn());
@@ -278,7 +281,143 @@ describe("Bank transfer form", () => {
     const screen = await render(<Form step="form" type="stripe_bank" />);
 
     await expect
-      .element(screen.getByText(/0\.8% fee, capped at \$5/))
+      .element(
+        screen.getByText(
+          "0.8% fee, capped at $5. Saves vs. card (2.2% + $0.30)."
+        )
+      )
       .toBeVisible();
+  });
+
+  test("a pinned mount insets the fields and sticks the button", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+      pin: true,
+    };
+    don_mock.value = init;
+
+    const screen = await render(<Form step="form" type="stripe_bank" />);
+
+    const inset = screen.container.querySelector(".p-5");
+    expect(inset?.classList.contains("p-5")).toBe(true);
+    expect(inset?.classList.contains("sm:p-6")).toBe(true);
+    const pin = screen.container.querySelector("[data-pin]");
+    const btn = screen.getByRole("button", { name: /continue/i }).element();
+    expect(pin?.contains(btn)).toBe(true);
+    expect(inset?.contains(btn)).toBe(false);
+    expect(btn.className).not.toContain("mt-auto");
+  });
+
+  test("an unpinned mount does not gain the pin inset", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+
+    const screen = await render(<Form step="form" type="stripe_bank" />);
+
+    expect(screen.container.querySelector(".p-5")).toBeNull();
+    expect(screen.container.querySelector("[data-pin]")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /continue/i }).element().className
+    ).toContain("mt-auto");
+  });
+
+  test("a pinned method list shares the field inset", async () => {
+    const don: TDonation = {
+      base_url: "",
+      source: "bg-marketplace",
+      mode: "live",
+      recipient: donation_recipient_init(),
+      donor: donor_fv_blank,
+      config: {
+        id: null,
+        success_redirect: undefined,
+        method_ids: ["stripe", "stripe_bank"],
+        freq_opts: undefined,
+      },
+      method: "stripe_bank",
+      pin: true,
+    };
+    don_mock.value = don;
+
+    const screen = await render(<DonateMethods {...don} />);
+
+    const label = screen.getByText("Payment method", { exact: true }).element();
+    const list = screen.getByRole("tablist").element();
+    expect(label.classList.contains("px-5")).toBe(true);
+    expect(label.classList.contains("sm:px-6")).toBe(true);
+    expect(list.classList.contains("px-5")).toBe(true);
+    expect(list.classList.contains("sm:px-6")).toBe(true);
+    expect(label.className.includes("@xl/steps:p-0")).toBe(false);
+    expect(list.className.includes("@xl/steps:p-0")).toBe(false);
+
+    const amount = screen
+      .getByPlaceholder(/enter amount/i)
+      .element()
+      .closest(".field-input-container");
+    expect(amount).not.toBeNull();
+    const field = amount as HTMLElement;
+    const column = field.closest(".p-5");
+    expect(column?.classList.contains("sm:p-6")).toBe(true);
+
+    const pad = (el: Element) => {
+      const box = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return {
+        left: box.left + Number.parseFloat(style.paddingLeft),
+        right: box.right - Number.parseFloat(style.paddingRight),
+      };
+    };
+    const label_edge = pad(label);
+    const list_edge = pad(list);
+    const field_box = field.getBoundingClientRect();
+    const tiles = [
+      screen.getByRole("tab", { name: /^card$/i }).element(),
+      screen.getByRole("tab", { name: /bank transfer/i }).element(),
+    ].map((el) => el.getBoundingClientRect());
+    const tile_left = Math.min(...tiles.map((box) => box.left));
+    const tile_right = Math.max(...tiles.map((box) => box.right));
+
+    expect(list_edge.left).toBeCloseTo(label_edge.left, 0);
+    expect(list_edge.right).toBeCloseTo(label_edge.right, 0);
+    expect(tile_left).toBeCloseTo(label_edge.left, 0);
+    expect(tile_right).toBeCloseTo(label_edge.right, 0);
+    expect(field_box.left).toBeCloseTo(label_edge.left, 0);
+    expect(field_box.right).toBeCloseTo(label_edge.right, 0);
+  });
+
+  test("an unpinned method list keeps the side rail padding", async () => {
+    const don: TDonation = {
+      base_url: "",
+      source: "bg-marketplace",
+      mode: "live",
+      recipient: donation_recipient_init(),
+      donor: donor_fv_blank,
+      config: {
+        id: null,
+        success_redirect: undefined,
+        method_ids: ["stripe", "stripe_bank"],
+        freq_opts: undefined,
+      },
+      method: "stripe_bank",
+    };
+    don_mock.value = don;
+
+    const screen = await render(<DonateMethods {...don} />);
+    const label = screen.getByText("Payment method", { exact: true }).element();
+    const list = screen.getByRole("tablist").element();
+    expect(label.classList.contains("p-4")).toBe(true);
+    expect(label.classList.contains("px-5")).toBe(false);
+    expect(list.classList.contains("p-4")).toBe(true);
+    expect(list.className.includes("@xl/steps:p-0")).toBe(true);
   });
 });

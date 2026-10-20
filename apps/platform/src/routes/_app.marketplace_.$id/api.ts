@@ -1,6 +1,7 @@
 import { get_funds_npo_memberof } from "#/.server/funds";
 import { report_error } from "#/errors/report";
 import { npo_id } from "#/pages/marketplace/npo-id";
+import { campaign_live_for_npo } from "$/pg/queries/campaign";
 import { npo_by_slug, npo_get, npo_public } from "$/pg/queries/npo";
 import { npo_media_list } from "$/pg/queries/npo-media";
 import { npo_programs } from "$/pg/queries/program";
@@ -28,6 +29,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
 
   return {
     npo: npo_public(npo),
+    campaigns: await campaign_live_for_npo(npo.id),
 
     //lazy
     funds: reported(get_funds_npo_memberof(npo.id, { published: true })),

@@ -10,9 +10,9 @@ export function Bottom({ classes = "" }) {
         Join Us - Start Making an Impact Today!
       </h2>
       <p className="px-6 max-w-5xl mx-auto text-primary-fg md:text-xl text-center text-pretty mb-6">
-        Whether you're a consultant, a fundraiser, or simply someone who loves
-        making a difference, Better Giving lets you turn your connections into a
-        force for good.
+        Whether you're a consultant, a campaign organizer, or simply someone who
+        loves making a difference, Better Giving lets you turn your connections
+        into a force for good.
       </p>
       <Link
         to={`${href("/signup")}?redirect=${href("/dashboard/referrals")}`}
