@@ -7,6 +7,7 @@ import {
   guidestar,
   INTERCOM_HELP,
   socials,
+  TERMS_OF_USE_NPO,
 } from "#/constants/urls";
 import { NewsletterForm } from "./newsletter-form";
 
@@ -86,7 +87,7 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
           <span className="text-xs text-primary-fg/90">
             © {new Date().getFullYear()} Better Giving.
           </span>
-          <span className="flex gap-4">
+          <span className="flex flex-wrap gap-4">
             <Link
               to={href("/privacy-policy")}
               className="text-xs text-primary-fg/90 hover:text-primary-fg"
@@ -103,7 +104,13 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
               to={href("/terms-of-use")}
               className="text-xs text-primary-fg/90 hover:text-primary-fg"
             >
-              Terms of Use
+              Donor Terms
+            </Link>
+            <Link
+              to={TERMS_OF_USE_NPO}
+              className="text-xs text-primary-fg/90 hover:text-primary-fg"
+            >
+              Nonprofit Terms
             </Link>
           </span>
         </div>
@@ -203,7 +210,7 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
           future results; all investments carry risk. ©{" "}
           {new Date().getFullYear()} Better Giving.
         </span>
-        <span className="flex gap-4">
+        <span className="flex flex-wrap gap-4">
           <Link
             to={href("/privacy-policy")}
             className="text-xs text-primary-fg/90 hover:text-primary-fg"
@@ -220,7 +227,13 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
             to={href("/terms-of-use")}
             className="text-xs text-primary-fg/90 hover:text-primary-fg"
           >
-            Terms of Use
+            Donor Terms
+          </Link>
+          <Link
+            to={TERMS_OF_USE_NPO}
+            className="text-xs text-primary-fg/90 hover:text-primary-fg"
+          >
+            Nonprofit Terms
           </Link>
         </span>
       </div>

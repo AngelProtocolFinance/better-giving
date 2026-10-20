@@ -11,8 +11,8 @@ const typeWeights: { [key: string]: number } = {
 };
 
 const project = (savAmt: number, susAmt: number, yrs: number): Growth[] => {
-  const savDailyRate = 0.04 / 365; // 4% annual rate
-  const susDailyRate = 0.2 / 365; // 20% annual rate
+  const savDailyRate = 0.034 / 365; // 3.4% annual rate
+  const susDailyRate = 0.11 / 365; // 11% annual rate
   const daysPerYear = 365;
   const items: Growth[] = [];
   let savTotal = 0;

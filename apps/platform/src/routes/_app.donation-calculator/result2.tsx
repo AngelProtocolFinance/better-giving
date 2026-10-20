@@ -20,14 +20,14 @@ export function Result2({ classes = "", ...v }: Props) {
       <div className="space-y-3 mb-6">
         <div className="flex gap-x-4 @max-md:flex-col justify-between @md:items-center">
           <p className="max-sm:text-sm text-gray-11">
-            Savings account growth (4%, illustrative example):
+            Savings growth (3.4% variable interest, illustrative example):
           </p>
           <p className=" font-semibold">{to_usd(y1.liq)}</p>
         </div>
 
         <div className="flex gap-x-4 @max-md:flex-col justify-between @md:items-center">
           <p className="max-sm:text-sm text-gray-11">
-            Sustainability Fund growth (20%, illustrative example):
+            Sustainability Fund growth (11%, illustrative example):
           </p>
           <p className=" font-semibold">{to_usd(y1.lock)}</p>
         </div>
@@ -55,6 +55,10 @@ export function Result2({ classes = "", ...v }: Props) {
           />
         )}
       </div>
+      <p className="mt-6 text-sm text-gray-11">
+        Illustrative example. Returns vary, and past performance isn't a
+        guarantee. Rates are variable.
+      </p>
     </div>
   );
 }

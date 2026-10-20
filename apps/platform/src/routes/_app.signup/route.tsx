@@ -1,9 +1,10 @@
 import { Outlet } from "react-router";
-import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 
-export const meta: Route.MetaFunction = () =>
-  metas({ title: "Sign Up - Better Giving" });
+export const meta: Route.MetaFunction = () => [
+  { title: "Sign Up - Better Giving" },
+  { name: "robots", content: "noindex" },
+];
 
 export default function Layout() {
   return (

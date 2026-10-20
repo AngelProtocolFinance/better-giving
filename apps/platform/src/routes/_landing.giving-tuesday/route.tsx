@@ -1,4 +1,5 @@
-import { app_name } from "#/constants/env";
+import { href } from "react-router";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { Partners } from "#/pages/@sections/partners";
 import { Products } from "#/pages/@sections/products";
@@ -15,6 +16,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/giving-tuesday")}`,
     title: `Giving Tuesday | ${app_name}`,
     description: `Why stop at one day of generosity? ${app_name} helps nonprofits grow donations sustainably with low fees, year-round yields, and every payment method in one place.`,
   });

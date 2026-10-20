@@ -2,6 +2,7 @@ import { href, Link } from "react-router";
 import { Footer } from "#/components/footer";
 import { UserAvatar } from "#/components/header/user-avatar";
 import { DappLogo } from "#/components/image";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { use_session } from "#/hooks/use-session";
 import type { Route } from "./+types/route";
@@ -17,6 +18,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/referral-program")}`,
     title: "Referral Program | Better Giving",
     description:
       "Support nonprofits and earn rewards by sharing Better Giving. Join our referral program to make an impact, earn effortlessly, and grow a community of changemakers. Sign up for your unique link and start sharing today!",

@@ -1,4 +1,5 @@
-import { app_name } from "#/constants/env";
+import { href } from "react-router";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import type { Route } from "./+types/route";
@@ -10,6 +11,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/pricing")}`,
     title: `Pricing | ${app_name}`,
     description:
       "Fundraising with no platform fee while the optional donor contribution stays on. Turning that ask off is 1.5%. Fiscal sponsorship is 2.9% of each sponsored gift.",
@@ -39,10 +41,11 @@ export default function Page() {
 
       <div className="page py-24">
         <div className="max-w-3xl mx-auto grid gap-5 justify-items-center text-center">
-          <h2 className="section-heading">So who pays for all this?</h2>
+          <h2 className="section-heading">How much does Better Giving cost?</h2>
           <p className="text-gray-11 leading-relaxed max-w-2xl text-pretty">
-            Donors do, voluntarily. At checkout, donors can add an optional
-            contribution to Better Giving. It's always{" "}
+            There is no platform fee while the optional donor contribution stays
+            on. Turning that ask off is a 1.5% fee. At checkout, donors can add
+            an optional contribution to Better Giving. It's always{" "}
             <strong className="text-gray-12">
               opt-in and never pre-selected
             </strong>

@@ -1,4 +1,5 @@
-import { app_name } from "#/constants/env";
+import { href } from "react-router";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import type { Route } from "./+types/route";
@@ -14,6 +15,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/product")}`,
     title: `Product | ${app_name}`,
     description:
       "One brandable, embeddable donation form: every gift type, express checkout, and recurring giving. No platform fee while the optional donor contribution stays on.",

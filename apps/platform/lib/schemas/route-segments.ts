@@ -108,6 +108,7 @@ export const top_level_route_segments = [
   "fundraisers",
   "funds",
   "giving-tuesday",
+  "llms.txt",
   "login",
   "logout",
   "marketplace",

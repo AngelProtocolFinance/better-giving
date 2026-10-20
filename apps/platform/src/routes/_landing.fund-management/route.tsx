@@ -1,7 +1,7 @@
 import { ExtLink, Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_presentation from "#/assets/laira/laira-presentation-hd.webp";
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
@@ -15,6 +15,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/fund-management")}`,
     title: `Fund Management | ${app_name}`,
     description:
       "Grant, save, or invest each donation your way. Returns vary, and past performance isn't a guarantee.",

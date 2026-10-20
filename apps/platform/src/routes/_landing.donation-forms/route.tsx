@@ -1,4 +1,5 @@
-import { app_name } from "#/constants/env";
+import { href } from "react-router";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { FAQ, faqs } from "#/pages/@sections/faq";
 import { Partners } from "#/pages/@sections/partners";
@@ -15,6 +16,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/donation-forms")}`,
     title: `All-In-One Donation Form | ${app_name}`,
     description:
       "Raise more. Save more. Do less. No setup costs, no recurring charges. No platform fee while the optional donor contribution stays on.",

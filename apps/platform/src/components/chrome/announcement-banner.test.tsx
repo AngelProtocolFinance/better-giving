@@ -14,7 +14,7 @@ import { PublicLayout } from "./public-layout";
 // rather than a test that silently follows it.
 const POST_PATH = "/blog/setting-a-new-standard-for-digital-giving";
 const COPY =
-  /Better Giving endorses the National Council for Nonprofits Principles for Ethical Online Fundraising/;
+  /Better Giving endorses the National Council of Nonprofits Principles for Ethical Online Fundraising/;
 
 function stub(Page: () => ReactNode) {
   return createRoutesStub([

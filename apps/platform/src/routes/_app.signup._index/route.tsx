@@ -5,7 +5,6 @@ import { useRemixForm } from "remix-hook-form";
 import googleIcon from "#/assets/icons/google.svg";
 import { app_name } from "#/constants/env";
 import { login_url } from "#/helpers/login-url";
-import { metas } from "#/helpers/seo";
 import type { ISignUp } from "#/types/auth";
 import type { Route } from "./+types/route";
 
@@ -44,11 +43,15 @@ const context: { [id: string]: Context } = {
         title: "Terms of Use (Referrals)",
       },
     ],
-    meta: metas({
-      title: "Sign Up Referral | Better Giving",
-      description:
-        "Join Better Giving and start sharing the good! Sign up now to get your own referral code and link, earn rewards by inviting others to give better",
-    }),
+    meta: [
+      { title: "Sign Up Referral | Better Giving" },
+      {
+        name: "description",
+        content:
+          "Join Better Giving and start sharing the good! Sign up now to get your own referral code and link, earn rewards by inviting others to give better",
+      },
+      { name: "robots", content: "noindex" },
+    ],
   },
 
   donation: {
@@ -74,9 +77,15 @@ const get_context = (to: string): Context => {
   return context.fallback;
 };
 
+// leaf meta replaces the layout's whole array
 export const meta: Route.MetaFunction = ({ loaderData: to }) => {
   const ctx = get_context(to as string);
-  return ctx?.meta || [{ title: "Sign Up - Better Giving" }];
+  return (
+    ctx?.meta || [
+      { title: "Sign Up - Better Giving" },
+      { name: "robots", content: "noindex" },
+    ]
+  );
 };
 
 export default function Page({ loaderData: to }: Route.ComponentProps) {

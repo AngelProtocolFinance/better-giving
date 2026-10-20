@@ -1,6 +1,7 @@
+import { href } from "react-router";
 import { Footer } from "#/components/footer";
 import { DappLogo } from "#/components/image";
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { Partners } from "#/pages/@sections/partners";
 import { Products } from "#/pages/@sections/products";
@@ -53,6 +54,7 @@ export const meta: Route.MetaFunction = ({ params: { slug = "" } }) => {
     title: `Fundraising Platform for ${ctx.meta_subject.title} | ${app_name}`,
     description: `${app_name} helps ${ctx.meta_subject.description} increase giving and build long-term growth. No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.`,
     image: ctx.hero,
+    url: `${base_url}${href("/nonprofits/:slug", { slug })}`,
   });
 };
 

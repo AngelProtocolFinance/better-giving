@@ -1,7 +1,7 @@
 import { Copier, ExtLink, Image } from "@better-giving/ui";
+import { href } from "react-router";
 import laira_waiving from "#/assets/laira/laira-waiving.webp";
-
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 
@@ -11,6 +11,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/wp-plugin")}`,
     title: `WordPress Plugin | ${app_name}`,
     description: `Add ${app_name}'s free, no-fee donation form to any WordPress site. Install the plugin, embed the form, and start accepting card, crypto, stock, and DAF gifts.`,
   });

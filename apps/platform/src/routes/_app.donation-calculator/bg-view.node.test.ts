@@ -30,4 +30,27 @@ describe("bgView", () => {
     expect(v.ogDeductions).toBeCloseTo(v.ogFees + 1200);
     expect(v.ogNet).toBeCloseTo(v.amount - v.ogDeductions);
   });
+
+  test("one year of savings compounds above 3.4% and below 3.6%, and the fund above 11% and below 12%", () => {
+    const savings = bgView({
+      ...ogInputDefault,
+      investRate: 0,
+      notGrantedRate: 1,
+    });
+    const fund = bgView({
+      ...ogInputDefault,
+      investRate: 1,
+      notGrantedRate: 1,
+    });
+
+    expect(savings.savings).toBeGreaterThan(0);
+    expect(savings.invested).toBe(0);
+    expect(savings.projection[0].liq).toBeGreaterThan(savings.savings * 0.034);
+    expect(savings.projection[0].liq).toBeLessThan(savings.savings * 0.036);
+
+    expect(fund.invested).toBeGreaterThan(0);
+    expect(fund.savings).toBe(0);
+    expect(fund.projection[0].lock).toBeGreaterThan(fund.invested * 0.11);
+    expect(fund.projection[0].lock).toBeLessThan(fund.invested * 0.12);
+  });
 });

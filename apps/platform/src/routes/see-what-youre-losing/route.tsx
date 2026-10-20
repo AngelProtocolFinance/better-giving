@@ -1,6 +1,7 @@
 import { href, Link } from "react-router";
 import { Footer } from "#/components/footer";
 import { DappLogo } from "#/components/image";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { Top } from "./top";
@@ -13,7 +14,7 @@ export const meta: Route.MetaFunction = () =>
     title: "You’re Losing Donations - Find Out How Much | Better Giving",
     description:
       "Don’t let lost fees, idle cash, and missed gifts drain your nonprofit’s revenue. Use the free Better Giving Donation Calculator to see what you’re missing in under a minute.",
-    url: "https://better.giving/see-what-youre-losing",
+    url: `${base_url}${href("/see-what-youre-losing")}`,
   });
 export default function Component() {
   return (

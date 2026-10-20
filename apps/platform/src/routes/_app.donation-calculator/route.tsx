@@ -1,8 +1,8 @@
 import { Image } from "@better-giving/ui";
 import { useState } from "react";
-import { Link } from "react-router";
+import { href, Link } from "react-router";
 import laira_announce from "#/assets/laira/laira-announce.webp";
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import {
   type OgInput,
@@ -28,6 +28,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/donation-calculator")}`,
     title: "Better Giving Donation Calculator | Save More, Raise More, Do More",
     description:
       " Use Better Giving’s Donation Calculator to see how your nonprofit can lower fees, accept more donation types, and grow funds automatically through smart processing and investing — all in one free platform.",

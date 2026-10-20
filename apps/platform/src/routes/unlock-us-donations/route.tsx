@@ -1,6 +1,7 @@
 import { href, Link } from "react-router";
 import { Footer } from "#/components/footer";
 import { DappLogo } from "#/components/image";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { Borders } from "./borders";
@@ -17,6 +18,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/unlock-us-donations")}`,
     title: "Unlock US Donations for UK Charities",
     description:
       "Tap into $499 Billion in US donations without the cost of setting up a US entity. Secure grants, DAFs, and crypto gifts for your UK charity.",

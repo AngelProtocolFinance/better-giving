@@ -121,6 +121,10 @@ export function Result1({ classes = "", ...v }: Props) {
           />
         )}
       </div>
+      <p className="mt-6 text-sm text-gray-11">
+        Illustrative example. Returns vary, and past performance isn't a
+        guarantee. Rates are variable.
+      </p>
     </div>
   );
 }

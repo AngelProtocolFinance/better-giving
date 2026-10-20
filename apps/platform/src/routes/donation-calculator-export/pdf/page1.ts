@@ -421,7 +421,7 @@ export function draw_page1(
   );
   draw_text(
     page,
-    " to High-Yield Savings Account (4% Annual Yield)",
+    " to Savings (3.4% variable interest)",
     alloc_x + w["2"] + sr_w,
     y + fs.base,
     fonts.regular,
@@ -442,7 +442,7 @@ export function draw_page1(
   );
   draw_text(
     page,
-    " to Sustainability Fund (20% Average Annual Return)",
+    " to Sustainability Fund (11% Average Annual Return)",
     alloc_x + w["2"] + ir_w,
     y + fs.base,
     fonts.regular,
@@ -549,10 +549,10 @@ function draw_impact_card(
   );
   y += hdr_h + w["8"];
 
-  // savings account (4%)
+  // savings (3.4%)
   draw_text_right(
     page,
-    "Savings Account (4%)",
+    "Savings (3.4% variable interest)",
     x + width - pad,
     y + fs.base,
     fonts.semibold,
@@ -587,11 +587,11 @@ function draw_impact_card(
     y += fs.base + w["4"];
   }
 
-  // investment account (20%)
+  // investment account (11%)
   y += w["6"];
   draw_text_right(
     page,
-    "Investment Account (20%)",
+    "Investment Account (11%)",
     x + width - pad,
     y + fs.base,
     fonts.semibold,

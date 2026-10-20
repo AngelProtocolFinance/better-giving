@@ -30,7 +30,7 @@ export const meta: Route.MetaFunction = () =>
     // this page into the homepage
     url: `${base_url}${href("/for-international-nonprofits")}`,
     title: `For International Nonprofits | ${app_name}`,
-    description: `Reach U.S. donors without your own 501(c)(3). ${app_name}'s fiscal sponsorship makes gifts tax-deductible for your U.S. supporters at 2.9%, versus the 4-10% market rate.`,
+    description: `Reach U.S. donors without your own 501(c)(3). ${app_name}'s fiscal sponsorship makes gifts tax-deductible for your U.S. supporters at 2.9%, versus the 4-10% market rate (as of 2026).`,
   });
 
 const stats = [

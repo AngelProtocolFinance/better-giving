@@ -66,7 +66,7 @@ export function AnnouncementBanner() {
               bar does nothing. */}
           <p className="flex-1 text-center text-2xs leading-relaxed text-balance sm:text-xs">
             Setting a new standard for digital giving. Better Giving endorses
-            the National Council for Nonprofits Principles for Ethical Online
+            the National Council of Nonprofits Principles for Ethical Online
             Fundraising.{" "}
             <Link
               to={href("/blog/:slug", { slug: BANNER_POST_SLUG })}

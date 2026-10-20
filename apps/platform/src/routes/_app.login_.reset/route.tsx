@@ -1,5 +1,4 @@
 import { app_name } from "#/constants/env";
-import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { CheckEmail } from "./check-email";
 import { Expired } from "./expired";
@@ -11,8 +10,10 @@ import { Success } from "./success";
 export { ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
-export const meta: Route.MetaFunction = () =>
-  metas({ title: `Reset Password - ${app_name}` });
+export const meta: Route.MetaFunction = () => [
+  { title: `Reset Password - ${app_name}` },
+  { name: "robots", content: "noindex" },
+];
 
 export default function Page({ loaderData }: Route.ComponentProps) {
   const { redirect, step } = loaderData;

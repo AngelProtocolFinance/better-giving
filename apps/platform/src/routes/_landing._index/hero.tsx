@@ -40,6 +40,12 @@ export function Hero({ classes = "" }: IHero) {
             One form. <span className="text-primary">Free forever.</span>
           </h1>
           <p className="text-lg/relaxed text-gray-11 max-w-lg text-pretty">
+            Better Giving is a donation platform for nonprofits: one form takes
+            card, bank, PayPal, stock, DAF, IRA and crypto gifts, and you can
+            earn interest on your balance or invest it in the Sustainability
+            Fund.
+          </p>
+          <p className="text-lg/relaxed text-gray-11 max-w-lg text-pretty">
             One brandable, embeddable donation form. No platform fee while the
             optional donor contribution stays on (1.5% if you turn it off).
             Open-source code you can read.
