@@ -67,8 +67,9 @@ export const gift_dists_locked = (tx: DbOrTx, donation_id: string) =>
  * holds its own claim's payouts before `reverse_unfunded_payout_loss` takes
  * a donation, and no other path holding a donation waits on a claimed payout.
  * a netting run's release also holds its npo by then, so a refund holding one
- * of that npo's donations can still deadlock it; postgres aborts one side and
- * the release fails closed (`unreleased`, alerted)
+ * of that npo's donations can still deadlock it. postgres aborts one side: a
+ * losing reversal rolls back only its savepoint, so that payout is `kept` and
+ * alerted for repair by hand while the release still returns `released`
  */
 async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
   const rows = await tx
