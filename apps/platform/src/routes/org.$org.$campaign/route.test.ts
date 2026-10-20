@@ -35,10 +35,13 @@ vi.mock("#/.server/auth", async () =>
 );
 
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
+const { dists } = await import("$/pg/schema/dist");
 const { donation_donors, donations } = await import("$/pg/schema/donation");
 const { donation_messages } = await import("$/pg/schema/donation-message");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
+const { npo_donors } = await import("#/.server/npo-donors");
 const { loader } = await import("./api");
+const { shown_totals } = await import("./format");
 
 const USER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
@@ -52,6 +55,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const db = test_db.current!.db;
+  await db.delete(dists);
   await db.delete(donation_messages);
   await db.delete(donation_donors);
   await db.delete(donations);
@@ -690,6 +694,91 @@ describe("public campaign page", () => {
     expect(data.thanks_amount).toBe("500 PHP");
     expect(data.thanks_usd).toBe(8);
     expect(data.thanks_settled).toBe(false);
+  });
+
+  it("shows a settled php gift and an unsettled php gift as the same dollars on the raised line and the donor feed", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+    const db = test_db.current!.db;
+    // both message amounts are the gift's own currency. the feed divides by
+    // upusd once, which is the dollars the raised line counts: settled net,
+    // and the unsettled base while that row can still settle.
+    await db.insert(donations).values([
+      {
+        id: "php-settled",
+        upusd: 50,
+        status: "settled",
+        amount_base: 500,
+        amount_tip: 0,
+        amount_fee_allowance: 0,
+        currency: "PHP",
+        frequency: "one-time",
+        source: "bg-marketplace",
+        via: "stripe",
+        campaign_id: "camp-public",
+      },
+      {
+        id: "php-open",
+        upusd: 50,
+        status: "confirmed",
+        amount_base: 250,
+        amount_tip: 0,
+        amount_fee_allowance: 0,
+        currency: "PHP",
+        frequency: "one-time",
+        source: "bg-marketplace",
+        via: "stripe",
+        campaign_id: "camp-public",
+      },
+    ]);
+    await db.insert(dists).values({
+      id: "dist-php-settled",
+      donation_id: "php-settled",
+      status: "settled",
+      date_created: "2026-02-01T00:00:00.000Z",
+      to_id: npo.id,
+      amount_denom: "USD",
+      net: 10,
+    });
+    await db.insert(donation_messages).values([
+      {
+        id: "php-settled",
+        donation_id: "php-settled",
+        npo_id: String(npo.id),
+        donor_name: "Settled",
+        donor_message: "Salamat",
+        date: "2026-02-01T00:00:00.000Z",
+        amount: 500,
+      },
+      {
+        id: "php-open",
+        donation_id: "php-open",
+        npo_id: String(npo.id),
+        donor_name: "Open",
+        donor_message: "Pending",
+        date: "2026-03-01T00:00:00.000Z",
+        amount: 250,
+      },
+    ]);
+    const data = await load(
+      "https://x/org/acme/winter?donation_amount=250&donation_currency=PHP&donor_name=Open&donation_id=php-open"
+    );
+    expect(data.campaign.raised).toBe(10);
+    expect(data.thanks_usd).toBe(5);
+    expect(data.thanks_settled).toBe(false);
+    const shown = shown_totals({
+      raised: data.campaign.raised,
+      donors: data.donor_count,
+      open: true,
+      thanks_usd: data.thanks_usd,
+      thanks_present: data.thanks_amount != null,
+      already_settled: data.thanks_settled,
+      repeat_donor: data.thanks_repeat,
+    });
+    const feed = await npo_donors(String(npo.id), undefined, "camp-public");
+    const amounts = feed.items.map((item) => item.amount);
+    expect(amounts).toEqual([5, 10]);
+    expect(amounts.reduce((sum, n) => sum + n, 0)).toBe(shown.raised);
   });
 
   it("does not count a php intent toward the raised line when the bank redirect failed", async () => {

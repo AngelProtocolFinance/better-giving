@@ -486,10 +486,15 @@ describe("settle_npo on a card donation to a connected npo", () => {
       .select()
       .from(donation_messages)
       .where(eq(donation_messages.donation_id, don_id));
+    const [dist] = await db()
+      .select()
+      .from(dists)
+      .where(eq(dists.donation_id, don_id));
     expect(stored?.amount).toBe(500);
+    expect(dist?.net).toBe(10);
     const page = await donation_message_list(String(npo!.id));
     expect(page.items).toEqual([
-      expect.objectContaining({ amount: 10, donor_message: "Salamat" }),
+      expect.objectContaining({ amount: dist?.net, donor_message: "Salamat" }),
     ]);
   });
 });

@@ -9,7 +9,9 @@ const m = vi.hoisted(() => ({
   cookie_parse: vi.fn(),
 }));
 
-vi.mock("$/pg/db", () => ({ db: {} }));
+vi.mock("$/pg/db", () => ({
+  db: { transaction: (fn: (tx: unknown) => unknown) => fn({}) },
+}));
 vi.mock("$/pg/queries/donation", () => ({
   donation_get: m.donation_get,
   donation_update: vi.fn(),
@@ -37,6 +39,7 @@ vi.mock("#/.server/auth", async () => ({
 // --- imports (after mocks hoisted) ---
 
 import { to_auth } from "#/.server/auth";
+import { donation_message_put } from "$/pg/queries/donation-message";
 import { action, loader } from "./api";
 
 const DON_ID = "don-001";
@@ -252,5 +255,24 @@ describe("donation thank-you action", () => {
 
     expect(to_auth).not.toHaveBeenCalled();
     expect(m.get_session).not.toHaveBeenCalled();
+  });
+
+  it("posts a confirmed php gift in the gift's currency", async () => {
+    m.donation_get.mockResolvedValue({
+      ...don,
+      status: "confirmed",
+      currency: "PHP",
+      upusd: 50,
+      amount: { base: 250, tip: 0, fee_allowance: 0 },
+      from_public_msg_to_npo: undefined,
+    });
+    m.cookie_parse.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    await post();
+
+    expect(donation_message_put).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ amount: 250 })
+    );
   });
 });
