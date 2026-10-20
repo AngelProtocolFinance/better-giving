@@ -115,6 +115,25 @@ test("opt-in on, a body challenge keeps the viewport, focus, and dismiss", async
   });
 });
 
+test("opt-in on, stripe wiping pointer-events does not drop the frame", async () => {
+  await render(<OpenDonate adopt on_close={() => {}} />);
+  await expect
+    .element(page.getByRole("dialog", { name: "Donate" }))
+    .toBeVisible();
+  await layer_ready();
+
+  const { root } = stripe_challenge();
+  onTestFinished(() => root.remove());
+  document.body.appendChild(root);
+  await next_frame();
+  await next_frame();
+  expect(root.style.pointerEvents).toBe("auto");
+
+  root.style.pointerEvents = "";
+  await next_frame();
+  expect(root.style.pointerEvents).toBe("auto");
+});
+
 test("opt-in on, tab from the dialog reaches the challenge frame", async () => {
   const on_close = vi.fn();
   await render(

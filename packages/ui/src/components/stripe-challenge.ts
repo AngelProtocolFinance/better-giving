@@ -106,7 +106,12 @@ export function watch_stripe_challenge(
         !is_challenge_root(node)
       ) {
         release(node);
+        continue;
       }
+      // stripe wipes the inline value after the frame mounts. the frame
+      // then inherits `pointer-events: none` from body and stops taking clicks.
+      if (node.style.pointerEvents !== "auto")
+        node.style.pointerEvents = "auto";
     }
     for (const child of body.children) claim(child);
   };
@@ -119,7 +124,7 @@ export function watch_stripe_challenge(
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["src", "name", "id", "title"],
+    attributeFilter: ["src", "name", "id", "title", "style"],
   });
   scan();
 
