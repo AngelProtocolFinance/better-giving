@@ -1,3 +1,5 @@
+import { href } from "react-router";
+import { base_url } from "#/constants/env";
 import { benefits } from "#/content/benefits";
 import { metas } from "#/helpers/seo";
 import { Benefits } from "#/pages/@sections/benefits";
@@ -12,6 +14,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/donor")}`,
     title: "For Donors",
     description:
       "Easily support grassroots organizations all over the world with card, crypto, stock, and DAF gifts that keep on giving. No platform fee while the optional donor contribution stays on.",

@@ -70,7 +70,7 @@ export function PriceCards({ classes = "" }: IPriceCards) {
             </Check>
             <Check>Compliance, receipts &amp; granting handled</Check>
             <Check>
-              Market rate is 4-10%, and we're working to make ours
+              Market rate is 4-10% as of 2026, and we're working to make ours
               donor-coverable
             </Check>
           </div>

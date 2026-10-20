@@ -1,6 +1,7 @@
 import { href, Link } from "react-router";
 import { Footer } from "#/components/footer";
 import { DappLogo } from "#/components/image";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { BottomCta } from "./bottom-cta";
@@ -16,6 +17,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/simplify-fundraising-maximize-impact")}`,
     title: "Simplify Fundraising, Maximize Impact",
     description:
       "Simplify Fundraising, Maximize Impact: Register Your Nonprofit With Better Giving Today",

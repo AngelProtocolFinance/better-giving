@@ -1,4 +1,5 @@
-import { app_name } from "#/constants/env";
+import { href } from "react-router";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import type { Route } from "./+types/route";
@@ -22,6 +23,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/about-us")}`,
     title: `About Us | ${app_name}`,
     description:
       "Since 2021, Better Giving has offered donation forms, savings, and fund growth tools, with a simple belief: the organizations doing the work should keep the money.",

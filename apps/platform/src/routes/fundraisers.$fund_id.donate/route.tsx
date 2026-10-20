@@ -4,7 +4,7 @@ import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import flying_character from "#/assets/images/flying-character.webp";
 import { Steps } from "#/components/donation";
 import { DappLogo } from "#/components/image";
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { INTERCOM_HELP, PRIVACY_POLICY } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
 import { use_now } from "#/hooks/use-now";
@@ -15,9 +15,10 @@ import { FundCard } from "./fund-card";
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
-export const meta: Route.MetaFunction = ({ loaderData: d }) => {
+export const meta: Route.MetaFunction = ({ loaderData: d, location: l }) => {
   return metas({
     title: `Donate to ${d.fund.name} - ${app_name}`,
+    url: `${base_url}${l.pathname}`,
   });
 };
 

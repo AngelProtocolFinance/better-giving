@@ -13,21 +13,65 @@ export function Socials(props: Pick<INpo, "social_media_urls">) {
     props.social_media_urls ?? {};
   return (
     <div className="flex items-center gap-4">
-      {facebook && <SocialsIcon href={facebook} src={facebookIcon} size={22} />}
-      {linkedin && <SocialsIcon href={linkedin} src={linkedinIcon} size={24} />}
-      {twitter && <SocialsIcon href={twitter} src={xIcon} size={18} />}
-      {discord && <SocialsIcon href={discord} src={discordIcon} size={25} />}
-      {instagram && (
-        <SocialsIcon href={instagram} src={instagramIcon} size={20} />
+      {facebook && (
+        <SocialsIcon
+          href={facebook}
+          src={facebookIcon}
+          size={22}
+          label="Facebook"
+        />
       )}
-      {youtube && <SocialsIcon href={youtube} src={youtubeIcon} size={22} />}
-      {tiktok && <SocialsIcon href={tiktok} src={tiktokIcon} size={21} />}
+      {linkedin && (
+        <SocialsIcon
+          href={linkedin}
+          src={linkedinIcon}
+          size={24}
+          label="LinkedIn"
+        />
+      )}
+      {twitter && (
+        <SocialsIcon href={twitter} src={xIcon} size={18} label="X" />
+      )}
+      {discord && (
+        <SocialsIcon
+          href={discord}
+          src={discordIcon}
+          size={25}
+          label="Discord"
+        />
+      )}
+      {instagram && (
+        <SocialsIcon
+          href={instagram}
+          src={instagramIcon}
+          size={20}
+          label="Instagram"
+        />
+      )}
+      {youtube && (
+        <SocialsIcon
+          href={youtube}
+          src={youtubeIcon}
+          size={22}
+          label="YouTube"
+        />
+      )}
+      {tiktok && (
+        <SocialsIcon href={tiktok} src={tiktokIcon} size={21} label="TikTok" />
+      )}
     </div>
   );
 }
 
-const SocialsIcon = (props: { href: string; src: string; size: number }) => (
-  <ExtLink href={props.href}>
+interface ISocialsIcon {
+  href: string;
+  src: string;
+  size: number;
+  label: string;
+}
+
+const SocialsIcon = (props: ISocialsIcon) => (
+  <ExtLink href={props.href} aria-label={props.label}>
     <img src={props.src} width={props.size} alt="" />
   </ExtLink>
 );

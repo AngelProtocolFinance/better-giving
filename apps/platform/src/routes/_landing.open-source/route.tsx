@@ -2,7 +2,7 @@ import { ExtLink, Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
 import laira_waiving from "#/assets/laira/laira-waiving.webp";
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { GITHUB_REPO } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
@@ -20,6 +20,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/open-source")}`,
     title: `Open Source | ${app_name}`,
     description:
       "The Better Giving platform is public code. Read how donations are processed, and contribute code or docs if you want to help.",

@@ -18,7 +18,7 @@ export const meta: Route.MetaFunction = ({ loaderData: d, location: l }) => {
     description: endow.tagline?.slice(0, 140),
     name: endow.name,
     image: endow.image || endow.logo,
-    url: `${base_url}/${l.pathname}`,
+    url: `${base_url}${l.pathname}`,
   });
 };
 

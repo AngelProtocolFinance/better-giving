@@ -1,7 +1,7 @@
 import { ExtLink, Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_shake_hands_x2 from "#/assets/laira/laira-shaking-hands-x2.webp";
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
@@ -13,6 +13,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/fiscal-sponsorship")}`,
     title: `Fiscal Sponsorship | ${app_name}`,
     description: `As a U.S. 501(c)(3), ${app_name} accepts tax-deductible gifts and grants on your behalf. Reach U.S. donors and foundations without your own 501(c)(3), for a 2.9% fee.`,
   });

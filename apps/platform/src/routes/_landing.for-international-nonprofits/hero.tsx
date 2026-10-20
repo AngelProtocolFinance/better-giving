@@ -37,7 +37,8 @@ export function Hero({
           </h1>
           <p className="section-body text-gray-11 lg:max-w-xl">
             U.S. donors give more when gifts are tax-deductible. Our fiscal
-            sponsorship makes that possible at 2.9%, versus the usual 4-10%.
+            sponsorship makes that possible at 2.9%, versus the usual 4-10% as
+            of 2026.
           </p>
           {/* only while the form sits beside this copy. once the columns stack
               the form is directly below, and its own submit is the primary

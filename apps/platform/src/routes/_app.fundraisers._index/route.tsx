@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import type { ChangeEventHandler } from "react";
 import { href, NavLink, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { use_debounce } from "#/hooks/use-debounce";
 import { use_table } from "#/hooks/use-table";
@@ -16,6 +17,7 @@ export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/fundraisers")}`,
     image: hero,
     title: "Fundraisers",
     description:

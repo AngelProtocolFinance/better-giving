@@ -9,7 +9,7 @@ import type { Route } from "./+types/route";
 export const meta: Route.MetaFunction = ({ location: l }) =>
   metas({
     title: "Registration Portal",
-    url: `${base_url}/${l.pathname}`,
+    url: `${base_url}${l.pathname}`,
   });
 
 export default function Layout({ loaderData: user }: Route.ComponentProps) {

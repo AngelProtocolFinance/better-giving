@@ -149,12 +149,9 @@ describe("home faq json-ld", () => {
       | undefined;
 
     expect(faq?.["@type"]).toBe("FAQPage");
-    // accordion trigger is item.question
     expect(main?.map((question) => question.name)).toEqual(
       home_faqs.map((item) => item.question)
     );
-    // the <p> child the accordion renders. item.answer is the field the schema
-    // already reads, so asserting it stays green when that read stops.
     expect(main?.map((question) => question.acceptedAnswer.text)).toEqual(
       home_faqs.map((item) => item.paragraphs[0].props.children)
     );

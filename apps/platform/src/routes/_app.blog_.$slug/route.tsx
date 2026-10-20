@@ -1,7 +1,7 @@
 import { PortableText, type PortableTextComponents } from "@portabletext/react";
 import { POST_QUERY } from "blog-types";
 import { ChevronLeft } from "lucide-react";
-import { href, Link } from "react-router";
+import { href, Link, redirect } from "react-router";
 import { post_path } from "#/api/get/posts";
 import { sanity, urlFor } from "#/api/sanity";
 import { pt_value } from "#/components/rich-text/pt-value";
@@ -13,7 +13,19 @@ import { PostCta } from "./post-cta";
 
 const container_style = "w-full px-5 max-w-4xl mx-auto pb-4";
 
+const LAWSUIT_SLUG = "Fundraising-Platform Lawsuits";
+const LAWSUIT_SLUG_CLEAN = "fundraising-platform-lawsuits";
+
 export const loader = async ({ params }: Route.LoaderArgs) => {
+  // 301 only once the renamed slug exists; until then the old url still renders
+  if (params.slug === LAWSUIT_SLUG) {
+    const renamed = await sanity.fetch(POST_QUERY, {
+      slug: LAWSUIT_SLUG_CLEAN,
+    });
+    const to = post_path(LAWSUIT_SLUG_CLEAN);
+    if (renamed && to) return redirect(to, { status: 301 });
+  }
+
   const post = await sanity.fetch(POST_QUERY, { slug: params.slug });
   if (!post) throw new Response("Not Found", { status: 404 });
   return post;
@@ -101,6 +113,26 @@ const ptComponents: PortableTextComponents = {
   },
 };
 
+const day_ms = 24 * 60 * 60 * 1000;
+
+export function updated_more_than_a_day_later(
+  published_at: string,
+  updated_at?: string | null
+): boolean {
+  if (!updated_at) return false;
+  return (
+    new Date(updated_at).getTime() - new Date(published_at).getTime() > day_ms
+  );
+}
+
+function format_post_date(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export default function Post({ loaderData: post }: Route.ComponentProps) {
   const heroUrl = urlFor(post.image)?.width(900).height(500).url();
   return (
@@ -127,11 +159,17 @@ export default function Post({ loaderData: post }: Route.ComponentProps) {
 
       <p className="text-sm mt-8 text-gray-11">
         Posted:{" "}
-        {new Date(post.publishedAt).toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        })}
+        <time dateTime={post.publishedAt}>
+          {format_post_date(post.publishedAt)}
+        </time>
+        {updated_more_than_a_day_later(post.publishedAt, post._updatedAt) && (
+          <>
+            {" Updated "}
+            <time dateTime={post._updatedAt}>
+              {format_post_date(post._updatedAt)}
+            </time>
+          </>
+        )}
       </p>
       {post.author?.name && (
         <p className="text-gray-11 text-sm">Author: {post.author.name}</p>

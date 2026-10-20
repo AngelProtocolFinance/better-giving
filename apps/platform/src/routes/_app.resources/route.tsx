@@ -2,6 +2,8 @@ import { EmptyState } from "@better-giving/ui";
 import Fuse from "fuse.js";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { href } from "react-router";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import {
@@ -18,6 +20,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/resources")}`,
     title: "Resources",
     description:
       "Download whitepapers, case studies, product manuals, and templates to help your nonprofit succeed.",

@@ -1,8 +1,9 @@
 import { EmptyState } from "@better-giving/ui";
-import { Outlet, useSearchParams } from "react-router";
+import { href, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { safeParse } from "valibot";
 import { get_npos } from "#/.server/npos";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { use_table } from "#/hooks/use-table";
 import { resp, search } from "@/helpers/https";
@@ -31,6 +32,7 @@ export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/marketplace")}`,
     title: "Marketplace",
     description:
       "Find and support charities, nonprofits, universities, and faith-based organizations—all in one place.",

@@ -29,7 +29,7 @@ export const meta: Route.MetaFunction = ({ loaderData: d, location: l }) => {
     description: to_text(d.description_pt).slice(0, 140),
     name: d.name,
     image: d.banner || flying_character,
-    url: `${base_url}/${l.pathname}`,
+    url: `${base_url}${l.pathname}`,
   });
 };
 export { ErrorBoundary } from "#/components/error";

@@ -1,5 +1,6 @@
 import { EMAILS } from "@better-giving/brand";
-import { app_name } from "#/constants/env";
+import { href } from "react-router";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 
@@ -8,7 +9,10 @@ export const headers: Route.HeadersFunction = () => ({
 });
 
 export const meta: Route.MetaFunction = () =>
-  metas({ title: `Privacy policy - ${app_name}` });
+  metas({
+    url: `${base_url}${href("/privacy-policy")}`,
+    title: `Privacy policy - ${app_name}`,
+  });
 
 export default function PrivacyPolicy() {
   return (

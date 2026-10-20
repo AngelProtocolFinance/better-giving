@@ -1,4 +1,5 @@
-import { app_name } from "#/constants/env";
+import { href } from "react-router";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { CheckEmail } from "./check-email";
@@ -12,7 +13,10 @@ export { ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
 export const meta: Route.MetaFunction = () =>
-  metas({ title: `Reset Password - ${app_name}` });
+  metas({
+    url: `${base_url}${href("/login/reset")}`,
+    title: `Reset Password - ${app_name}`,
+  });
 
 export default function Page({ loaderData }: Route.ComponentProps) {
   const { redirect, step } = loaderData;

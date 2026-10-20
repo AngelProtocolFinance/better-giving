@@ -1,6 +1,7 @@
 import { href, Link } from "react-router";
 import { Footer } from "#/components/footer";
 import { DappLogo } from "#/components/image";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { BottomCta } from "./bottom-cta";
@@ -14,6 +15,7 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = () =>
   metas({
+    url: `${base_url}${href("/the-smart-move-to-make-for-accepting-crypto-donations")}`,
     title: "The Smart Move to Make for Accepting Crypto Donations",
     description:
       "Accept crypto, stock, and DAF gifts. No platform fee while the optional donor contribution stays on. Turning that ask off is a 1.5% fee.",

@@ -1,8 +1,9 @@
 import { Target } from "@better-giving/ui";
 import { ChevronLeftIcon, TagIcon } from "lucide-react";
-import { NavLink, useFetcher } from "react-router";
+import { href, NavLink, useFetcher } from "react-router";
 import { fill } from "#/components/donate-methods";
 import { to_form_target } from "#/components/goal-selector";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { to_freq_bools } from "@/helpers/donation";
 import type { FormRow } from "$/pg/queries/form";
@@ -20,9 +21,12 @@ function row_target(r: FormRow): "smart" | number | null {
 
 export { ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
-export const meta: Route.MetaFunction = ({ loaderData: d }) => {
-  if (!d) return [];
-  return metas({ title: `Form - ${d.name}` });
+export const meta: Route.MetaFunction = ({ loaderData: d, params }) => {
+  if (!d || !params.id) return [];
+  return metas({
+    title: `Form - ${d.name}`,
+    url: `${base_url}${href("/forms/:id/edit", { id: params.id })}`,
+  });
 };
 
 export default function Page({ loaderData }: Route.ComponentProps) {

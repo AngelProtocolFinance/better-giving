@@ -3,7 +3,7 @@ import { Mail } from "lucide-react";
 import { href, Link, type MetaDescriptor, useNavigation } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import googleIcon from "#/assets/icons/google.svg";
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { login_url } from "#/helpers/login-url";
 import { metas } from "#/helpers/seo";
 import type { ISignUp } from "#/types/auth";
@@ -45,6 +45,7 @@ const context: { [id: string]: Context } = {
       },
     ],
     meta: metas({
+      url: `${base_url}${href("/signup")}`,
       title: "Sign Up Referral | Better Giving",
       description:
         "Join Better Giving and start sharing the good! Sign up now to get your own referral code and link, earn rewards by inviting others to give better",
@@ -74,9 +75,16 @@ const get_context = (to: string): Context => {
   return context.fallback;
 };
 
+// leaf meta replaces the layout's whole array, so /signup's canonical is set here
 export const meta: Route.MetaFunction = ({ loaderData: to }) => {
   const ctx = get_context(to as string);
-  return ctx?.meta || [{ title: "Sign Up - Better Giving" }];
+  return (
+    ctx?.meta ||
+    metas({
+      url: `${base_url}${href("/signup")}`,
+      title: "Sign Up - Better Giving",
+    })
+  );
 };
 
 export default function Page({ loaderData: to }: Route.ComponentProps) {

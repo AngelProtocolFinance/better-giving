@@ -1,5 +1,5 @@
 import { href, Link } from "react-router";
-import { app_name } from "#/constants/env";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 
@@ -8,7 +8,10 @@ export const headers: Route.HeadersFunction = () => ({
 });
 
 export const meta: Route.MetaFunction = () =>
-  metas({ title: `Security policy - ${app_name}` });
+  metas({
+    url: `${base_url}${href("/security-policy")}`,
+    title: `Security policy - ${app_name}`,
+  });
 
 export default function SecurityPolicy() {
   return (

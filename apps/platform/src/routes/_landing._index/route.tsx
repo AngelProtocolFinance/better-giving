@@ -49,10 +49,23 @@ const website = {
   },
 };
 
+const faq_page = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: home_faqs.map((faq) => ({
+    "@type": "Question",
+    name: faq.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: faq.answer,
+    },
+  })),
+};
+
 export const meta: Route.MetaFunction = () =>
   metas({
     description: `Raise more this quarter and grow funds together. ${app_name} offers donation forms, savings, and fund growth tools. No platform fee while the optional donor contribution stays on.`,
-    jsonld: [organization, website],
+    jsonld: [organization, website, faq_page],
   });
 
 export const links: LinksFunction = () => [
