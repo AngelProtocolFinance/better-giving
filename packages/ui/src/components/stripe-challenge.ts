@@ -41,8 +41,8 @@ function event_target_node(event: Event): Node | null {
  *
  * the focus trap is not. `@zag-js/dialog` runs `trapFocus` on entering open
  * and does not run it again when the prop changes, so the trap stays armed.
- * a capture listener on `window` stops focus and tab events that start inside
- * the frame before they reach the trap's document listener.
+ * the keydown listener is what keeps tab from being wrapped away from the
+ * frame.
  */
 export function watch_stripe_challenge(
   on_present: (present: boolean) => void
@@ -85,8 +85,13 @@ export function watch_stripe_challenge(
   const on_focus = (event: FocusEvent) => {
     if (inside(event)) event.stopPropagation();
   };
+  // window capture runs before zag's document capture listener, which
+  // preventDefaults Tab and wraps it inside the dialog. stopping every Tab
+  // while a challenge is up leaves the browser's own order, so the frame
+  // appended after the dialog is reachable. a keydown inside a cross-origin
+  // frame never arrives here.
   const on_key = (event: KeyboardEvent) => {
-    if (event.key !== "Tab" || !inside(event)) return;
+    if (event.key !== "Tab" || held.size === 0) return;
     event.stopPropagation();
   };
 

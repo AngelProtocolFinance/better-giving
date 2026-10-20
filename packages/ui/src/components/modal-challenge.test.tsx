@@ -115,6 +115,36 @@ test("opt-in on, a body challenge keeps the viewport, focus, and dismiss", async
   });
 });
 
+test("opt-in on, tab from the dialog reaches the challenge frame", async () => {
+  const on_close = vi.fn();
+  await render(
+    <Modal
+      open
+      onClose={on_close}
+      adoptStripeChallenge
+      size="donate"
+      title="Donate"
+    >
+      <button type="button">Pay</button>
+    </Modal>
+  );
+  await expect
+    .element(page.getByRole("dialog", { name: "Donate" }))
+    .toBeVisible();
+  await layer_ready();
+
+  const { root, frame } = stripe_challenge();
+  onTestFinished(() => root.remove());
+  document.body.appendChild(root);
+  await next_frame();
+  await next_frame();
+
+  page.getByRole("button", { name: "Pay" }).element().focus();
+  await userEvent.keyboard("{Tab}");
+  expect(document.activeElement).toBe(frame);
+  expect(on_close).not.toHaveBeenCalled();
+});
+
 test("opt-in on, a stripe controller iframe does not block dismiss", async () => {
   const on_close = vi.fn();
   await render(<OpenDonate adopt on_close={on_close} />);
