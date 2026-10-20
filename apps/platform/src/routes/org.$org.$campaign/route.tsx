@@ -1,4 +1,5 @@
 import { to_usd } from "@better-giving/ui/helpers";
+import { useState } from "react";
 import {
   isRouteErrorResponse,
   Link,
@@ -131,6 +132,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
   const org = `/marketplace/${params.org}`;
   const legal = legal_line(npo.ein);
   const website = website_link(npo.url);
+  const [pay_busy, set_pay_busy] = useState(false);
   const thanks = loaderData.thanks_amount
     ? {
         amount: loaderData.thanks_amount,
@@ -174,8 +176,18 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
       no_gifts={totals.no_gifts}
       open={open}
       ended_body={open ? null : closed_body(closed_at)}
+      gift_failed={loaderData.gift_failed}
+      pay_busy={pay_busy}
       {...(thanks
-        ? { thanks: { amount: thanks.amount }, highlight: thanks }
+        ? {
+            thanks: {
+              amount: thanks.amount,
+              ...(loaderData.thanks_receipt
+                ? { receipt: loaderData.thanks_receipt }
+                : {}),
+            },
+            highlight: thanks,
+          }
         : {})}
       donors={{
         id: String(campaign.owner_npo_id),
@@ -217,6 +229,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
             user={user}
             wallets_below
             pin
+            on_pay_busy={set_pay_busy}
           />
         ) : null
       }

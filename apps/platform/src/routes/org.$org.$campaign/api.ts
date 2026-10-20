@@ -44,10 +44,14 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const campaign = await campaign_public(params.org, params.campaign);
   if (!campaign || campaign.owner_npo_id == null) throw resp.status(404);
   const url = new URL(request.url);
-  const thanks = thanks_from(url);
   const donation_id = url.searchParams.get("donation_id")?.trim() ?? "";
   const redirect_failed =
     url.searchParams.get("redirect_status")?.trim() === "failed";
+  // a failed bank return still carries the charge in the url. that is not a
+  // gift that landed, so the thank-you line and the feed highlight stay off.
+  const thanks = redirect_failed
+    ? { thanks_amount: null, thanks_name: null }
+    : thanks_from(url);
   const count_base = donation_id !== "" && !redirect_failed;
   const [
     npo,
@@ -105,6 +109,11 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     donor_count,
     thanks_amount: thanks.thanks_amount,
     thanks_name: thanks.thanks_name,
+    thanks_receipt:
+      thanks.thanks_amount && donation_id
+        ? `/donations/${encodeURIComponent(donation_id)}`
+        : null,
+    gift_failed: redirect_failed,
     // the return amount is the rail charge in the url currency. any return
     // with a donation id counts the gift base before settlement, net of tip
     // and the donor-covered fee. a stripe redirect_status of failed will not

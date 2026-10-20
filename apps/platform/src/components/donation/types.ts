@@ -449,6 +449,8 @@ export type StateSetter = (
 export type State = {
   don: TDonation;
   don_set: StateSetter;
+  /** set while a payment's result is unknown. absent on mounts that never hold the dialog. */
+  report_pay_busy?: (busy: boolean) => void;
 };
 
 export const to_step = <T extends TMethod>(

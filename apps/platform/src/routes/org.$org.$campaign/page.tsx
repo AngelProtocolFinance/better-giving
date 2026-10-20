@@ -45,7 +45,9 @@ export interface ICampaignPage {
   no_gifts: boolean;
   open: boolean;
   ended_body: string | null;
-  thanks?: { amount: string };
+  thanks?: { amount: string; receipt?: string };
+  gift_failed?: boolean;
+  pay_busy?: boolean;
   highlight?: IDonorHighlight;
   donors: { id: string; campaign_id: string };
   form: ReactNode;
@@ -230,7 +232,11 @@ export function CampaignPage(props: ICampaignPage) {
       </div>
       <Modal
         open={dialog}
-        onClose={() => set_dialog(false)}
+        busy={props.pay_busy === true}
+        onClose={() => {
+          if (props.pay_busy) return;
+          set_dialog(false);
+        }}
         size="donate"
         classes="bg-surface"
         scrim="bg-gray-12/56"
@@ -247,8 +253,12 @@ export function CampaignPage(props: ICampaignPage) {
             ref={close_ref}
             type="button"
             aria-label="Close"
-            onClick={() => set_dialog(false)}
-            className={close_btn}
+            disabled={props.pay_busy === true}
+            onClick={() => {
+              if (props.pay_busy) return;
+              set_dialog(false);
+            }}
+            className={`${close_btn} disabled:opacity-40`}
           >
             ×
           </button>
@@ -331,11 +341,27 @@ function Notice(props: ICampaignPage) {
       </section>
     );
   }
+  if (props.open && props.gift_failed) {
+    return (
+      <section className="order-1 flex flex-col gap-2 rounded border border-gray-6 bg-panel p-4 lg:order-none">
+        <h2 className="text-xl font-bold">This gift didn't go through</h2>
+        <p>You can try again from this page.</p>
+      </section>
+    );
+  }
   if (props.open && props.thanks) {
     return (
       <section className="order-1 flex flex-col gap-2 rounded border border-green-6 bg-green-2 p-4 lg:order-none">
         <h2 className="text-xl font-bold">Thank you</h2>
         <p>Your {props.thanks.amount} gift is in.</p>
+        {props.thanks.receipt && (
+          <Link
+            to={props.thanks.receipt}
+            className="text-sm font-semibold underline"
+          >
+            Your receipt
+          </Link>
+        )}
       </section>
     );
   }

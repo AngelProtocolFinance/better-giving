@@ -658,6 +658,8 @@ describe("public campaign page", () => {
     expect(data.thanks_amount).toBe("$100");
     expect(data.thanks_usd).toBe(80);
     expect(data.thanks_settled).toBe(false);
+    expect(data.thanks_receipt).toBe("/donations/settled-card");
+    expect(data.gift_failed).toBe(false);
   });
 
   it("counts a php return toward the raised line while that row is still created", async () => {
@@ -709,8 +711,10 @@ describe("public campaign page", () => {
     const data = await load(
       "https://x/org/acme/winter?donation_amount=500&donation_currency=PHP&donor_name=Ivy%20Verify&donation_id=php-intent&redirect_status=failed"
     );
-    expect(data.thanks_amount).toBe("500 PHP");
+    expect(data.thanks_amount).toBeNull();
     expect(data.thanks_usd).toBeNull();
+    expect(data.gift_failed).toBe(true);
+    expect(data.thanks_receipt).toBeNull();
   });
 
   it("does not count a failed gift toward the raised line", async () => {
@@ -804,11 +808,13 @@ describe("public campaign page", () => {
     const url =
       "https://x/org/acme/winter?donation_amount=100&donation_currency=USD&donor_name=Ada&donation_id=intent-redirect&redirect_status=";
     const data = await load(`${url}failed`);
-    expect(data.thanks_amount).toBe("$100");
+    expect(data.thanks_amount).toBeNull();
     expect(data.thanks_usd).toBeNull();
+    expect(data.gift_failed).toBe(true);
     const padded = await load(`${url}${encodeURIComponent(" failed ")}`);
-    expect(padded.thanks_amount).toBe("$100");
+    expect(padded.thanks_amount).toBeNull();
     expect(padded.thanks_usd).toBeNull();
+    expect(padded.gift_failed).toBe(true);
   });
 
   it("leaves a thanks gift unsettled when that donation settled on another campaign", async () => {

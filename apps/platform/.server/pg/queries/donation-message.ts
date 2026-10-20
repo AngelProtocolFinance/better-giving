@@ -5,6 +5,7 @@ import { donation_donors, donations } from "../schema/donation";
 import { donation_messages } from "../schema/donation-message";
 import type { DbOrTx, IPage } from "./helpers";
 import { decode_date_cursor, encode_date_cursor } from "./helpers";
+import { message_amount_usd } from "./message-amount";
 
 export async function donation_message_put(
   db: DbOrTx,
@@ -34,6 +35,7 @@ export async function donation_message_list(
       ...getTableColumns(donation_messages),
       donor_email: donation_donors.email,
       avatar_url: user.avatar_url,
+      upusd: donations.upusd,
     })
     .from(donation_messages)
     .leftJoin(
@@ -53,7 +55,10 @@ export async function donation_message_list(
     .limit(limit + 1);
 
   const has_more = rows.length > limit;
-  const items = rows.slice(0, limit);
+  const items = rows.slice(0, limit).map(({ upusd, ...row }) => ({
+    ...row,
+    amount: message_amount_usd(row.amount, upusd),
+  }));
   return {
     items,
     next: has_more

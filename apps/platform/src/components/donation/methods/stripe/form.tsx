@@ -28,6 +28,7 @@ import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
 import { pin_bar } from "../../pin";
 import { type TMethodState, to_step } from "../../types";
+import { use_pay_hold } from "../../use-pay-hold";
 import { Paypal } from "../paypal";
 import { preferred_currency_apply } from "../preferred-currency";
 import { ExpressCheckout } from "./express-checkout";
@@ -74,6 +75,7 @@ export function Form(props: TMethodState<"stripe">) {
     phase: "shut" | "in" | "open";
   }>({ flow: "", phase: "shut" });
   const shut = paid || unconfirmed;
+  use_pay_hold(shut);
   const { don_set, don } = use_donation();
 
   const on_stuck = (dest: IDonationDest) => {

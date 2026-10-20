@@ -16,6 +16,7 @@ import {
 import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { use_donation } from "../../context";
 import { pin_bar, pin_bleed } from "../../pin";
+import { use_pay_hold } from "../../use-pay-hold";
 import { Loader } from "../loader";
 
 const BANK_COULD_NOT_VERIFY =
@@ -78,6 +79,10 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   // (it has an inherent loading animation) that's when we hide the loader ring
   // and start showing the "Back" button
   const [status, set_status] = useState<Status>("init");
+  // submitting covers the bank check, which has not returned yet. done is a
+  // paid gift whose receipt trip has not finished. either way the dialog has
+  // to stay up so a second payment cannot start.
+  use_pay_hold(status === "submitting" || status === "done");
   // where the donation the donor already paid for ended up. the prompt saying
   // so can be dismissed and the button behind it never re-opens, so the way
   // to the receipt has to outlive it.

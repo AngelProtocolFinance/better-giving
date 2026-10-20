@@ -27,6 +27,7 @@ import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { Summary } from "../../common/summary";
 import { use_donation } from "../../context";
 import { type DafDonationDetails, tip_from_val, to_step } from "../../types";
+import { use_pay_hold } from "../../use-pay-hold";
 import { DonationTerms } from "../donation-terms";
 
 const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
@@ -88,6 +89,9 @@ export function ChariotCheckout(props: DafDonationDetails) {
   // session from here would be a second one
   const [sent, set_sent] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
+  // sent stays set when the grant may already exist. paid is the trip to the
+  // receipt. the dialog stays up for both so a second grant cannot start.
+  use_pay_hold(sent || paid != null);
 
   const { tip: tipv, fee_allowance: mfa } = whole_dollar_amounts(
     donation_amounts(

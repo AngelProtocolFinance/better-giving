@@ -228,9 +228,39 @@ describe("campaign page", () => {
   });
 
   test("a thank-you names the gift that landed", async () => {
-    const screen = await mount(page({ thanks: { amount: "$100" } }));
+    const screen = await mount(
+      page({ thanks: { amount: "$100", receipt: "/donations/gift-1" } })
+    );
     await expect
       .element(screen.getByText("Your $100 gift is in."))
+      .toBeVisible();
+    const receipt = screen.getByRole("link", { name: "Your receipt" });
+    await expect.element(receipt).toBeVisible();
+    expect(receipt.element().getAttribute("href")).toBe("/donations/gift-1");
+  });
+
+  test("a failed return says the gift did not go through", async () => {
+    const screen = await mount(
+      page({ gift_failed: true, thanks: { amount: "$100" } })
+    );
+    await expect
+      .element(screen.getByText("This gift didn't go through"))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("You can try again from this page."))
+      .toBeVisible();
+    expect(screen.getByText("Your $100 gift is in.").query()).toBeNull();
+  });
+
+  test("a payment in flight keeps the dialog from closing", async () => {
+    const screen = await mount(
+      page({ initial_dialog_open: true, pay_busy: true })
+    );
+    const close = screen.getByRole("button", { name: "Close", exact: true });
+    await expect.element(close).toBeDisabled();
+    await close.click({ force: true });
+    await expect
+      .element(screen.getByRole("dialog", { name: "Donate" }))
       .toBeVisible();
   });
 

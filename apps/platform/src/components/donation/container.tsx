@@ -31,9 +31,11 @@ type InitState = {
 
 type Props = {
   classes?: string;
+  /** the campaign dialog holds itself open while this reports a payment in flight. */
+  on_pay_busy?: (busy: boolean) => void;
 } & (Components | InitState);
 
-export function Donation({ classes = "", ...props }: Props) {
+export function Donation({ classes = "", on_pay_busy, ...props }: Props) {
   const state = "init" in props ? props.init : init_state(props);
 
   const styles: Record<string, string | undefined> = {
@@ -53,7 +55,10 @@ export function Donation({ classes = "", ...props }: Props) {
           : `grid ${classes} w-full @container/steps overflow-clip bg-background min-h-96`
       }
     >
-      <Context {...("init" in props ? props.init : init_state(props))}>
+      <Context
+        on_pay_busy={on_pay_busy}
+        {...("init" in props ? props.init : init_state(props))}
+      >
         <CurrentStep />
       </Context>
     </div>
