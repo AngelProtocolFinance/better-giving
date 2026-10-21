@@ -930,6 +930,108 @@ describe("donations, donors, results, recurring", () => {
     expect(too_big.status).toBe(422);
   });
 
+  test("a marketplace gift with no recipient row is listed, and the campaign total is the dist net", async () => {
+    const a = await pair("Alpha", "EIN-A", "a@test.com");
+    await insert_campaign({
+      id: "winter",
+      name: "Winter Drive",
+      npo_id: a.npo.id,
+      creator_id: a.owner.id,
+      status: "live",
+      slug: "winter",
+    });
+    await db().insert(donations).values({
+      id: "stripe-25",
+      upusd: 25,
+      status: "settled",
+      amount_base: 25,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "winter",
+      created_at: "2026-10-18T12:00:00.000Z",
+      updated_at: "2026-10-18T12:00:00.000Z",
+    });
+    await db().insert(donation_donors).values({
+      donation_id: "stripe-25",
+      email: "campaign-donor@example.com",
+      name: "Campaign Donor",
+    });
+    await db().insert(dists).values({
+      id: "dist-stripe-25",
+      donation_id: "stripe-25",
+      status: "settled",
+      date_created: "2026-10-18T12:00:00.000Z",
+      to_id: a.npo.id,
+      amount_denom: "USD",
+      amount: 25,
+      amount_usd: 25,
+      net: 25,
+    });
+
+    const listed = await get(
+      donations_loader,
+      "/connector/v1/donations",
+      a.key
+    );
+    expect(listed.status).toBe(200);
+    const gifts = (
+      (await listed.json()) as {
+        data: {
+          id: string;
+          amount: string;
+          donor_name: string;
+          campaign_id: string | null;
+        }[];
+      }
+    ).data;
+    expect(gifts).toEqual([
+      expect.objectContaining({
+        id: "stripe-25",
+        amount: "25.00",
+        donor_name: "Campaign Donor",
+        campaign_id: "winter",
+      }),
+    ]);
+
+    const results = await get(results_loader, "/connector/v1/results", a.key);
+    const summary = (await results.json()) as {
+      total: { amount: string };
+      gift_count: number;
+      campaigns: {
+        id: string;
+        total: { amount: string };
+        gift_count: number;
+      }[];
+    };
+    expect(summary.total.amount).toBe("25.00");
+    expect(summary.gift_count).toBe(1);
+    expect(summary.campaigns.find((row) => row.id === "winter")).toMatchObject({
+      total: { amount: "25.00" },
+      gift_count: 1,
+    });
+
+    const donors = await get(donors_loader, "/connector/v1/donors", a.key);
+    const donor_rows = (
+      (await donors.json()) as {
+        data: {
+          name: string;
+          gift_count: number;
+          total_given: { amount: string };
+        }[];
+      }
+    ).data;
+    expect(donor_rows).toHaveLength(1);
+    expect(donor_rows[0]).toMatchObject({
+      name: "Campaign Donor",
+      gift_count: 1,
+      total_given: { amount: "25.00" },
+    });
+  });
+
   test("a non-USD gift reports its currency amount and adds amount_base / upusd to USD totals", async () => {
     const a = await pair("Alpha", "EIN-A", "a@test.com");
     await insert_gift({
@@ -1065,6 +1167,12 @@ describe("writes", () => {
   test("create_campaign is a draft and replays on the same key", async () => {
     const a = await pair("Alpha", "EIN-A", "a@test.com");
     const b = await pair("Beta", "EIN-B", "b@test.com");
+    await db()
+      .update(npos)
+      .set({
+        overview_pt: "Fixture nonprofit for campaign verify flows.",
+      })
+      .where(eq(npos.id, a.npo.id));
     const created = await post(
       campaigns_action,
       "/connector/v1/campaigns",
@@ -1078,12 +1186,14 @@ describe("writes", () => {
       title: string;
       status: string;
       public_url: string | null;
+      blocks: { type: string; text?: string }[];
     };
     expect(body).toMatchObject({
       title: "Library drive",
       status: "draft",
       public_url: null,
     });
+    expect(body.blocks.find((block) => block.type === "story")?.text).toBe("");
 
     const again = await post(
       campaigns_action,
@@ -1099,6 +1209,8 @@ describe("writes", () => {
     expect(row?.status).toBe("draft");
     expect(row?.owner_npo_id).toBe(a.npo.id);
     expect(row?.slug.startsWith("library-drive-")).toBe(true);
+    expect(row?.description_pt).toBe("[]");
+    expect(row?.description_v2).toBe("");
     const members = await db().select().from(campaign_members);
     expect(members).toEqual([
       { campaign_id: body.id, npo_id: a.npo.id, position: 0 },

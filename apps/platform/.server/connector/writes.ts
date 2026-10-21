@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { to_text } from "#/components/rich-text/helpers";
 import { OFFLINE_SOURCE } from "@/donations/offline";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { campaign_members, campaigns } from "../pg/schema/campaign";
@@ -113,7 +114,6 @@ async function insert_campaign(
     const detail = await db.transaction(async (tx) => {
       const [npo] = await tx
         .select({
-          overview_pt: npos.overview_pt,
           logo: npos.logo,
           image: npos.image,
           card_img: npos.card_img,
@@ -122,13 +122,15 @@ async function insert_campaign(
         .where(eq(npos.id, npo_id));
       if (!npo) throw new Error("npo missing");
       const image = npo.logo || npo.image || npo.card_img || null;
+      const description_pt = "[]";
       await tx.insert(campaigns).values({
         id,
         owner_npo_id: npo_id,
         creator_id: allowed_by,
         name: trimmed,
         slug: campaign_slug(trimmed, id),
-        description_pt: npo.overview_pt || "[]",
+        description_pt,
+        description_v2: to_text(description_pt),
         banner: image,
         logo: image,
         status: "draft",

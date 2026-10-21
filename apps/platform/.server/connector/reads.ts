@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { to_text } from "#/components/rich-text/helpers";
 import type { TCampaignStatus } from "@/campaign";
 import { fund_closes_at } from "@/fundraiser/is-open";
 import type { IIncrement } from "@/schemas";
@@ -6,6 +7,7 @@ import type { DbOrTx } from "../pg/queries/helpers";
 import { campaigns } from "../pg/schema/campaign";
 import { pg_text_to_iso } from "../pg/schema/columns";
 import { donation_disputes } from "../pg/schema/dispute";
+import { dists } from "../pg/schema/dist";
 import {
   donation_donors,
   donation_recipients,
@@ -139,7 +141,7 @@ function detail_of(row: CampaignRow) {
     time_zone: null,
     blocks: [
       { type: "title", text: row.name },
-      { type: "story", text: row.description_pt },
+      { type: "story", text: to_text(row.description_pt) },
       { type: "hero", image_url: row.banner ? row.banner : null },
       { type: "goal-bar", goal: usd(row.target_number) },
     ] satisfies Block[],
@@ -454,11 +456,35 @@ export async function get_form(
 }
 
 function tenant_gifts(npo_id: number) {
+  // the admin donations page lists a dist addressed to this nonprofit. the
+  // marketplace fixture writes that dist and no `donation_recipients` row, so
+  // a required recipient join drops the gift. offline gifts have no dist.
   return sql`(
-    ${donation_recipients.npo_id} = ${npo_id}
+    exists (
+      select 1 from ${dists}
+      where ${dists.donation_id} = ${donations.id}
+        and ${dists.to_id} = ${npo_id}
+    )
+    OR ${donation_recipients.npo_id} = ${npo_id}
     OR ${donation_recipients.fund_id} IN (
       SELECT ${funds.id} FROM ${funds} WHERE ${funds.npo_owner} = ${npo_id}
     )
+  )`;
+}
+
+function settled_usd(npo_id: number) {
+  // "$ raised" is the settled dist net. `amount_base / upusd` is the fallback
+  // for a gift with no dist, where that rate is the dollars.
+  return sql`coalesce(
+    (
+      select ${dists.net}
+      from ${dists}
+      where ${dists.donation_id} = ${donations.id}
+        and ${dists.to_id} = ${npo_id}
+        and ${dists.status} = 'settled'
+      limit 1
+    ),
+    ${donations.amount_base} / nullif(${donations.upusd}, 0)
   )`;
 }
 
@@ -656,7 +682,7 @@ function gift_query(db: DbOrTx) {
   return db
     .select(gift_cols)
     .from(donations)
-    .innerJoin(
+    .leftJoin(
       donation_recipients,
       eq(donation_recipients.donation_id, donations.id)
     )
@@ -770,7 +796,7 @@ async function donor_ids_matching(db: DbOrTx, npo_id: number, q: string) {
   const hits = await db
     .select({ id: sql<string>`${donor_key}`.as("donor_id") })
     .from(donations)
-    .innerJoin(
+    .leftJoin(
       donation_recipients,
       eq(donation_recipients.donation_id, donations.id)
     )
@@ -819,10 +845,10 @@ export async function list_donors(
       created_at: sql<string>`min(${donations.created_at})`,
       updated_at: sql<string>`max(${donations.updated_at})`,
       gift_count: sql<number>`count(*)::int`,
-      total: sql<string>`coalesce(sum(${donations.amount_base} / nullif(${donations.upusd}, 0)), 0)::text`,
+      total: sql<string>`coalesce(sum(${settled_usd(npo_id)}), 0)::text`,
     })
     .from(donations)
-    .innerJoin(
+    .leftJoin(
       donation_recipients,
       eq(donation_recipients.donation_id, donations.id)
     )
@@ -885,10 +911,10 @@ export async function get_donor(
       created_at: sql<string>`min(${donations.created_at})`,
       updated_at: sql<string>`max(${donations.updated_at})`,
       gift_count: sql<number>`count(*)::int`,
-      total: sql<string>`coalesce(sum(${donations.amount_base} / nullif(${donations.upusd}, 0)), 0)::text`,
+      total: sql<string>`coalesce(sum(${settled_usd(npo_id)}), 0)::text`,
     })
     .from(donations)
-    .innerJoin(
+    .leftJoin(
       donation_recipients,
       eq(donation_recipients.donation_id, donations.id)
     )
@@ -1027,7 +1053,7 @@ export async function get_results(
 
   const [totals] = await db
     .select({
-      total: sql<string>`coalesce(sum(${donations.amount_base} / nullif(${donations.upusd}, 0)), 0)::text`,
+      total: sql<string>`coalesce(sum(${settled_usd(npo_id)}), 0)::text`,
       gift_count: sql<number>`count(*)::int`,
       donor_count: sql<number>`count(DISTINCT CASE
         WHEN ${donation_donors.email} LIKE 'hand-%@recorded.invalid'
@@ -1036,7 +1062,7 @@ export async function get_results(
       END)::int`,
     })
     .from(donations)
-    .innerJoin(
+    .leftJoin(
       donation_recipients,
       eq(donation_recipients.donation_id, donations.id)
     )
@@ -1046,11 +1072,11 @@ export async function get_results(
   const by_campaign = await db
     .select({
       campaign_id: donations.campaign_id,
-      total: sql<string>`coalesce(sum(${donations.amount_base} / nullif(${donations.upusd}, 0)), 0)::text`,
+      total: sql<string>`coalesce(sum(${settled_usd(npo_id)}), 0)::text`,
       gift_count: sql<number>`count(*)::int`,
     })
     .from(donations)
-    .innerJoin(
+    .leftJoin(
       donation_recipients,
       eq(donation_recipients.donation_id, donations.id)
     )
