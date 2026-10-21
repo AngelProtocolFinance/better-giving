@@ -114,7 +114,9 @@ const render_decorator: RenderDecoratorFunction = (p) => {
 };
 
 const render_list_item: RenderListItemFunction = (p) => {
-  const cls = p.value === "number" ? "list-decimal pl-6" : "list-disc pl-6";
+  // margin, not padding: an outside marker hangs off the li's border box, so
+  // padding leaves the bullet sitting on the field's edge
+  const cls = p.value === "number" ? "list-decimal ml-6" : "list-disc ml-6";
   return <li className={cls}>{p.children}</li>;
 };
 
