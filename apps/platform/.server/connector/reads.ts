@@ -472,18 +472,24 @@ function tenant_gifts(npo_id: number) {
 }
 
 function settled_usd(npo_id: number) {
-  // "$ raised" is the settled dist net. A gift with no dist uses amount_base / upusd.
-  return sql`coalesce(
-    (
-      select ${dists.net}
+  // A dist for this nonprofit counts only while it is settled. A refunded dist
+  // is 0: process_refund can leave the donation settled while this share is
+  // already returned. amount_base / upusd is only for a gift with no dist.
+  return sql`case
+    when exists (
+      select 1 from ${dists}
+      where ${dists.donation_id} = ${donations.id}
+        and ${dists.to_id} = ${npo_id}
+    )
+    then coalesce((
+      select sum(${dists.net})
       from ${dists}
       where ${dists.donation_id} = ${donations.id}
         and ${dists.to_id} = ${npo_id}
         and ${dists.status} = 'settled'
-      limit 1
-    ),
-    ${donations.amount_base} / nullif(${donations.upusd}, 0)
-  )`;
+    ), 0)
+    else ${donations.amount_base} / nullif(${donations.upusd}, 0)
+  end`;
 }
 
 async function require_own_campaign(

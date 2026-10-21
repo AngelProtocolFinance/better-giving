@@ -1032,6 +1032,90 @@ describe("donations, donors, results, recurring", () => {
     });
   });
 
+  test("a split gift with one share refunded adds nothing to this nonprofit's totals", async () => {
+    const a = await pair("Alpha", "EIN-A", "a@test.com");
+    const b = await pair("Beta", "EIN-B", "b@test.com");
+    await insert_campaign({
+      id: "split-drive",
+      name: "Split Drive",
+      npo_id: a.npo.id,
+      creator_id: a.owner.id,
+      status: "live",
+      slug: "split",
+    });
+    await db().insert(donations).values({
+      id: "split-100",
+      upusd: 1,
+      status: "settled",
+      amount_base: 100,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe",
+      campaign_id: "split-drive",
+      created_at: "2026-10-19T12:00:00.000Z",
+      updated_at: "2026-10-19T12:00:00.000Z",
+    });
+    await db().insert(donation_donors).values({
+      donation_id: "split-100",
+      email: "split-donor@example.com",
+      name: "Split Donor",
+    });
+    await db()
+      .insert(dists)
+      .values([
+        {
+          id: "dist-split-a",
+          donation_id: "split-100",
+          status: "refunded",
+          date_created: "2026-10-19T12:00:00.000Z",
+          to_id: a.npo.id,
+          amount_denom: "USD",
+          amount: 40,
+          amount_usd: 40,
+          net: 40,
+        },
+        {
+          id: "dist-split-b",
+          donation_id: "split-100",
+          status: "settled",
+          date_created: "2026-10-19T12:00:00.000Z",
+          to_id: b.npo.id,
+          amount_denom: "USD",
+          amount: 60,
+          amount_usd: 60,
+          net: 60,
+        },
+      ]);
+
+    const results = await get(results_loader, "/connector/v1/results", a.key);
+    const summary = (await results.json()) as {
+      total: { amount: string };
+      campaigns: { id: string; total: { amount: string } }[];
+    };
+    expect(summary.total.amount).toBe("0.00");
+    expect(
+      summary.campaigns.find((row) => row.id === "split-drive")
+    ).toMatchObject({ total: { amount: "0.00" } });
+
+    const donors = await get(donors_loader, "/connector/v1/donors", a.key);
+    const donor_rows = (
+      (await donors.json()) as {
+        data: { total_given: { amount: string } }[];
+      }
+    ).data;
+    expect(donor_rows).toHaveLength(1);
+    expect(donor_rows[0]).toMatchObject({
+      total_given: { amount: "0.00" },
+    });
+
+    const other = await get(results_loader, "/connector/v1/results", b.key);
+    const other_summary = (await other.json()) as { total: { amount: string } };
+    expect(other_summary.total.amount).toBe("60.00");
+  });
+
   test("a non-USD gift reports its currency amount and adds amount_base / upusd to USD totals", async () => {
     const a = await pair("Alpha", "EIN-A", "a@test.com");
     await insert_gift({
