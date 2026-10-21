@@ -26,7 +26,7 @@ import {
   to_target,
 } from "#/components/goal-selector";
 import { ImgEditor } from "#/components/img-editor";
-import { RichText } from "#/components/rich-text";
+import { RichText, to_content } from "#/components/rich-text";
 import { img_spec } from "#/pages/funds/common";
 import { Videos } from "#/pages/funds/common/videos";
 import { CAMPAIGN_TYPES } from "@/campaign";
@@ -178,7 +178,7 @@ export function CampaignForm({
       name: init.name,
       slug: init.slug,
       campaign_type: (init.campaign_type || "") as FV["campaign_type"],
-      description: { value: init.description_pt },
+      description: to_content(init.description_pt),
       banner: init.banner,
       logo: init.logo,
       videos: init.videos.map((url) => ({ url })),

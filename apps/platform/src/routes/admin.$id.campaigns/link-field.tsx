@@ -1,4 +1,5 @@
 import { ExtLink, Label } from "@better-giving/ui";
+import { Fragment } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { SLUG_HELP, SLUG_LOCK_NOTE, SLUG_PUBLISH_LOCK } from "./copy";
 
@@ -15,6 +16,22 @@ interface ILinkField {
   error?: string;
 }
 
+/** a url offers no break of its own; one after each slash keeps a wrap
+ *  between path segments, never inside a word */
+function break_at_slashes(url: string) {
+  const parts = url.split("/");
+  return parts.map((part, i) => (
+    <Fragment key={i}>
+      {part}
+      {i < parts.length - 1 && (
+        <>
+          /<wbr />
+        </>
+      )}
+    </Fragment>
+  ));
+}
+
 /** the slug input, framed as the last segment of the campaign's public link */
 export function LinkField({ reg, value, base, locked, error }: ILinkField) {
   const id = `__${reg.name}`;
@@ -23,6 +40,7 @@ export function LinkField({ reg, value, base, locked, error }: ILinkField) {
   const error_id = `__error_${reg.name}`;
   const segment = value.trim();
   const url = base && `${base}${segment || PLACEHOLDER_SEGMENT}`;
+  const url_text = url && break_at_slashes(url);
   const described = [sub_id, base ? prefix_id : "", error ? error_id : ""]
     .filter(Boolean)
     .join(" ");
@@ -66,14 +84,14 @@ export function LinkField({ reg, value, base, locked, error }: ILinkField) {
         />
       </div>
       {url && (
-        <p className="mt-1 text-sm text-gray-11 break-all">
+        <p className="mt-1 text-sm text-gray-11 break-words">
           Donors will find this campaign at{" "}
           {locked ? (
             <ExtLink href={url} className="link">
-              {url}
+              {url_text}
             </ExtLink>
           ) : (
-            url
+            url_text
           )}
         </p>
       )}

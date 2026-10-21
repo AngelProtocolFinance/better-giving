@@ -6,6 +6,7 @@ import { QrCode } from "#/routes/admin.$id.assets/qr-code";
 import { STATUS_WORD } from "../admin.$id.campaigns/copy";
 import { CampaignForm } from "../admin.$id.campaigns/form";
 import { campaign_link_base } from "../admin.$id.campaigns/link";
+import { StatusBadge } from "../admin.$id.campaigns/row";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";
@@ -47,7 +48,10 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           },
         ]}
       />
-      <p className="text-sm text-gray-11 mt-1">{STATUS_WORD[shown_status]}</p>
+      <StatusBadge
+        status={STATUS_WORD[shown_status]}
+        className="justify-self-start"
+      />
       <CampaignForm
         init={{
           name: campaign.name,

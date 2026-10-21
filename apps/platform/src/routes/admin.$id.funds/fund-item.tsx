@@ -1,5 +1,4 @@
 import { Actions, type AskProps, Modal, use_ask } from "@better-giving/ui";
-import { fromUnixTime } from "date-fns";
 import { LoaderCircle } from "lucide-react";
 import { useId, useRef } from "react";
 import {
@@ -10,15 +9,13 @@ import {
   useLocation,
   useParams,
 } from "react-router";
-import { FundCreator, status_fn } from "#/components/fundraiser";
-import { STATUS_WORD } from "#/routes/admin.$id.campaigns/copy";
+import { FundCreator } from "#/components/fundraiser";
 import {
-  fund_end,
-  Row,
-  type TRowStatus,
-} from "#/routes/admin.$id.campaigns/row";
+  fund_row_status,
+  STATUS_WORD,
+} from "#/routes/admin.$id.campaigns/copy";
+import { fund_end, Row } from "#/routes/admin.$id.campaigns/row";
 import type { IFundItem } from "@/fundraiser";
-import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 
 interface Props extends IFundItem {
   isSelf: boolean;
@@ -34,15 +31,11 @@ export const FundItem = (props: Props) => {
       ? href("/admin/:id/funds", { id: npo_id })
       : undefined;
   const ask = use_ask();
-  const name_id = useId();
   const leave_label_id = useId();
-  // the list query sends the max-expiration sentinel for a fund with no end date
-  const has_end = props.expiration * 1000 < Date.parse(MAX_EXPIRATION_ISO);
-  const status = status_fn(
-    has_end ? fromUnixTime(props.expiration).toISOString() : undefined,
-    props.active,
-    props.donation_total_usd
-  );
+  const view_label_id = useId();
+  const edit_label_id = useId();
+  const status = fund_row_status(props);
+  const editable = status === STATUS_WORD.live || status === STATUS_WORD.draft;
   const busy = fetcher.state !== "idle";
   const leave = () => {
     void ask(LeaveConfirm, {
@@ -62,8 +55,7 @@ export const FundItem = (props: Props) => {
   return (
     <Row
       name={props.name}
-      name_id={name_id}
-      status={supporter_status(status)}
+      status={status}
       thumb={props.banner || props.logo || null}
       raised={props.donation_total_usd}
       target={props.target}
@@ -78,7 +70,7 @@ export const FundItem = (props: Props) => {
         </div>
       }
       ends={fund_end(props.expiration)}
-      actions={
+      actions={(name_id) => (
         <>
           {props.published && (
             <Link
@@ -86,9 +78,20 @@ export const FundItem = (props: Props) => {
               target="_blank"
               rel="noopener noreferrer"
               className="link text-sm"
+              aria-labelledby={`${view_label_id} ${name_id}`}
             >
-              View
+              <span id={view_label_id}>View</span>
             </Link>
+          )}
+          {props.isEditor && (
+            <NavLink
+              aria-disabled={!editable}
+              className="btn btn-secondary"
+              to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
+              aria-labelledby={`${edit_label_id} ${name_id}`}
+            >
+              <span id={edit_label_id}>Edit</span>
+            </NavLink>
           )}
           {/** fund item won't show once NPO opted out of it: so no need to hide this button */}
           {!props.isSelf ? (
@@ -96,7 +99,7 @@ export const FundItem = (props: Props) => {
             // would drop the dialog's return focus onto `<body>`
             <button
               type="button"
-              className={`btn btn-secondary text-destructive-subtle-fg gap-2${busy ? " pending" : ""}`}
+              className={`btn btn-sm btn-ghost text-destructive gap-2${busy ? " pending" : ""}`}
               disabled={!props.active}
               aria-disabled={busy || undefined}
               aria-busy={busy}
@@ -112,27 +115,11 @@ export const FundItem = (props: Props) => {
               </span>
             </button>
           ) : null}
-          {props.isEditor && (
-            <NavLink
-              aria-disabled={!status.active}
-              className="btn btn-secondary"
-              to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
-            >
-              Edit
-            </NavLink>
-          )}
         </>
-      }
+      )}
     />
   );
 };
-
-/** an inactive fund was closed by its members; a lapsed one has ended */
-function supporter_status(s: ReturnType<typeof status_fn>): TRowStatus {
-  if (s.text === "closed") return "Closed";
-  if (!s.active) return STATUS_WORD.ended;
-  return STATUS_WORD.live;
-}
 
 interface ILeaveConfirm {
   name: string;

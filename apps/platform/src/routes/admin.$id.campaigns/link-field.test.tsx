@@ -159,4 +159,46 @@ describe("campaign link field", () => {
       await page.viewport(1280, 900);
     }
   });
+
+  it("wraps the preview at 375px only between words, after a slash or a hyphen", async () => {
+    await page.viewport(375, 667);
+    try {
+      const screen = await render_form(
+        saved,
+        "draft",
+        false,
+        "https://preview-branch.better-giving.example/org/a-rather-long-nonprofit-slug/"
+      );
+      const preview = screen
+        .getByText("Donors will find this campaign at")
+        .element() as HTMLElement;
+      await vi.waitFor(() => {
+        // the character before each line start, across the text nodes the
+        // preview is split into
+        const chars: { ch: string; top: number }[] = [];
+        const walk = document.createTreeWalker(preview, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+          const text = n.textContent ?? "";
+          for (let i = 0; i < text.length; i++) {
+            range.setStart(n, i);
+            range.setEnd(n, i + 1);
+            const rect = range.getClientRects()[0];
+            if (rect) chars.push({ ch: text[i], top: Math.round(rect.top) });
+          }
+        }
+        let wraps = 0;
+        for (let i = 1; i < chars.length; i++) {
+          if (chars[i].top > chars[i - 1].top) {
+            wraps += 1;
+            expect(chars[i - 1].ch).toMatch(/[\s/-]/);
+          }
+        }
+        expect(wraps).toBeGreaterThan(0);
+        expect(preview.scrollWidth).toBeLessThanOrEqual(preview.clientWidth);
+      });
+    } finally {
+      await page.viewport(1280, 900);
+    }
+  });
 });

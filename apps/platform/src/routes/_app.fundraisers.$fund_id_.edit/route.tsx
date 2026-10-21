@@ -1,6 +1,5 @@
 import { CircleAlert } from "lucide-react";
 import { useFetcher } from "react-router";
-import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { richtext_styles } from "#/components/rich-text";
 import type { Route } from "./+types/route";
 import { Sections } from "./form";
@@ -8,11 +7,11 @@ import { PublishBanner } from "./publish-banner";
 
 export { ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
-export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+// no client loader cache: it serves the pre-save read first, so a just-saved
+// section would re-seed dirty and the banner and Close would flicker back
 export const links: Route.LinksFunction = () => [...richtext_styles];
-export default CacheRoute(Page);
 
-function Page({ loaderData }: Route.ComponentProps) {
+export default function Page({ loaderData }: Route.ComponentProps) {
   const { fund, base_url } = loaderData;
   const fetcher = useFetcher();
   const is_toggling = fetcher.state !== "idle";

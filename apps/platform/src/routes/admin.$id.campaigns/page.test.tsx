@@ -203,12 +203,12 @@ describe("campaign list", () => {
       .element(profile.getByText("Profile", { exact: true }))
       .toBeVisible();
     await expect
-      .element(profile.getByText("$90 raised", { exact: true }))
+      .element(profile.getByText("$90 Raised", { exact: true }))
       .toBeVisible();
     expect(
       (
         profile
-          .getByRole("link", { name: "Edit", exact: true })
+          .getByRole("link", { name: "Edit Acme Fund", exact: true })
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/admin/7/edit-profile");
@@ -265,7 +265,7 @@ describe("campaign list", () => {
       (
         page
           .elementLocator(spring_row as HTMLElement)
-          .getByRole("link", { name: "Edit", exact: true })
+          .getByRole("link", { name: "Edit Spring", exact: true })
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/admin/7/campaigns/c-draft");
@@ -389,16 +389,72 @@ describe("campaign list", () => {
 
     const spring = row_of(screen, "Spring");
     await expect
-      .element(spring.getByText("$40 raised", { exact: true }))
+      .element(spring.getByText("$40 Raised", { exact: true }))
       .toBeVisible();
     expect(spring.getByRole("progressbar").query()).toBeNull();
     expect(spring.getByText("Goal", { exact: true }).query()).toBeNull();
 
     const owned = row_of(screen, "Owned page");
     await expect
-      .element(owned.getByText("$7 raised", { exact: true }))
+      .element(owned.getByText("$7 Raised", { exact: true }))
       .toBeVisible();
     expect(owned.getByRole("progressbar").query()).toBeNull();
+  });
+
+  it("labels each org fund Draft, Closed, Ended or Live and names its links by the row", async () => {
+    const fund = (id: string, name: string, f: object) => ({
+      id,
+      name,
+      active: true,
+      published: true,
+      donation_total_usd: 0,
+      expiration: NO_END,
+      ...f,
+    });
+    const screen = await render_list(
+      [],
+      [
+        fund("f-draft", "Draft page", { published: false }),
+        fund("f-closed", "Closed page", { active: false }),
+        fund("f-ended", "Ended page", {
+          expiration: Date.parse("2020-01-02T00:00:00Z") / 1000,
+        }),
+        fund("f-live", "Live page", {}),
+      ]
+    );
+    const pill = (row: string, word: string) =>
+      row_of(screen, row).getByText(word, { exact: true });
+    await expect.element(pill("Draft page", "Draft")).toBeVisible();
+    await expect.element(pill("Closed page", "Closed")).toBeVisible();
+    await expect.element(pill("Ended page", "Ended")).toBeVisible();
+    await expect.element(pill("Live page", "Live")).toBeVisible();
+    await expect
+      .element(pill("Live page", "Live"))
+      .toHaveAttribute("data-tone", "success");
+
+    const live = row_of(screen, "Live page");
+    expect(
+      (
+        live
+          .getByRole("link", { name: "View Live page", exact: true })
+          .element() as HTMLAnchorElement
+      ).pathname
+    ).toBe("/fundraisers/f-live");
+    expect(
+      (
+        live
+          .getByRole("link", { name: "Edit Live page", exact: true })
+          .element() as HTMLAnchorElement
+      ).pathname
+    ).toBe("/fundraisers/f-live/edit");
+    await expect
+      .element(
+        row_of(screen, "Acme Fund").getByRole("link", {
+          name: "Edit Acme Fund",
+          exact: true,
+        })
+      )
+      .toBeVisible();
   });
 
   it("lists campaigns and the profile on Your campaigns", async () => {
@@ -444,7 +500,7 @@ describe("campaign list", () => {
       (
         page
           .elementLocator(winter_row as HTMLElement)
-          .getByRole("link", { name: "Edit", exact: true })
+          .getByRole("link", { name: "Edit Winter", exact: true })
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/admin/7/campaigns/c-live");
@@ -453,14 +509,14 @@ describe("campaign list", () => {
       .element(winter.getByText("Ended", { exact: true }))
       .toBeVisible();
     await expect
-      .element(winter.getByText("$12 raised", { exact: true }))
+      .element(winter.getByText("$12 Raised", { exact: true }))
       .toBeVisible();
     await expect
       .element(winter.getByText("Jan 2, 2020", { exact: true }))
       .toBeVisible();
     const winter_view = page
       .elementLocator(winter_row as HTMLElement)
-      .getByRole("link", { name: "View", exact: true });
+      .getByRole("link", { name: "View Winter", exact: true });
     expect((winter_view.element() as HTMLAnchorElement).textContent).toBe(
       "View"
     );
@@ -486,7 +542,7 @@ describe("campaign list", () => {
       (
         page
           .elementLocator(spring_row as HTMLElement)
-          .getByRole("link", { name: "Edit", exact: true })
+          .getByRole("link", { name: "Edit Spring", exact: true })
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/admin/7/campaigns/c-draft");
@@ -496,7 +552,7 @@ describe("campaign list", () => {
       .element(spring.getByText("Draft", { exact: true }))
       .toBeVisible();
     await expect
-      .element(spring.getByText("$1 raised", { exact: true }))
+      .element(spring.getByText("$1 Raised", { exact: true }))
       .toBeVisible();
     await expect
       .element(spring.getByText("No end date", { exact: true }))
@@ -504,7 +560,7 @@ describe("campaign list", () => {
     expect(
       page
         .elementLocator(spring_row as HTMLElement)
-        .getByRole("link", { name: "View", exact: true })
+        .getByRole("link", { name: "View Spring", exact: true })
         .query()
     ).toBeNull();
 
@@ -516,14 +572,14 @@ describe("campaign list", () => {
     ]);
     const profile = row_of(screen, "Acme Fund");
     const profile_view = profile
-      .getByRole("link", { name: "View", exact: true })
+      .getByRole("link", { name: "View Acme Fund", exact: true })
       .element() as HTMLAnchorElement;
     expect(profile_view.getAttribute("href")).toBe("/marketplace/acme");
     expect(profile_view.getAttribute("target")).toBeNull();
     expect(
       (
         profile
-          .getByRole("link", { name: "Edit", exact: true })
+          .getByRole("link", { name: "Edit Acme Fund", exact: true })
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/admin/7/edit-profile");
@@ -807,9 +863,10 @@ describe("campaign pages", () => {
     expect(
       screen.getByRole("link", { name: "Winter", exact: true }).query()
     ).toBeNull();
+    // the same pill the list rows wear
     await expect
       .element(screen.getByText("Live", { exact: true }))
-      .toBeVisible();
+      .toHaveAttribute("data-tone", "success");
     const crumb = screen.getByRole("link", { name: "Campaigns" });
     expect((crumb.element() as HTMLElement).className).not.toContain(
       "pointer-events-none"
@@ -829,6 +886,24 @@ describe("campaign pages", () => {
     );
   });
 
+  it("counts the stored story on load", async () => {
+    const story = JSON.stringify([
+      {
+        _type: "block",
+        _key: "b1",
+        style: "normal",
+        markDefs: [],
+        children: [
+          { _type: "span", _key: "s1", text: "Twelve chars", marks: [] },
+        ],
+      },
+    ]);
+    const screen = await render(edit_stub(true, story));
+    await expect
+      .element(screen.getByText("chars : 12 /8000", { exact: true }))
+      .toBeVisible();
+  });
+
   it("keeps a draft address as text", async () => {
     const screen = await render(edit_stub(false));
     await expect
@@ -845,7 +920,10 @@ describe("campaign pages", () => {
   });
 });
 
-function edit_stub(published: boolean) {
+function edit_stub(
+  published: boolean,
+  description_pt = "A story of the drive"
+) {
   const Stub = createRoutesStub([
     {
       path: "/admin/:id/campaigns/:campaign_id",
@@ -864,7 +942,7 @@ function edit_stub(published: boolean) {
           name: "Winter",
           slug: "winter",
           campaign_type: null,
-          description_pt: "A story of the drive",
+          description_pt,
           banner: null,
           logo: null,
           videos: [],

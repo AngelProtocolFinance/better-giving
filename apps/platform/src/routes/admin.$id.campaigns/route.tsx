@@ -1,4 +1,5 @@
 import { TabPanel, Tabs } from "@better-giving/ui";
+import { useId } from "react";
 import { href, Link, useSearchParams } from "react-router";
 import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { FundsList } from "#/routes/admin.$id.funds/list";
@@ -30,7 +31,19 @@ interface IRowLinks {
   view_in_place?: boolean;
 }
 
-function RowLinks({ edit_to, view_to, view_in_place }: IRowLinks) {
+interface IRowLinksProps extends IRowLinks {
+  /** the row's name, so each row's View and Edit are told apart */
+  name_id: string;
+}
+
+function RowLinks({
+  edit_to,
+  view_to,
+  view_in_place,
+  name_id,
+}: IRowLinksProps) {
+  const view_id = useId();
+  const edit_id = useId();
   return (
     <>
       {view_to && (
@@ -40,13 +53,18 @@ function RowLinks({ edit_to, view_to, view_in_place }: IRowLinks) {
             ? {}
             : { target: "_blank", rel: "noopener noreferrer" })}
           className="link text-sm"
+          aria-labelledby={`${view_id} ${name_id}`}
         >
-          View
+          <span id={view_id}>View</span>
         </Link>
       )}
       {edit_to && (
-        <Link className="btn btn-secondary" to={edit_to}>
-          Edit
+        <Link
+          className="btn btn-secondary"
+          to={edit_to}
+          aria-labelledby={`${edit_id} ${name_id}`}
+        >
+          <span id={edit_id}>Edit</span>
         </Link>
       )}
     </>
@@ -105,13 +123,14 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                 thumb={endow.image || null}
                 raised={endow.contributions_total}
                 target={endow.target}
-                actions={
+                actions={(name_id) => (
                   <RowLinks
                     edit_to={loaderData.profile_to}
                     view_to={profile}
                     view_in_place
+                    name_id={name_id}
                   />
-                }
+                )}
               />
               {loaderData.campaigns.map((c) => {
                 const public_to =
@@ -130,15 +149,16 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                     raised={c.raised}
                     target={c.target}
                     ends={when(c.ends_at)}
-                    actions={
+                    actions={(name_id) => (
                       <RowLinks
                         edit_to={href("/admin/:id/campaigns/:campaign_id", {
                           id: String(endow.id),
                           campaign_id: c.id,
                         })}
                         view_to={public_to}
+                        name_id={name_id}
                       />
-                    }
+                    )}
                   />
                 );
               })}
@@ -151,7 +171,9 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                   raised={f.donation_total_usd}
                   target={f.target}
                   ends={fund_end(f.expiration)}
-                  actions={<RowLinks {...fund_links(f)} />}
+                  actions={(name_id) => (
+                    <RowLinks {...fund_links(f)} name_id={name_id} />
+                  )}
                 />
               ))}
             </ul>

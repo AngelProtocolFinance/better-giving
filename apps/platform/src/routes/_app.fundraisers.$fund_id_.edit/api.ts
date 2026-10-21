@@ -3,6 +3,7 @@ import { safeParse } from "valibot";
 import { type AuthUser, get_session, to_auth } from "#/.server/auth";
 import { get_fund } from "#/.server/fund";
 import { dataWithError, dataWithSuccess } from "#/.server/toast";
+import { slug_taken_message } from "#/routes/admin.$id.campaigns/copy";
 import type { IFund } from "#/types/fund";
 import { fund_id, fund_update } from "@/fundraiser/schema";
 import { resp } from "@/helpers/https";
@@ -104,7 +105,7 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
   if (parsed.slug) {
     const res = await fund_by_slug(parsed.slug);
     if (res && res.id !== id) {
-      return dataWithError(null, `Slug ${parsed.slug} is already taken`);
+      return dataWithError(null, slug_taken_message());
     }
   }
 

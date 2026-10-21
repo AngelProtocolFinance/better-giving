@@ -1,5 +1,7 @@
 import { valibotResolver } from "@hookform/resolvers/valibot";
+import { type BaseSyntheticEvent, useEffect, useRef } from "react";
 import {
+  type FieldValues,
   type UseFormHandleSubmit,
   useController,
   useFieldArray,
@@ -28,9 +30,35 @@ type Goal = v.InferOutput<typeof goal_schema>;
 /** one section's PATCH, over its own fetcher so its pending state is its own */
 function use_patch() {
   const fetcher = useFetcher();
-  const patch = (update: IFundUpdate) =>
-    fetcher.submit(update, { method: "PATCH", encType: "application/json" });
-  return { patch, busy: fetcher.state !== "idle" };
+  const busy = fetcher.state !== "idle";
+  // latched from the press, not read off the fetcher: validation is async, so
+  // a second press lands before the fetcher reports busy
+  const held = useRef(false);
+  useEffect(() => {
+    if (!busy) held.current = false;
+  }, [busy]);
+
+  function submitter<T extends FieldValues>(
+    handle: UseFormHandleSubmit<T>,
+    to_update: (fv: T) => IFundUpdate
+  ) {
+    return (e?: BaseSyntheticEvent) => {
+      e?.preventDefault();
+      if (held.current) return;
+      held.current = true;
+      return handle(
+        (fv) =>
+          fetcher.submit(to_update(fv), {
+            method: "PATCH",
+            encType: "application/json",
+          }),
+        () => {
+          held.current = false;
+        }
+      )(e);
+    };
+  }
+  return { submitter, busy };
 }
 
 export function use_general(init: IFund) {
@@ -43,19 +71,19 @@ export function use_general(init: IFund) {
     },
   });
   const { errors, isDirty, dirtyFields: df } = form.formState;
-  const { patch, busy } = use_patch();
+  const { submitter, busy } = use_patch();
   const { field: desc } = useController({
     control: form.control,
     name: "description",
   });
   const slug = form.watch("slug");
 
-  const save = form.handleSubmit((fv) => {
+  const save = submitter(form.handleSubmit, (fv) => {
     const update: IFundUpdate = {};
     if (df.name) update.name = fv.name;
     if (df.slug) update.slug = fv.slug;
     if (df.description) update.description_pt = fv.description.value;
-    return patch(update);
+    return update;
   });
 
   return { ...form, errors, is_dirty: isDirty, busy, save, desc, slug };
@@ -71,7 +99,7 @@ export function use_media(init: IFund) {
     },
   });
   const { errors, isDirty, dirtyFields: df } = form.formState;
-  const { patch, busy } = use_patch();
+  const { submitter, busy } = use_patch();
   const { control } = form;
   const { field: banner } = useController({ control, name: "banner" });
   const { field: logo } = useController({ control, name: "logo" });
@@ -82,12 +110,12 @@ export function use_media(init: IFund) {
   // preserve the generic — inference widens to FieldValues due to `control as any` in useFieldArray
   const handleSubmit: UseFormHandleSubmit<Media> = form.handleSubmit;
 
-  const save = handleSubmit((fv) => {
+  const save = submitter(handleSubmit, (fv) => {
     const update: IFundUpdate = {};
     if (df.videos) update.videos = fv.videos.map((v) => v.url);
     if (df.banner) update.banner = fv.banner;
     if (df.logo) update.logo = fv.logo;
-    return patch(update);
+    return update;
   });
 
   return {
@@ -117,7 +145,7 @@ export function use_goal(init: IFund) {
     },
   });
   const { errors, isDirty, dirtyFields: df } = form.formState;
-  const { patch, busy } = use_patch();
+  const { submitter, busy } = use_patch();
   const { control } = form;
   const { field: target_type } = useController({
     control,
@@ -126,11 +154,11 @@ export function use_goal(init: IFund) {
   const increments = useFieldArray({ control, name: "increments" });
   const incs = form.watch("increments");
 
-  const save = form.handleSubmit((fv) => {
+  const save = submitter(form.handleSubmit, (fv) => {
     const update: IFundUpdate = {};
     if (df.target) update.target = to_target(fv.target);
     if (df.increments) update.increments = fv.increments;
-    return patch(update);
+    return update;
   });
 
   return {

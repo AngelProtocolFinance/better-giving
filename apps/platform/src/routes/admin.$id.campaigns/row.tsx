@@ -5,13 +5,12 @@ import {
   Target,
 } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 import type { STATUS_WORD } from "./copy";
 
 export type TRowStatus =
   | (typeof STATUS_WORD)[keyof typeof STATUS_WORD]
-  | "Closed"
   | "Profile";
 
 const STATUS_TONE: Record<TRowStatus, BadgeTone> = {
@@ -21,6 +20,20 @@ const STATUS_TONE: Record<TRowStatus, BadgeTone> = {
   Closed: "destructive",
   Profile: "primary",
 };
+
+interface IStatusBadge {
+  status: TRowStatus;
+  /** outer placement only */
+  className?: string;
+}
+
+export function StatusBadge({ status, className }: IStatusBadge) {
+  return (
+    <Badge tone={STATUS_TONE[status]} className={className}>
+      {status}
+    </Badge>
+  );
+}
 
 const NO_END_MS = Date.parse(MAX_EXPIRATION_ISO);
 
@@ -48,8 +61,6 @@ function fixed_goal(target: IRow["target"]): number | null {
 
 export interface IRow {
   name: string;
-  /** for a control elsewhere in the row that names itself by the row */
-  name_id?: string;
   status: TRowStatus;
   thumb: string | null;
   raised: number;
@@ -58,12 +69,12 @@ export interface IRow {
   byline?: ReactNode;
   /** absent for the profile, which never ends */
   ends?: string;
-  actions?: ReactNode;
+  /** given the id of the row's name, for a control that names itself by the row */
+  actions?: (name_id: string) => ReactNode;
 }
 
 export function Row({
   name,
-  name_id,
   status,
   thumb,
   raised,
@@ -73,8 +84,9 @@ export function Row({
   actions,
 }: IRow) {
   const goal = fixed_goal(target);
+  const name_id = useId();
   return (
-    <li className="card grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_auto] items-center gap-4">
+    <li className="card grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-6">
       {thumb ? (
         <img
           src={thumb}
@@ -89,19 +101,22 @@ export function Row({
           <p id={name_id} className="font-semibold">
             {name}
           </p>
-          <Badge tone={STATUS_TONE[status]}>{status}</Badge>
+          <StatusBadge status={status} />
         </div>
         {byline}
         {goal ? (
           <Target classes="max-w-sm" progress={raised} target={goal} />
         ) : (
-          <span className="text-sm text-gray-11">{to_usd(raised)} raised</span>
+          <p className="flex items-center gap-x-1 text-sm text-gray-11">
+            <span className="font-medium">{to_usd(raised)}</span>{" "}
+            <span className="text-xs">Raised</span>
+          </p>
         )}
         {ends && <span className="text-sm text-gray-11">{ends}</span>}
       </div>
       {actions && (
-        <div className="col-span-full sm:col-span-1 flex flex-wrap items-center gap-3 sm:justify-end">
-          {actions}
+        <div className="col-span-full sm:col-span-1 flex flex-wrap items-center justify-end gap-3">
+          {actions(name_id)}
         </div>
       )}
     </li>

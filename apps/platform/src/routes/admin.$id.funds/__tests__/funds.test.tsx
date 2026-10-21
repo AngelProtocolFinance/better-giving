@@ -342,6 +342,40 @@ describe("funds — filter and display", () => {
       .toBeInTheDocument();
   });
 
+  it("labels each supporter campaign Draft, Closed, Ended or Live", async () => {
+    const npo = await seed_npo();
+    const other_npo = await seed_npo({
+      registration_number: "EIN-STATUS",
+      name: "Status NPO",
+    });
+    const creator = await seed_user("status@test.com", "Stat", "Us");
+    const seed = (n: number, name: string, vals: object) =>
+      seed_fund({
+        id: `dddddddd-000${n}-000${n}-000${n}-00000000000${n}`,
+        name,
+        npo_owner: other_npo.id,
+        creator_id: creator.id,
+        members: [npo.id, other_npo.id],
+        published: true,
+        ...vals,
+      });
+    await seed(1, "Draft drive", { published: false });
+    await seed(2, "Closed drive", { active: false });
+    await seed(3, "Ended drive", { expiration: "2020-01-02T00:00:00.000Z" });
+    await seed(4, "Live drive", {});
+
+    const screen = await render_funds(npo.id);
+    const pill = (name: string, word: string) =>
+      screen
+        .getByRole("listitem")
+        .filter({ hasText: name })
+        .getByText(word, { exact: true });
+    await expect.element(pill("Draft drive", "Draft")).toBeVisible();
+    await expect.element(pill("Closed drive", "Closed")).toBeVisible();
+    await expect.element(pill("Ended drive", "Ended")).toBeVisible();
+    await expect.element(pill("Live drive", "Live")).toBeVisible();
+  });
+
   it("shows empty message when no funds exist", async () => {
     await seed_user("seed@test.com");
     const npo = await seed_npo();
@@ -555,7 +589,7 @@ describe("funds — opt out", () => {
     expect(vi.mocked(enqueue)).toHaveBeenCalledTimes(1);
   });
 
-  it("last member opts out — fund becomes inactive, shows ended on the owner's campaigns", async () => {
+  it("last member opts out — fund becomes inactive, shows closed on the owner's campaigns", async () => {
     const npo = await seed_npo();
     const other_npo = await seed_npo({
       registration_number: "EIN-SOLO",
@@ -597,7 +631,7 @@ describe("funds — opt out", () => {
     await expect.element(screen.getByText("Solo Fund")).not.toBeInTheDocument();
     await cleanup();
 
-    // the owner lists it under its own campaigns, now ended
+    // the owner lists it under its own campaigns, now closed
     const owner = await render_funds(other_npo.id, {
       ...MOCK_USER,
       endowments: [other_npo.id],
@@ -607,7 +641,7 @@ describe("funds — opt out", () => {
       .click();
     const solo = owner.getByRole("listitem").filter({ hasText: "Solo Fund" });
     await expect
-      .element(solo.getByText("Ended", { exact: true }))
+      .element(solo.getByText("Closed", { exact: true }))
       .toBeVisible();
     await cleanup();
 
@@ -666,7 +700,9 @@ describe("funds — edit visibility", () => {
       .getByRole("listitem")
       .filter({ hasText: "Editable Fund" });
     await expect
-      .element(editable.getByRole("link", { name: /^edit$/i }))
+      .element(
+        editable.getByRole("link", { name: "Edit Editable Fund", exact: true })
+      )
       .toBeVisible();
 
     await cleanup();
@@ -685,13 +721,16 @@ describe("funds — edit visibility", () => {
         screen.getByRole("link", { name: "Supporter Fund", exact: true })
       )
       .not.toBeInTheDocument();
-    const view = screen.getByRole("link", { name: /^view$/i });
+    const view = screen.getByRole("link", {
+      name: "View Supporter Fund",
+      exact: true,
+    });
     await expect.element(view).toBeVisible();
     expect(view.element().getAttribute("href")).toBe(
       `/fundraisers/${supporter_fund_id}`
     );
     await expect
-      .element(screen.getByRole("link", { name: /^edit$/i }))
+      .element(screen.getByRole("link", { name: /^edit/i }))
       .not.toBeInTheDocument();
   });
 });
