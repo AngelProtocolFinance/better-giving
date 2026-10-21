@@ -385,9 +385,12 @@ describe("campaign list", () => {
     await expect
       .element(screen.getByText("Draft · $1 raised · No end date"))
       .toBeVisible();
-    expect(screen.getByRole("link", { name: "View" }).elements().length).toBe(
-      0
-    );
+    expect(
+      page
+        .elementLocator(spring_row as HTMLElement)
+        .getByRole("link", { name: "View", exact: true })
+        .query()
+    ).toBeNull();
 
     const profile = screen.getByRole("link", { name: "/marketplace/acme" });
     expect(
