@@ -8,12 +8,28 @@ const PLACEHOLDER_SEGMENT = "your-campaign";
 interface ILinkField {
   reg: UseFormRegisterReturn<"slug">;
   value: string;
-  /** `https://host/org/<org-slug>/`; null when the org has no slug yet, so
-   * there is no public link to show */
+  /** the link up to its slug, e.g. `https://host/org/<org-slug>/`; null when
+   * the org has no slug yet, so there is no public link to show */
   base: string | null;
   /** published: the link is live and can no longer change */
   locked: boolean;
   error?: string;
+}
+
+interface IPublicLinkField extends ILinkField {
+  label: string;
+  required?: boolean;
+  /** the line under the label */
+  help: string;
+  /** what donors find at the link, e.g. "this campaign" */
+  subject: string;
+  placeholder?: string;
+  /** the previewed link while the slug is empty */
+  empty_url: string | null;
+  /** follows the empty link in the preview, e.g. " until you set a link" */
+  empty_suffix?: string;
+  /** ids of notes rendered outside the field */
+  describedby?: string;
 }
 
 /** a url offers no break of its own; one after each slash keeps a wrap
@@ -33,25 +49,61 @@ function break_at_slashes(url: string) {
 }
 
 /** the slug input, framed as the last segment of the campaign's public link */
-export function LinkField({ reg, value, base, locked, error }: ILinkField) {
+export function LinkField(props: ILinkField) {
+  return (
+    <PublicLinkField
+      {...props}
+      label="Campaign link"
+      required
+      help={
+        props.locked ? SLUG_LOCK_NOTE : `${SLUG_HELP}. ${SLUG_PUBLISH_LOCK}`
+      }
+      subject="this campaign"
+      empty_url={props.base && `${props.base}${PLACEHOLDER_SEGMENT}`}
+    />
+  );
+}
+
+/** a slug input framed as the last segment of a public link, with a live
+ *  preview of the whole link */
+export function PublicLinkField({
+  reg,
+  value,
+  base,
+  locked,
+  error,
+  label,
+  required,
+  help,
+  subject,
+  placeholder,
+  empty_url,
+  empty_suffix,
+  describedby,
+}: IPublicLinkField) {
   const id = `__${reg.name}`;
   const sub_id = `__sub_${reg.name}`;
   const prefix_id = `__prefix_${reg.name}`;
   const error_id = `__error_${reg.name}`;
   const segment = value.trim();
-  const url = base && `${base}${segment || PLACEHOLDER_SEGMENT}`;
+  const url = segment ? base && `${base}${segment}` : empty_url;
   const url_text = url && break_at_slashes(url);
-  const described = [sub_id, base ? prefix_id : "", error ? error_id : ""]
+  const described = [
+    sub_id,
+    base ? prefix_id : "",
+    error ? error_id : "",
+    describedby ?? "",
+  ]
     .filter(Boolean)
     .join(" ");
 
   return (
     <div className="min-w-0">
-      <Label required htmlFor={id}>
-        Campaign link
+      <Label required={required} htmlFor={id}>
+        {label}
       </Label>
       <p id={sub_id} className="text-gray-11 text-sm mb-2 break-words">
-        {locked ? SLUG_LOCK_NOTE : `${SLUG_HELP}. ${SLUG_PUBLISH_LOCK}`}
+        {help}
       </p>
       {/* the prefix gives way first: it truncates from its start so the org
           segment beside the input stays readable, and the input keeps a floor */}
@@ -74,7 +126,8 @@ export function LinkField({ reg, value, base, locked, error }: ILinkField) {
           type="text"
           disabled={locked}
           aria-disabled={locked || undefined}
-          aria-required
+          aria-required={required || undefined}
+          placeholder={placeholder}
           aria-invalid={!!error}
           aria-errormessage={error_id}
           aria-describedby={described}
@@ -85,7 +138,7 @@ export function LinkField({ reg, value, base, locked, error }: ILinkField) {
       </div>
       {url && (
         <p className="mt-1 text-sm text-gray-11 break-words">
-          Donors will find this campaign at{" "}
+          Donors will find {subject} at{" "}
           {locked ? (
             <ExtLink href={url} className="link">
               {url_text}
@@ -93,6 +146,7 @@ export function LinkField({ reg, value, base, locked, error }: ILinkField) {
           ) : (
             url_text
           )}
+          {!segment && empty_suffix}
         </p>
       )}
       <p id={error_id} className="field-err mt-1 empty:hidden">

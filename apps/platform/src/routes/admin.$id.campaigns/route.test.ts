@@ -217,7 +217,7 @@ describe("campaign slug", () => {
     );
     expect(res.status).toBe(400);
     expect(res.error).toBe(
-      "Set your organization slug on Organization before creating a campaign."
+      "Set your profile link on Organization before creating a campaign."
     );
   });
 

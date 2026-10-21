@@ -29,10 +29,9 @@ export default function Page() {
           <span className="font-mono text-sm">
             /org/your-organization/your-campaign
           </span>
-          . Set the organization slug on Organization first. The campaign
-          address can change until the first time you publish. After that it
-          stays put, because a change would break links that already point at
-          the page.
+          . Set your profile link on Organization first. The campaign address
+          can change until the first time you publish. After that it stays put,
+          because a change would break links that already point at the page.
         </p>
       </section>
       <section className="grid gap-2">

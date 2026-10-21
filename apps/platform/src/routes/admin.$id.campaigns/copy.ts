@@ -36,7 +36,7 @@ export function publish_lock_body(link: string) {
 }
 
 export const ORG_SLUG_PROMPT =
-  "Set your organization slug on Organization before creating a campaign.";
+  "Set your profile link on Organization before creating a campaign.";
 
 const SLUG_TAKEN = "That link is already used by another campaign.";
 

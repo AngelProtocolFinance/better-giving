@@ -341,7 +341,7 @@ export async function npo_put(db: DbOrTx, data: NpoInsert) {
 }
 
 export const slug_change_refused =
-  "The org slug is already set and cannot be changed";
+  "Your profile link is already set and can't be changed";
 
 // no lookup sync needed — UNIQUE constraints handle slug/keyword/regnum.
 // a slug, once stored, is permanent: campaign and donate links depend on it.

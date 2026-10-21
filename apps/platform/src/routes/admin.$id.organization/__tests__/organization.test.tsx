@@ -66,7 +66,7 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
 };
 
 const note =
-  "Changing your org slug would make any links that depend on it stale";
+  "Changing your profile link breaks links you've already shared, including your campaign links.";
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -175,7 +175,7 @@ describe("organization — slug unset", () => {
     free_slug();
     const npo = await seed_npo();
     const screen = await render_org(npo.id);
-    const slug = screen.getByLabelText("Org slug");
+    const slug = screen.getByLabelText("Profile link");
     await expect.element(slug).toBeEnabled();
     await expect.element(slug).toHaveAttribute("placeholder", "TestCharity");
 
@@ -206,7 +206,7 @@ describe("organization — slug unset", () => {
     await vi.waitFor(async () =>
       expect((await npo_get(npo.id))?.slug).toBe("acme-org")
     );
-    await expect.element(screen.getByLabelText("Org slug")).toBeDisabled();
+    await expect.element(screen.getByLabelText("Profile link")).toBeDisabled();
     await expect.element(screen.getByText(note)).toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: /\/marketplace\/acme-org$/ }))
@@ -214,6 +214,35 @@ describe("organization — slug unset", () => {
     await expect
       .element(screen.getByRole("link", { name: /\/donate\/acme-org$/ }))
       .toBeVisible();
+  });
+
+  it("previews the profile link as the slug is typed", async () => {
+    const npo = await seed_npo();
+    const screen = await render_org(npo.id);
+    const slug = screen.getByLabelText("Profile link");
+    await expect
+      .element(
+        screen.getByText(
+          new RegExp(
+            `^Donors will find your profile at https?://[^/]+/marketplace/${npo.id} until you set a link$`
+          )
+        )
+      )
+      .toBeVisible();
+
+    await slug.fill("acme-org");
+    await expect
+      .element(
+        screen.getByText(
+          /^Donors will find your profile at https?:\/\/[^/]+\/marketplace\/acme-org$/
+        )
+      )
+      .toBeVisible();
+    await expect
+      .element(slug)
+      .toHaveAccessibleDescription(
+        /Your campaign links start with it too \(…\/org\/acme-org\/…\)\. Letters, numbers, and - \. _ ~/
+      );
   });
 
   it("focuses the logo before a later invalid field", async () => {
@@ -235,7 +264,7 @@ describe("organization — slug unset", () => {
     free_slug();
     const npo = await seed_npo();
     const screen = await render_org(npo.id);
-    await screen.getByLabelText("Org slug").fill("acme-org");
+    await screen.getByLabelText("Profile link").fill("acme-org");
     await screen.getByRole("button", { name: "Save organization" }).click();
     const cancel = screen.getByRole("button", { name: "Cancel", exact: true });
     await expect.element(cancel).toBeVisible();
@@ -244,7 +273,7 @@ describe("organization — slug unset", () => {
       .element(screen.getByRole("heading", { name: "Lock this address?" }))
       .not.toBeInTheDocument();
     expect((await npo_get(npo.id))?.slug).toBeFalsy();
-    await expect.element(screen.getByLabelText("Org slug")).toBeEnabled();
+    await expect.element(screen.getByLabelText("Profile link")).toBeEnabled();
   });
 });
 
@@ -252,7 +281,7 @@ describe("organization — slug set", () => {
   it("is read-only and lists the marketplace and donate urls", async () => {
     const npo = await seed_npo({ slug: "already-set" });
     const screen = await render_org(npo.id);
-    const slug = screen.getByLabelText("Org slug");
+    const slug = screen.getByLabelText("Profile link");
     await expect.element(slug).toBeVisible();
     await expect.element(slug).toBeDisabled();
     await expect.element(slug).toHaveDisplayValue("already-set");
@@ -279,9 +308,9 @@ describe("organization — stored route slug", () => {
   it("saves other fields and leaves the slug", async () => {
     const npo = await seed_npo({ slug: "donate" });
     const screen = await render_org(npo.id);
-    await expect.element(screen.getByLabelText("Org slug")).toBeDisabled();
+    await expect.element(screen.getByLabelText("Profile link")).toBeDisabled();
     await expect
-      .element(screen.getByLabelText("Org slug"))
+      .element(screen.getByLabelText("Profile link"))
       .toHaveDisplayValue("donate");
 
     await screen.getByLabelText(/ein.*registration/i).fill("NEW999");
@@ -308,7 +337,9 @@ describe("organization — server refusal", () => {
     const screen = await post(npo.id, { slug: "changed", tagline: "nope" });
     await expect
       .element(
-        screen.getByText("The org slug is already set and cannot be changed")
+        screen.getByText(
+          "Your profile link is already set and can't be changed"
+        )
       )
       .toBeVisible();
     const saved = await npo_get(npo.id);
@@ -327,7 +358,7 @@ describe("organization — server refusal", () => {
   it("refuses a reserved slug", async () => {
     const npo = await seed_npo();
     const screen = await render_org(npo.id);
-    await screen.getByLabelText("Org slug").fill("donate");
+    await screen.getByLabelText("Profile link").fill("donate");
     await screen.getByRole("button", { name: "Save organization" }).click();
     (
       screen
@@ -363,7 +394,7 @@ describe("organization — server refusal", () => {
     });
 
     const screen = await render_org(npo.id);
-    await screen.getByLabelText("Org slug").fill("taken-slug");
+    await screen.getByLabelText("Profile link").fill("taken-slug");
     await screen.getByRole("button", { name: "Save organization" }).click();
     (
       screen
