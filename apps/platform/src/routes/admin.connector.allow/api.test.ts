@@ -132,6 +132,7 @@ describe("connector allow", () => {
     expect(loaded).toEqual({
       nonprofits: [{ id: npo_a.id, name: "Alpha" }],
       state: STATE,
+      blocked: false,
     });
 
     const res = await post(
@@ -231,8 +232,16 @@ describe("connector allow", () => {
       `${ALLOW_URL}?state=${encodeURIComponent("../x")}`,
       user_row
     );
-    expect(loaded).toBeInstanceOf(Response);
-    expect((loaded as Response).status).toBe(400);
+    expect(loaded).not.toBeInstanceOf(Response);
+    expect(loaded).toMatchObject({
+      data: {
+        nonprofits: [],
+        state: "",
+        error: CONNECTION_REFUSED,
+        blocked: true,
+      },
+      init: { status: 400 },
+    });
 
     const res = await post(
       ALLOW_URL,
@@ -255,6 +264,6 @@ describe("connector allow", () => {
       role: "admin",
     });
 
-    expect(loaded).toEqual({ nonprofits: [], state: STATE });
+    expect(loaded).toEqual({ nonprofits: [], state: STATE, blocked: false });
   });
 });

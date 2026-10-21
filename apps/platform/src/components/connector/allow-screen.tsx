@@ -12,9 +12,15 @@ export interface IAllowScreen {
   nonprofits: INpoChoice[];
   state: string;
   error?: string;
+  blocked?: boolean;
 }
 
-export function AllowScreen({ nonprofits, state, error }: IAllowScreen) {
+export function AllowScreen({
+  nonprofits,
+  state,
+  error,
+  blocked = false,
+}: IAllowScreen) {
   const disclosure_id = useId();
   const empty_id = useId();
   const none = nonprofits.length === 0;
@@ -35,8 +41,8 @@ export function AllowScreen({ nonprofits, state, error }: IAllowScreen) {
             start draft campaigns. It cannot move money.
           </p>
         </div>
-        <input type="hidden" name="state" value={state} />
-        {none ? (
+        {blocked ? null : <input type="hidden" name="state" value={state} />}
+        {blocked ? null : none ? (
           <p id={empty_id} className="text-sm">
             This account does not administer a nonprofit yet.
           </p>
@@ -77,30 +83,32 @@ export function AllowScreen({ nonprofits, state, error }: IAllowScreen) {
             </>
           ) : null}
         </div>
-        <Actions>
-          <Button
-            type="submit"
-            variant="outline"
-            name="decision"
-            value="deny"
-            aria-describedby={
-              none ? `${disclosure_id} ${empty_id}` : disclosure_id
-            }
-          >
-            Deny
-          </Button>
-          {none ? null : (
+        {blocked ? null : (
+          <Actions>
             <Button
               type="submit"
-              variant="primary"
+              variant="outline"
               name="decision"
-              value="allow"
-              aria-describedby={disclosure_id}
+              value="deny"
+              aria-describedby={
+                none ? `${disclosure_id} ${empty_id}` : disclosure_id
+              }
             >
-              Allow
+              Deny
             </Button>
-          )}
-        </Actions>
+            {none ? null : (
+              <Button
+                type="submit"
+                variant="primary"
+                name="decision"
+                value="allow"
+                aria-describedby={disclosure_id}
+              >
+                Allow
+              </Button>
+            )}
+          </Actions>
+        )}
       </Form>
     </section>
   );

@@ -14,9 +14,20 @@ const STATE_RE = /^[A-Za-z0-9._~-]{1,512}$/;
 export const CONNECTION_REFUSED =
   "This connection request can't be completed. Start again from the chat.";
 
-const bad = () => new Response(null, { status: 400 });
-
 const refused = () => data({ error: CONNECTION_REFUSED }, { status: 400 });
+
+// a returned Response is loader data the page cannot read, so the render throws
+// into the generic boundary and gets reported. `data()` stays on this screen.
+const blocked = () =>
+  data(
+    {
+      nonprofits: [],
+      state: "",
+      error: CONNECTION_REFUSED,
+      blocked: true as const,
+    },
+    { status: 400 }
+  );
 
 const state_ok = (state: string) => STATE_RE.test(state);
 
@@ -48,10 +59,10 @@ const see_other = (href: string, query: Record<string, string>) => {
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
   const state = new URL(request.url).searchParams.get("state") ?? "";
-  if (!state_ok(state)) return bad();
+  if (!state_ok(state)) return blocked();
   const user = context.get(user_ctx);
   const nonprofits = await memberships_of(user.id);
-  return { nonprofits, state };
+  return { nonprofits, state, blocked: false as const };
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {

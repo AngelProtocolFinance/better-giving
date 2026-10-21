@@ -15,7 +15,11 @@ export default function Page({ loaderData, actionData }: Route.ComponentProps) {
       <AllowScreen
         nonprofits={loaderData.nonprofits}
         state={loaderData.state}
-        error={actionData?.error}
+        error={
+          actionData?.error ??
+          (loaderData.blocked ? loaderData.error : undefined)
+        }
+        blocked={loaderData.blocked}
       />
     </main>
   );
