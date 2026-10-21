@@ -66,7 +66,7 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
 };
 
 const note =
-  "Changing your profile link breaks links you've already shared, including your campaign links.";
+  "Your profile link can't change, so links you've already shared, including your campaign links, keep working.";
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -189,10 +189,10 @@ describe("organization — slug unset", () => {
     await screen.getByRole("button", { name: "Save organization" }).click();
     const cancel = screen.getByRole("button", { name: "Cancel", exact: true });
     await expect
-      .element(screen.getByRole("heading", { name: "Lock this address?" }))
+      .element(screen.getByRole("heading", { name: "Lock your profile link?" }))
       .toBeVisible();
     await expect
-      .element(screen.getByText("This address can't be changed later."))
+      .element(screen.getByText("Your profile link can't be changed later."))
       .toBeVisible();
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(cancel.element());
@@ -270,7 +270,7 @@ describe("organization — slug unset", () => {
     await expect.element(cancel).toBeVisible();
     (cancel.element() as HTMLElement).click();
     await expect
-      .element(screen.getByRole("heading", { name: "Lock this address?" }))
+      .element(screen.getByRole("heading", { name: "Lock your profile link?" }))
       .not.toBeInTheDocument();
     expect((await npo_get(npo.id))?.slug).toBeFalsy();
     await expect.element(screen.getByLabelText("Profile link")).toBeEnabled();

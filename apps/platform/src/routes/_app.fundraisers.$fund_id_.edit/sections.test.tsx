@@ -179,7 +179,7 @@ describe("fundraiser edit — per-section save", () => {
     expect(sent).toEqual([{ target: "0" }]);
     expect((await fund_get_or_slug(FUND_ID))?.name).toBe("Original");
 
-    // goal settles clean on the revalidated read; general is read past it
+    // goal settles clean on the revalidated read; general keeps its unsaved edit
     await expect.element(goal).toHaveAttribute("aria-disabled", "true");
     await expect.element(name).toHaveDisplayValue("Unsaved name");
     const general = screen.getByRole("button", { name: "Save general" });

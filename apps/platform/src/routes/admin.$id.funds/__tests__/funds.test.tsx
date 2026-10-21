@@ -682,7 +682,7 @@ describe("funds — edit visibility", () => {
       published: true,
     });
 
-    // a stale ?creator=ours no longer pulls the org's own funds onto the supporter tab
+    // a stale ?creator=ours leaves the org's own funds off the supporter tab
     let screen = await render_funds(
       npo.id,
       { ...MOCK_USER, endowments: [npo.id], funds: [] },

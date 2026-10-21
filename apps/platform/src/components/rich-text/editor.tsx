@@ -72,7 +72,7 @@ function EditableShell({
       />
       <PortableTextEditable
         // the field around it already rings on focus-within; a second ring
-        // here boxed the text area inside the field's own
+        // here would box the text area inside the field's own
         className="mt-2 flex-1 outline-0"
         placeholder={props.placeHolder}
         renderStyle={render_style}

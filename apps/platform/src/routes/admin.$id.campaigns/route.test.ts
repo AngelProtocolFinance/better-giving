@@ -445,7 +445,7 @@ describe("campaign list loader", () => {
       throw new Error("expected the fundraisers tab");
     expect(tab.funds.map((f) => f.id)).toEqual(["fund-supporter"]);
 
-    // the tab is others-only; a stale ?creator= from the removed filter is ignored
+    // the tab is others-only; a stale ?creator= from an old link is ignored
     const stale = await list_loader({
       request: new Request(
         "https://x/admin/list/campaigns?tab=fundraisers&creator=ours"

@@ -32,7 +32,7 @@ const endow_designations: EndowDesignation[] = [
 
 const note_id = "org_slug_note";
 const set_once_note =
-  "Changing your profile link breaks links you've already shared, including your campaign links.";
+  "Your profile link can't change, so links you've already shared, including your campaign links, keep working.";
 
 interface Props {
   init: FV;
@@ -65,8 +65,8 @@ export function Form({ init, id, base_url }: Props) {
         classes="grid gap-4 bg-panel p-6"
         initialFocusEl={() => cancel_ref.current}
       >
-        <h2 className="text-xl font-bold">Lock this address?</h2>
-        <p>This address can't be changed later.</p>
+        <h2 className="text-xl font-bold">Lock your profile link?</h2>
+        <p>Your profile link can't be changed later.</p>
         <div className="flex justify-end gap-2">
           <button
             ref={cancel_ref}
