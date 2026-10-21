@@ -3132,36 +3132,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "forms_recipient_npo_id_idx": {
-          "name": "forms_recipient_npo_id_idx",
-          "columns": [
-            {
-              "expression": "recipient_npo_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "forms_recipient_fund_id_idx": {
-          "name": "forms_recipient_fund_id_idx",
-          "columns": [
-            {
-              "expression": "recipient_fund_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {

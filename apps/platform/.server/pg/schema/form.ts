@@ -73,7 +73,5 @@ export const forms = pgTable(
     index("forms_owner_user_status_date_idx")
       .on(t.owner_user_id, t.status, t.date_created)
       .where(sql`${t.owner_user_id} IS NOT NULL`),
-    index("forms_recipient_npo_id_idx").on(t.recipient_npo_id),
-    index("forms_recipient_fund_id_idx").on(t.recipient_fund_id),
   ]
 );

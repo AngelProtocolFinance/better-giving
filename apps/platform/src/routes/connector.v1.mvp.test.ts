@@ -415,7 +415,7 @@ describe("donation page and catalog", () => {
 });
 
 describe("forms", () => {
-  test("maps ConnectorForm and includes a form attached to a page", async () => {
+  test("maps ConnectorForm for forms this nonprofit owns", async () => {
     const a = await pair("Alpha", "EIN-A", "a@test.com");
     const b = await pair("Beta", "EIN-B", "b@test.com");
     await seed_fund(db(), {
@@ -460,6 +460,14 @@ describe("forms", () => {
           date_created: "2024-01-04T00:00:00.000Z",
         },
         {
+          id: "owned-campaign",
+          owner_npo_id: a.npo.id,
+          recipient_fund_id: "fund-a",
+          name: "Owned campaign",
+          status: "active",
+          date_created: "2024-01-06T00:00:00.000Z",
+        },
+        {
           id: "foreign-fund",
           owner_npo_id: a.npo.id,
           recipient_fund_id: "fund-b",
@@ -493,8 +501,12 @@ describe("forms", () => {
       }
     ).data;
     const ids = data.map((row) => row.id);
-    expect(ids).toContain("on-page");
-    expect(ids).toContain("on-fund");
+    expect(ids).toHaveLength(3);
+    expect(ids).toEqual(
+      expect.arrayContaining(["owned", "owned-campaign", "foreign-fund"])
+    );
+    expect(ids).not.toContain("on-page");
+    expect(ids).not.toContain("on-fund");
     expect(ids).not.toContain("theirs");
     const owned = data.find((row) => row.id === "owned");
     expect(owned).toMatchObject({
@@ -506,8 +518,7 @@ describe("forms", () => {
       gifts_go_to: { mode: "pinned", program_id: "prog_1" },
       campaign_id: null,
     });
-    expect(data.find((row) => row.id === "on-page")?.status).toBe("draft");
-    expect(data.find((row) => row.id === "on-fund")?.campaign_id).toBe(
+    expect(data.find((row) => row.id === "owned-campaign")?.campaign_id).toBe(
       "fund-a"
     );
     expect(
@@ -524,11 +535,19 @@ describe("forms", () => {
     );
     expect(missing.status).toBe(404);
     expect(await missing.json()).toMatchObject({ code: "not_found" });
+    const attached = await get(
+      form_loader,
+      "/connector/v1/forms/on-page",
+      a.key,
+      { id: "on-page" }
+    );
+    expect(attached.status).toBe(404);
+    expect(await attached.json()).toMatchObject({ code: "not_found" });
   });
 });
 
 describe("donations, donors, results, recurring", () => {
-  test("pages gifts, keeps a note on note, and hides the other nonprofit", async () => {
+  test("pages gifts and hides the other nonprofit", async () => {
     const a = await pair("Alpha", "EIN-A", "a@test.com");
     const b = await pair("Beta", "EIN-B", "b@test.com");
     await seed_fund(db(), {

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import type { IIncrement } from "@/schemas";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { pg_text_to_iso } from "../pg/schema/columns";
@@ -335,11 +335,7 @@ function form_of(row: FormRow, npo_id: number) {
 }
 
 function forms_for(npo_id: number) {
-  return or(
-    eq(forms.owner_npo_id, npo_id),
-    eq(forms.recipient_npo_id, npo_id),
-    sql`${forms.recipient_fund_id} IN (SELECT ${funds.id} FROM ${funds} WHERE ${funds.npo_owner} = ${npo_id})`
-  );
+  return eq(forms.owner_npo_id, npo_id);
 }
 
 const form_cols = {
