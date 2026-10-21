@@ -1,7 +1,9 @@
+import { Tabs } from "@better-giving/ui";
 import {
-  NavLink,
   Outlet,
   type ShouldRevalidateFunction,
+  useLocation,
+  useNavigate,
   useParams,
 } from "react-router";
 import { admin_ctx } from "#/.server/auth";
@@ -31,63 +33,37 @@ export default function Page({
   loaderData: { donor_total, sub_count },
 }: Route.ComponentProps) {
   const { id } = useParams<{ id: string }>();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   if (!id) throw new Error("missing npo id");
   const base = `/admin/${id}/donors`;
+  const tab = pathname.endsWith("/subscribers") ? "subscribers" : "donors";
   return (
-    <div className="px-6 py-4 md:px-10 md:py-8">
-      <div className="mb-6 flex items-end justify-between gap-4">
+    <div className="px-6 py-4 md:px-10 md:py-8 max-w-[1400px]">
+      <div className="grid gap-4">
         <h1 className="text-3xl font-bold tracking-tight">Donors</h1>
-        <div className="inline-flex gap-1 rounded bg-gray-3 p-1">
-          <Tab to={base} end count={donor_total}>
-            All donors
-          </Tab>
-          <Tab to={`${base}/subscribers`} count={sub_count}>
-            Subscribers
-          </Tab>
-        </div>
+        <Tabs
+          className="w-full"
+          stretch
+          value={tab}
+          onValueChange={(value) => {
+            navigate(value === "subscribers" ? `${base}/subscribers` : base);
+          }}
+          items={[
+            {
+              value: "donors",
+              label: `All donors ${donor_total.toLocaleString("en-US")}`,
+            },
+            {
+              value: "subscribers",
+              label: `Subscribers ${sub_count.toLocaleString("en-US")}`,
+            },
+          ]}
+        >
+          {null}
+        </Tabs>
       </div>
       <Outlet />
     </div>
-  );
-}
-
-interface ITabProps {
-  to: string;
-  count: number;
-  end?: boolean;
-  children: React.ReactNode;
-}
-
-function Tab({ to, count, end, children }: ITabProps) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      prefetch="intent"
-      className={({ isActive }) =>
-        [
-          "inline-flex h-8 items-center gap-2 rounded px-3 text-sm font-medium transition-colors",
-          isActive
-            ? "bg-background text-gray-12"
-            : "text-gray-11 hover:text-gray-12",
-        ].join(" ")
-      }
-    >
-      {({ isActive }) => (
-        <>
-          {children}
-          <span
-            className={[
-              "rounded px-1.5 py-0.5 text-2xs font-medium figures",
-              isActive
-                ? "bg-gray-3 text-gray-11"
-                : "bg-background text-gray-11",
-            ].join(" ")}
-          >
-            {count.toLocaleString("en-US")}
-          </span>
-        </>
-      )}
-    </NavLink>
   );
 }

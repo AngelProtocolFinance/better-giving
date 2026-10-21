@@ -120,16 +120,16 @@ export function Loaded({ classes = "", ...props }: Props) {
           live={props.campaign_live}
         />
       </div>
-      <div className="flex items-center gap-4 mt-4">
-        <NavLink to="deposit" className="btn btn-secondary gap-2">
+      <div className="grid grid-cols-3 gap-3 mt-4">
+        <NavLink to="deposit" className="btn btn-secondary gap-2 min-w-0">
           <ArrowUpFromLineIcon className="icon-md" />
           Deposit
         </NavLink>
-        <NavLink to="withdraw" className="btn btn-secondary gap-2">
+        <NavLink to="withdraw" className="btn btn-secondary gap-2 min-w-0">
           <ArrowDownToLineIcon className="icon-md" />
           Withdraw
         </NavLink>
-        <NavLink to="transfer" className="btn btn-secondary gap-2">
+        <NavLink to="transfer" className="btn btn-secondary gap-2 min-w-0">
           <ArrowLeftRightIcon className="icon-md" />
           Transfer
         </NavLink>

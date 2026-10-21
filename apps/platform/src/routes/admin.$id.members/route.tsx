@@ -1,3 +1,5 @@
+import { Plus } from "lucide-react";
+import { NavLink } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
@@ -13,8 +15,12 @@ export default CacheRoute(Page);
 
 function Page({ loaderData: data }: Route.ComponentProps) {
   return (
-    <div className="grid content-start gap-y-6 @lg:gap-y-8 px-6 py-4 md:px-10 md:py-8">
+    <div className="grid grid-cols-[1fr_auto] items-center content-start gap-y-6 @lg:gap-y-8 px-6 py-4 md:px-10 md:py-8 max-w-[1400px]">
       <h1 className="text-3xl font-bold">Manage Members</h1>
+      <NavLink className="btn btn-primary gap-2" to="add">
+        <Plus className="icon-md" />
+        <span>Invite user</span>
+      </NavLink>
       <List {...data} />
     </div>
   );

@@ -91,7 +91,7 @@ export function DonationTab({
             {errors.receipt_msg?.message ?? ""}
           </span>
         </p>
-        <p className="text-xs sm:text-sm text-gray-11 italic mt-1">
+        <p className="text-sm text-gray-11 mt-1">
           This is an optional message that can be included on all tax receipts
           to your donors to add a personalized touch, a thank you, or a call to
           action.
@@ -102,7 +102,7 @@ export function DonationTab({
         <CheckField {...register("hide_bg_tip")} classes="font-medium">
           Opt out of Support Contribution Model
         </CheckField>
-        <span className="text-xs sm:text-sm italic text-gray-11">
+        <span className="text-sm text-gray-11">
           In the donation form, there is a section in which users can choose to
           support Better Giving by contributing any amount they desire alongside
           their donation to you - the amount they contribute will not affect the
@@ -119,7 +119,7 @@ export function DonationTab({
         >
           Require donor address
         </CheckField>
-        <span className="text-xs sm:text-sm italic text-gray-11">
+        <span className="text-sm text-gray-11">
           Collecting the donor address is not required and adds an additional
           step for donors before completing their gifts, so we do not normally
           ask for it. However, if this is information you would like, we can
@@ -129,7 +129,7 @@ export function DonationTab({
 
       <div className="mt-8">
         <SaveAlert data={fetcher.data} />
-        <Actions>
+        <Actions classes="sticky bottom-0 bg-panel">
           <button
             type="reset"
             className="btn-secondary btn"

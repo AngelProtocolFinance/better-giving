@@ -106,7 +106,7 @@ export function QrCode({
       <h2 className="text-2xl font-bold mb-2">QR Code</h2>
 
       <Tabs
-        className="w-96"
+        className="w-full max-w-96"
         items={tabs.map((tab) => ({ value: tab.id, label: tab.name }))}
         defaultValue={tabs[0].id}
         onValueChange={set_selected_tab}
@@ -143,18 +143,23 @@ export function QrCode({
                   href={urls[tab.id]}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="link font-mono text-xs"
+                  className="link font-mono text-xs break-all"
                 >
                   {urls[tab.id]}
                 </a>
               ) : (
-                <span className="font-mono text-xs">{urls[tab.id]}</span>
+                <span className="font-mono text-xs break-all">
+                  {urls[tab.id]}
+                </span>
               )}
             </p>
           </TabPanel>
         ))}
 
         <div className="mt-4 flex gap-x-2 items-center justify-items-center">
+          <label htmlFor="qr-color" className="label">
+            Color
+          </label>
           <input
             id="qr-color"
             type="color"

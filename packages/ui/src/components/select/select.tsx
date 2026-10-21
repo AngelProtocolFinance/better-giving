@@ -31,6 +31,8 @@ export interface Props<T extends string>
   options: T[];
   option_disp: (opt: T) => ReactNode;
   children?: (selected: T | undefined) => ReactNode;
+  /** omits `.field-input`, which pins the trigger to `--field-size` (50px). */
+  compact?: boolean;
 }
 
 export function Select<T extends string>({
@@ -93,7 +95,11 @@ export function Select<T extends string>({
         <ArkSelect.Trigger
           ref={btn_ref}
           aria-describedby={props.error ? err_id : undefined}
-          className={`${cls.button} selector-btn field-input focus-visible:outline-2 data-[state=open]:outline-2 outline-ring`}
+          className={
+            props.compact
+              ? `${cls.button} selector-btn min-h-8 py-1.5 px-3 text-sm focus-visible:outline-2 data-[state=open]:outline-2 outline-ring`
+              : `${cls.button} selector-btn field-input focus-visible:outline-2 data-[state=open]:outline-2 outline-ring`
+          }
         >
           {props.value != null ? (
             props.option_disp(props.value as T)

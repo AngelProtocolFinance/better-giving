@@ -31,7 +31,7 @@ function Page({ loaderData }: Route.ComponentProps) {
   const creator: Creator = raw === "ours" || raw === "others" ? raw : "all";
 
   return (
-    <div className="grid px-6 py-4 md:px-10 md:py-8">
+    <div className="grid px-6 py-4 md:px-10 md:py-8 max-w-[1400px]">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-3xl font-bold">Supporter fundraisers</h1>
@@ -41,6 +41,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
         <Select
+          compact
           label="Creator"
           options={OPTIONS}
           value={creator}

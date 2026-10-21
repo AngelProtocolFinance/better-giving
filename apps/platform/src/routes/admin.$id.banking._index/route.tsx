@@ -16,7 +16,7 @@ export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 export { ErrorBoundary } from "#/components/error";
 export const meta: Route.MetaFunction = ({ matches }) =>
-  admin_page_meta("Current Banking Details", matches);
+  admin_page_meta("Banking", matches);
 
 export default CacheRoute(Page);
 function Page({ loaderData }: Route.ComponentProps) {
@@ -24,12 +24,12 @@ function Page({ loaderData }: Route.ComponentProps) {
   use_strip_connect_params(connect_routing && !!stripe.notice);
 
   return (
-    <div className="px-6 py-4 md:px-10 md:py-8">
+    <div className="px-6 py-4 md:px-10 md:py-8 max-w-[1400px]">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-left text-lg uppercase">Current Banking Details</h1>
+        <h1 className="text-3xl font-bold">Banking</h1>
         <NavLink to="new" className="btn btn-primary">
           <Plus className="mr-2 icon-md" />
-          <span>New</span>
+          <span>Add bank account</span>
         </NavLink>
       </div>
       {connect_routing && <StripeConnectCard {...stripe} classes="mb-8" />}

@@ -99,7 +99,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
     supporter_funds.length === 0;
 
   return (
-    <div className="grid px-6 py-4 md:px-10 md:py-8 gap-6">
+    <div className="grid px-6 py-4 md:px-10 md:py-8 gap-6 max-w-[1400px]">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">Campaigns</h1>
         <Link to={new_to} className="btn btn-primary">
@@ -131,7 +131,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         <>
           {(campaigns.length > 0 || org_funds.length > 0) && (
             <section className="grid gap-3">
-              <h2 className="font-semibold">Campaigns</h2>
+              <h2 className="font-semibold">Your campaigns</h2>
               <ul className="grid gap-3">
                 {campaigns.map((c) => {
                   const public_to =

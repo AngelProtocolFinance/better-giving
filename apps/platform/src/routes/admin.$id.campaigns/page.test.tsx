@@ -173,14 +173,16 @@ describe("campaign list", () => {
       []
     );
     await expect
-      .element(screen.getByRole("heading", { name: "Campaigns", level: 2 }))
+      .element(
+        screen.getByRole("heading", { name: "Your campaigns", level: 2 })
+      )
       .toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Supporter fundraisers" }).query()
     ).toBeNull();
     expect(screen.getByText("No campaigns yet").query()).toBeNull();
     const section = screen
-      .getByRole("heading", { name: "Campaigns", level: 2 })
+      .getByRole("heading", { name: "Your campaigns", level: 2 })
       .element().parentElement;
     const text = section?.textContent ?? "";
     expect(text.indexOf("Spring")).toBeGreaterThan(-1);
@@ -207,7 +209,7 @@ describe("campaign list", () => {
       ]
     );
     expect(
-      screen.getByRole("heading", { name: "Campaigns", level: 2 }).query()
+      screen.getByRole("heading", { name: "Your campaigns", level: 2 }).query()
     ).toBeNull();
     await expect
       .element(screen.getByRole("heading", { name: "Supporter fundraisers" }))

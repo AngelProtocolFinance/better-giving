@@ -52,8 +52,7 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
   const save_button = (
     group: { is_dirty: boolean; save: () => void },
     label: string,
-    blocked = false,
-    variant: "btn-primary" | "btn-secondary" = "btn-primary"
+    blocked = false
   ) => (
     <button
       type="button"
@@ -62,7 +61,7 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
       // three identical "Save" buttons on one page: the group rides in the
       // accessible name so each still announces what it saves
       aria-label={label}
-      className={`btn ${variant} justify-self-end`}
+      className="btn btn-primary justify-self-end sticky bottom-0"
     >
       Save
     </button>
@@ -73,12 +72,12 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
       // saves go through each group's button; an untyped nested button or an
       // enter keypress must not fire a native GET submission
       onSubmit={(e) => e.preventDefault()}
-      className="px-6 py-4 md:px-10 md:py-8 w-full max-w-4xl grid grid-cols-1 content-start gap-6"
+      className="px-6 py-4 md:px-10 md:py-8 w-full max-w-[1112px] grid grid-cols-1 content-start gap-6"
     >
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
       <h1 className="text-3xl font-bold">Public profile information</h1>
       <Fieldset disabled={general.busy} className="contents">
-        <Group title="General" hide_title>
+        <Group title="General">
           <Field
             {...general.register("tagline")}
             name="tagline"
@@ -196,12 +195,7 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
             label="Address"
             error={organization.errors.street_address?.message}
           />
-          {save_button(
-            organization,
-            "Save organization",
-            false,
-            "btn-secondary"
-          )}
+          {save_button(organization, "Save organization")}
         </Group>
       </Fieldset>
 
@@ -249,17 +243,12 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
             placeholder="discord.com/"
             error={social_media.errors.social_media_urls?.discord?.message}
           />
-          {save_button(
-            social_media,
-            "Save social media",
-            false,
-            "btn-secondary"
-          )}
+          {save_button(social_media, "Save social media")}
         </Group>
       </Fieldset>
 
       <div
-        className={`flex flex-wrap justify-between items-center border rounded p-3 gap-4 ${
+        className={`flex flex-wrap justify-between items-center border rounded p-6 gap-4 ${
           published
             ? "bg-success-subtle border-success"
             : "bg-warning-subtle border-warning"

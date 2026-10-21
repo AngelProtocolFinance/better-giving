@@ -99,7 +99,7 @@ export function BankDetails({
         label="What is the amount you expect to receive monthly on our
         platform?"
         sub={
-          <p className="text-gray-11 text-sm my-2 italic">
+          <p className="text-sm text-gray-11 my-2">
             Depending on how much you expect to receive each month via{" "}
             {app_name}, different details are required. At this point, we
             recommend using a conservative figure - Maybe $1000 per month.

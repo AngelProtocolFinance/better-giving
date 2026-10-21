@@ -8,11 +8,12 @@ interface Props {
   allocation: IAllocation;
   classes?: string;
   disabled?: boolean;
+  exporter?: ReactNode;
 }
 export function Allocation(props: Props) {
   return (
     <div className={`grid rounded ${props.classes ?? ""}`}>
-      <div className="flex items-baseline gap-x-2 mb-1">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="mb-1">Distribution</h2>
 
         <NavLink
@@ -21,13 +22,14 @@ export function Allocation(props: Props) {
           replace
           preventScrollReset
           aria-disabled={props.disabled}
-          className="link disabled:text-gray-11 [.pending]:text-gray-11"
+          className="link mr-auto disabled:text-gray-11 [.pending]:text-gray-11"
         >
           <Pencil className="icon-sm" />
         </NavLink>
+        {props.exporter}
       </div>
 
-      <div className="flex flex-wrap gap-4 items-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
         <Row
           icon={<HandCoins className="icon-md mr-2 text-gray-11" />}
           title={
@@ -49,13 +51,13 @@ export function Allocation(props: Props) {
           pct={props.allocation.cash}
         />
         <Row
-          icon={<PiggyBank width={20} className="mr-2 text-warning" />}
+          icon={<PiggyBank className="icon-md mr-2 text-gray-11" />}
           title={<span>Savings</span>}
           pct={props.allocation.liq}
         />
 
         <Row
-          icon={<Sprout className="mr-2 text-success icon-xl" />}
+          icon={<Sprout className="icon-md mr-2 text-gray-11" />}
           title={<span>Investments</span>}
           pct={props.allocation.lock}
         />

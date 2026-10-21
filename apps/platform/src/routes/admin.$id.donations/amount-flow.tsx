@@ -1,6 +1,7 @@
 import {
   HandCoins,
   type LucideIcon,
+  MoveRight,
   PiggyBankIcon,
   SproutIcon,
 } from "lucide-react";
@@ -26,12 +27,12 @@ const desc_map: DescMap = {
   cash: { Icon: HandCoins, class: "shrink-0 stroke-neutral", text: "Grant" },
   liq: {
     Icon: PiggyBankIcon,
-    class: "shrink-0 stroke-warning",
+    class: "shrink-0 stroke-neutral",
     text: "Savings",
   },
   lock: {
     Icon: SproutIcon,
-    class: "shrink-0 stroke-success",
+    class: "shrink-0 stroke-neutral",
     text: "Investments",
   },
 };
@@ -44,94 +45,13 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
       amount: total * (allocation[k] / 100),
     }));
 
-  const base_spacing = 40;
-  const spacing_multiplier = font_size / 18; // 18px is our base font size
-  const branch_spacing = base_spacing * spacing_multiplier;
-  const svg_height = Math.max(
-    branches.length * branch_spacing,
-    60 * spacing_multiplier
-  );
   const icon_size = Math.max(16, font_size * 0.9); // icon size scales with font
-
-  // calculate branch positions for consistent alignment between SVG and content
-  const branch_positions = branches.map((_, index) => {
-    const center_y = svg_height / 2;
-    return branches.length === 1
-      ? center_y
-      : branch_spacing / 2 + index * branch_spacing;
-  });
 
   return (
     <div className="flex items-center gap-2">
-      {/* curved Branching Arrow */}
-      <div className="relative flex items-center">
-        <svg
-          aria-hidden="true"
-          width="50"
-          height={svg_height}
-          className="overflow-visible"
-          viewBox={`0 0 50 ${svg_height}`}
-        >
-          {/* main horizontal line */}
-          <line
-            x1="5"
-            y1={svg_height / 2}
-            x2="20"
-            y2={svg_height / 2}
-            stroke="var(--gray-11)"
-            strokeWidth="1"
-          />
+      <MoveRight aria-hidden className="icon-md shrink-0" />
 
-          {/* curved branch lines with arrows */}
-          {branch_positions.map((target_y, index) => {
-            const center_y = svg_height / 2;
-            const start_x = 20;
-            const curve_end_x = 32.5;
-            const end_x = 42.5;
-
-            // create smooth S-curve using cubic Bézier, then add straight line
-            const control1_x = start_x + 7.5;
-            const control1_y = center_y;
-            const control2_x = curve_end_x - 7.5;
-            const control2_y = target_y;
-
-            const path_data = `M ${start_x} ${center_y} C ${control1_x} ${control1_y} ${control2_x} ${control2_y} ${curve_end_x} ${target_y} L ${end_x} ${target_y}`;
-
-            return (
-              <g key={index}>
-                {/* smooth curved branch line with straight segment */}
-                <path
-                  d={path_data}
-                  stroke="var(--gray-11)"
-                  strokeWidth="1"
-                  fill="none"
-                />
-                {/* arrow head */}
-                <polygon
-                  points={`${end_x},${target_y} ${end_x - 5},${target_y - 3} ${end_x - 5},${target_y + 3}`}
-                  fill="var(--gray-11)"
-                />
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-
-      {/* branches content */}
-      <div
-        className="flex flex-col justify-between"
-        style={{
-          height: branches.length === 1 ? "auto" : `${svg_height}px`,
-          paddingTop:
-            branches.length === 1
-              ? 0
-              : `${svg_height / (branches.length * 2) - font_size / 2}px`,
-          paddingBottom:
-            branches.length === 1
-              ? 0
-              : `${svg_height / (branches.length * 2) - font_size / 2}px`,
-        }}
-      >
+      <div className="flex flex-col gap-1">
         {branches.map((item, index) => (
           <div key={index} className="flex items-center gap-x-1">
             {/* icon */}

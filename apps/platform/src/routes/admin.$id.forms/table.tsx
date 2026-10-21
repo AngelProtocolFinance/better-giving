@@ -1,4 +1,4 @@
-import { EmptyRow, LoadMoreRow, Select, Target } from "@better-giving/ui";
+import { EmptyState, LoadMoreRow, Select, Target } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import { TagIcon } from "lucide-react";
 import { href, NavLink, useNavigate, useSearchParams } from "react-router";
@@ -27,14 +27,13 @@ export function FormsTable({
 }: Props) {
   return (
     <div className={classes}>
+      <StatusFilter value={status as Filter} />
       <div className="table-scroll">
         <table className="table w-full">
           <thead>
             <tr>
               <th>Form</th>
-              <th>
-                <StatusFilter value={status as Filter} />
-              </th>
+              <th>Status</th>
               <th>Program</th>
               <th>Raised / Goal</th>
               <th className="text-right">Donations</th>
@@ -43,17 +42,11 @@ export function FormsTable({
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 ? (
-              <EmptyRow col_span={7}>
-                No {status === "all" ? "" : status} forms found
-              </EmptyRow>
-            ) : (
-              items.map((f) => (
-                <tr key={f.id}>
-                  <Row {...f} />
-                </tr>
-              ))
-            )}
+            {items.map((f) => (
+              <tr key={f.id}>
+                <Row {...f} />
+              </tr>
+            ))}
           </tbody>
           {load_next && (
             <LoadMoreRow
@@ -65,6 +58,11 @@ export function FormsTable({
           )}
         </table>
       </div>
+      {items.length === 0 && (
+        <EmptyState>
+          {status === "all" ? "No forms found" : `No ${status} forms found`}
+        </EmptyState>
+      )}
     </div>
   );
 }
@@ -151,6 +149,7 @@ function StatusFilter({ value }: { value: Filter }) {
   const navigate = useNavigate();
   return (
     <Select
+      compact
       label="Status"
       options={FILTER_OPTS}
       value={value}

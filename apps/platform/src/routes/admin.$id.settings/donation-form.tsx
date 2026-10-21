@@ -127,7 +127,7 @@ export function DonationFormTab(p: Props) {
         classes={{
           container: "mt-2",
           label: "",
-          tooltip: "italic text-sm",
+          tooltip: "text-sm",
         }}
         values={donate_methods.value}
         on_change={donate_methods.onChange}
@@ -203,7 +203,7 @@ export function DonationFormTab(p: Props) {
 
       <div className="mt-8">
         <SaveAlert data={fetcher.data} />
-        <Actions>
+        <Actions classes="sticky bottom-0 bg-panel">
           <button
             type="reset"
             className="btn-secondary btn"

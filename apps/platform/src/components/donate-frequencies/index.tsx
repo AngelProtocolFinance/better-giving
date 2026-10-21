@@ -15,9 +15,7 @@ export function DonateFrequencies({
   ...p
 }: Props & { ref?: Ref<HTMLInputElement> }) {
   return (
-    <Fieldset.Root
-      className={`${classes} grid grid-cols-[auto_1fr] gap-x-2 gap-y-1`}
-    >
+    <Fieldset.Root className={`${classes} grid grid-cols-[auto_1fr] gap-4`}>
       <Fieldset.Legend className="col-span-2 label mb-1">
         Donation frequency
       </Fieldset.Legend>
@@ -28,7 +26,9 @@ export function DonateFrequencies({
       {Array.from({ length: 4 }).map((_, idx) => (
         <Field.Root
           key={idx}
-          className="border p-2 rounded accent-primary grid grid-cols-subgrid col-span-2"
+          className={`flex items-center gap-2 border p-3 rounded col-span-2 ${
+            p.value[idx] ? "bg-panel" : "bg-gray-3 text-gray-11"
+          }`}
         >
           <Field.Input
             type="checkbox"
