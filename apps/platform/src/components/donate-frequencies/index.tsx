@@ -27,8 +27,8 @@ export function DonateFrequencies({
         {Array.from({ length: 4 }).map((_, idx) => (
           <Field.Root
             key={idx}
-            aria-disabled={!p.value[idx]}
-            className="flex items-center gap-2 p-3 min-h-12 bg-panel aria-disabled:bg-gray-3 aria-disabled:text-gray-11"
+            data-unchecked={p.value[idx] ? undefined : ""}
+            className="flex items-center gap-2 p-3 min-h-12 bg-panel data-unchecked:bg-gray-3 data-unchecked:text-gray-11"
           >
             <Field.Input
               type="checkbox"

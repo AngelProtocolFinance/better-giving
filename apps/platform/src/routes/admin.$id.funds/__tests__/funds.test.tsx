@@ -921,6 +921,7 @@ describe("funds — edit visibility", () => {
       npo_owner: other_npo.id,
       creator_id: other_user.id,
       members: [npo.id, other_npo.id],
+      published: true,
     });
 
     let screen = await render_funds(
@@ -936,7 +937,7 @@ describe("funds — edit visibility", () => {
 
     await cleanup();
 
-    // supporter view — the name is text and Edit is not in the card
+    // supporter view — the name is text; View opens the public page, not Edit
     screen = await render_funds(
       npo.id,
       { ...MOCK_USER, endowments: [], funds: [] },
@@ -950,6 +951,11 @@ describe("funds — edit visibility", () => {
         screen.getByRole("link", { name: "Supporter Fund", exact: true })
       )
       .not.toBeInTheDocument();
+    const view = screen.getByRole("link", { name: /^view$/i });
+    await expect.element(view).toBeVisible();
+    expect(view.element().getAttribute("href")).toBe(
+      `/fundraisers/${supporter_fund_id}`
+    );
     await expect
       .element(screen.getByRole("link", { name: /^edit$/i }))
       .not.toBeInTheDocument();

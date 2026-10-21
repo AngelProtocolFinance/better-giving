@@ -104,13 +104,13 @@ function Method({ value, index, total, hint_id, move, updator }: IMethod) {
   const checkbox_id = useId();
   return (
     <Reorder.Item
-      aria-disabled={value.disabled}
+      data-unchecked={value.disabled ? "" : undefined}
       value={JSON.stringify(value)}
       dragListener={false}
       dragControls={controls}
       id={value.id}
       style={{ y }}
-      className="flex items-center gap-2 p-3 min-h-12 bg-panel aria-disabled:bg-gray-3 aria-disabled:text-gray-11 select-none"
+      className="flex items-center gap-2 p-3 min-h-12 bg-panel data-unchecked:bg-gray-3 data-unchecked:text-gray-11 select-none"
     >
       <input
         id={checkbox_id}

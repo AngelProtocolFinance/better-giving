@@ -11,6 +11,7 @@ import { LoaderCircle } from "lucide-react";
 import { useId, useRef } from "react";
 import {
   href,
+  Link,
   NavLink,
   useFetcher,
   useLocation,
@@ -120,15 +121,27 @@ export const FundItem = (props: Props) => {
           // the row stacks there is no slot to hold, only a phantom gap
           <div data-placeholder className="max-sm:hidden" />
         )}
-        {props.isEditor && (
-          <NavLink
-            aria-disabled={!status.active}
-            className="btn btn-secondary"
-            to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
-          >
-            Edit
-          </NavLink>
-        )}
+        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+          {props.published && (
+            <Link
+              to={href("/fundraisers/:fund_id", { fund_id: props.id })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link text-sm"
+            >
+              View
+            </Link>
+          )}
+          {props.isEditor && (
+            <NavLink
+              aria-disabled={!status.active}
+              className="btn btn-secondary"
+              to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
+            >
+              Edit
+            </NavLink>
+          )}
+        </div>
       </div>
     </div>
   );
