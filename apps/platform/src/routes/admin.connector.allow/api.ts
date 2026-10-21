@@ -11,7 +11,23 @@ import type { Route } from "./+types/route";
 
 const STATE_RE = /^[A-Za-z0-9._~-]{1,512}$/;
 
-const bad = () => new Response(null, { status: 400 });
+export const CONNECTION_REFUSED =
+  "This connection request can't be completed. Start again from the chat.";
+
+const refused = () => data({ error: CONNECTION_REFUSED }, { status: 400 });
+
+// a returned Response is loader data the page cannot read, so the render throws
+// into the generic boundary and gets reported. `data()` stays on this screen.
+const blocked = () =>
+  data(
+    {
+      nonprofits: [],
+      state: "",
+      error: CONNECTION_REFUSED,
+      blocked: true as const,
+    },
+    { status: 400 }
+  );
 
 const state_ok = (state: string) => STATE_RE.test(state);
 
@@ -43,26 +59,26 @@ const see_other = (href: string, query: Record<string, string>) => {
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
   const state = new URL(request.url).searchParams.get("state") ?? "";
-  if (!state_ok(state)) return bad();
+  if (!state_ok(state)) return blocked();
   const user = context.get(user_ctx);
   const nonprofits = await memberships_of(user.id);
-  return { nonprofits, state };
+  return { nonprofits, state, blocked: false as const };
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
   const form = await request.formData();
   const state = field(form, "state");
-  if (!state_ok(state)) return bad();
+  if (!state_ok(state)) return refused();
 
   const origin = request_origin(request);
-  if (!origin_allowed(origin, process.env)) return bad();
+  if (!origin_allowed(origin, process.env)) return refused();
 
   const decision = field(form, "decision");
   const back = connector_return_url(process.env);
   if (decision === "deny") {
     return see_other(back, { error: "access_denied", state, iss: origin });
   }
-  if (decision !== "allow") return bad();
+  if (decision !== "allow") return refused();
 
   const npo_id = npo_id_of(field(form, "npo_id"));
   if (npo_id === null)
@@ -78,7 +94,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
       )
     )
     .limit(1);
-  if (!member) return bad();
+  if (!member) return refused();
 
   const { code } = await issue_code(db, {
     npo_id,

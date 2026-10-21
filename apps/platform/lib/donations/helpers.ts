@@ -100,7 +100,8 @@ export const via_name = (via: string): string => {
   if (via.startsWith("crypto")) return "Crypto";
   if (via.startsWith("chariot") || via === "daf") return "DAF";
   if (via.startsWith("paypal")) return "PayPal";
-  if (via === "cheque") return "Cheque";
+  if (via === "cash") return "Cash";
+  if (via === "cheque" || via === "check") return "Cheque";
   // the employer's own gift, not the donor's. named rather than left as the raw
   // token because this label reaches the donor, the nonprofit and zapier — the
   // token itself is what `match_funnel` filters on and means nothing outside pg.

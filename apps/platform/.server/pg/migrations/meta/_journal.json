@@ -477,6 +477,13 @@
       "when": 1792280435218,
       "tag": "0067_campaigns",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792539083274,
+      "tag": "0068_connector_gift_note",
+      "breakpoints": true
     }
   ]
 }

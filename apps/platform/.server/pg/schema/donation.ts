@@ -90,6 +90,7 @@ export const donations = pgTable(
     index("donations_form_id_idx").on(t.form_id),
     index("donations_subscription_id_idx").on(t.subscription_id),
     index("donations_campaign_id_idx").on(t.campaign_id),
+    index("donations_created_at_id_idx").on(t.created_at, t.id),
   ]
 );
 
@@ -110,6 +111,7 @@ export const donation_recipients = pgTable(
     check("type_check", sql`${t.type} IN ('npo','fund')`),
     check("recipient_xor", sql`num_nonnulls(${t.npo_id}, ${t.fund_id}) = 1`),
     index("donation_recipients_fund_id_idx").on(t.fund_id),
+    index("donation_recipients_npo_id_idx").on(t.npo_id),
   ]
 );
 

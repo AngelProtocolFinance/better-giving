@@ -7,7 +7,7 @@ import { toPP } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";
 import { AmountFlow } from "./amount-flow";
 import { Fees } from "./fees";
-import type { IRow } from "./helpers";
+import { type IRow, origin_text } from "./helpers";
 
 export function Row(props: IRow) {
   return (
@@ -40,7 +40,7 @@ export function Row(props: IRow) {
             </span>
           </div>
         ) : (
-          "Marketplace"
+          origin_text(props.donation_origin)
         )}
       </td>
       <td>{props.payment_method ?? "--"}</td>

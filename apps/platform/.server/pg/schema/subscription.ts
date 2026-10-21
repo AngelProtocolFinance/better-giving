@@ -65,5 +65,6 @@ export const subscriptions = pgTable(
       t.status,
       t.created_at
     ),
+    index("subscriptions_to_fund_id_idx").on(t.to_fund_id),
   ]
 );

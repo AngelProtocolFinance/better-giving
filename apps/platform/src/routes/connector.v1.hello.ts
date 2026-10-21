@@ -1,4 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { CONNECTOR_ACTIONS } from "$/connector/actions";
 import { reserve_ip } from "$/connector/gate";
 import { problem } from "$/connector/problem";
 
@@ -13,7 +14,7 @@ export function loader({ request }: LoaderFunctionArgs) {
       contract: 1,
       release: sha || "dev",
       name: "Better Giving",
-      actions: ["hello", "exchange", "disconnect"],
+      actions: CONNECTOR_ACTIONS,
     },
     { headers: NO_STORE }
   );
