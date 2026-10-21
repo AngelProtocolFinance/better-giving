@@ -13,16 +13,19 @@ import { reset_rate_limits } from "#/.server/auth/rate-limit";
 import { seed_fund, seed_npo, seed_user } from "#/__tests__/fixtures/funds";
 import { OFFLINE_SOURCE, RECORDED_BY_HAND } from "@/donations/offline";
 import { exchange_code, issue_code } from "$/connector/keys";
+import { campaign_status } from "$/connector/reads";
 import {
   npo_admin_donations,
   recorded_by_hand_usd,
 } from "$/pg/queries/admin-donations";
+import { campaign_get } from "$/pg/queries/campaign";
 import { npo_donations } from "$/pg/queries/dist";
 import type { DbOrTx } from "$/pg/queries/helpers";
 import { npo_get } from "$/pg/queries/npo";
 import { npo_payouts, npo_settlements } from "$/pg/queries/payout";
 import { user } from "$/pg/schema/auth";
 import { bal_txs } from "$/pg/schema/bal-tx";
+import { campaign_members, campaigns } from "$/pg/schema/campaign";
 import {
   connector_codes,
   connector_idempotency,
@@ -90,6 +93,8 @@ beforeEach(async () => {
   await db().delete(donations);
   await db().delete(subscriptions);
   await db().delete(forms);
+  await db().delete(campaign_members);
+  await db().delete(campaigns);
   await db().delete(funds);
   await db().delete(connector_idempotency);
   await db().delete(connector_keys);
@@ -182,13 +187,48 @@ async function pair(name: string, ein: string, email: string) {
   return { npo, owner, key };
 }
 
+async function insert_campaign(vals: {
+  id: string;
+  npo_id: number;
+  creator_id: string;
+  name?: string;
+  slug?: string;
+  status?: "draft" | "live" | "ended";
+  ends_at?: string | null;
+  target_number?: number | null;
+  banner?: string | null;
+}) {
+  await db()
+    .insert(campaigns)
+    .values({
+      id: vals.id,
+      owner_npo_id: vals.npo_id,
+      creator_id: vals.creator_id,
+      name: vals.name ?? "Campaign",
+      slug: vals.slug ?? vals.id,
+      description_pt: "A story",
+      banner: vals.banner ?? null,
+      status: vals.status ?? "draft",
+      ends_at: vals.ends_at ?? null,
+      target_number: vals.target_number ?? null,
+    });
+  await db().insert(campaign_members).values({
+    campaign_id: vals.id,
+    npo_id: vals.npo_id,
+    position: 0,
+  });
+}
+
 async function insert_gift(vals: {
   id: string;
   npo_id?: number;
   fund_id?: string;
+  campaign_id?: string;
   email: string;
   name?: string;
   amount: number;
+  upusd?: number;
+  currency?: string;
   status?: string;
   source?: string;
   via?: string;
@@ -200,16 +240,17 @@ async function insert_gift(vals: {
     .insert(donations)
     .values({
       id: vals.id,
-      upusd: vals.amount,
+      upusd: vals.upusd ?? 1,
       status: vals.status ?? "settled",
       amount_base: vals.amount,
       amount_tip: 0,
       amount_fee_allowance: 0,
-      currency: "USD",
+      currency: vals.currency ?? "USD",
       frequency: vals.frequency ?? "one-time",
       source: vals.source ?? "bg-marketplace",
       note: vals.note ?? null,
       via: vals.via ?? "stripe:card",
+      campaign_id: vals.campaign_id ?? null,
       created_at: vals.created_at,
       updated_at: vals.created_at,
     });
@@ -232,47 +273,74 @@ async function insert_gift(vals: {
 }
 
 describe("campaign reads", () => {
-  test("status precedence is ended, then draft, then published, with an absolute public url", async () => {
+  test("a live campaign stays open until noon UTC the day after it ends", () => {
+    const ends = "2026-10-21T00:00:00.000Z";
+    expect(
+      campaign_status("live", ends, Date.parse("2026-10-22T11:00:00.000Z"))
+    ).toBe("published");
+    expect(
+      campaign_status("live", ends, Date.parse("2026-10-22T12:00:00.000Z"))
+    ).toBe("ended");
+    expect(campaign_status("draft", "2020-01-01T00:00:00.000Z")).toBe("draft");
+    expect(campaign_status("ended", null)).toBe("ended");
+  });
+
+  test("lists current campaigns, and a live one is open through the day it ends", async () => {
     const a = await pair("Alpha", "EIN-A", "a@test.com");
     const b = await pair("Beta", "EIN-B", "b@test.com");
-    await seed_fund(db(), {
-      id: "ended-inactive",
+    await db().update(npos).set({ slug: "alpha" }).where(eq(npos.id, a.npo.id));
+    const today = new Date().toISOString().slice(0, 10);
+    await insert_campaign({
+      id: "ended-one",
       name: "Ended",
-      npo_owner: a.npo.id,
+      npo_id: a.npo.id,
       creator_id: a.owner.id,
-      active: false,
-      expiration: "2020-01-15T00:00:00.000Z",
+      status: "ended",
+      slug: "ended-one",
     });
-    await seed_fund(db(), {
-      id: "ended-active",
+    await insert_campaign({
+      id: "expired-live",
       name: "Expired live",
-      npo_owner: a.npo.id,
+      npo_id: a.npo.id,
       creator_id: a.owner.id,
-      active: true,
-      expiration: "2020-06-01T00:00:00.000Z",
+      status: "live",
+      ends_at: "2020-06-01T00:00:00.000Z",
+      slug: "expired-live",
     });
-    await seed_fund(db(), {
+    await insert_campaign({
       id: "draft-one",
       name: "Draft",
-      npo_owner: a.npo.id,
+      npo_id: a.npo.id,
       creator_id: a.owner.id,
-      active: false,
+      status: "draft",
+      ends_at: "2020-01-15T00:00:00.000Z",
+      slug: "draft-one",
     });
-    await seed_fund(db(), {
+    await insert_campaign({
       id: "live-one",
       name: "Live",
-      npo_owner: a.npo.id,
+      npo_id: a.npo.id,
       creator_id: a.owner.id,
-      active: true,
+      status: "live",
       target_number: 1000,
       slug: "live-one",
     });
-    await seed_fund(db(), {
+    await insert_campaign({
+      id: "closes-today",
+      name: "Closes today",
+      npo_id: a.npo.id,
+      creator_id: a.owner.id,
+      status: "live",
+      ends_at: `${today}T00:00:00.000Z`,
+      slug: "closes-today",
+    });
+    await insert_campaign({
       id: "other-live",
       name: "Other",
-      npo_owner: b.npo.id,
+      npo_id: b.npo.id,
       creator_id: b.owner.id,
-      active: true,
+      status: "live",
+      slug: "other-live",
     });
 
     const list = await get(campaigns_loader, "/connector/v1/campaigns", a.key);
@@ -287,17 +355,18 @@ describe("campaign reads", () => {
       next_cursor: string | null;
     };
     const by_id = Object.fromEntries(body.data.map((row) => [row.id, row]));
-    expect(by_id["ended-inactive"]?.status).toBe("ended");
-    expect(by_id["ended-active"]?.status).toBe("ended");
+    expect(by_id["ended-one"]?.status).toBe("ended");
+    expect(by_id["expired-live"]?.status).toBe("ended");
     expect(by_id["draft-one"]?.status).toBe("draft");
     expect(by_id["live-one"]?.status).toBe("published");
+    expect(by_id["closes-today"]?.status).toBe("published");
     expect(by_id["other-live"]).toBeUndefined();
     expect(by_id["draft-one"]?.public_url).toBeNull();
-    expect(by_id["ended-inactive"]?.public_url).toBe(
-      "http://localhost:4200/fundraisers/ended-inactive"
+    expect(by_id["ended-one"]?.public_url).toBe(
+      "http://localhost:4200/org/alpha/ended-one"
     );
     expect(by_id["live-one"]?.public_url).toBe(
-      "http://localhost:4200/fundraisers/live-one"
+      "http://localhost:4200/org/alpha/live-one"
     );
     expect(by_id["live-one"]?.goal).toEqual({
       amount: "1000.00",
@@ -312,7 +381,17 @@ describe("campaign reads", () => {
     const ended_ids = (
       (await ended.json()) as { data: { id: string }[] }
     ).data.map((row) => row.id);
-    expect(ended_ids.sort()).toEqual(["ended-active", "ended-inactive"]);
+    expect(ended_ids.sort()).toEqual(["ended-one", "expired-live"]);
+
+    const still_open = await get(
+      campaigns_loader,
+      "/connector/v1/campaigns?status=published",
+      a.key
+    );
+    const open_ids = (
+      (await still_open.json()) as { data: { id: string }[] }
+    ).data.map((row) => row.id);
+    expect(open_ids.sort()).toEqual(["closes-today", "live-one"]);
 
     const other = await get(
       campaign_loader,
@@ -346,7 +425,7 @@ describe("campaign reads", () => {
     ]);
     expect(campaign.has_unpublished_changes).toBe(false);
     expect(campaign.public_url).toBe(
-      "http://localhost:4200/fundraisers/live-one"
+      "http://localhost:4200/org/alpha/live-one"
     );
 
     const bad = await get(
@@ -550,12 +629,13 @@ describe("donations, donors, results, recurring", () => {
   test("pages gifts and hides the other nonprofit", async () => {
     const a = await pair("Alpha", "EIN-A", "a@test.com");
     const b = await pair("Beta", "EIN-B", "b@test.com");
-    await seed_fund(db(), {
-      id: "fund-a",
+    await insert_campaign({
+      id: "camp-a",
       name: "Drive",
-      npo_owner: a.npo.id,
+      npo_id: a.npo.id,
       creator_id: a.owner.id,
-      active: true,
+      status: "live",
+      slug: "drive",
       target_number: 500,
     });
     await insert_gift({
@@ -571,7 +651,8 @@ describe("donations, donors, results, recurring", () => {
     });
     await insert_gift({
       id: "g-mid",
-      fund_id: "fund-a",
+      npo_id: a.npo.id,
+      campaign_id: "camp-a",
       email: "ada@example.com",
       name: "Ada",
       amount: 10,
@@ -614,7 +695,7 @@ describe("donations, donors, results, recurring", () => {
     expect(first.data.map((row) => row.id)).toEqual(["g-new", "g-mid"]);
     expect(first.data[0]?.note).toBe("for the library");
     expect(first.data[0]?.campaign_id).toBeNull();
-    expect(first.data[1]?.campaign_id).toBe("fund-a");
+    expect(first.data[1]?.campaign_id).toBe("camp-a");
     expect(first.next_cursor).toBeTruthy();
 
     const second = await get(
@@ -651,14 +732,14 @@ describe("donations, donors, results, recurring", () => {
     expect(summary.total.amount).toBe("55.00");
     expect(summary.gift_count).toBe(3);
     expect(summary.donor_count).toBe(2);
-    const drive = summary.campaigns.find((row) => row.id === "fund-a");
+    const drive = summary.campaigns.find((row) => row.id === "camp-a");
     expect(drive?.total.amount).toBe("10.00");
     expect(drive?.gift_count).toBe(1);
     expect(drive?.goal?.amount).toBe("500.00");
 
     const hidden = await get(
       results_loader,
-      "/connector/v1/results?campaign_id=fund-a",
+      "/connector/v1/results?campaign_id=camp-a",
       b.key
     );
     expect(hidden.status).toBe(404);
@@ -704,6 +785,13 @@ describe("donations, donors, results, recurring", () => {
     );
     expect(stranger.status).toBe(404);
 
+    await seed_fund(db(), {
+      id: "fund-a",
+      name: "Drive",
+      npo_owner: a.npo.id,
+      creator_id: a.owner.id,
+      active: true,
+    });
     await db()
       .insert(subscriptions)
       .values([
@@ -841,6 +929,136 @@ describe("donations, donors, results, recurring", () => {
     );
     expect(too_big.status).toBe(422);
   });
+
+  test("a non-USD gift reports its currency amount and adds amount_base / upusd to USD totals", async () => {
+    const a = await pair("Alpha", "EIN-A", "a@test.com");
+    await insert_gift({
+      id: "g-usd",
+      npo_id: a.npo.id,
+      email: "ada@example.com",
+      amount: 5,
+      created_at: "2024-04-01T12:00:00.000Z",
+    });
+    await insert_gift({
+      id: "g-eur",
+      npo_id: a.npo.id,
+      email: "ada@example.com",
+      amount: 80,
+      upusd: 4,
+      currency: "EUR",
+      created_at: "2024-04-02T12:00:00.000Z",
+    });
+
+    const listed = await get(
+      donations_loader,
+      "/connector/v1/donations",
+      a.key
+    );
+    const gifts = (
+      (await listed.json()) as {
+        data: { id: string; amount: string; currency: string }[];
+      }
+    ).data;
+    expect(gifts.find((row) => row.id === "g-eur")).toMatchObject({
+      amount: "80",
+      currency: "EUR",
+    });
+    expect(gifts.find((row) => row.id === "g-usd")).toMatchObject({
+      amount: "5.00",
+      currency: "USD",
+    });
+
+    const results = await get(results_loader, "/connector/v1/results", a.key);
+    const summary = (await results.json()) as {
+      total: { amount: string };
+    };
+    expect(summary.total.amount).toBe("25.00");
+
+    const donors = await get(
+      donors_loader,
+      "/connector/v1/donors?q=ada",
+      a.key
+    );
+    const donor = (
+      (await donors.json()) as {
+        data: { total_given: { amount: string } }[];
+      }
+    ).data[0];
+    expect(donor?.total_given.amount).toBe("25.00");
+  });
+
+  test("a name search totals every gift from the matched donor", async () => {
+    const a = await pair("Alpha", "EIN-A", "a@test.com");
+    await insert_gift({
+      id: "name-1",
+      npo_id: a.npo.id,
+      email: "ada@example.com",
+      name: "Ada Smith",
+      amount: 10,
+      created_at: "2024-01-01T12:00:00.000Z",
+    });
+    await insert_gift({
+      id: "name-2",
+      npo_id: a.npo.id,
+      email: "ada@example.com",
+      name: "Ada Jones",
+      amount: 30,
+      created_at: "2024-02-01T12:00:00.000Z",
+    });
+    const donors = await get(
+      donors_loader,
+      "/connector/v1/donors?q=Smith",
+      a.key
+    );
+    const row = (
+      (await donors.json()) as {
+        data: { gift_count: number; total_given: { amount: string } }[];
+      }
+    ).data[0];
+    expect(row).toMatchObject({
+      gift_count: 2,
+      total_given: { amount: "40.00" },
+    });
+  });
+
+  test("the admin donations cursor keeps gifts that share a timestamp", async () => {
+    const a = await pair("Alpha", "EIN-A", "a@test.com");
+    const at = "2024-06-01T12:00:00.000Z";
+    for (let i = 1; i <= 11; i++) {
+      const id = `same-${String(i).padStart(2, "0")}`;
+      await insert_gift({
+        id,
+        npo_id: a.npo.id,
+        email: `hand-${id}@recorded.invalid`,
+        name: "Walk-up",
+        amount: 1,
+        source: OFFLINE_SOURCE,
+        via: "cash",
+        created_at: at,
+      });
+    }
+    const page1 = await npo_admin_donations(a.npo.id, { limit: 10 });
+    expect(page1.items.map((item) => item.id)).toEqual([
+      "same-11",
+      "same-10",
+      "same-09",
+      "same-08",
+      "same-07",
+      "same-06",
+      "same-05",
+      "same-04",
+      "same-03",
+      "same-02",
+    ]);
+    expect(page1.next).toBeTruthy();
+    const page2 = await npo_admin_donations(a.npo.id, {
+      limit: 10,
+      next: page1.next,
+    });
+    expect(page2.items.map((item) => item.id)).toEqual(["same-01"]);
+    expect(page2.items[0]?.amount).toBe(1);
+    expect(page2.items[0]?.amount_usd).toBe(1);
+  });
 });
 
 describe("writes", () => {
@@ -876,10 +1094,18 @@ describe("writes", () => {
     );
     expect(again.status).toBe(200);
     expect(await again.json()).toEqual(body);
-    expect(await db().select().from(funds)).toHaveLength(1);
-    const [row] = await db().select().from(funds);
-    expect(row?.active).toBe(false);
-    expect(row?.npo_owner).toBe(a.npo.id);
+    expect(await db().select().from(campaigns)).toHaveLength(1);
+    const [row] = await db().select().from(campaigns);
+    expect(row?.status).toBe("draft");
+    expect(row?.owner_npo_id).toBe(a.npo.id);
+    expect(row?.slug.startsWith("library-drive-")).toBe(true);
+    const members = await db().select().from(campaign_members);
+    expect(members).toEqual([
+      { campaign_id: body.id, npo_id: a.npo.id, position: 0 },
+    ]);
+    const editor = await campaign_get(a.npo.id, body.id);
+    expect(editor?.name).toBe("Library drive");
+    expect(editor?.status).toBe("draft");
 
     const clash = await post(
       campaigns_action,
@@ -893,7 +1119,7 @@ describe("writes", () => {
       code: "idempotency_conflict",
       status: 409,
     });
-    expect(await db().select().from(funds)).toHaveLength(1);
+    expect(await db().select().from(campaigns)).toHaveLength(1);
 
     const named = await post(
       campaigns_action,
@@ -965,6 +1191,7 @@ describe("writes", () => {
       status: string;
     };
     expect(gift.note).toBe("for the library");
+    expect(gift).toMatchObject({ amount: "25.00", currency: "USD" });
     expect(gift.campaign_id).toBeNull();
     expect(gift.method).toBe("cash");
     expect(gift.frequency).toBe("one_time");
@@ -995,6 +1222,8 @@ describe("writes", () => {
 
     const [row] = await db().select().from(donations);
     expect(row?.source).toBe(OFFLINE_SOURCE);
+    expect(row?.upusd).toBe(1);
+    expect(row?.amount_base).toBe(25);
     expect(row?.note).toBe("for the library");
     expect(row?.receipt_sent_at).toBeNull();
     expect(row?.source).not.toContain("library");

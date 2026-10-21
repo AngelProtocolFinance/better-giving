@@ -9,21 +9,37 @@ import {
 } from "../schema/donation";
 import { npos } from "../schema/npo";
 import { type INpoDonation, npo_donations } from "./dist";
-import { decode_date_cursor, encode_date_cursor, type IPage } from "./helpers";
+import { decode_cursor, encode_cursor, type IPage } from "./helpers";
 
 /**
  * Admin donations list. `npo_donations` stays the dist ledger (Zapier reads
  * it). Hand-recorded gifts have no dist, so this merges them in for the
  * screen only.
  */
+function read_admin_cursor(
+  next?: string
+): { at: string; id: string } | undefined {
+  if (!next) return undefined;
+  try {
+    const raw = decode_cursor(next);
+    if (typeof raw?.at === "string" && typeof raw?.id === "string") {
+      return { at: raw.at, id: raw.id };
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
 export async function npo_admin_donations(
   npo_id: number,
   opts?: IDonationsSearch
 ): Promise<IPage<INpoDonation>> {
-  const { limit = 10 } = opts || {};
+  const { limit = 10, date_start, date_end } = opts || {};
+  const keyset = read_admin_cursor(opts?.next);
   const [settled, hand] = await Promise.all([
-    npo_donations(npo_id, { ...opts, limit }),
-    offline_donations(npo_id, opts),
+    npo_donations(npo_id, { limit, date_start, date_end, keyset }),
+    offline_donations(npo_id, opts, keyset),
   ]);
   const merged = [...settled.items, ...hand.items].sort((a, b) => {
     const by_date = Date.parse(b.date_created) - Date.parse(a.date_created);
@@ -35,7 +51,10 @@ export async function npo_admin_donations(
   const more = merged.length > limit || Boolean(settled.next) || hand.more;
   return {
     items,
-    next: more && last ? encode_date_cursor(last.date_created) : undefined,
+    next:
+      more && last
+        ? encode_cursor({ at: last.date_created, id: last.id })
+        : undefined,
   };
 }
 
@@ -43,7 +62,7 @@ export async function npo_admin_donations(
 export async function recorded_by_hand_usd(npo_id: number): Promise<number> {
   const [row] = await db
     .select({
-      total: sql<string>`coalesce(sum(${donations.upusd}), 0)::text`,
+      total: sql<string>`coalesce(sum(${donations.amount_base} / nullif(${donations.upusd}, 0)), 0)::text`,
     })
     .from(donations)
     .innerJoin(
@@ -62,15 +81,16 @@ export async function recorded_by_hand_usd(npo_id: number): Promise<number> {
 
 async function offline_donations(
   npo_id: number,
-  opts?: IDonationsSearch
+  opts: IDonationsSearch | undefined,
+  keyset: { at: string; id: string } | undefined
 ): Promise<{ items: INpoDonation[]; more: boolean }> {
-  const { limit = 10, next, date_start, date_end } = opts || {};
-  const cursor = decode_date_cursor(next);
+  const { limit = 10, date_start, date_end } = opts || {};
   const rows = await db
     .select({
       id: donations.id,
       created_at: donations.created_at,
       upusd: donations.upusd,
+      amount_base: donations.amount_base,
       frequency: donations.frequency,
       via: donations.via,
       source: donations.source,
@@ -92,7 +112,9 @@ async function offline_donations(
         eq(donation_recipients.npo_id, npo_id),
         date_start ? gte(donations.created_at, date_start) : undefined,
         date_end ? lte(donations.created_at, date_end) : undefined,
-        cursor ? sql`${donations.created_at} < ${cursor}` : undefined
+        keyset
+          ? sql`(${donations.created_at}, ${donations.id}) < (${keyset.at}::timestamptz, ${keyset.id})`
+          : undefined
       )
     )
     .orderBy(desc(donations.created_at), desc(donations.id))
@@ -116,6 +138,7 @@ function offline_row(
     id: string;
     created_at: string;
     upusd: number;
+    amount_base: number;
     frequency: string;
     via: string;
     source: string;
@@ -133,10 +156,10 @@ function offline_row(
     to_id: npo_id,
     to_name: row.npo_name,
     to_fiscal_sponsored: false,
-    amount: row.upusd,
-    amount_usd: row.upusd,
+    amount: row.amount_base,
+    amount_usd: row.upusd ? row.amount_base / row.upusd : 0,
     amount_denom: "USD",
-    net: row.upusd,
+    net: row.upusd ? row.amount_base / row.upusd : 0,
     fee_base: 0,
     fee_fsa: 0,
     fee_processing: 0,

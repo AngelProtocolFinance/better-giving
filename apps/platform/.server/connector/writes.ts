@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { OFFLINE_SOURCE } from "@/donations/offline";
 import type { DbOrTx } from "../pg/queries/helpers";
+import { campaign_members, campaigns } from "../pg/schema/campaign";
 import {
   donation_donors,
   donation_recipients,
   donations,
 } from "../pg/schema/donation";
-import { funds } from "../pg/schema/fund";
 import { npos } from "../pg/schema/npo";
 import { json, open_key, valid_day } from "./http";
 import { with_idempotency } from "./idempotency";
@@ -20,6 +20,16 @@ const AMOUNT_MAX = 1_000_000_000;
 const HAND_DOMAIN = "@recorded.invalid";
 
 type Issue = FieldError;
+
+function campaign_slug(title: string, id: string): string {
+  const stem = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+  return `${stem || "campaign"}-${id.slice(0, 8)}`;
+}
 
 function as_record(body: unknown): Record<string, unknown> | null {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
@@ -111,18 +121,22 @@ async function insert_campaign(
         .from(npos)
         .where(eq(npos.id, npo_id));
       if (!npo) throw new Error("npo missing");
-      const image = npo.logo || npo.image || npo.card_img || "";
-      await tx.insert(funds).values({
+      const image = npo.logo || npo.image || npo.card_img || null;
+      await tx.insert(campaigns).values({
         id,
+        owner_npo_id: npo_id,
+        creator_id: allowed_by,
         name: trimmed,
-        description_pt: npo.overview_pt,
+        slug: campaign_slug(trimmed, id),
+        description_pt: npo.overview_pt || "[]",
         banner: image,
         logo: image,
-        published: false,
-        active: false,
-        expiration: null,
-        npo_owner: npo_id,
-        creator_id: allowed_by,
+        status: "draft",
+      });
+      await tx.insert(campaign_members).values({
+        campaign_id: id,
+        npo_id,
+        position: 0,
       });
       return read_campaign_detail(tx, npo_id, id);
     });
@@ -307,7 +321,7 @@ async function insert_donation(
       if (!npo) throw new Error("npo missing");
       await tx.insert(donations).values({
         id,
-        upusd: amount,
+        upusd: 1,
         status: "settled",
         amount_base: amount,
         amount_tip: 0,

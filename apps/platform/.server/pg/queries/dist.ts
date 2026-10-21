@@ -426,10 +426,18 @@ export async function dist_unroute(
 /** paginated donations received by npo */
 export async function npo_donations(
   npo_id: number,
-  opts?: IDonationsSearch
+  opts?: IDonationsSearch & {
+    /**
+     * Admin donations only. Present (even as undefined on the first page)
+     * so ties on `date_created` stay in the page. Zapier keeps the date cursor.
+     */
+    keyset?: { at: string; id: string };
+  }
 ): Promise<IPage<INpoDonation>> {
   const { limit = 10, next, date_start, date_end } = opts || {};
-  const cursor = decode_date_cursor(next);
+  const by_id = opts != null && "keyset" in opts;
+  const keyset = by_id ? opts.keyset : undefined;
+  const cursor = by_id ? undefined : decode_date_cursor(next);
 
   const rows = await dist_base()
     .where(
@@ -441,10 +449,18 @@ export async function npo_donations(
         date_end
           ? lte(dists.date_created, new Date(date_end).toISOString())
           : undefined,
-        cursor ? sql`${dists.date_created} < ${cursor}` : undefined
+        keyset
+          ? sql`(${dists.date_created}, ${dists.id}) < (${keyset.at}::timestamptz, ${keyset.id})`
+          : cursor
+            ? sql`${dists.date_created} < ${cursor}`
+            : undefined
       )
     )
-    .orderBy(desc(dists.date_created))
+    .orderBy(
+      ...(by_id
+        ? [desc(dists.date_created), desc(dists.id)]
+        : [desc(dists.date_created)])
+    )
     .limit(limit + 1);
 
   const has_more = rows.length > limit;

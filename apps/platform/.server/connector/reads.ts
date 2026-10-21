@@ -1,6 +1,9 @@
 import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
+import type { TCampaignStatus } from "@/campaign";
+import { fund_closes_at } from "@/fundraiser/is-open";
 import type { IIncrement } from "@/schemas";
 import type { DbOrTx } from "../pg/queries/helpers";
+import { campaigns } from "../pg/schema/campaign";
 import { pg_text_to_iso } from "../pg/schema/columns";
 import { donation_disputes } from "../pg/schema/dispute";
 import {
@@ -63,13 +66,20 @@ function older(
 
 export type CampaignStatus = "draft" | "published" | "ended";
 
+/**
+ * A stored `ended` row is ended, and a draft stays a draft. A live campaign
+ * stays open until noon UTC the day after `ends_at`'s calendar date — the
+ * fundraiser rule in `fund_closes_at`. The public campaign page closes at
+ * the `ends_at` instant instead.
+ */
 export function campaign_status(
-  active: boolean,
-  expiration: string | null,
+  status: TCampaignStatus,
+  ends_at: string | null,
   now = Date.now()
 ): CampaignStatus {
-  if (expiration && Date.parse(expiration) < now) return "ended";
-  if (!active) return "draft";
+  if (status === "ended") return "ended";
+  if (status === "draft") return "draft";
+  if (ends_at && now >= fund_closes_at(ends_at).getTime()) return "ended";
   return "published";
 }
 
@@ -79,44 +89,49 @@ type Block =
   | { type: "hero"; image_url: string | null }
   | { type: "goal-bar"; goal: Money | null };
 
-function campaign_url(id: string, status: CampaignStatus): string | null {
-  if (status === "draft") return null;
-  return absolute(`/fundraisers/${id}`);
+function campaign_url(
+  npo_slug: string | null,
+  slug: string,
+  status: CampaignStatus
+): string | null {
+  if (status === "draft" || !npo_slug) return null;
+  return absolute(`/org/${npo_slug}/${slug}`);
 }
 
-function end_date_of(expiration: string | null): string | null {
-  if (!expiration) return null;
-  return expiration.slice(0, 10);
+function end_date_of(ends_at: string | null): string | null {
+  if (!ends_at) return null;
+  return ends_at.slice(0, 10);
 }
 
-type FundRow = {
+type CampaignRow = {
   id: string;
   name: string;
-  slug: string | null;
-  active: boolean;
-  expiration: string | null;
+  slug: string;
+  status: TCampaignStatus;
+  ends_at: string | null;
   target_number: number | null;
   description_pt: string;
-  banner: string;
+  banner: string | null;
   created_at: string;
   updated_at: string;
+  npo_slug: string | null;
 };
 
-function summary_of(row: FundRow) {
-  const status = campaign_status(row.active, row.expiration);
+function summary_of(row: CampaignRow) {
+  const status = campaign_status(row.status, row.ends_at);
   return {
     id: row.id,
     title: row.name,
     status,
     slug: row.slug,
-    public_url: campaign_url(row.id, status),
+    public_url: campaign_url(row.npo_slug, row.slug, status),
     goal: usd(row.target_number),
-    end_date: end_date_of(row.expiration),
+    end_date: end_date_of(row.ends_at),
     updated_at: row.updated_at,
   };
 }
 
-function detail_of(row: FundRow) {
+function detail_of(row: CampaignRow) {
   return {
     ...summary_of(row),
     has_unpublished_changes: false,
@@ -131,28 +146,42 @@ function detail_of(row: FundRow) {
   };
 }
 
-const fund_cols = {
-  id: funds.id,
-  name: funds.name,
-  slug: funds.slug,
-  active: funds.active,
-  expiration: funds.expiration,
-  target_number: funds.target_number,
-  description_pt: funds.description_pt,
-  banner: funds.banner,
-  created_at: funds.created_at,
-  updated_at: funds.updated_at,
+const campaign_cols = {
+  id: campaigns.id,
+  name: campaigns.name,
+  slug: campaigns.slug,
+  status: campaigns.status,
+  ends_at: campaigns.ends_at,
+  target_number: campaigns.target_number,
+  description_pt: campaigns.description_pt,
+  banner: campaigns.banner,
+  created_at: campaigns.created_at,
+  updated_at: campaigns.updated_at,
+  npo_slug: npos.slug,
 };
 
+/** UTC date of now minus 12 hours. Same bound as `fund_is_open_sql`. */
+function close_bound() {
+  return sql`(date_trunc('day', (NOW() AT TIME ZONE 'UTC') - interval '12 hours') AT TIME ZONE 'UTC')`;
+}
+
 function ended_sql() {
-  return sql`${funds.expiration} IS NOT NULL AND ${funds.expiration} < NOW()`;
+  return sql`(
+    ${campaigns.status} = 'ended'
+    OR (
+      ${campaigns.status} = 'live'
+      AND ${campaigns.ends_at} IS NOT NULL
+      AND ${campaigns.ends_at} < ${close_bound()}
+    )
+  )`;
 }
 
 function status_sql(status: CampaignStatus) {
   if (status === "ended") return ended_sql();
-  if (status === "draft")
-    return sql`NOT (${ended_sql()}) AND ${funds.active} = false`;
-  return sql`NOT (${ended_sql()}) AND ${funds.active} = true`;
+  if (status === "draft") return sql`${campaigns.status} = 'draft'`;
+  return sql`${campaigns.status} = 'live' AND (
+    ${campaigns.ends_at} IS NULL OR ${campaigns.ends_at} >= ${close_bound()}
+  )`;
 }
 
 export async function list_campaigns(
@@ -180,16 +209,17 @@ export async function list_campaigns(
   if (refused) return refused;
 
   const rows = await db
-    .select(fund_cols)
-    .from(funds)
+    .select(campaign_cols)
+    .from(campaigns)
+    .innerJoin(npos, eq(npos.id, campaigns.owner_npo_id))
     .where(
       and(
-        eq(funds.npo_owner, npo_id),
+        eq(campaigns.owner_npo_id, npo_id),
         status ? status_sql(status as CampaignStatus) : undefined,
-        older(sql`${funds.created_at}`, sql`${funds.id}`, cursor)
+        older(sql`${campaigns.created_at}`, sql`${campaigns.id}`, cursor)
       )
     )
-    .orderBy(desc(funds.created_at), desc(funds.id))
+    .orderBy(desc(campaigns.created_at), desc(campaigns.id))
     .limit(limit + 1);
 
   const listed = page(rows, limit, CAMPAIGNS_NEWEST, (row) => ({
@@ -208,9 +238,10 @@ export async function read_campaign_detail(
   id: string
 ) {
   const [row] = await db
-    .select(fund_cols)
-    .from(funds)
-    .where(and(eq(funds.id, id), eq(funds.npo_owner, npo_id)));
+    .select(campaign_cols)
+    .from(campaigns)
+    .innerJoin(npos, eq(npos.id, campaigns.owner_npo_id))
+    .where(and(eq(campaigns.id, id), eq(campaigns.owner_npo_id, npo_id)));
   return row ? detail_of(row) : null;
 }
 
@@ -437,9 +468,9 @@ async function require_own_campaign(
   id: string
 ): Promise<Response | null> {
   const [row] = await db
-    .select({ id: funds.id })
-    .from(funds)
-    .where(and(eq(funds.id, id), eq(funds.npo_owner, npo_id)));
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.id, id), eq(campaigns.owner_npo_id, npo_id)));
   if (!row)
     return not_found(`Campaign ${id} does not exist for this nonprofit.`);
   return null;
@@ -539,8 +570,8 @@ const gift_cols = {
   status: donations.status,
   donor_email: donation_donors.email,
   donor_name: donation_donors.name,
-  fund_id: donation_recipients.fund_id,
-  fund_owner: funds.npo_owner,
+  campaign_id: donations.campaign_id,
+  campaign_owner: campaigns.owner_npo_id,
   created_at: donations.created_at,
   updated_at: donations.updated_at,
   dispute_open: sql<boolean>`exists (
@@ -568,8 +599,8 @@ type GiftRow = {
   status: string;
   donor_email: string;
   donor_name: string | null;
-  fund_id: string | null;
-  fund_owner: number | null;
+  campaign_id: string | null;
+  campaign_owner: number | null;
   created_at: string;
   updated_at: string;
   dispute_open: boolean;
@@ -584,13 +615,13 @@ export async function read_gift_by_id(db: DbOrTx, npo_id: number, id: string) {
 
 function gift_of(row: GiftRow, npo_id: number) {
   const usd_gift = row.currency === "USD";
-  const major = usd_gift ? row.upusd : row.amount_base;
+  const major = row.amount_base;
   const amount_minor = usd_minor(major);
   const freq = gift_frequency(row.frequency);
   const who = donor_wire(row.donor_email);
   const stand = standing(row.status, row.refunded_share, amount_minor);
   const campaign_id =
-    row.fund_id && row.fund_owner === npo_id ? row.fund_id : null;
+    row.campaign_id && row.campaign_owner === npo_id ? row.campaign_id : null;
   return {
     id: row.id,
     donation_id: row.id,
@@ -635,7 +666,7 @@ function gift_query(db: DbOrTx) {
       donation_tributes,
       eq(donation_tributes.donation_id, donations.id)
     )
-    .leftJoin(funds, eq(funds.id, donation_recipients.fund_id));
+    .leftJoin(campaigns, eq(campaigns.id, donations.campaign_id));
 }
 
 export async function list_donations(
@@ -667,7 +698,7 @@ export async function list_donations(
       and(
         eq(donations.status, "settled"),
         tenant_gifts(npo_id),
-        campaign_id ? eq(donation_recipients.fund_id, campaign_id) : undefined,
+        campaign_id ? eq(donations.campaign_id, campaign_id) : undefined,
         window.start ? gte(donations.created_at, window.start) : undefined,
         window.end ? lt(donations.created_at, window.end) : undefined,
         older(sql`${donations.created_at}`, sql`${donations.id}`, cursor)
@@ -731,12 +762,22 @@ function donor_of(row: DonorRow) {
   };
 }
 
-function donor_base(npo_id: number, q: string | null) {
-  return and(
-    eq(donations.status, "settled"),
-    tenant_gifts(npo_id),
-    q ? donor_q(q) : undefined
-  );
+function donor_base(npo_id: number) {
+  return and(eq(donations.status, "settled"), tenant_gifts(npo_id));
+}
+
+async function donor_ids_matching(db: DbOrTx, npo_id: number, q: string) {
+  const hits = await db
+    .select({ id: sql<string>`${donor_key}`.as("donor_id") })
+    .from(donations)
+    .innerJoin(
+      donation_recipients,
+      eq(donation_recipients.donation_id, donations.id)
+    )
+    .innerJoin(donation_donors, eq(donation_donors.donation_id, donations.id))
+    .where(and(donor_base(npo_id), donor_q(q)))
+    .groupBy(sql`${donor_key}`);
+  return hits.map((hit) => hit.id);
 }
 
 export async function list_donors(
@@ -758,6 +799,10 @@ export async function list_donors(
   const having = cursor
     ? sql`(min(${donations.created_at}), ${donor_key}) < (${cursor.v}::timestamptz, ${cursor.id})`
     : undefined;
+  const matched = q ? await donor_ids_matching(db, npo_id, q) : null;
+  if (matched && matched.length === 0) {
+    return json({ data: [], next_cursor: null });
+  }
 
   const rows = await db
     .select({
@@ -774,7 +819,7 @@ export async function list_donors(
       created_at: sql<string>`min(${donations.created_at})`,
       updated_at: sql<string>`max(${donations.updated_at})`,
       gift_count: sql<number>`count(*)::int`,
-      total: sql<string>`coalesce(sum(${donations.upusd}), 0)::text`,
+      total: sql<string>`coalesce(sum(${donations.amount_base} / nullif(${donations.upusd}, 0)), 0)::text`,
     })
     .from(donations)
     .innerJoin(
@@ -782,7 +827,17 @@ export async function list_donors(
       eq(donation_recipients.donation_id, donations.id)
     )
     .innerJoin(donation_donors, eq(donation_donors.donation_id, donations.id))
-    .where(donor_base(npo_id, q || null))
+    .where(
+      and(
+        donor_base(npo_id),
+        matched
+          ? sql`${donor_key} IN (${sql.join(
+              matched.map((id) => sql`${id}`),
+              sql`, `
+            )})`
+          : undefined
+      )
+    )
     .groupBy(sql`${donor_key}`)
     .having(having ?? sql`true`)
     .orderBy(desc(sql`min(${donations.created_at})`), desc(sql`${donor_key}`))
@@ -830,7 +885,7 @@ export async function get_donor(
       created_at: sql<string>`min(${donations.created_at})`,
       updated_at: sql<string>`max(${donations.updated_at})`,
       gift_count: sql<number>`count(*)::int`,
-      total: sql<string>`coalesce(sum(${donations.upusd}), 0)::text`,
+      total: sql<string>`coalesce(sum(${donations.amount_base} / nullif(${donations.upusd}, 0)), 0)::text`,
     })
     .from(donations)
     .innerJoin(
@@ -838,7 +893,7 @@ export async function get_donor(
       eq(donation_recipients.donation_id, donations.id)
     )
     .innerJoin(donation_donors, eq(donation_donors.donation_id, donations.id))
-    .where(and(donor_base(npo_id, null), donor_match(id)))
+    .where(and(donor_base(npo_id), donor_match(id)))
     .groupBy(sql`${donor_key}`);
 
   if (!found)
@@ -965,14 +1020,14 @@ export async function get_results(
   const scope = and(
     eq(donations.status, "settled"),
     tenant_gifts(npo_id),
-    campaign_id ? eq(donation_recipients.fund_id, campaign_id) : undefined,
+    campaign_id ? eq(donations.campaign_id, campaign_id) : undefined,
     window.start ? gte(donations.created_at, window.start) : undefined,
     window.end ? lt(donations.created_at, window.end) : undefined
   );
 
   const [totals] = await db
     .select({
-      total: sql<string>`coalesce(sum(${donations.upusd}), 0)::text`,
+      total: sql<string>`coalesce(sum(${donations.amount_base} / nullif(${donations.upusd}, 0)), 0)::text`,
       gift_count: sql<number>`count(*)::int`,
       donor_count: sql<number>`count(DISTINCT CASE
         WHEN ${donation_donors.email} LIKE 'hand-%@recorded.invalid'
@@ -988,10 +1043,10 @@ export async function get_results(
     .innerJoin(donation_donors, eq(donation_donors.donation_id, donations.id))
     .where(scope);
 
-  const by_fund = await db
+  const by_campaign = await db
     .select({
-      fund_id: donation_recipients.fund_id,
-      total: sql<string>`coalesce(sum(${donations.upusd}), 0)::text`,
+      campaign_id: donations.campaign_id,
+      total: sql<string>`coalesce(sum(${donations.amount_base} / nullif(${donations.upusd}, 0)), 0)::text`,
       gift_count: sql<number>`count(*)::int`,
     })
     .from(donations)
@@ -999,30 +1054,36 @@ export async function get_results(
       donation_recipients,
       eq(donation_recipients.donation_id, donations.id)
     )
-    .where(and(scope, sql`${donation_recipients.fund_id} IS NOT NULL`))
-    .groupBy(donation_recipients.fund_id);
+    .where(and(scope, sql`${donations.campaign_id} IS NOT NULL`))
+    .groupBy(donations.campaign_id);
 
   const raised = new Map(
-    by_fund.map((row) => [
-      row.fund_id,
-      { total: Number(row.total), gift_count: Number(row.gift_count) },
-    ])
+    by_campaign.flatMap((row) =>
+      row.campaign_id
+        ? [
+            [
+              row.campaign_id,
+              { total: Number(row.total), gift_count: Number(row.gift_count) },
+            ] as const,
+          ]
+        : []
+    )
   );
 
-  const campaigns = await db
+  const own_campaigns = await db
     .select({
-      id: funds.id,
-      name: funds.name,
-      target_number: funds.target_number,
+      id: campaigns.id,
+      name: campaigns.name,
+      target_number: campaigns.target_number,
     })
-    .from(funds)
+    .from(campaigns)
     .where(
       and(
-        eq(funds.npo_owner, npo_id),
-        campaign_id ? eq(funds.id, campaign_id) : undefined
+        eq(campaigns.owner_npo_id, npo_id),
+        campaign_id ? eq(campaigns.id, campaign_id) : undefined
       )
     )
-    .orderBy(desc(funds.created_at), desc(funds.id));
+    .orderBy(desc(campaigns.created_at), desc(campaigns.id));
 
   return json({
     total: usd(Number(totals?.total ?? 0)) ?? {
@@ -1031,7 +1092,7 @@ export async function get_results(
     },
     gift_count: Number(totals?.gift_count ?? 0),
     donor_count: Number(totals?.donor_count ?? 0),
-    campaigns: campaigns.map((row) => {
+    campaigns: own_campaigns.map((row) => {
       const hit = raised.get(row.id);
       return {
         id: row.id,
