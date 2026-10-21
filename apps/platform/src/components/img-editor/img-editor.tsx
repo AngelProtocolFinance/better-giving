@@ -201,7 +201,7 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
           const files = Array.from(e.dataTransfer.files);
           if (files.length) handle_files(files);
         }}
-        className={`relative w-full min-w-0 max-w-full ${overlay} ${styles.dropzone} group rounded border border-dashed bg-surface cursor-pointer
+        className={`relative min-w-0 max-w-full ${overlay} ${styles.dropzone} group rounded border border-dashed bg-surface cursor-pointer
           focus-visible:outline-2 has-focus-visible:outline-2 data-[focus-error]:outline-2 data-[drag="true"]:outline-2 outline-ring
           hover:bg-secondary
           data-[disabled="true"]:bg-gray-3 data-[disabled="true"]:pointer-events-none
