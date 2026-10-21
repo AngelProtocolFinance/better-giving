@@ -355,11 +355,11 @@ describe("admin filters forms", () => {
 
     const screen = await render_page(npo.id, "inactive");
 
-    // table still renders with empty message
-    await expect.element(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByRole("table").query()).toBeNull();
     await expect
       .element(screen.getByText(/no.*inactive.*forms found/i))
       .toBeVisible();
+    await expect.element(screen.getByText("Try another status.")).toBeVisible();
   });
 
   it("filters via StatusFilter dropdown — pick Inactive updates list", async () => {
@@ -385,8 +385,11 @@ describe("admin filters forms", () => {
     const screen = await render_page(npo.id);
 
     await expect.element(screen.getByText("Donation forms")).toBeVisible();
-    await expect.element(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByRole("table").query()).toBeNull();
     await expect.element(screen.getByText(/no.*forms found/i)).toBeVisible();
+    await expect
+      .element(screen.getByText("Forms you create will show up here."))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: "Create Form" }))
       .toBeInTheDocument();
