@@ -4,25 +4,24 @@ import { href, Link } from "react-router";
 interface Props {
   published: boolean;
   fundId: string;
-  classes?: string;
   onToggle: () => void;
   isToggling: boolean;
 }
 
-export function PublishBanner({ classes = "", ...props }: Props) {
+export function PublishBanner(props: Props) {
   return (
     <div
-      className={`${classes} flex flex-wrap justify-between items-center border rounded p-4 gap-4 ${
+      className={`flex flex-wrap justify-between items-center border rounded p-4 gap-4 ${
         props.published
           ? "bg-success-subtle border-success"
           : "bg-warning-subtle border-warning"
       }`}
     >
       {props.published ? (
-        <Confirmed>Your fund is visible in the funds page</Confirmed>
+        <Confirmed>Your campaign is public</Confirmed>
       ) : (
         <Info classes="text-warning-subtle-fg">
-          Your endowment is not visible in the funds page
+          Your campaign is not public yet
         </Info>
       )}
       <div className="flex items-center gap-x-2">

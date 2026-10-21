@@ -19,7 +19,7 @@ export function Slug({
   const link = slug_init && get_link(slug_init, base_url);
 
   return (
-    <div className="mt-4 mb-1">
+    <div>
       {slug_field}
       {link && (
         <div className="text-sm italic mt-1">

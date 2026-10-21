@@ -93,7 +93,7 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
 
   if (close) {
     await fund_close(id);
-    return dataWithSuccess(null, "Fund closed");
+    return dataWithSuccess(null, "Campaign closed");
   }
 
   const p_upd = safeParse(fund_update, update);
@@ -110,5 +110,5 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
 
   await fund_update_fn(id, parsed);
 
-  return dataWithSuccess(null, "Fund updated");
+  return dataWithSuccess(null, "Campaign updated");
 };
