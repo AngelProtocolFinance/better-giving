@@ -56,11 +56,6 @@ vi.mock("#/.server/toast", async () => {
   };
 });
 
-vi.mock("remix-client-cache", () => ({
-  CacheRoute: (Component: any) => Component,
-  createClientLoaderCache: () => undefined,
-}));
-
 // --- imports after mocks ---
 
 import { Suspense } from "react";
@@ -74,9 +69,11 @@ import {
 import { loader as profile_loader } from "#/routes/_app.marketplace_.$id/api";
 import type { IFundItem } from "@/fundraiser";
 import { admin_ctx, user_ctx } from "$/auth/test-utils";
+import { enqueue } from "$/kit/queue";
 import { create_test_db } from "$/pg/test-utils/pglite";
+import { loader as campaigns_loader } from "../../admin.$id.campaigns/api";
+import CampaignsPage from "../../admin.$id.campaigns/route";
 import { action, loader } from "../api";
-import FundsPage from "../route";
 
 // --- setup ---
 
@@ -126,7 +123,13 @@ function SearchProbe() {
   return <output data-testid="url-search">{useLocation().search}</output>;
 }
 
-async function render_funds(npo_id: number, user = MOCK_USER, search = "") {
+async function render_funds(
+  npo_id: number,
+  user = MOCK_USER,
+  search = "",
+  // holds the route action open so a test can read the in-flight leave
+  hold?: { gate: Promise<void>; posts: { n: number } }
+) {
   const mdlwr = [
     async ({ context }: any, next: any) => {
       context.set(admin_ctx, npo_id);
@@ -137,17 +140,30 @@ async function render_funds(npo_id: number, user = MOCK_USER, search = "") {
   const Stub = createRoutesStub([
     {
       path: "/admin/:id/funds",
+      Component: () => null,
+      HydrateFallback: () => null,
+      loader: loader as any,
+      action: (hold
+        ? async (args: any) => {
+            hold.posts.n += 1;
+            await hold.gate;
+            return action(args);
+          }
+        : action) as any,
+      middleware: mdlwr,
+    },
+    {
+      path: "/admin/:id/campaigns",
       Component: (props: any) => (
         <>
-          <FundsPage {...props} />
+          <CampaignsPage {...props} />
           <SearchProbe />
           {/* the leave confirm is raised through `ask`, which mounts at `AskHost` */}
           <AskHost />
         </>
       ),
       HydrateFallback: () => null,
-      loader: loader as any,
-      action: action as any,
+      loader: campaigns_loader as any,
       middleware: mdlwr,
     },
     {
@@ -202,6 +218,34 @@ async function render_profile(npo_id: number) {
 // --- tests ---
 
 describe("funds — filter and display", () => {
+  it("redirects a funds GET onto the supporter tab", async () => {
+    const call = (search: string) =>
+      loader({
+        request: new Request(`http://x/admin/7/funds${search}`),
+        params: { id: "7" },
+        context: { get: (k: unknown) => (k === admin_ctx ? 7 : undefined) },
+      } as any);
+
+    const ours = await call("?creator=ours");
+    expect(ours.status).toBe(302);
+    expect(ours.headers.get("Location")).toBe(
+      "/admin/7/campaigns?tab=fundraisers&creator=ours"
+    );
+    const others = await call("?creator=others");
+    expect(others.headers.get("Location")).toBe(
+      "/admin/7/campaigns?tab=fundraisers&creator=others"
+    );
+    expect((await call("?creator=all")).headers.get("Location")).toBe(
+      "/admin/7/campaigns?tab=fundraisers"
+    );
+    expect((await call("")).headers.get("Location")).toBe(
+      "/admin/7/campaigns?tab=fundraisers"
+    );
+    expect((await call("?creator=nope")).headers.get("Location")).toBe(
+      "/admin/7/campaigns?tab=fundraisers"
+    );
+  });
+
   it("shows all funds by default", async () => {
     const npo = await seed_npo();
     const other_npo = await seed_npo({
@@ -236,11 +280,27 @@ describe("funds — filter and display", () => {
     await expect
       .element(
         screen.getByRole("heading", {
-          name: "Supporter fundraisers",
+          level: 1,
+          name: "Campaigns",
           exact: true,
         })
       )
-      .toBeInTheDocument();
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByRole("tab", { name: "Supporter fundraisers", exact: true })
+      )
+      .toHaveAttribute("aria-selected", "true");
+    expect(
+      screen
+        .getByRole("heading", { name: "Supporter fundraisers", exact: true })
+        .query()
+    ).toBeNull();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("url-search").element().textContent).toBe(
+        "?tab=fundraisers"
+      );
+    });
     await expect
       .element(
         screen.getByText(
@@ -249,6 +309,18 @@ describe("funds — filter and display", () => {
         )
       )
       .toBeInTheDocument();
+
+    // compact trigger: select.tsx omits field-input and uses this class string
+    const creator = screen.getByRole("combobox", {
+      name: "Creator",
+      exact: true,
+    });
+    await expect.element(creator).not.toHaveClass("field-input");
+    await vi.waitFor(() => {
+      expect(creator.element().className).toContain(
+        " selector-btn min-h-8 py-1.5 px-3 text-sm focus-visible:outline-2 data-[state=open]:outline-2 outline-ring"
+      );
+    });
 
     // default "All" shows both
     await expect.element(screen.getByText("Our Gala Fund")).toBeInTheDocument();
@@ -341,7 +413,7 @@ describe("funds — filter and display", () => {
     await screen.getByRole("option", { name: "By Us", exact: true }).click();
     await vi.waitFor(() => {
       expect(screen.getByTestId("url-search").element().textContent).toBe(
-        "?creator=ours"
+        "?tab=fundraisers&creator=ours"
       );
     });
     await expect
@@ -351,7 +423,9 @@ describe("funds — filter and display", () => {
     await screen.getByRole("combobox", { name: "Creator" }).click();
     await screen.getByRole("option", { name: "All", exact: true }).click();
     await vi.waitFor(() => {
-      expect(screen.getByTestId("url-search").element().textContent).toBe("");
+      expect(screen.getByTestId("url-search").element().textContent).toBe(
+        "?tab=fundraisers"
+      );
     });
     await expect.element(screen.getByText("Our Gala Fund")).toBeInTheDocument();
     await expect
@@ -608,6 +682,7 @@ describe("funds — opt out", () => {
       .toBeInTheDocument();
 
     vi.mocked(dataWithSuccess).mockClear();
+    vi.mocked(enqueue).mockClear();
     await screen
       .getByRole("button", { name: /leave fundraiser community drive/i })
       .click();
@@ -616,11 +691,20 @@ describe("funds — opt out", () => {
       exact: true,
     });
     await expect.element(dialog).toBeVisible();
-    (
-      dialog
-        .getByRole("button", { name: "Cancel", exact: true })
-        .element() as HTMLElement
-    ).click();
+    await expect
+      .element(
+        dialog.getByText(
+          "An email goes to Creator Person. You will stop receiving from this fundraiser.",
+          { exact: true }
+        )
+      )
+      .toBeVisible();
+    const cancel = dialog.getByRole("button", {
+      name: "Cancel",
+      exact: true,
+    });
+    await expect.element(cancel).toHaveFocus();
+    (cancel.element() as HTMLElement).click();
     await expect
       .element(
         screen.getByRole("dialog", {
@@ -655,6 +739,18 @@ describe("funds — opt out", () => {
       null,
       "You left this fundraiser. It will disappear from this list shortly."
     );
+    expect(vi.mocked(enqueue)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(enqueue)).toHaveBeenCalledWith({
+      id: "fund-member-removed",
+      payload: {
+        fund_id: "bbbbbbbb-0001-0001-0001-000000000001",
+        creator_id: creator_user.id,
+        creator_name: "Community Drive",
+        npo_id: npo.id,
+      },
+      dedupe: `fund.removed_bbbbbbbb-0001-0001-0001-000000000001_${creator_user.id}_${npo.id}`,
+      retries: 3,
+    });
     await cleanup();
 
     // profile page no longer shows the fund
@@ -662,6 +758,79 @@ describe("funds — opt out", () => {
     await expect
       .element(screen.getByText("No profile funds"))
       .toBeInTheDocument();
+  });
+
+  it("a second confirm and a press while leaving do not submit again", async () => {
+    const npo = await seed_npo();
+    const other_npo = await seed_npo({
+      registration_number: "EIN-HELD",
+      name: "Held Creator NPO",
+    });
+    const creator_user = await seed_user(
+      "held-user@test.com",
+      "Held",
+      "Person"
+    );
+    await seed_fund({
+      id: "bbbbbbbb-0003-0003-0003-000000000003",
+      name: "Held Drive",
+      npo_owner: other_npo.id,
+      creator_id: creator_user.id,
+      members: [npo.id, other_npo.id],
+    });
+
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const posts = { n: 0 };
+    const screen = await render_funds(
+      npo.id,
+      { ...MOCK_USER, endowments: [npo.id] },
+      "?creator=others",
+      { gate, posts }
+    );
+
+    try {
+      await expect.element(screen.getByText("Held Drive")).toBeInTheDocument();
+      await screen
+        .getByRole("button", { name: /leave fundraiser held drive/i })
+        .click();
+      const confirm = screen.getByRole("dialog", {
+        name: "Leave Held Drive?",
+        exact: true,
+      });
+      await expect.element(confirm).toBeVisible();
+      const leave = confirm
+        .getByRole("button", { name: "Leave fundraiser", exact: true })
+        .element() as HTMLElement;
+      // two presses before the dialog unmounts; the sent ref makes the second a no-op
+      leave.click();
+      leave.click();
+
+      const leaving = screen.getByRole("button", {
+        name: "Leaving… Held Drive",
+        exact: true,
+      });
+      await expect.element(leaving).toBeVisible();
+      await expect.element(leaving).toHaveAttribute("aria-disabled", "true");
+      await vi.waitFor(() => expect(posts.n).toBe(1));
+      const again = screen.getByRole("dialog", {
+        name: "Leave Held Drive?",
+        exact: true,
+      });
+      await expect.element(again).not.toBeInTheDocument();
+      (leaving.element() as HTMLElement).click();
+      await expect.element(again).not.toBeInTheDocument();
+    } finally {
+      release();
+    }
+
+    await expect
+      .element(screen.getByText("Held Drive"))
+      .not.toBeInTheDocument();
+    expect(posts.n).toBe(1);
+    expect(vi.mocked(enqueue)).toHaveBeenCalledTimes(1);
   });
 
   it("last member opts out — fund becomes inactive, shows closed on admin page", async () => {
@@ -705,6 +874,17 @@ describe("funds — opt out", () => {
 
     // fund disappears from supporter view
     await expect.element(screen.getByText("Solo Fund")).not.toBeInTheDocument();
+    await cleanup();
+
+    // owner still lists it; deactivation is the closed badge
+    const owner = await render_funds(other_npo.id, {
+      ...MOCK_USER,
+      endowments: [other_npo.id],
+    });
+    await expect.element(owner.getByText("Solo Fund")).toBeInTheDocument();
+    await expect
+      .element(owner.getByText("closed", { exact: true }))
+      .toBeVisible();
     await cleanup();
 
     // fund deactivated — profile page won't show it (published filter requires active)
@@ -756,24 +936,23 @@ describe("funds — edit visibility", () => {
 
     await cleanup();
 
-    // supporter view — edit hidden for non-owned fund
+    // supporter view — the name is text and Edit is not in the card
     screen = await render_funds(
       npo.id,
       { ...MOCK_USER, endowments: [], funds: [] },
       "?creator=others"
     );
     await expect
+      .element(screen.getByText("Supporter Fund", { exact: true }))
+      .toBeInTheDocument();
+    await expect
       .element(
         screen.getByRole("link", { name: "Supporter Fund", exact: true })
       )
-      .toBeInTheDocument();
-    // `invisible` is real visibility:hidden under the stylesheet, so the link
-    // leaves the accessibility tree and only an includeHidden query reaches it
+      .not.toBeInTheDocument();
     await expect
-      .element(
-        screen.getByRole("link", { name: /^edit$/i, includeHidden: true })
-      )
-      .not.toBeVisible();
+      .element(screen.getByRole("link", { name: /^edit$/i }))
+      .not.toBeInTheDocument();
   });
 });
 

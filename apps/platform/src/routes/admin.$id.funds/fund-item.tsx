@@ -9,7 +9,13 @@ import {
 import { fromUnixTime } from "date-fns";
 import { LoaderCircle } from "lucide-react";
 import { useId, useRef } from "react";
-import { href, Link, NavLink, useFetcher } from "react-router";
+import {
+  href,
+  NavLink,
+  useFetcher,
+  useLocation,
+  useParams,
+} from "react-router";
 import {
   FundCreator,
   FundStatusBadge,
@@ -24,6 +30,13 @@ interface Props extends IFundItem {
 }
 export const FundItem = (props: Props) => {
   const fetcher = useFetcher({ key: `fund-${props.id}` });
+  const { pathname } = useLocation();
+  const { id: npo_id } = useParams();
+  // leave stays on the funds action; this card also renders under /campaigns
+  const leave_action =
+    npo_id && pathname.includes("/campaigns")
+      ? href("/admin/:id/funds", { id: npo_id })
+      : undefined;
   const ask = use_ask();
   const name_id = useId();
   const leave_label_id = useId();
@@ -40,7 +53,12 @@ export const FundItem = (props: Props) => {
       name: props.name,
       creator_name: props.creator_name,
       on_leave: () => {
-        fetcher.submit({ fund_id: props.id }, { method: "POST" });
+        fetcher.submit(
+          { fund_id: props.id },
+          leave_action
+            ? { method: "POST", action: leave_action }
+            : { method: "POST" }
+        );
       },
     });
   };
@@ -57,13 +75,9 @@ export const FundItem = (props: Props) => {
         <FundStatusBadge status={status} />
       </div>
 
-      <Link
-        id={name_id}
-        to={href("/fundraisers/:fund_id", { fund_id: props.id })}
-        className="mt-4 font-semibold link"
-      >
+      <p id={name_id} className="mt-4 font-semibold">
         {props.name}
-      </Link>
+      </p>
       <div className="mb-2">
         <span className="text-sm mr-1">by</span>
         <FundCreator
@@ -106,13 +120,15 @@ export const FundItem = (props: Props) => {
           // the row stacks there is no slot to hold, only a phantom gap
           <div data-placeholder className="max-sm:hidden" />
         )}
-        <NavLink
-          aria-disabled={!status.active}
-          className={`btn btn-primary ${props.isEditor ? "" : "invisible"}`}
-          to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
-        >
-          Edit
-        </NavLink>
+        {props.isEditor && (
+          <NavLink
+            aria-disabled={!status.active}
+            className="btn btn-secondary"
+            to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
+          >
+            Edit
+          </NavLink>
+        )}
       </div>
     </div>
   );

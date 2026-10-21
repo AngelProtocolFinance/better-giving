@@ -6,7 +6,6 @@ import {
   CircleUserRound,
   HandshakeIcon,
   Heart,
-  HeartHandshake,
   Image,
   LayoutDashboard,
   ListCheck,
@@ -65,14 +64,6 @@ const group1: LinkGroup = {
       icon: {
         fn: Heart,
         size: 21,
-      },
-    },
-    {
-      title: "Supporter fundraisers",
-      to: sidebar_routes.funds,
-      icon: {
-        fn: HeartHandshake,
-        size: 22,
       },
     },
     {

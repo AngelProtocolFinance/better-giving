@@ -1,7 +1,8 @@
-import { EmptyState } from "@better-giving/ui";
+import { EmptyState, TabPanel, Tabs } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
-import { href, Link } from "react-router";
+import { href, Link, useSearchParams } from "react-router";
 import { admin_page_meta } from "#/routes/admin.$id/page-meta";
+import { FundsList } from "#/routes/admin.$id.funds/list";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 import type { Route } from "./+types/route";
 import { fund_row_status, STATUS_WORD } from "./copy";
@@ -32,7 +33,7 @@ function fund_end(expiration: number) {
 
 interface IRow {
   name: string;
-  name_to: string;
+  edit_to?: string;
   meta: string;
   view_to?: string;
   view_label?: string;
@@ -51,89 +52,102 @@ function fund_meta(f: IListedFund) {
   return `${fund_row_status(f)} · ${to_usd(f.donation_total_usd)} raised · ${fund_end(f.expiration)}`;
 }
 
-/** an inactive editor only says the fund is closed; assert_fund_editor returns 403 on a fund this org does not own */
-function fund_row(f: IListedFund, owned: boolean): IRow {
+/** a closed fund has no editor; the public page is the view link */
+function fund_row(f: IListedFund): IRow {
   const public_to = href("/fundraisers/:fund_id", { fund_id: f.id });
-  if (!owned || !f.active) {
-    return { name: f.name, name_to: public_to, meta: fund_meta(f) };
+  if (!f.active) {
+    return { name: f.name, meta: fund_meta(f), view_to: public_to };
   }
   return {
     name: f.name,
-    name_to: href("/fundraisers/:fund_id/edit", { fund_id: f.id }),
+    edit_to: href("/fundraisers/:fund_id/edit", { fund_id: f.id }),
     meta: fund_meta(f),
     view_to: f.published ? public_to : undefined,
   };
 }
 
-function Row({ name, name_to, meta, view_to, view_label }: IRow) {
+function Row({ name, edit_to, meta, view_to, view_label }: IRow) {
   return (
     <li className="card grid gap-1">
-      <Link to={name_to} className="link font-semibold">
-        {name}
-      </Link>
+      <p className="font-semibold">{name}</p>
       <span className="text-sm text-gray-11">{meta}</span>
-      {view_to && (
-        <Link
-          to={view_to}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="link text-sm"
-        >
-          {view_label ?? "View"}
-        </Link>
+      {(edit_to || view_to) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {view_to && (
+            <Link
+              to={view_to}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link text-sm"
+            >
+              {view_label ?? "View"}
+            </Link>
+          )}
+          {edit_to && (
+            <Link className="btn btn-secondary" to={edit_to}>
+              Edit
+            </Link>
+          )}
+        </div>
       )}
     </li>
   );
 }
 
 export default function Page({ loaderData }: Route.ComponentProps) {
-  const { endow, campaigns, org_funds, supporter_funds, profile_to } =
-    loaderData;
+  const [params, setParams] = useSearchParams();
+  const tab = loaderData.view;
+  const { endow } = loaderData;
   const profile = endow.slug
     ? `/marketplace/${endow.slug}`
     : `/marketplace/${endow.id}`;
   const new_to = href("/admin/:id/campaigns/new", { id: String(endow.id) });
-  const empty =
-    campaigns.length === 0 &&
-    org_funds.length === 0 &&
-    supporter_funds.length === 0;
 
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8 gap-6 max-w-[1400px]">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold">Campaigns</h1>
-        <Link to={new_to} className="btn btn-primary">
-          New campaign
-        </Link>
-      </div>
-
-      <div className="card grid gap-1">
-        <p className="text-sm text-gray-11">Better Giving profile</p>
-        <Link to={profile} className="link font-semibold">
-          {profile}
-        </Link>
-        <Link to={profile_to} className="link text-sm">
-          Edit profile
-        </Link>
-      </div>
-
-      {empty ? (
-        <EmptyState
-          action={
-            <Link to={new_to} className="btn btn-primary">
-              Create campaign
+      <h1 className="text-3xl font-bold">Campaigns</h1>
+      <Tabs
+        className="grid gap-6"
+        value={tab}
+        onValueChange={(value) => {
+          const next = new URLSearchParams(params);
+          if (value === "fundraisers") next.set("tab", "fundraisers");
+          else next.delete("tab");
+          setParams(next, { preventScrollReset: true });
+        }}
+        items={[
+          { value: "campaigns", label: "Your campaigns" },
+          { value: "fundraisers", label: "Supporter fundraisers" },
+        ]}
+      >
+        {loaderData.view === "campaigns" ? (
+          <TabPanel value="campaigns" className="grid gap-6">
+            <Link to={new_to} className="btn btn-primary justify-self-end">
+              New campaign
             </Link>
-          }
-        >
-          No campaigns yet
-        </EmptyState>
-      ) : (
-        <>
-          {(campaigns.length > 0 || org_funds.length > 0) && (
-            <section className="grid gap-3">
-              <h2 className="font-semibold">Your campaigns</h2>
+            <div className="card grid gap-1">
+              <p className="text-sm text-gray-11">Better Giving profile</p>
+              <Link to={profile} className="link font-semibold">
+                {profile}
+              </Link>
+              <Link to={loaderData.profile_to} className="link text-sm">
+                Edit profile
+              </Link>
+            </div>
+            {loaderData.campaigns.length === 0 &&
+            loaderData.org_funds.length === 0 ? (
+              <EmptyState
+                action={
+                  <Link to={new_to} className="btn btn-primary">
+                    Create campaign
+                  </Link>
+                }
+              >
+                No campaigns yet
+              </EmptyState>
+            ) : (
               <ul className="grid gap-3">
-                {campaigns.map((c) => {
+                {loaderData.campaigns.map((c) => {
                   const public_to =
                     c.status !== "draft" && endow.slug
                       ? href("/org/:org/:campaign", {
@@ -145,7 +159,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                     <Row
                       key={c.id}
                       name={c.name}
-                      name_to={href("/admin/:id/campaigns/:campaign_id", {
+                      edit_to={href("/admin/:id/campaigns/:campaign_id", {
                         id: String(endow.id),
                         campaign_id: c.id,
                       })}
@@ -155,24 +169,22 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                     />
                   );
                 })}
-                {org_funds.map((f) => (
-                  <Row key={f.id} {...fund_row(f, true)} />
+                {loaderData.org_funds.map((f) => (
+                  <Row key={f.id} {...fund_row(f)} />
                 ))}
               </ul>
-            </section>
-          )}
-          {supporter_funds.length > 0 && (
-            <section className="grid gap-3">
-              <h2 className="font-semibold">Supporter fundraisers</h2>
-              <ul className="grid gap-3">
-                {supporter_funds.map((f) => (
-                  <Row key={f.id} {...fund_row(f, false)} />
-                ))}
-              </ul>
-            </section>
-          )}
-        </>
-      )}
+            )}
+          </TabPanel>
+        ) : (
+          <TabPanel value="fundraisers" className="grid gap-6">
+            <FundsList
+              funds={loaderData.funds}
+              endow_id={endow.id}
+              platform_admin={loaderData.user.role === "admin"}
+            />
+          </TabPanel>
+        )}
+      </Tabs>
     </div>
   );
 }

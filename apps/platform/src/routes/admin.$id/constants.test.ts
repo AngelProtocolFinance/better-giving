@@ -1,4 +1,4 @@
-import { HandshakeIcon, HeartHandshake, MegaphoneIcon } from "lucide-react";
+import { HandshakeIcon, MegaphoneIcon } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { routes } from "#/pages/admin/routes";
 import { linkGroups } from "./constants";
@@ -20,12 +20,11 @@ describe("admin sidebar", () => {
     expect(link("Campaigns")?.icon.fn).toBe(MegaphoneIcon);
   });
 
-  it("names supporter fundraisers and marks referrals with a handshake", () => {
-    expect(link("Supporter fundraisers")?.to).toBe(routes.funds);
-    expect(link("Supporter fundraisers")?.icon.fn).toBe(HeartHandshake);
-    expect(link("Supporter fundraisers")?.icon.size).toBe(22);
+  it("drops supporter fundraisers and keeps campaigns and referrals", () => {
+    expect(link("Supporter fundraisers")).toBeUndefined();
     expect(link("Fundraiser opt-outs")).toBeUndefined();
     expect(link("Campaign opt-outs")).toBeUndefined();
+    expect(link("Campaigns")?.to).toBe(routes.campaigns);
     expect(link("Referrals")?.to).toBe(routes.referrals);
     expect(link("Referrals")?.icon.fn).toBe(HandshakeIcon);
   });
