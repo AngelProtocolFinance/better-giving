@@ -543,7 +543,8 @@ describe("donation form tab — update frequencies", () => {
     await screen.getByRole("tab", { name: /donation form/i }).click();
 
     await expect.element(screen.getByLabelText(/one time/i)).toBeVisible();
-    await screen.getByLabelText(/weekly/i).click();
+    // an off row sets aria-disabled for the grey style; the checkbox still toggles
+    (screen.getByLabelText(/weekly/i).element() as HTMLInputElement).click();
 
     await screen.getByRole("button", { name: /submit changes/i }).click();
 
@@ -699,9 +700,9 @@ describe("donation form tab — reset", () => {
       .toBeVisible();
     await screen.getByRole("tab", { name: /donation form/i }).click();
 
-    // check weekly
+    // check weekly. an off row sets aria-disabled for the grey style; the checkbox still toggles
     await expect.element(screen.getByLabelText(/weekly/i)).toBeVisible();
-    await screen.getByLabelText(/weekly/i).click();
+    (screen.getByLabelText(/weekly/i).element() as HTMLInputElement).click();
 
     // reset is enabled
     await expect
