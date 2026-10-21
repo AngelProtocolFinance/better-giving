@@ -24,12 +24,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
     };
   }
 
-  const [campaigns, member_funds] = await Promise.all([
+  const [campaigns, org_funds] = await Promise.all([
     campaign_list(id),
-    get_funds_npo_memberof(id, {}),
+    get_funds_npo_memberof(id, { creator: "ours" }),
   ]);
-  const org_funds = member_funds.filter((f) => f.npo_owner === id);
-  const supporter_funds = member_funds.filter((f) => f.npo_owner !== id);
+  // Stale clients still read supporter_funds on the default tab; empty avoids a crash after the tab move.
+  const supporter_funds: typeof org_funds = [];
   return {
     view: "campaigns" as const,
     endow,
