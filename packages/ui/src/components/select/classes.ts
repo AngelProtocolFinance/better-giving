@@ -10,7 +10,8 @@
  * the portaled popup shell.
  *
  * width is the host's: `w-(--reference-width)` when the popup tracks its
- * control, a fixed track when it doesn't. so is the scrollbar — see
+ * control, a fixed track when it doesn't, or sized to its options (never
+ * narrower than the control) under a compact select. so is the scrollbar — see
  * `popup_scrollbar_cls`.
  */
 export const popup_cls =

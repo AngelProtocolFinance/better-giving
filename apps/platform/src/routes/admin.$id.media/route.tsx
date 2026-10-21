@@ -60,7 +60,7 @@ function Media({ loaderData: page1 }: Route.ComponentProps) {
               option_disp={(v) => filter_labels[v]}
               classes={{
                 button: "text-sm py-1.5 px-3",
-                options: "text-sm min-w-28",
+                options: "text-sm",
               }}
             />
           </div>

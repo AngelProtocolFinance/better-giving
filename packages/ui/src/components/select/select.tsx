@@ -122,9 +122,13 @@ export function Select<T extends string>({
           Content: ArkSelect.Content,
         }}
         container={dialog}
-        // a select's options are short labels: at the control's width a
-        // compact trigger ("All") wraps "By our supporters" word by word
-        width="w-max min-w-(--reference-width) max-w-(--available-width)"
+        // a compact trigger is as wide as its value ("All"), and at that width
+        // its options wrap word by word; a full field keeps the field's width
+        width={
+          props.compact
+            ? "w-max min-w-(--reference-width) max-w-(--available-width)"
+            : undefined
+        }
         classes={cls.options}
       >
         {props.options.map((v) => (
