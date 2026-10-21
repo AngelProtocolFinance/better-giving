@@ -167,6 +167,22 @@ describe("fundraiser edit authorization", () => {
     expect((await fund_get_or_slug(FUND_ID))?.name).toBe("Renamed");
   });
 
+  it("refuses a link another campaign already uses, in plain words", async () => {
+    const { creator } = await seed();
+    await seed_fund(db(), {
+      id: "0d6e2f4a-8b1c-4e3d-9f5a-7c2b1a0e9d8f",
+      slug: "taken",
+      npo_owner: null,
+      creator_id: creator.id,
+    });
+    as(creator);
+
+    expect(await call_action({ slug: "taken" })).toEqual({
+      error: "That link is already used by another campaign.",
+    });
+    expect((await fund_get_or_slug(FUND_ID))?.slug).toBeNull();
+  });
+
   it("lets a member of the owning nonprofit close the fund", async () => {
     const { npo_member } = await seed();
     as(npo_member);

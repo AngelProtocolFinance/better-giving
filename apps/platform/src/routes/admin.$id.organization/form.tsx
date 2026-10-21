@@ -15,6 +15,8 @@ import { ImgEditor } from "#/components/img-editor";
 import { emails } from "@/constants/common";
 import type { EndowDesignation } from "@/npo";
 import type { OrgDesignation } from "@/schemas";
+import { SLUG_HELP } from "../admin.$id.campaigns/copy";
+import { PublicLinkField } from "../admin.$id.campaigns/link-field";
 import { logoSpec } from "../admin.$id.edit-profile/schema";
 import type { FV } from "./schema";
 import { suggest_slug } from "./schema";
@@ -30,7 +32,7 @@ const endow_designations: EndowDesignation[] = [
 
 const note_id = "org_slug_note";
 const set_once_note =
-  "Changing your org slug would make any links that depend on it stale";
+  "Your profile link can't change, so links you've already shared, including your campaign links, keep working.";
 
 interface Props {
   init: FV;
@@ -44,7 +46,9 @@ export function Form({ init, id, base_url }: Props) {
   const cancel_ref = useRef<HTMLButtonElement>(null);
   const form = use_organization_form(init, id, set_prompt);
   const uploading = form.logo.value === "loading";
-  const marketplace = `${base_url}${href("/marketplace/:id", { id: init.slug })}`;
+  const profile_base = `${base_url}${href("/marketplace")}/`;
+  const id_url = `${base_url}${href("/marketplace/:id", { id: String(id) })}`;
+  const campaigns_note = `Your campaign links start with it too (…${href("/org/:org", { org: form.slug.trim() || "your-link" })}/…).`;
   const donate = `${base_url}${href("/donate/:id", { id: init.slug })}`;
   const setting_slug = !form.locked && form.slug !== "";
 
@@ -61,8 +65,8 @@ export function Form({ init, id, base_url }: Props) {
         classes="grid gap-4 bg-panel p-6"
         initialFocusEl={() => cancel_ref.current}
       >
-        <h2 className="text-xl font-bold">Lock this address?</h2>
-        <p>This address can't be changed later.</p>
+        <h2 className="text-xl font-bold">Lock your profile link?</h2>
+        <p>Your profile link can't be changed later.</p>
         <div className="flex justify-end gap-2">
           <button
             ref={cancel_ref}
@@ -145,11 +149,19 @@ export function Form({ init, id, base_url }: Props) {
             error={form.errors.hq_country?.message}
             ref={form.hq_country.ref}
           />
-          <Field
-            {...form.register("slug")}
-            label="Org slug"
-            disabled={form.locked}
+          <PublicLinkField
+            reg={form.register("slug")}
+            value={form.slug}
+            base={profile_base}
+            locked={form.locked}
+            label="Profile link"
+            help={
+              form.locked ? campaigns_note : `${campaigns_note} ${SLUG_HELP}.`
+            }
+            subject="your profile"
             placeholder={form.locked ? undefined : suggest_slug(form.name)}
+            empty_url={id_url}
+            empty_suffix=" until you set a link"
             describedby={form.locked ? note_id : undefined}
             error={form.errors.slug?.message}
           />
@@ -157,12 +169,6 @@ export function Form({ init, id, base_url }: Props) {
             <div className="-mt-4 grid gap-2">
               <p id={note_id} className="text-sm text-gray-11">
                 {set_once_note}
-              </p>
-              <p className="text-sm break-all">
-                Marketplace:{" "}
-                <Link to={marketplace} className="link">
-                  {marketplace}
-                </Link>
               </p>
               <p className="text-sm break-all">
                 Donate:{" "}

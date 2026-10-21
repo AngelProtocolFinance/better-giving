@@ -19,21 +19,21 @@ export function Slug({
   const link = slug_init && get_link(slug_init, base_url);
 
   return (
-    <div className="mt-4 mb-1">
+    <div>
       {slug_field}
       {link && (
         <div className="text-sm italic mt-1">
-          <span>Current URL:</span>{" "}
+          <span>Current link:</span>{" "}
           <Link to={link} className="link">
             {link}
           </Link>
         </div>
       )}
       <p className="text-xs sm:text-sm text-gray-11 italic mt-2">
-        Change your campaign's profile URL ending segment from the default
-        alphanumeric ID to a more human-readable value for better SEO and donor
-        recognition. Only numbers and letters are permitted! Your alphanumeric
-        ID URL will continue to work.
+        Swap the ID at the end of your campaign's link for a name donors will
+        recognize. Letters, numbers, and - . _ ~ only: not all numbers, and no
+        dot at the start, at the end, or twice in a row. The ID link keeps
+        working.
       </p>
 
       <p className="text-xs sm:text-sm text-gray-11 italic mt-2">

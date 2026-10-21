@@ -567,7 +567,7 @@ describe("edit profile — slug taken", () => {
 
     const screen = await render_edit(npo.id);
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
-    expect(screen.getByLabelText(/org slug/i).query()).toBeNull();
+    expect(screen.getByLabelText(/profile link/i).query()).toBeNull();
     expect(screen.getByLabelText(/custom profile url/i).query()).toBeNull();
     await expect
       .element(screen.getByRole("link", { name: "Manage Organization" }))
@@ -592,7 +592,7 @@ describe("edit profile — slug taken", () => {
     const screen = await render_edit(npo.id);
     const tagline = screen.getByLabelText(/tagline/i);
     await expect.element(tagline).toBeVisible();
-    expect(screen.getByLabelText(/org slug/i).query()).toBeNull();
+    expect(screen.getByLabelText(/profile link/i).query()).toBeNull();
     await expect
       .element(screen.getByText(/\/marketplace\/kept-slug$/))
       .toBeVisible();
@@ -1215,7 +1215,7 @@ describe("edit profile — every caption names something", () => {
     const screen = await render_edit(npo.id);
 
     expect(screen.getByLabelText("Custom Profile URL").query()).toBeNull();
-    expect(screen.getByLabelText("Org slug").query()).toBeNull();
+    expect(screen.getByLabelText("Profile link").query()).toBeNull();
     const url = screen.getByRole("link", { name: /\/marketplace\/kept-slug$/ });
     await expect.element(url).toBeVisible();
     await expect

@@ -34,11 +34,11 @@ export const action = async (x: Route.ActionArgs) => {
   const fid = p.output;
 
   const fund = await fund_get_or_slug(fid);
-  if (!fund) return dataWithError(null, "Fundraiser not found");
+  if (!fund) return dataWithError(null, "Campaign not found");
 
   const is_member = await fund_has_member(fund.id, id);
   if (!is_member) {
-    return dataWithError(null, "You're no longer part of this fundraiser.");
+    return dataWithError(null, "You're no longer part of this campaign.");
   }
 
   const members = await fund_members_get(fund.id);
@@ -47,6 +47,6 @@ export const action = async (x: Route.ActionArgs) => {
 
   return dataWithSuccess(
     null,
-    "You left this fundraiser. It will disappear from this list shortly."
+    "You left this campaign. It will disappear from this list shortly."
   );
 };

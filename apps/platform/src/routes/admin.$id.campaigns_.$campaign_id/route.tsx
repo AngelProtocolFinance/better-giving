@@ -5,6 +5,8 @@ import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { QrCode } from "#/routes/admin.$id.assets/qr-code";
 import { STATUS_WORD } from "../admin.$id.campaigns/copy";
 import { CampaignForm } from "../admin.$id.campaigns/form";
+import { campaign_link_base } from "../admin.$id.campaigns/link";
+import { StatusBadge } from "../admin.$id.campaigns/row";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";
@@ -18,8 +20,15 @@ export const meta: Route.MetaFunction = ({ matches, loaderData }) =>
 export const links: LinksFunction = () => [...richtext_styles];
 
 export default function Page({ loaderData }: Route.ComponentProps) {
-  const { endow, campaign, programs, gift_count, campaign_url, shown_status } =
-    loaderData;
+  const {
+    endow,
+    campaign,
+    programs,
+    gift_count,
+    campaign_url,
+    shown_status,
+    origin,
+  } = loaderData;
   const id = String(endow.id);
   return (
     <div className="grid min-w-0 px-6 py-4 md:px-10 md:py-8 gap-6 max-w-4xl">
@@ -39,7 +48,10 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           },
         ]}
       />
-      <p className="text-sm text-gray-11 mt-1">{STATUS_WORD[shown_status]}</p>
+      <StatusBadge
+        status={STATUS_WORD[shown_status]}
+        className="justify-self-start"
+      />
       <CampaignForm
         init={{
           name: campaign.name,
@@ -64,6 +76,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         fallback_methods={endow.donate_methods}
         fallback_frequencies={endow.donate_frequencies}
         settings_donation_to={`${href("/admin/:id/settings", { id })}?tab=donation`}
+        link_base={endow.slug ? campaign_link_base(origin, endow.slug) : null}
       />
       {campaign_url && (
         <QrCode

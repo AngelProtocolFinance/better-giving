@@ -64,6 +64,7 @@ function form_page(
           fallback_methods={["stripe"]}
           fallback_frequencies={["one-time"]}
           settings_donation_to="/admin/7/settings?tab=donation"
+          link_base="https://x.test/org/acme/"
         />
       ),
       action: async ({ request }) => {
@@ -77,7 +78,7 @@ function form_page(
           (posted as { slug?: string }).slug === "winter"
         ) {
           return {
-            error: "That address is already used by another campaign.",
+            error: "That link is already used by another campaign.",
             field: "slug",
           };
         }
@@ -116,7 +117,22 @@ function SearchProbe() {
 }
 
 describe("campaign list", () => {
-  const endow = { id: 7, slug: "acme" };
+  const endow = {
+    id: 7,
+    slug: "acme",
+    name: "Acme Fund",
+    image: "",
+    contributions_total: 90,
+    target: undefined,
+  };
+
+  function row_of(screen: { getByText: typeof page.getByText }, name: string) {
+    return page.elementLocator(
+      (
+        screen.getByText(name, { exact: true }).element() as HTMLElement
+      ).closest("li") as HTMLElement
+    );
+  }
 
   async function render_list(
     campaigns: unknown[],
@@ -156,30 +172,48 @@ describe("campaign list", () => {
     return render(<Stub initialEntries={[`/admin/7/campaigns${search}`]} />);
   }
 
-  it("offers a create action when campaigns and funds are all absent", async () => {
+  it("lists the profile as the only row when campaigns and funds are all absent", async () => {
     const screen = await render_list([], []);
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Campaigns" }))
       .toBeVisible();
     expect(
+      (
+        screen
+          .getByRole("link", { name: "New campaign" })
+          .element() as HTMLAnchorElement
+      ).getAttribute("href")
+    ).toBe("/admin/7/campaigns/new");
+    expect(
       screen
         .getByRole("tab")
         .elements()
         .map((el) => el.textContent)
-    ).toEqual(["Your campaigns", "Supporter fundraisers"]);
+    ).toEqual(["Your campaigns", "Supporter campaigns"]);
     await expect
       .element(screen.getByRole("tab", { name: "Your campaigns", exact: true }))
       .toHaveAttribute("aria-selected", "true");
-    await expect.element(screen.getByText("No campaigns yet")).toBeVisible();
-    const create = screen.getByRole("link", { name: "Create campaign" });
-    expect((create.element() as HTMLAnchorElement).getAttribute("href")).toBe(
-      "/admin/7/campaigns/new"
-    );
+    expect(screen.getByText("No campaigns yet").query()).toBeNull();
     expect(
-      screen.getByRole("link", { name: "Edit", exact: true }).query()
+      screen.getByRole("link", { name: "Create campaign" }).query()
     ).toBeNull();
+    expect(screen.getByRole("listitem").elements()).toHaveLength(1);
+    const profile = row_of(screen, "Acme Fund");
+    await expect
+      .element(profile.getByText("Profile", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(profile.getByText("$90 Raised", { exact: true }))
+      .toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Supporter fundraisers" }).query()
+      (
+        profile
+          .getByRole("link", { name: "Edit Acme Fund", exact: true })
+          .element() as HTMLAnchorElement
+      ).pathname
+    ).toBe("/admin/7/edit-profile");
+    expect(
+      screen.getByRole("heading", { name: "Supporter campaigns" }).query()
     ).toBeNull();
   });
 
@@ -211,7 +245,7 @@ describe("campaign list", () => {
       .element(screen.getByRole("tab", { name: "Your campaigns", exact: true }))
       .toHaveAttribute("aria-selected", "true");
     expect(
-      screen.getByRole("heading", { name: "Supporter fundraisers" }).query()
+      screen.getByRole("heading", { name: "Supporter campaigns" }).query()
     ).toBeNull();
     expect(screen.getByText("No campaigns yet").query()).toBeNull();
     const panel = screen.getByRole("tabpanel").element();
@@ -231,7 +265,7 @@ describe("campaign list", () => {
       (
         page
           .elementLocator(spring_row as HTMLElement)
-          .getByRole("link", { name: "Edit", exact: true })
+          .getByRole("link", { name: "Edit Spring", exact: true })
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/admin/7/campaigns/c-draft");
@@ -256,17 +290,19 @@ describe("campaign list", () => {
     await expect
       .element(screen.getByRole("tab", { name: "Your campaigns", exact: true }))
       .toHaveAttribute("aria-selected", "true");
-    await expect.element(screen.getByText("No campaigns yet")).toBeVisible();
+    await expect
+      .element(screen.getByText("Acme Fund", { exact: true }))
+      .toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Supporter fundraisers" }).query()
+      screen.getByRole("heading", { name: "Supporter campaigns" }).query()
     ).toBeNull();
 
     await screen
-      .getByRole("tab", { name: "Supporter fundraisers", exact: true })
+      .getByRole("tab", { name: "Supporter campaigns", exact: true })
       .click();
     await expect
       .element(
-        screen.getByRole("tab", { name: "Supporter fundraisers", exact: true })
+        screen.getByRole("tab", { name: "Supporter campaigns", exact: true })
       )
       .toHaveAttribute("aria-selected", "true");
     await vi.waitFor(() => {
@@ -277,12 +313,12 @@ describe("campaign list", () => {
     await expect
       .element(
         screen.getByText(
-          "These are fundraisers people started for your nonprofit. You can leave any you don't want to receive from.",
+          "These are campaigns people started for your nonprofit. You can leave any you don't want to receive from.",
           { exact: true }
         )
       )
       .toBeVisible();
-    expect(screen.getByText("No campaigns yet").query()).toBeNull();
+    expect(screen.getByText("Acme Fund", { exact: true }).query()).toBeNull();
     expect(
       screen.getByRole("link", { name: "New campaign" }).query()
     ).toBeNull();
@@ -296,7 +332,129 @@ describe("campaign list", () => {
     await vi.waitFor(() => {
       expect(screen.getByTestId("url-search").element().textContent).toBe("");
     });
-    await expect.element(screen.getByText("No campaigns yet")).toBeVisible();
+    await expect
+      .element(screen.getByText("Acme Fund", { exact: true }))
+      .toBeVisible();
+  });
+
+  it("shows raised against a fixed goal and only raised without one", async () => {
+    const screen = await render_list(
+      [
+        {
+          id: "c-goal",
+          name: "Winter",
+          slug: "winter",
+          status: "live",
+          status_label: "live",
+          raised: 250,
+          target: "1000",
+          hero: "https://example.com/winter.png",
+          ends_at: null,
+        },
+        {
+          id: "c-smart",
+          name: "Spring",
+          slug: "spring",
+          status: "live",
+          status_label: "live",
+          raised: 40,
+          target: "smart",
+          hero: null,
+          ends_at: null,
+        },
+      ],
+      [
+        {
+          id: "f-none",
+          name: "Owned page",
+          active: true,
+          published: true,
+          donation_total_usd: 7,
+          expiration: NO_END,
+          banner: "",
+        },
+      ]
+    );
+    const winter = row_of(screen, "Winter");
+    await expect.element(winter.getByRole("progressbar")).toBeVisible();
+    await expect
+      .element(winter.getByText("$250", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(winter.getByText("$1,000", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(winter.getByText("Goal", { exact: true }))
+      .toBeVisible();
+
+    const spring = row_of(screen, "Spring");
+    await expect
+      .element(spring.getByText("$40 Raised", { exact: true }))
+      .toBeVisible();
+    expect(spring.getByRole("progressbar").query()).toBeNull();
+    expect(spring.getByText("Goal", { exact: true }).query()).toBeNull();
+
+    const owned = row_of(screen, "Owned page");
+    await expect
+      .element(owned.getByText("$7 Raised", { exact: true }))
+      .toBeVisible();
+    expect(owned.getByRole("progressbar").query()).toBeNull();
+  });
+
+  it("labels each org fund Draft, Closed, Ended or Live and names its links by the row", async () => {
+    const fund = (id: string, name: string, f: object) => ({
+      id,
+      name,
+      active: true,
+      published: true,
+      donation_total_usd: 0,
+      expiration: NO_END,
+      ...f,
+    });
+    const screen = await render_list(
+      [],
+      [
+        fund("f-draft", "Draft page", { published: false }),
+        fund("f-closed", "Closed page", { active: false }),
+        fund("f-ended", "Ended page", {
+          expiration: Date.parse("2020-01-02T00:00:00Z") / 1000,
+        }),
+        fund("f-live", "Live page", {}),
+      ]
+    );
+    const pill = (row: string, word: string) =>
+      row_of(screen, row).getByText(word, { exact: true });
+    await expect.element(pill("Draft page", "Draft")).toBeVisible();
+    await expect.element(pill("Closed page", "Closed")).toBeVisible();
+    await expect.element(pill("Ended page", "Ended")).toBeVisible();
+    await expect.element(pill("Live page", "Live")).toBeVisible();
+    await expect
+      .element(pill("Live page", "Live"))
+      .toHaveAttribute("data-tone", "success");
+
+    const live = row_of(screen, "Live page");
+    expect(
+      (
+        live
+          .getByRole("link", { name: "View Live page", exact: true })
+          .element() as HTMLAnchorElement
+      ).pathname
+    ).toBe("/fundraisers/f-live");
+    expect(
+      (
+        live
+          .getByRole("link", { name: "Edit Live page", exact: true })
+          .element() as HTMLAnchorElement
+      ).pathname
+    ).toBe("/fundraisers/f-live/edit");
+    await expect
+      .element(
+        row_of(screen, "Acme Fund").getByRole("link", {
+          name: "Edit Acme Fund",
+          exact: true,
+        })
+      )
+      .toBeVisible();
   });
 
   it("lists campaigns and the profile on Your campaigns", async () => {
@@ -342,16 +500,23 @@ describe("campaign list", () => {
       (
         page
           .elementLocator(winter_row as HTMLElement)
-          .getByRole("link", { name: "Edit", exact: true })
+          .getByRole("link", { name: "Edit Winter", exact: true })
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/admin/7/campaigns/c-live");
+    const winter = page.elementLocator(winter_row as HTMLElement);
     await expect
-      .element(screen.getByText("Ended · $12 raised · Jan 2, 2020"))
+      .element(winter.getByText("Ended", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(winter.getByText("$12 Raised", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(winter.getByText("Jan 2, 2020", { exact: true }))
       .toBeVisible();
     const winter_view = page
       .elementLocator(winter_row as HTMLElement)
-      .getByRole("link", { name: "View", exact: true });
+      .getByRole("link", { name: "View Winter", exact: true });
     expect((winter_view.element() as HTMLAnchorElement).textContent).toBe(
       "View"
     );
@@ -377,32 +542,48 @@ describe("campaign list", () => {
       (
         page
           .elementLocator(spring_row as HTMLElement)
-          .getByRole("link", { name: "Edit", exact: true })
+          .getByRole("link", { name: "Edit Spring", exact: true })
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/admin/7/campaigns/c-draft");
 
+    const spring = page.elementLocator(spring_row as HTMLElement);
     await expect
-      .element(screen.getByText("Draft · $1 raised · No end date"))
+      .element(spring.getByText("Draft", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(spring.getByText("$1 Raised", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(spring.getByText("No end date", { exact: true }))
       .toBeVisible();
     expect(
       page
         .elementLocator(spring_row as HTMLElement)
-        .getByRole("link", { name: "View", exact: true })
+        .getByRole("link", { name: "View Spring", exact: true })
         .query()
     ).toBeNull();
 
-    const profile = screen.getByRole("link", { name: "/marketplace/acme" });
-    expect(
-      (profile.element() as HTMLAnchorElement).getAttribute("target")
-    ).toBeNull();
+    const items = screen.getByRole("listitem").elements();
+    expect(items.map((el) => el.querySelector("p")?.textContent)).toEqual([
+      "Acme Fund",
+      "Winter",
+      "Spring",
+    ]);
+    const profile = row_of(screen, "Acme Fund");
+    const profile_view = profile
+      .getByRole("link", { name: "View Acme Fund", exact: true })
+      .element() as HTMLAnchorElement;
+    expect(profile_view.getAttribute("href")).toBe("/marketplace/acme");
+    expect(profile_view.getAttribute("target")).toBeNull();
     expect(
       (
-        screen
-          .getByRole("link", { name: "Edit profile" })
+        profile
+          .getByRole("link", { name: "Edit Acme Fund", exact: true })
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/admin/7/edit-profile");
+    expect(profile.getByText("No end date").query()).toBeNull();
   });
 });
 
@@ -457,12 +638,12 @@ describe("campaign form", () => {
     expect(
       draft.screen.getByRole("button", { name: "End", exact: true }).query()
     ).toBeNull();
-    const address = draft.screen.getByLabelText(/address/i);
+    const address = draft.screen.getByLabelText(/campaign link/i);
     await address.fill("winter-drive");
     await expect
       .element(
         draft.screen.getByText(
-          "Used in the public link. Letters, numbers, and - . _ ~. This address locks when you publish."
+          "Letters, numbers, and - . _ ~. The link can't change after you publish."
         )
       )
       .toBeVisible();
@@ -470,7 +651,7 @@ describe("campaign form", () => {
     await expect
       .element(
         draft.screen.getByText(
-          "The address winter-drive locks when you publish and can't be changed later."
+          "Donors will find this campaign at https://x.test/org/acme/winter-drive. The link can't change after you publish."
         )
       )
       .toBeVisible();
@@ -494,12 +675,12 @@ describe("campaign form", () => {
     await expect
       .element(
         live.screen.getByText(
-          "The address is locked. Changing it would break links that already point here."
+          "This link is fixed because the campaign is published."
         )
       )
       .toBeVisible();
     expect(
-      live.screen.getByText("This address locks when you publish.").query()
+      live.screen.getByText("The link can't change after you publish.").query()
     ).toBeNull();
     await live.screen.getByRole("button", { name: "Save changes" }).click();
     await vi_posted(live.posted, "save");
@@ -507,13 +688,15 @@ describe("campaign form", () => {
 
   it("does not confirm publish when the address is empty", async () => {
     const { screen, posted } = await render_form("draft");
-    const address = screen.getByLabelText(/address/i);
+    const address = screen.getByLabelText(/campaign link/i);
     await address.clear();
     await screen.getByRole("button", { name: "Publish" }).click();
     expect(screen.getByRole("dialog").query()).toBeNull();
     await expect
       .element(
-        screen.getByText("Enter an address. Use letters, numbers, and - . _ ~.")
+        screen.getByText(
+          "Enter the end of the link. Use letters, numbers, and - . _ ~."
+        )
       )
       .toBeVisible();
     expect(posted()).toBeUndefined();
@@ -541,18 +724,18 @@ describe("campaign form", () => {
   it("shows a server refusal on the address and moves focus there", async () => {
     const { screen } = await render_form("draft");
     await screen.getByRole("button", { name: "Save" }).click();
-    const refusal = "That address is already used by another campaign.";
+    const refusal = "That link is already used by another campaign.";
     await expect.element(screen.getByRole("alert")).toHaveTextContent(refusal);
-    const address = screen.getByLabelText(/address/i);
+    const address = screen.getByLabelText(/campaign link/i);
     await expect.element(address).toHaveAttribute("aria-invalid", "true");
-    const field = (address.element() as HTMLElement).parentElement;
+    const error_id = address.element().getAttribute("aria-errormessage");
     await expect
       .element(
-        page
-          .elementLocator(field as HTMLElement)
-          .getByText(refusal, { exact: true })
+        page.elementLocator(
+          document.getElementById(error_id ?? "") as HTMLElement
+        )
       )
-      .toBeVisible();
+      .toHaveTextContent(refusal);
     await expect.element(address).toHaveFocus();
   });
 
@@ -616,6 +799,7 @@ describe("campaign pages", () => {
             { id: "11111111-1111-4111-8111-111111111111", title: "Meals" },
           ],
           profile_to: "/admin/7/organization",
+          origin: "https://x.test",
         }),
       },
     ]);
@@ -652,6 +836,7 @@ describe("campaign pages", () => {
           },
           programs: [],
           profile_to: "/admin/7/organization",
+          origin: "https://x.test",
         }),
       },
     ]);
@@ -678,14 +863,19 @@ describe("campaign pages", () => {
     expect(
       screen.getByRole("link", { name: "Winter", exact: true }).query()
     ).toBeNull();
+    // the same pill the list rows wear
     await expect
       .element(screen.getByText("Live", { exact: true }))
-      .toBeVisible();
+      .toHaveAttribute("data-tone", "success");
     const crumb = screen.getByRole("link", { name: "Campaigns" });
     expect((crumb.element() as HTMLElement).className).not.toContain(
       "pointer-events-none"
     );
-    const url = screen.getByRole("link", {
+    // the qr card links the same url; this is the link field's
+    const form = page.elementLocator(
+      screen.container.querySelector("form") as HTMLElement
+    );
+    const url = form.getByRole("link", {
       name: "https://x.test/org/acme/winter",
     });
     expect((url.element() as HTMLAnchorElement).getAttribute("target")).toBe(
@@ -696,18 +886,44 @@ describe("campaign pages", () => {
     );
   });
 
+  it("counts the stored story on load", async () => {
+    const story = JSON.stringify([
+      {
+        _type: "block",
+        _key: "b1",
+        style: "normal",
+        markDefs: [],
+        children: [
+          { _type: "span", _key: "s1", text: "Twelve chars", marks: [] },
+        ],
+      },
+    ]);
+    const screen = await render(edit_stub(true, story));
+    await expect
+      .element(screen.getByText("chars : 12 /8000", { exact: true }))
+      .toBeVisible();
+  });
+
   it("keeps a draft address as text", async () => {
     const screen = await render(edit_stub(false));
     await expect
       .element(screen.getByText("Draft", { exact: true }))
       .toBeVisible();
     const url = "https://x.test/org/acme/winter";
-    expect(screen.getByRole("link", { name: url }).query()).toBeNull();
-    await expect.element(screen.getByText(url)).toBeVisible();
+    const form = page.elementLocator(
+      screen.container.querySelector("form") as HTMLElement
+    );
+    expect(form.getByRole("link", { name: url }).query()).toBeNull();
+    await expect
+      .element(form.getByText(`Donors will find this campaign at ${url}`))
+      .toBeVisible();
   });
 });
 
-function edit_stub(published: boolean) {
+function edit_stub(
+  published: boolean,
+  description_pt = "A story of the drive"
+) {
   const Stub = createRoutesStub([
     {
       path: "/admin/:id/campaigns/:campaign_id",
@@ -726,7 +942,7 @@ function edit_stub(published: boolean) {
           name: "Winter",
           slug: "winter",
           campaign_type: null,
-          description_pt: "A story of the drive",
+          description_pt,
           banner: null,
           logo: null,
           videos: [],
@@ -743,6 +959,7 @@ function edit_stub(published: boolean) {
         programs: [],
         gift_count: 0,
         campaign_url: "https://x.test/org/acme/winter",
+        origin: "https://x.test",
         shown_status: published ? "live" : "draft",
       }),
     },

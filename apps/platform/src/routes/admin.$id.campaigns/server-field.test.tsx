@@ -4,7 +4,7 @@ import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { CampaignForm, type ICampaignFormInit } from "./form";
 
-const ADDRESS = "That address is already used by another campaign.";
+const TAKEN = "That link is already used by another campaign.";
 const PROGRAM = "That program is not on this nonprofit.";
 
 const init: ICampaignFormInit = {
@@ -58,6 +58,7 @@ function mount(opts: {
           fallback_methods={["stripe"]}
           fallback_frequencies={["one-time"]}
           settings_donation_to="/admin/7/settings?tab=donation"
+          link_base="https://x.test/org/acme/"
         />
       ),
       action: async ({ request }) => {
@@ -77,6 +78,12 @@ function mount(opts: {
   return render(<Stub initialEntries={["/admin/7/campaigns/edit"]} />);
 }
 
+/** the node a control names as its error message */
+function error_of(control: { element: () => Element }) {
+  const id = control.element().getAttribute("aria-errormessage");
+  return document.getElementById(id ?? "") as HTMLElement;
+}
+
 function frames() {
   return new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
@@ -84,18 +91,18 @@ function frames() {
 }
 
 describe("campaign form server fields", () => {
-  it("drops an address refusal edited while the save is in flight", async () => {
+  it("drops a link refusal edited while the save is in flight", async () => {
     const gate = deferred();
     const screen = await mount({
       hold: gate.hold,
-      respond: () => ({ error: ADDRESS, field: "slug" }),
+      respond: () => ({ error: TAKEN, field: "slug" }),
     });
     const save = screen.getByRole("button", { name: "Save", exact: true });
     await save.click();
     await expect.element(save).toHaveAttribute("aria-busy", "true");
 
-    const address = screen.getByLabelText("Address");
-    await address.fill("winter-2");
+    const link = screen.getByLabelText("Campaign link");
+    await link.fill("winter-2");
     const name = screen.getByLabelText("Name");
     await name.click();
     gate.release();
@@ -104,50 +111,43 @@ describe("campaign form server fields", () => {
     await frames();
 
     expect(screen.getByRole("alert").element().textContent ?? "").not.toContain(
-      ADDRESS
+      TAKEN
     );
-    const field = (address.element() as HTMLElement).parentElement;
     expect(
       page
-        .elementLocator(field as HTMLElement)
-        .getByText(ADDRESS, { exact: true })
+        .elementLocator(error_of(link))
+        .getByText(TAKEN, { exact: true })
         .query()
     ).toBeNull();
     expect(document.activeElement).toBe(name.element());
   });
 
-  it("clears an address refusal once the address changes", async () => {
+  it("clears a link refusal once the link changes", async () => {
     const screen = await mount({
-      respond: () => ({ error: ADDRESS, field: "slug" }),
+      respond: () => ({ error: TAKEN, field: "slug" }),
     });
     await screen.getByRole("button", { name: "Save", exact: true }).click();
-    const address = screen.getByLabelText("Address");
-    await expect.element(screen.getByRole("alert")).toHaveTextContent(ADDRESS);
+    const link = screen.getByLabelText("Campaign link");
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(TAKEN);
     await expect
       .element(
-        page
-          .elementLocator(
-            (address.element() as HTMLElement).parentElement as HTMLElement
-          )
-          .getByText(ADDRESS, { exact: true })
+        page.elementLocator(error_of(link)).getByText(TAKEN, { exact: true })
       )
       .toBeVisible();
-    await expect.element(address).toHaveFocus();
+    await expect.element(link).toHaveFocus();
 
-    await address.fill("winter-2");
+    await link.fill("winter-2");
     const name = screen.getByLabelText("Name");
     await name.click();
     await frames();
 
     expect(screen.getByRole("alert").element().textContent ?? "").not.toContain(
-      ADDRESS
+      TAKEN
     );
     expect(
       page
-        .elementLocator(
-          (address.element() as HTMLElement).parentElement as HTMLElement
-        )
-        .getByText(ADDRESS, { exact: true })
+        .elementLocator(error_of(link))
+        .getByText(TAKEN, { exact: true })
         .query()
     ).toBeNull();
     expect(document.activeElement).toBe(name.element());

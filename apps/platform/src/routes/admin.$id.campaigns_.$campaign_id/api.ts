@@ -55,6 +55,7 @@ export const loader = async ({
     campaign,
     gift_count,
     campaign_url,
+    origin,
     programs: programs.map((p) => ({ id: p.id, title: p.title })),
     shown_status: campaign_shown_status(campaign),
   };

@@ -1,12 +1,4 @@
-import {
-  Actions,
-  type AskProps,
-  Modal,
-  Target,
-  to_target,
-  use_ask,
-} from "@better-giving/ui";
-import { fromUnixTime } from "date-fns";
+import { Actions, type AskProps, Modal, use_ask } from "@better-giving/ui";
 import { LoaderCircle } from "lucide-react";
 import { useId, useRef } from "react";
 import {
@@ -17,13 +9,13 @@ import {
   useLocation,
   useParams,
 } from "react-router";
+import { FundCreator } from "#/components/fundraiser";
 import {
-  FundCreator,
-  FundStatusBadge,
-  status_fn,
-} from "#/components/fundraiser";
+  fund_row_status,
+  STATUS_WORD,
+} from "#/routes/admin.$id.campaigns/copy";
+import { fund_end, Row } from "#/routes/admin.$id.campaigns/row";
 import type { IFundItem } from "@/fundraiser";
-import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 
 interface Props extends IFundItem {
   isSelf: boolean;
@@ -33,21 +25,17 @@ export const FundItem = (props: Props) => {
   const fetcher = useFetcher({ key: `fund-${props.id}` });
   const { pathname } = useLocation();
   const { id: npo_id } = useParams();
-  // leave stays on the funds action; this card also renders under /campaigns
+  // leave stays on the funds action; this row also renders under /campaigns
   const leave_action =
     npo_id && pathname.includes("/campaigns")
       ? href("/admin/:id/funds", { id: npo_id })
       : undefined;
   const ask = use_ask();
-  const name_id = useId();
   const leave_label_id = useId();
-  // the list query sends the max-expiration sentinel for a fund with no end date
-  const has_end = props.expiration * 1000 < Date.parse(MAX_EXPIRATION_ISO);
-  const status = status_fn(
-    has_end ? fromUnixTime(props.expiration).toISOString() : undefined,
-    props.active,
-    props.donation_total_usd
-  );
+  const view_label_id = useId();
+  const edit_label_id = useId();
+  const status = fund_row_status(props);
+  const editable = status === STATUS_WORD.live || status === STATUS_WORD.draft;
   const busy = fetcher.state !== "idle";
   const leave = () => {
     void ask(LeaveConfirm, {
@@ -65,79 +53,71 @@ export const FundItem = (props: Props) => {
   };
 
   return (
-    <div className="card grid grid-rows-subgrid row-span-6 content-start gap-y-0 items-center">
-      <div className="flex items-start justify-between">
-        <img
-          src={props.logo}
-          width={50}
-          className="object-cover aspect-square rounded-full"
-          alt=""
-        />
-        <FundStatusBadge status={status} />
-      </div>
-
-      <p id={name_id} className="mt-4 font-semibold">
-        {props.name}
-      </p>
-      <div className="mb-2">
-        <span className="text-sm mr-1">by</span>
-        <FundCreator
-          name={props.creator_name}
-          id={props.creator_id}
-          classes="text-sm inline"
-        />
-      </div>
-
-      <Target
-        classes="mt-4"
-        progress={props.donation_total_usd}
-        target={to_target(props.target)}
-      />
-
-      <div className="flex flex-wrap items-center gap-3 sm:justify-end mt-6 w-full">
-        {props.published && (
-          <Link
-            to={href("/fundraisers/:fund_id", { fund_id: props.id })}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="link text-sm"
-          >
-            View
-          </Link>
-        )}
-        {/** fund item won't show once NPO opted out of it: so no need to hide this button */}
-        {!props.isSelf ? (
-          // held, not `disabled`, while the leave is in flight: `disabled`
-          // would drop the dialog's return focus onto `<body>`
-          <button
-            type="button"
-            className={`btn btn-secondary text-destructive-subtle-fg gap-2${busy ? " pending" : ""}`}
-            disabled={!props.active}
-            aria-disabled={busy || undefined}
-            aria-busy={busy}
-            aria-labelledby={`${leave_label_id} ${name_id}`}
-            onClick={() => {
-              if (busy) return;
-              leave();
-            }}
-          >
-            {busy && <LoaderCircle className="animate-spin icon-xs" />}
-            <span id={leave_label_id}>
-              {busy ? "Leaving…" : "Leave fundraiser"}
-            </span>
-          </button>
-        ) : null}
-        {props.isEditor && (
-          <NavLink
-            aria-disabled={!status.active}
-            className="btn btn-secondary"
-            to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
-          >
-            Edit
-          </NavLink>
-        )}
-      </div>
-    </div>
+    <Row
+      name={props.name}
+      status={status}
+      thumb={props.banner || props.logo || null}
+      raised={props.donation_total_usd}
+      target={props.target}
+      byline={
+        <div className="text-sm">
+          <span className="mr-1">by</span>
+          <FundCreator
+            name={props.creator_name}
+            id={props.creator_id}
+            classes="inline"
+          />
+        </div>
+      }
+      ends={fund_end(props.expiration)}
+      actions={(name_id) => (
+        <>
+          {props.published && (
+            <Link
+              to={href("/fundraisers/:fund_id", { fund_id: props.id })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link text-sm"
+              aria-labelledby={`${view_label_id} ${name_id}`}
+            >
+              <span id={view_label_id}>View</span>
+            </Link>
+          )}
+          {props.isEditor && (
+            <NavLink
+              aria-disabled={!editable}
+              className="btn btn-secondary"
+              to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
+              aria-labelledby={`${edit_label_id} ${name_id}`}
+            >
+              <span id={edit_label_id}>Edit</span>
+            </NavLink>
+          )}
+          {/** fund item won't show once NPO opted out of it: so no need to hide this button */}
+          {!props.isSelf ? (
+            // held, not `disabled`, while the leave is in flight: `disabled`
+            // would drop the dialog's return focus onto `<body>`
+            <button
+              type="button"
+              className={`btn btn-sm btn-ghost text-destructive gap-2${busy ? " pending" : ""}`}
+              disabled={!props.active}
+              aria-disabled={busy || undefined}
+              aria-busy={busy}
+              aria-labelledby={`${leave_label_id} ${name_id}`}
+              onClick={() => {
+                if (busy) return;
+                leave();
+              }}
+            >
+              {busy && <LoaderCircle className="animate-spin icon-xs" />}
+              <span id={leave_label_id}>
+                {busy ? "Leaving…" : "Leave campaign"}
+              </span>
+            </button>
+          ) : null}
+        </>
+      )}
+    />
   );
 };
 
@@ -176,7 +156,7 @@ function LeaveConfirm({
         <h3 className="text-lg font-bold">Leave {name}?</h3>
         <p className="text-sm text-gray-11">
           An email goes to {creator_name}. You will stop receiving from this
-          fundraiser.
+          campaign.
         </p>
       </div>
       <Actions band>
@@ -198,7 +178,7 @@ function LeaveConfirm({
             resolve();
           }}
         >
-          Leave fundraiser
+          Leave campaign
         </button>
       </Actions>
     </Modal>

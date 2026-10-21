@@ -278,9 +278,13 @@ describe("fundraiser tab — defaults", () => {
 
     // switch to fundraiser tab
     await expect
-      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
+      .element(
+        screen.getByRole("tab", { name: "Supporter campaigns", exact: true })
+      )
       .toBeVisible();
-    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
+    await screen
+      .getByRole("tab", { name: "Supporter campaigns", exact: true })
+      .click();
 
     const checkbox = screen.getByLabelText(/allow campaigns/i);
     await expect.element(checkbox).toBeVisible();
@@ -302,9 +306,13 @@ describe("fundraiser tab — pre-filled", () => {
     const screen = await render_settings(npo.id);
 
     await expect
-      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
+      .element(
+        screen.getByRole("tab", { name: "Supporter campaigns", exact: true })
+      )
       .toBeVisible();
-    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
+    await screen
+      .getByRole("tab", { name: "Supporter campaigns", exact: true })
+      .click();
 
     await expect
       .element(screen.getByLabelText(/allow campaigns/i))
@@ -318,9 +326,13 @@ describe("fundraiser tab — toggle on", () => {
     const screen = await render_settings(npo.id);
 
     await expect
-      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
+      .element(
+        screen.getByRole("tab", { name: "Supporter campaigns", exact: true })
+      )
       .toBeVisible();
-    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
+    await screen
+      .getByRole("tab", { name: "Supporter campaigns", exact: true })
+      .click();
 
     const checkbox = screen.getByLabelText(/allow campaigns/i);
     await expect.element(checkbox).toBeVisible();
@@ -763,7 +775,9 @@ describe("settings tabs", () => {
       `/admin/${npo.id}/settings?tab=campaign`
     );
     await expect
-      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
+      .element(
+        screen.getByRole("tab", { name: "Supporter campaigns", exact: true })
+      )
       .toHaveAttribute("aria-selected", "true");
     await expect
       .element(screen.getByLabelText(/allow campaigns/i))
@@ -789,7 +803,9 @@ describe("settings tabs", () => {
       .element(screen.getByLabelText(/tax receipt message/i))
       .toBeVisible();
     await expect
-      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
+      .element(
+        screen.getByRole("tab", { name: "Supporter campaigns", exact: true })
+      )
       .toHaveAttribute("aria-selected", "false");
   });
 
@@ -800,9 +816,13 @@ describe("settings tabs", () => {
       `/admin/${npo.id}/settings`
     );
     await expect
-      .element(screen.getByRole("tab", { name: "Fundraisers", exact: true }))
+      .element(
+        screen.getByRole("tab", { name: "Supporter campaigns", exact: true })
+      )
       .toBeVisible();
-    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
+    await screen
+      .getByRole("tab", { name: "Supporter campaigns", exact: true })
+      .click();
     await expect
       .element(screen.getByTestId("url-search"))
       .toHaveTextContent("?tab=fundraisers");
@@ -856,7 +876,9 @@ describe("settings tabs", () => {
       .element(screen.getByRole("alert").nth(0))
       .toHaveTextContent("The nonprofit could not be saved");
 
-    await screen.getByRole("tab", { name: "Fundraisers", exact: true }).click();
+    await screen
+      .getByRole("tab", { name: "Supporter campaigns", exact: true })
+      .click();
     await vi.waitFor(() => {
       const box = screen
         .getByLabelText(/allow campaigns/i)

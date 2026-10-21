@@ -13,12 +13,12 @@ import {
 
 const day = v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/, "invalid date"));
 
-const address = "Enter an address. Use letters, numbers, and - . _ ~.";
+const link = "Enter the end of the link. Use letters, numbers, and - . _ ~.";
 const story = "Enter a story.";
 
 export const form_schema = v.object({
   name: v.pipe(v.string(), v.trim(), v.nonEmpty("Enter a name.")),
-  slug: v.pipe(v.string(), v.trim(), v.nonEmpty(address), segment_shape),
+  slug: v.pipe(v.string(), v.trim(), v.nonEmpty(link), segment_shape),
   campaign_type: v.optional(
     v.union([v.literal(""), v.picklist(CAMPAIGN_TYPES)])
   ),

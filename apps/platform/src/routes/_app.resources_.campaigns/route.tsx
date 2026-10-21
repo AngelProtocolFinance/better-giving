@@ -8,7 +8,7 @@ export const meta: Route.MetaFunction = () =>
     url: `${base_url}${href("/resources/campaigns")}`,
     title: "Create a campaign",
     description:
-      "How to create a campaign, choose its address, set payment options, and read the amount raised.",
+      "How to create a campaign, choose its link, set payment options, and read the amount raised.",
   });
 
 export { ErrorBoundary } from "#/components/error";
@@ -23,16 +23,15 @@ export default function Page() {
       </p>
       <h1 className="text-3xl font-bold">Create a campaign</h1>
       <section className="grid gap-2">
-        <h2 className="text-xl font-semibold">Address</h2>
+        <h2 className="text-xl font-semibold">Campaign link</h2>
         <p>
           A live campaign is a public page at{" "}
           <span className="font-mono text-sm">
             /org/your-organization/your-campaign
           </span>
-          . Set the organization slug on Organization first. The campaign
-          address can change until the first time you publish. After that it
-          stays put, because a change would break links that already point at
-          the page.
+          . Set your profile link on Organization first. The campaign link can
+          change until the first time you publish. After that it stays put,
+          because a change would break links that already point at the page.
         </p>
       </section>
       <section className="grid gap-2">

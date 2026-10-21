@@ -102,11 +102,11 @@ describe("handle_fund_member_removed", () => {
     expect(send_email_or_throw).toHaveBeenCalledOnce();
     const [{ node, to, subject }] = send_email_or_throw.mock.calls[0];
     expect(to).toEqual(["ada@test.com"]);
-    expect(subject).toBe("Left your fundraiser: Save the Whales");
+    expect(subject).toBe("Left your campaign: Save the Whales");
     const text = await render(node, { plainText: true });
     expect(text).toMatch(/Hello Ada,/);
     expect(text).toMatch(
-      /Your fundraiser was left by Save the Whales\.\s+For further details,\s+please contact Save the Whales directly\./
+      /Your campaign was left by Save the Whales\.\s+For further details,\s+please contact Save the Whales directly\./
     );
   });
 

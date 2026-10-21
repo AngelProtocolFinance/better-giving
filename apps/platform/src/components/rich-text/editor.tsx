@@ -71,7 +71,9 @@ function EditableShell({
         char_limit={props.charLimit}
       />
       <PortableTextEditable
-        className="mt-2 flex-1 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+        // the field around it already rings on focus-within; a second ring
+        // here would box the text area inside the field's own
+        className="mt-2 flex-1 outline-0"
         placeholder={props.placeHolder}
         renderStyle={render_style}
         renderDecorator={render_decorator}
@@ -114,7 +116,9 @@ const render_decorator: RenderDecoratorFunction = (p) => {
 };
 
 const render_list_item: RenderListItemFunction = (p) => {
-  const cls = p.value === "number" ? "list-decimal pl-6" : "list-disc pl-6";
+  // margin, not padding: an outside marker hangs off the li's border box, so
+  // padding leaves the bullet sitting on the field's edge
+  const cls = p.value === "number" ? "list-decimal ml-6" : "list-disc ml-6";
   return <li className={cls}>{p.children}</li>;
 };
 
