@@ -28,9 +28,11 @@ function files(dir: string, out: string[] = []) {
 }
 
 function visible(src: string, jsx = true) {
-  const code = src
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(?<!:)\/\/.*$/gm, "");
+  // strings are matched first and kept, so a `//` inside one isn't a comment
+  const code = src.replace(
+    /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|(?<!:)\/\/.*$/gm,
+    (_, str: string | undefined) => str ?? ""
+  );
   const found: string[] = [];
   for (const m of code.matchAll(
     /`(?:\\.|[^`\\])*`|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g
@@ -77,6 +79,11 @@ describe("guard self-test", () => {
 
   it("catches copy on a line after an https:// literal", () => {
     const src = `const u = "https://x.io"; const t = "Start a fundraiser";`;
+    expect(flagged(src)).toHaveLength(1);
+  });
+
+  it("catches copy on a line after a protocol-relative string", () => {
+    const src = `const u = "//cdn.example"; const t = "Start a fundraiser";`;
     expect(flagged(src)).toHaveLength(1);
   });
 

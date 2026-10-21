@@ -74,7 +74,7 @@ function RowLinks({
 /** a closed fund has no editor; the public page is the view link */
 function fund_links(f: IListedFund): IRowLinks {
   const public_to = href("/fundraisers/:fund_id", { fund_id: f.id });
-  if (!f.active) return { view_to: public_to };
+  if (!f.active) return { view_to: f.published ? public_to : undefined };
   return {
     edit_to: href("/fundraisers/:fund_id/edit", { fund_id: f.id }),
     view_to: f.published ? public_to : undefined,
