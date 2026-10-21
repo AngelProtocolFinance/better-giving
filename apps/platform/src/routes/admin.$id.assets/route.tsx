@@ -73,6 +73,7 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
         </div>
 
         <QrCode
+          grouped
           donate_url={`${d.base_url}${href("/donate/:id", { id: params.id })}`}
           profile_url={`${d.base_url}${href("/marketplace/:id", { id: params.id })}`}
           logo={d.logo}
