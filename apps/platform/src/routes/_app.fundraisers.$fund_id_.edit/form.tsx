@@ -238,7 +238,11 @@ export function Sections({ fund, init_slug = "", base_url }: Props) {
               )}
             />
           </Fieldset>
-          <SaveButton section="goal" held={!goal.is_dirty} busy={goal.busy} />
+          <SaveButton
+            section="goal and amounts"
+            held={!goal.is_dirty}
+            busy={goal.busy}
+          />
         </Group>
       </Frm>
 

@@ -2,9 +2,9 @@ import { Breadcrumbs } from "@better-giving/ui";
 import { href, Link, type LinksFunction } from "react-router";
 import { richtext_styles } from "#/components/rich-text";
 import { admin_page_meta } from "#/routes/admin.$id/page-meta";
-import { ORG_SLUG_PROMPT } from "../admin.$id.campaigns/copy";
-import { blank_init, CampaignForm } from "../admin.$id.campaigns/form";
-import { campaign_link_base } from "../admin.$id.campaigns/link";
+import { ORG_SLUG_PROMPT } from "#/routes/admin.$id.campaigns/copy";
+import { blank_init, CampaignForm } from "#/routes/admin.$id.campaigns/form";
+import { campaign_link_base } from "#/routes/admin.$id.campaigns/link";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";

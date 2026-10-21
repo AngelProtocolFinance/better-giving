@@ -69,7 +69,7 @@ export const FundItem = (props: Props) => {
           />
         </div>
       }
-      ends={fund_end(props.expiration)}
+      ends={fund_end(props.expiration, status)}
       actions={(name_id) => (
         <>
           {props.published && (

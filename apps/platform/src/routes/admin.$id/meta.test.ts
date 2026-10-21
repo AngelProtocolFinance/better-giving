@@ -15,7 +15,7 @@ vi.mock("#/.server/toast", () => ({
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: vi.fn() }));
 
-import { meta as campaigns_meta } from "../admin.$id.campaigns/route";
+import { meta as campaigns_meta } from "#/routes/admin.$id.campaigns/route";
 import { meta as edit_meta } from "../admin.$id.campaigns_.$campaign_id/route";
 import * as dashboard_route from "../admin.$id.dashboard/route";
 import { meta as profile_meta } from "../admin.$id.edit-profile/route";
