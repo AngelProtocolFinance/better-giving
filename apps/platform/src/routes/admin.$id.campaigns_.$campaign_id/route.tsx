@@ -39,10 +39,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           },
         ]}
       />
-      <div>
-        <h1 className="text-3xl font-bold">Edit {campaign.name}</h1>
-        <p className="text-sm text-gray-11 mt-1">{STATUS_WORD[shown_status]}</p>
-      </div>
+      <p className="text-sm text-gray-11 mt-1">{STATUS_WORD[shown_status]}</p>
       <CampaignForm
         init={{
           name: campaign.name,

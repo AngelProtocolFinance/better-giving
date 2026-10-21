@@ -31,7 +31,6 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           },
         ]}
       />
-      <h1 className="text-3xl font-bold">New campaign</h1>
       {endow.slug ? (
         <CampaignForm
           init={blank_init(
