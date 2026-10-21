@@ -39,7 +39,7 @@ export default function Page({
   const base = `/admin/${id}/donors`;
   const tab = pathname.endsWith("/subscribers") ? "subscribers" : "donors";
   return (
-    <div className="px-6 py-4 md:px-10 md:py-8 max-w-[1400px]">
+    <div className="page py-4 md:py-8">
       <div className="grid gap-4">
         <h1 className="text-3xl font-bold tracking-tight">Donors</h1>
         <Tabs

@@ -24,10 +24,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
     };
   }
 
-  const [campaigns, org_funds] = await Promise.all([
+  const [campaigns, member_funds] = await Promise.all([
     campaign_list(id),
-    get_funds_npo_memberof(id, { creator: "ours" }),
+    get_funds_npo_memberof(id, {}),
   ]);
+  const org_funds = member_funds.filter((f) => f.npo_owner === id);
+  const supporter_funds = member_funds.filter((f) => f.npo_owner !== id);
   return {
     view: "campaigns" as const,
     endow,
@@ -36,6 +38,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
       status_label: campaign_shown_status(c),
     })),
     org_funds,
+    supporter_funds,
     profile_to: href("/admin/:id/edit-profile", { id: String(id) }),
   };
 };
