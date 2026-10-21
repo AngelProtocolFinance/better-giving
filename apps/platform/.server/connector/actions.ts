@@ -18,5 +18,4 @@ export const CONNECTOR_ACTIONS = [
   "list_donors",
   "get_donor",
   "list_recurring_gifts",
-  "record_donation",
 ] as const;

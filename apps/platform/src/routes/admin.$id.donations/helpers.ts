@@ -1,10 +1,8 @@
 import type { IAllocation } from "@/donations";
 import { via_name } from "@/donations/helpers";
-import { OFFLINE_SOURCE, RECORDED_BY_HAND } from "@/donations/offline";
 import type { INpoDonation } from "$/pg/queries/dist";
 
 export function origin_text(source: string): string {
-  if (source === OFFLINE_SOURCE) return RECORDED_BY_HAND;
   if (source === "bg-widget") return "Donation Form";
   return "Marketplace";
 }

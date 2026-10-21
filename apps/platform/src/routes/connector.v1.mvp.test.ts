@@ -11,18 +11,10 @@ import {
 } from "vitest";
 import { reset_rate_limits } from "#/.server/auth/rate-limit";
 import { seed_fund, seed_npo, seed_user } from "#/__tests__/fixtures/funds";
-import { OFFLINE_SOURCE, RECORDED_BY_HAND } from "@/donations/offline";
 import { exchange_code, issue_code } from "$/connector/keys";
 import { campaign_status } from "$/connector/reads";
-import {
-  npo_admin_donations,
-  recorded_by_hand_usd,
-} from "$/pg/queries/admin-donations";
 import { campaign_get } from "$/pg/queries/campaign";
-import { npo_donations } from "$/pg/queries/dist";
 import type { DbOrTx } from "$/pg/queries/helpers";
-import { npo_get } from "$/pg/queries/npo";
-import { npo_payouts, npo_settlements } from "$/pg/queries/payout";
 import { user } from "$/pg/schema/auth";
 import { bal_txs } from "$/pg/schema/bal-tx";
 import { campaign_members, campaigns } from "$/pg/schema/campaign";
@@ -36,18 +28,15 @@ import { dists } from "$/pg/schema/dist";
 import {
   donation_donors,
   donation_recipients,
-  donation_settlements,
   donations,
 } from "$/pg/schema/donation";
 import { forms } from "$/pg/schema/form";
 import { funds } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
-import { payouts, settlements } from "$/pg/schema/payout";
 import { subscriptions } from "$/pg/schema/subscription";
 import { user_npo_memberships } from "$/pg/schema/user";
 import type { TestDb } from "$/pg/test-utils/pglite";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import { origin_text } from "./admin.$id.donations/helpers";
 import { loader as catalog_loader } from "./connector.v1.blocks.catalog";
 import {
   action as campaigns_action,
@@ -55,10 +44,7 @@ import {
 } from "./connector.v1.campaigns";
 import { loader as campaign_loader } from "./connector.v1.campaigns.$id";
 import { loader as page_loader } from "./connector.v1.donation-page";
-import {
-  action as donations_action,
-  loader as donations_loader,
-} from "./connector.v1.donations";
+import { loader as donations_loader } from "./connector.v1.donations";
 import { loader as donors_loader } from "./connector.v1.donors";
 import { loader as donor_loader } from "./connector.v1.donors.$id";
 import { loader as forms_loader } from "./connector.v1.forms";
@@ -232,7 +218,6 @@ async function insert_gift(vals: {
   status?: string;
   source?: string;
   via?: string;
-  note?: string | null;
   created_at: string;
   frequency?: string;
 }) {
@@ -248,7 +233,6 @@ async function insert_gift(vals: {
       currency: vals.currency ?? "USD",
       frequency: vals.frequency ?? "one-time",
       source: vals.source ?? "bg-marketplace",
-      note: vals.note ?? null,
       via: vals.via ?? "stripe:card",
       campaign_id: vals.campaign_id ?? null,
       created_at: vals.created_at,
@@ -644,9 +628,6 @@ describe("donations, donors, results, recurring", () => {
       email: "ada@example.com",
       name: "Ada",
       amount: 40,
-      note: "for the library",
-      source: OFFLINE_SOURCE,
-      via: "cash",
       created_at: "2024-03-01T12:00:00.000Z",
     });
     await insert_gift({
@@ -689,11 +670,10 @@ describe("donations, donors, results, recurring", () => {
     );
     expect(page.status).toBe(200);
     const first = (await page.json()) as {
-      data: { id: string; note: string | null; campaign_id: string | null }[];
+      data: { id: string; campaign_id: string | null }[];
       next_cursor: string | null;
     };
     expect(first.data.map((row) => row.id)).toEqual(["g-new", "g-mid"]);
-    expect(first.data[0]?.note).toBe("for the library");
     expect(first.data[0]?.campaign_id).toBeNull();
     expect(first.data[1]?.campaign_id).toBe("camp-a");
     expect(first.next_cursor).toBeTruthy();
@@ -770,12 +750,13 @@ describe("donations, donors, results, recurring", () => {
     expect(one.status).toBe(200);
     const detail = (await one.json()) as {
       consent: string;
-      gifts: { data: { note: string | null }[] };
+      gifts: { data: { id: string }[] };
     };
     expect(detail.consent).toBe("unasked");
-    expect(
-      detail.gifts.data.some((gift) => gift.note === "for the library")
-    ).toBe(true);
+    expect(detail.gifts.data.map((gift) => gift.id)).toEqual([
+      "g-new",
+      "g-mid",
+    ]);
 
     const stranger = await get(
       donor_loader,
@@ -901,14 +882,12 @@ describe("donations, donors, results, recurring", () => {
 
   test("a full page stays under 1 MiB and limit 100 is the ceiling", async () => {
     const a = await pair("Alpha", "EIN-A", "a@test.com");
-    const note = "n".repeat(400);
     for (let i = 0; i < 100; i++) {
       await insert_gift({
         id: `bulk-${i}`,
         npo_id: a.npo.id,
         email: `p${i}@example.com`,
         amount: 1,
-        note,
         created_at: new Date(Date.UTC(2024, 0, 1, 0, i)).toISOString(),
       });
     }
@@ -1206,45 +1185,6 @@ describe("donations, donors, results, recurring", () => {
       total_given: { amount: "40.00" },
     });
   });
-
-  test("the admin donations cursor keeps gifts that share a timestamp", async () => {
-    const a = await pair("Alpha", "EIN-A", "a@test.com");
-    const at = "2024-06-01T12:00:00.000Z";
-    for (let i = 1; i <= 11; i++) {
-      const id = `same-${String(i).padStart(2, "0")}`;
-      await insert_gift({
-        id,
-        npo_id: a.npo.id,
-        email: `hand-${id}@recorded.invalid`,
-        name: "Walk-up",
-        amount: 1,
-        source: OFFLINE_SOURCE,
-        via: "cash",
-        created_at: at,
-      });
-    }
-    const page1 = await npo_admin_donations(a.npo.id, { limit: 10 });
-    expect(page1.items.map((item) => item.id)).toEqual([
-      "same-11",
-      "same-10",
-      "same-09",
-      "same-08",
-      "same-07",
-      "same-06",
-      "same-05",
-      "same-04",
-      "same-03",
-      "same-02",
-    ]);
-    expect(page1.next).toBeTruthy();
-    const page2 = await npo_admin_donations(a.npo.id, {
-      limit: 10,
-      next: page1.next,
-    });
-    expect(page2.items.map((item) => item.id)).toEqual(["same-01"]);
-    expect(page2.items[0]?.amount).toBe(1);
-    expect(page2.items[0]?.amount_usd).toBe(1);
-  });
 });
 
 describe("writes", () => {
@@ -1351,153 +1291,5 @@ describe("writes", () => {
       b.key
     );
     expect(((await visible.json()) as { data: unknown[] }).data).toEqual([]);
-  });
-
-  test("record_donation stores the note, refuses a campaign, and stays out of the ledger", async () => {
-    const a = await pair("Alpha", "EIN-A", "a@test.com");
-    const before = (
-      await db()
-        .select({ liq: npos.liq })
-        .from(npos)
-        .where(eq(npos.id, a.npo.id))
-    )[0]?.liq;
-    const body = {
-      amount: { amount: "25.00", currency: "USD" },
-      date: "2024-05-01",
-      donor: { name: "Ada Lovelace", email: "Ada@Example.com" },
-      method: "cash",
-      note: "for the library",
-    };
-    const created = await post(
-      donations_action,
-      "/connector/v1/donations",
-      a.key,
-      body,
-      "gift-1"
-    );
-    expect(created.status).toBe(201);
-    const gift = (await created.json()) as {
-      id: string;
-      note: string | null;
-      campaign_id: string | null;
-      method: string;
-      frequency: string;
-      donor_email: string | null;
-      donor_id: string;
-      status: string;
-    };
-    expect(gift.note).toBe("for the library");
-    expect(gift).toMatchObject({ amount: "25.00", currency: "USD" });
-    expect(gift.campaign_id).toBeNull();
-    expect(gift.method).toBe("cash");
-    expect(gift.frequency).toBe("one_time");
-    expect(gift.donor_email).toBe("ada@example.com");
-    expect(gift.donor_id).toBe("ada@example.com");
-    expect(gift.status).toBe("settled");
-
-    const again = await post(
-      donations_action,
-      "/connector/v1/donations",
-      a.key,
-      body,
-      "gift-1"
-    );
-    expect(again.status).toBe(200);
-    expect(await again.json()).toEqual(gift);
-    expect(await db().select().from(donations)).toHaveLength(1);
-
-    const clash = await post(
-      donations_action,
-      "/connector/v1/donations",
-      a.key,
-      { ...body, note: "different" },
-      "gift-1"
-    );
-    expect(clash.status).toBe(409);
-    expect(await db().select().from(donations)).toHaveLength(1);
-
-    const [row] = await db().select().from(donations);
-    expect(row?.source).toBe(OFFLINE_SOURCE);
-    expect(row?.upusd).toBe(1);
-    expect(row?.amount_base).toBe(25);
-    expect(row?.note).toBe("for the library");
-    expect(row?.receipt_sent_at).toBeNull();
-    expect(row?.source).not.toContain("library");
-
-    const tied = await post(
-      donations_action,
-      "/connector/v1/donations",
-      a.key,
-      { ...body, campaign_id: null },
-      "gift-2"
-    );
-    expect(tied.status).toBe(422);
-    expect(await db().select().from(donations)).toHaveLength(1);
-
-    const later = await post(
-      donations_action,
-      "/connector/v1/donations",
-      a.key,
-      { ...body, method: "check", note: "second" },
-      "gift-2"
-    );
-    expect(later.status).toBe(201);
-
-    const walkup = await post(
-      donations_action,
-      "/connector/v1/donations",
-      a.key,
-      {
-        amount: "10.50",
-        date: "2024-05-02",
-        donor: { name: "Walk up" },
-        method: "check",
-      },
-      "gift-3"
-    );
-    expect(walkup.status).toBe(201);
-    const hand = (await walkup.json()) as {
-      donor_email: string | null;
-      donor_id: string;
-      note: string | null;
-    };
-    expect(hand.donor_email).toBeNull();
-    expect(hand.note).toBeNull();
-    expect(hand.donor_id.startsWith("hand-")).toBe(true);
-
-    expect(await db().select().from(donation_settlements)).toEqual([]);
-    expect(await db().select().from(dists)).toEqual([]);
-    expect(await db().select().from(bal_txs)).toEqual([]);
-    expect(await db().select().from(settlements)).toEqual([]);
-    expect(await db().select().from(payouts)).toEqual([]);
-    const after = (
-      await db()
-        .select({ liq: npos.liq })
-        .from(npos)
-        .where(eq(npos.id, a.npo.id))
-    )[0]?.liq;
-    expect(after).toBe(before);
-
-    const ledger = await npo_donations(a.npo.id, { limit: 20 });
-    expect(ledger.items).toEqual([]);
-    const admin = await npo_admin_donations(a.npo.id, { limit: 20 });
-    expect(admin.items.map((item) => item.source)).toContain(OFFLINE_SOURCE);
-    expect(origin_text(OFFLINE_SOURCE)).toBe(RECORDED_BY_HAND);
-    expect(await recorded_by_hand_usd(a.npo.id)).toBe(60.5);
-
-    const npo = await npo_get(a.npo.id);
-    expect(npo?.contributions_total).toBe(0);
-    expect(npo?.liq).toBe(before);
-    expect((await npo_settlements(a.npo.id, { limit: 10 })).items).toEqual([]);
-    expect((await npo_payouts(a.npo.id, { limit: 10 })).items).toEqual([]);
-
-    const future = await post(
-      donations_action,
-      "/connector/v1/donations",
-      a.key,
-      { ...body, date: "2999-01-01", method: "bank_transfer" },
-      "gift-4"
-    );
-    expect(future.status).toBe(422);
   });
 });

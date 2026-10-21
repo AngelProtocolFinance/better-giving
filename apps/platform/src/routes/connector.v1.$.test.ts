@@ -88,6 +88,7 @@ describe("unserved connector actions", () => {
     ["POST", "/connector/v1/donation-page/reset"],
     ["PUT", "/connector/v1/campaigns"],
     ["PUT", "/connector/v1/donations"],
+    ["POST", "/connector/v1/donations"],
   ])("%s %s is unknown_action and not 405", async (method, pathname) => {
     const res = await hit(method, pathname);
 
@@ -110,7 +111,6 @@ describe("served connector routes without a key", () => {
     ["GET", "/connector/v1/forms/some-id"],
     ["GET", "/connector/v1/results"],
     ["GET", "/connector/v1/donations"],
-    ["POST", "/connector/v1/donations"],
     ["GET", "/connector/v1/donors"],
     ["GET", "/connector/v1/donors/some-id"],
     ["GET", "/connector/v1/recurring"],

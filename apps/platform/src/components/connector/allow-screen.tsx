@@ -37,8 +37,8 @@ export function AllowScreen({
           <h2 className="text-lg">This chat wants to connect to a nonprofit</h2>
           <p id={disclosure_id} className="max-w-prose text-sm text-gray-11">
             The connection can read donors' names and email addresses,
-            donations, campaigns, and forms. It can record offline gifts and
-            start draft campaigns. It cannot move money.
+            donations, campaigns, and forms. It can start draft campaigns. It
+            cannot move money.
           </p>
         </div>
         {blocked ? null : <input type="hidden" name="state" value={state} />}

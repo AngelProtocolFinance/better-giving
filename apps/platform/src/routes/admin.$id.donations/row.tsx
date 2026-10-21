@@ -3,7 +3,6 @@ import { InfoIcon, TagIcon } from "lucide-react";
 import { href, Link } from "react-router";
 import { Money } from "#/components/money";
 import { default_allocation } from "@/constants/common";
-import { OFFLINE_SOURCE } from "@/donations/offline";
 import { toPP } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";
 import { AmountFlow } from "./amount-flow";
@@ -80,14 +79,10 @@ export function Row(props: IRow) {
         )}
       </td>
       <td>
-        {props.donation_origin === OFFLINE_SOURCE ? (
-          <span>Not applicable</span>
-        ) : (
-          <AmountFlow
-            total={+props.net_usd}
-            allocation={props.allocation ?? default_allocation}
-          />
-        )}
+        <AmountFlow
+          total={+props.net_usd}
+          allocation={props.allocation ?? default_allocation}
+        />
       </td>
       <td>
         <div>{props?.donor_name ?? "--"}</div>

@@ -2567,12 +2567,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "via": {
           "name": "via",
           "type": "text",
@@ -2729,28 +2723,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "donations_offline_created_idx": {
-          "name": "donations_offline_created_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"donations\".\"source\" = 'bg-connector-offline'",
           "concurrently": false,
           "method": "btree",
           "with": {}

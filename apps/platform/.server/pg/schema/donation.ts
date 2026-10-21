@@ -39,9 +39,6 @@ export const donations = pgTable(
     currency: text("currency").notNull(),
     frequency: text("frequency").notNull(),
     source: text("source").notNull(),
-    // a hand-recorded gift's message. `source` stays the channel
-    // (`bg-connector-offline`); the note is not a source.
-    note: text("note"),
     via: text("via").notNull(),
     source_id: text("source_id"),
     form_id: text("form_id").references(() => forms.id),
@@ -94,9 +91,6 @@ export const donations = pgTable(
     index("donations_subscription_id_idx").on(t.subscription_id),
     index("donations_campaign_id_idx").on(t.campaign_id),
     index("donations_created_at_id_idx").on(t.created_at, t.id),
-    index("donations_offline_created_idx")
-      .on(t.created_at, t.id)
-      .where(sql`${t.source} = 'bg-connector-offline'`),
   ]
 );
 

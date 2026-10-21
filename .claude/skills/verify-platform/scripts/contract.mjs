@@ -26,7 +26,6 @@ const TOOLS = [
   "list_donors",
   "get_donor",
   "list_recurring_gifts",
-  "record_donation",
 ];
 
 const KEYLESS = [
@@ -39,13 +38,13 @@ const KEYLESS = [
   ["GET", "/connector/v1/forms/some-id"],
   ["GET", "/connector/v1/results"],
   ["GET", "/connector/v1/donations"],
-  ["POST", "/connector/v1/donations"],
   ["GET", "/connector/v1/donors"],
   ["GET", "/connector/v1/donors/some-id"],
   ["GET", "/connector/v1/recurring"],
 ];
 
 const UNSERVED = [
+  ["POST", "/connector/v1/donations"],
   ["POST", "/connector/v1/forms"],
   ["PATCH", "/connector/v1/campaigns/some-id/blocks"],
   ["GET", "/connector/v1/programs"],

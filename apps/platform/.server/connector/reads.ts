@@ -456,8 +456,8 @@ export async function get_form(
 }
 
 function tenant_gifts(npo_id: number) {
-  // A dist to this nonprofit can exist with no recipient row, and an offline
-  // gift has a recipient and no dist. A required recipient join misses the first.
+  // A dist to this nonprofit can exist with no recipient row. A gift can also
+  // name this nonprofit only as a recipient. A required recipient join misses the first.
   return sql`(
     exists (
       select 1 from ${dists}
@@ -591,7 +591,6 @@ const gift_cols = {
   frequency: donations.frequency,
   via: donations.via,
   source: donations.source,
-  note: donations.note,
   form_id: donations.form_id,
   form_name: forms.name,
   program_name: donations.program_name,
@@ -620,7 +619,6 @@ type GiftRow = {
   frequency: string;
   via: string;
   source: string;
-  note: string | null;
   form_id: string | null;
   form_name: string | null;
   program_name: string | null;
@@ -635,13 +633,6 @@ type GiftRow = {
   updated_at: string;
   dispute_open: boolean;
 };
-
-export async function read_gift_by_id(db: DbOrTx, npo_id: number, id: string) {
-  const [row] = await gift_query(db).where(
-    and(eq(donations.id, id), tenant_gifts(npo_id))
-  );
-  return row ? gift_of(row, npo_id) : null;
-}
 
 function gift_of(row: GiftRow, npo_id: number) {
   const usd_gift = row.currency === "USD";
@@ -668,7 +659,6 @@ function gift_of(row: GiftRow, npo_id: number) {
     program_name: row.program_name,
     dedication_kind: null,
     dedication_honoree: row.tribute,
-    note: row.note,
     donor_id: who.id,
     donor_name: row.donor_name ?? "",
     donor_email: who.email,

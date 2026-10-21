@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { open_key } from "$/connector/http";
+import { problem } from "$/connector/problem";
 import { list_donations } from "$/connector/reads";
-import { record_donation } from "$/connector/writes";
 import { db } from "$/pg/db";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -10,6 +10,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return list_donations(db, live.npo_id, new URL(request.url));
 }
 
-export function action({ request }: ActionFunctionArgs) {
-  return record_donation(db, request);
+export function action(_args: ActionFunctionArgs) {
+  return problem(404, "unknown_action");
 }

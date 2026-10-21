@@ -4,7 +4,7 @@ import { render } from "vitest-browser-react";
 import { AllowScreen, type IAllowScreen } from "./allow-screen";
 
 const disclosure =
-  "The connection can read donors' names and email addresses, donations, campaigns, and forms. It can record offline gifts and start draft campaigns. It cannot move money.";
+  "The connection can read donors' names and email addresses, donations, campaigns, and forms. It can start draft campaigns. It cannot move money.";
 
 function render_screen(props: IAllowScreen) {
   const Stub = createRoutesStub([
