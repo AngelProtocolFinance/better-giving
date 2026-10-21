@@ -58,7 +58,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
   });
   const data = use_admin_data();
   return (
-    <div className="page py-4 md:py-8">
+    <div className="px-6 py-4 md:px-10 md:py-8 max-w-[1400px]">
       <h1 className="text-3xl font-bold mb-4">Donations</h1>
       <Allocation
         classes="mt-4 mb-4"
