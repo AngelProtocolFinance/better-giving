@@ -1,6 +1,9 @@
 type Env = {
   BASE_URL?: string;
   CONNECTOR_ORIGINS?: string;
+  VERCEL_ENV?: string;
+  VERCEL_URL?: string;
+  VERCEL_BRANCH_URL?: string;
 };
 
 export function request_origin(request: Request): string {
@@ -10,6 +13,8 @@ export function request_origin(request: Request): string {
 /**
  * `origin` equals the origin of `BASE_URL`, or one of the comma-separated
  * origins in `CONNECTOR_ORIGINS`. Paths are not origins and never match.
+ * A preview deploy also accepts this deployment's own `VERCEL_URL` and
+ * `VERCEL_BRANCH_URL`, https only. Production ignores those hosts.
  */
 export function origin_allowed(
   origin: string,
@@ -20,7 +25,26 @@ export function origin_allowed(
   for (const allowed of listed_origins(env.CONNECTOR_ORIGINS)) {
     if (origin === allowed) return true;
   }
+  if (env.VERCEL_ENV === "preview") {
+    for (const host of [env.VERCEL_URL, env.VERCEL_BRANCH_URL]) {
+      const own = https_origin(host);
+      if (own && origin === own) return true;
+    }
+  }
   return false;
+}
+
+function https_origin(value: string | undefined): string | null {
+  const raw = value?.trim();
+  if (!raw) return null;
+  const with_scheme = raw.includes("://") ? raw : `https://${raw}`;
+  try {
+    const url = new URL(with_scheme);
+    if (url.protocol !== "https:") return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
 }
 
 function base_origin(base_url: string | undefined): string | null {

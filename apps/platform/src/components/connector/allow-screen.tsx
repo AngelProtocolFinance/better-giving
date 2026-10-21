@@ -1,5 +1,6 @@
 import { Actions, Button } from "@better-giving/ui";
-import { useId } from "react";
+import { CircleAlert } from "lucide-react";
+import { useId, useLayoutEffect, useRef } from "react";
 import { Form } from "react-router";
 
 export interface INpoChoice {
@@ -17,6 +18,11 @@ export function AllowScreen({ nonprofits, state, error }: IAllowScreen) {
   const disclosure_id = useId();
   const empty_id = useId();
   const none = nonprofits.length === 0;
+  const alert_ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (error) alert_ref.current?.focus();
+  }, [error]);
 
   return (
     <section className="card">
@@ -52,11 +58,25 @@ export function AllowScreen({ nonprofits, state, error }: IAllowScreen) {
             </div>
           </fieldset>
         )}
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
+        <div
+          ref={alert_ref}
+          role="alert"
+          tabIndex={error ? -1 : undefined}
+          className={
+            error
+              ? "flex items-start gap-2 rounded border border-destructive bg-destructive-subtle p-3 text-sm text-destructive-subtle-fg focus-visible:outline-2 focus-visible:outline-offset-2"
+              : undefined
+          }
+        >
+          {error ? (
+            <>
+              <span className="flex h-lh shrink-0 items-center">
+                <CircleAlert className="icon-sm" />
+              </span>
+              <p>{error}</p>
+            </>
+          ) : null}
+        </div>
         <Actions>
           <Button
             type="submit"

@@ -68,6 +68,23 @@ describe("AllowScreen", () => {
       .toBeChecked();
   });
 
+  test("a refused connection is an alert above the buttons", async () => {
+    const message =
+      "This connection request can't be completed. Start again from the chat.";
+    const screen = await render_screen({
+      state: "oauth-state",
+      nonprofits: [{ id: 7, name: "Only Kitchen" }],
+      error: message,
+    });
+
+    const alert = screen.getByRole("alert");
+    await expect.element(alert).toBeVisible();
+    await expect.element(alert).toHaveTextContent(message);
+    await expect
+      .element(screen.getByRole("button", { name: "Allow", exact: true }))
+      .toBeVisible();
+  });
+
   test("a refusal to choose is an alert above the buttons", async () => {
     const screen = await render_screen({
       state: "oauth-state",

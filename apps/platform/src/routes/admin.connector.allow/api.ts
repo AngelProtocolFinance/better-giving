@@ -11,7 +11,12 @@ import type { Route } from "./+types/route";
 
 const STATE_RE = /^[A-Za-z0-9._~-]{1,512}$/;
 
+export const CONNECTION_REFUSED =
+  "This connection request can't be completed. Start again from the chat.";
+
 const bad = () => new Response(null, { status: 400 });
+
+const refused = () => data({ error: CONNECTION_REFUSED }, { status: 400 });
 
 const state_ok = (state: string) => STATE_RE.test(state);
 
@@ -52,17 +57,17 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 export const action = async ({ request, context }: Route.ActionArgs) => {
   const form = await request.formData();
   const state = field(form, "state");
-  if (!state_ok(state)) return bad();
+  if (!state_ok(state)) return refused();
 
   const origin = request_origin(request);
-  if (!origin_allowed(origin, process.env)) return bad();
+  if (!origin_allowed(origin, process.env)) return refused();
 
   const decision = field(form, "decision");
   const back = connector_return_url(process.env);
   if (decision === "deny") {
     return see_other(back, { error: "access_denied", state, iss: origin });
   }
-  if (decision !== "allow") return bad();
+  if (decision !== "allow") return refused();
 
   const npo_id = npo_id_of(field(form, "npo_id"));
   if (npo_id === null)
@@ -78,7 +83,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
       )
     )
     .limit(1);
-  if (!member) return bad();
+  if (!member) return refused();
 
   const { code } = await issue_code(db, {
     npo_id,
