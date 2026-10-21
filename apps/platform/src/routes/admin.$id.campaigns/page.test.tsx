@@ -351,9 +351,9 @@ describe("campaign list", () => {
       .toBeVisible();
     const winter_view = page
       .elementLocator(winter_row as HTMLElement)
-      .getByRole("link", { name: "/org/acme/winter", exact: true });
+      .getByRole("link", { name: "View", exact: true });
     expect((winter_view.element() as HTMLAnchorElement).textContent).toBe(
-      "/org/acme/winter"
+      "View"
     );
     expect(
       (winter_view.element() as HTMLAnchorElement).getAttribute("href")
@@ -443,6 +443,9 @@ describe("campaign form", () => {
 
   it("asks before the first publish and saves a live campaign without publishing", async () => {
     const draft = await render_form("draft");
+    await expect
+      .element(draft.screen.getByRole("button", { name: "Delete" }))
+      .toBeVisible();
     expect(
       draft.screen
         .getByRole("button", { name: "Save changes", exact: true })

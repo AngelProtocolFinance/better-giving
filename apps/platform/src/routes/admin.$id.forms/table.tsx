@@ -33,6 +33,7 @@ export function FormsTable({
           heading={
             status === "all" ? "No forms found" : `No ${status} forms found`
           }
+          icon={<TagIcon className="icon-xl" />}
         >
           {status === "all"
             ? "Forms you create will show up here."

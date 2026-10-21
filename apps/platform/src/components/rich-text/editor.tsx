@@ -66,7 +66,10 @@ function EditableShell({
         }}
       />
       <FocusBridge fwdRef={ref} />
-      <Toolbar />
+      <Toolbar
+        char_count={props.content.length ?? 0}
+        char_limit={props.charLimit}
+      />
       <PortableTextEditable
         className="mt-2 flex-1 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
         placeholder={props.placeHolder}
@@ -115,46 +118,59 @@ const render_list_item: RenderListItemFunction = (p) => {
   return <li className={cls}>{p.children}</li>;
 };
 
-function Toolbar() {
+function Toolbar({
+  char_count,
+  char_limit,
+}: {
+  char_count: number;
+  char_limit?: number;
+}) {
   const editor = useEditor();
   const link_active = useEditorSelector(
     editor,
     selectors.isActiveAnnotation("link")
   );
   return (
-    <div className="flex items-center gap-0.5 pb-2 border-b border-gray-3">
-      <DecoratorBtn name="strong" icon={<BoldIcon className="icon-md" />} />
-      <DecoratorBtn name="em" icon={<ItalicIcon className="icon-md" />} />
-      <ListBtn name="number" icon={<ListOrderedIcon className="icon-md" />} />
-      <ListBtn name="bullet" icon={<ListIcon className="icon-md" />} />
-      <button
-        type="button"
-        aria-label={link_active ? "Remove link" : "Insert link"}
-        className="p-1.5 rounded cursor-pointer text-gray-11 hover:text-gray-12"
-        onPointerDown={(e) => e.preventDefault()}
-        onClick={() => {
-          const annotation = selectors.isActiveAnnotation("link")(
-            editor.getSnapshot()
-          );
-          if (annotation) {
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pb-2 border-b border-gray-3">
+      <div className="flex flex-wrap items-center gap-0.5 min-w-0">
+        <DecoratorBtn name="strong" icon={<BoldIcon className="icon-md" />} />
+        <DecoratorBtn name="em" icon={<ItalicIcon className="icon-md" />} />
+        <ListBtn name="number" icon={<ListOrderedIcon className="icon-md" />} />
+        <ListBtn name="bullet" icon={<ListIcon className="icon-md" />} />
+        <button
+          type="button"
+          aria-label={link_active ? "Remove link" : "Insert link"}
+          className="p-1.5 rounded cursor-pointer text-gray-11 hover:text-gray-12"
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={() => {
+            const annotation = selectors.isActiveAnnotation("link")(
+              editor.getSnapshot()
+            );
+            if (annotation) {
+              editor.send({
+                type: "annotation.remove",
+                annotation: { name: "link" },
+              });
+              editor.send({ type: "focus" });
+              return;
+            }
+            const href = window.prompt("URL");
+            if (!href) return;
             editor.send({
-              type: "annotation.remove",
-              annotation: { name: "link" },
+              type: "annotation.add",
+              annotation: { name: "link", value: { href } },
             });
             editor.send({ type: "focus" });
-            return;
-          }
-          const href = window.prompt("URL");
-          if (!href) return;
-          editor.send({
-            type: "annotation.add",
-            annotation: { name: "link", value: { href } },
-          });
-          editor.send({ type: "focus" });
-        }}
-      >
-        <LinkIcon className="icon-md" />
-      </button>
+          }}
+        >
+          <LinkIcon className="icon-md" />
+        </button>
+      </div>
+      {char_limit != null ? (
+        <span className="text-xs uppercase text-gray-11 ml-auto shrink-0">
+          chars : {char_count} /{char_limit}
+        </span>
+      ) : null}
     </div>
   );
 }

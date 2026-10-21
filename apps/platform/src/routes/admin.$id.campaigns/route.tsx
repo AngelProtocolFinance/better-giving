@@ -165,7 +165,6 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                       })}
                       meta={`${STATUS_WORD[c.status_label]} · ${to_usd(c.raised)} raised · ${when(c.ends_at)}`}
                       view_to={public_to}
-                      view_label={public_to}
                     />
                   );
                 })}

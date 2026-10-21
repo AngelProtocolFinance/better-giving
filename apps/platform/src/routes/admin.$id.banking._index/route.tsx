@@ -1,5 +1,5 @@
 import { EmptyState } from "@better-giving/ui";
-import { Plus } from "lucide-react";
+import { Landmark, Plus } from "lucide-react";
 import { NavLink } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { StripeConnectCard } from "#/components/stripe-connect/connect-card";
@@ -25,17 +25,20 @@ function Page({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="px-6 py-4 md:px-10 md:py-8 max-w-[1400px]">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
         <h1 className="text-3xl font-bold">Banking</h1>
-        <NavLink to="new" className="btn btn-primary">
+        <NavLink to="new" className="btn btn-primary shrink-0 self-start">
           <Plus className="mr-2 icon-md" />
-          <span>Add bank account</span>
+          <span className="whitespace-nowrap">Add bank account</span>
         </NavLink>
       </div>
       {connect_routing && <StripeConnectCard {...stripe} classes="mb-8" />}
 
       {methods.length === 0 ? (
-        <EmptyState heading="No payout methods yet">
+        <EmptyState
+          heading="No payout methods yet"
+          icon={<Landmark className="icon-xl" />}
+        >
           Payout methods you add will show up here.
         </EmptyState>
       ) : (

@@ -326,7 +326,7 @@ export function CampaignForm({
   const type_value = (campaign_type.value || "") as TypeOpt;
 
   return (
-    <F onSubmit={submit} className="card grid gap-4">
+    <F onSubmit={submit} className="card grid min-w-0 gap-4">
       <div ref={summary_ref} role="alert" tabIndex={-1}>
         {summary ? (
           <p className="text-sm text-destructive-subtle-fg">{summary}</p>

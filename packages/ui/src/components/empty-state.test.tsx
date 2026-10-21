@@ -1,3 +1,4 @@
+import { Inbox } from "lucide-react";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { EmptyRow, EmptyState } from "./empty-state";
@@ -20,6 +21,18 @@ describe("EmptyState", () => {
     await expect
       .element(screen.getByRole("heading", { name: "No donations yet" }))
       .toBeVisible();
+  });
+
+  test("the icon slot renders above the heading", async () => {
+    const screen = await render(
+      <EmptyState
+        heading="No donations yet"
+        icon={<Inbox className="icon-xl" />}
+      >
+        Pick a nonprofit and make your first one.
+      </EmptyState>
+    );
+    expect(screen.container.querySelector(".icon-xl")).not.toBeNull();
   });
 
   test("the action slot renders where there is a next step", async () => {

@@ -104,7 +104,7 @@ export function Field<T extends InputType = InputType>({
       </Label>
       {has_sub ? (
         typeof sub === "string" ? (
-          <p id={subId} className="text-gray-11 text-sm mb-2">
+          <p id={subId} className="text-gray-11 text-sm mb-2 break-words">
             {sub}
           </p>
         ) : (

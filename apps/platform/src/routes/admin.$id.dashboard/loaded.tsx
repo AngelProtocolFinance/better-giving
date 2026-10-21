@@ -147,7 +147,11 @@ export function Loaded({ classes = "", ...props }: Props) {
             items={props.recent_payouts.items}
           />
         ) : (
-          <EmptyState classes="mt-2 mb-3" heading="No grant items yet">
+          <EmptyState
+            classes="mt-2 mb-3"
+            heading="No grant items yet"
+            icon={<ArrowUpFromLineIcon className="icon-xl" />}
+          >
             Grant items will show up here.
           </EmptyState>
         )}
@@ -174,7 +178,10 @@ export function Loaded({ classes = "", ...props }: Props) {
         {props.recent_settlements.items.length > 0 ? (
           <GrantsTable items={props.recent_settlements.items} />
         ) : (
-          <EmptyState heading="No payout records yet">
+          <EmptyState
+            heading="No payout records yet"
+            icon={<ArrowDownToLineIcon className="icon-xl" />}
+          >
             Payout records will show up here.
           </EmptyState>
         )}

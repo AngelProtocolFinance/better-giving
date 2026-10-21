@@ -17,7 +17,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   const { endow, programs, profile_to } = loaderData;
   const id = String(endow.id);
   return (
-    <div className="grid px-6 py-4 md:px-10 md:py-8 gap-6 max-w-4xl">
+    <div className="grid min-w-0 px-6 py-4 md:px-10 md:py-8 gap-6 max-w-4xl">
       <Breadcrumbs
         items={[
           {
