@@ -456,9 +456,8 @@ export async function get_form(
 }
 
 function tenant_gifts(npo_id: number) {
-  // the admin donations page lists a dist addressed to this nonprofit. the
-  // marketplace fixture writes that dist and no `donation_recipients` row, so
-  // a required recipient join drops the gift. offline gifts have no dist.
+  // A dist to this nonprofit can exist with no recipient row, and an offline
+  // gift has a recipient and no dist. A required recipient join misses the first.
   return sql`(
     exists (
       select 1 from ${dists}
@@ -473,8 +472,7 @@ function tenant_gifts(npo_id: number) {
 }
 
 function settled_usd(npo_id: number) {
-  // "$ raised" is the settled dist net. `amount_base / upusd` is the fallback
-  // for a gift with no dist, where that rate is the dollars.
+  // "$ raised" is the settled dist net. A gift with no dist uses amount_base / upusd.
   return sql`coalesce(
     (
       select ${dists.net}
