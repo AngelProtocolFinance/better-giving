@@ -4,11 +4,15 @@ import { NavLink, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { use_table } from "#/hooks/use-table";
 import { List, NoVideo } from "#/pages/admin/media/list";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 
 export { loader, videos_action as action } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export { ErrorBoundary } from "#/components/error";
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Media", matches);
+
 export default CacheRoute(Media);
 
 type Filter = "all" | "featured";

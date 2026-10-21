@@ -2,7 +2,7 @@ import * as v from "valibot";
 import { target } from "#/components/goal-selector";
 import { img_output } from "#/components/img-editor";
 import { video } from "#/pages/funds/common/videos";
-import { donate_method, richtext_content } from "#/types/components";
+import { donate_method } from "#/types/components";
 import { CAMPAIGN_TYPES } from "@/campaign";
 import {
   donate_freq_opts_bool,
@@ -13,13 +13,24 @@ import {
 
 const day = v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}$/, "invalid date"));
 
+const address = "Enter an address. Use letters, numbers, and - . _ ~.";
+const story = "Enter a story.";
+
 export const form_schema = v.object({
-  name: v.pipe(v.string(), v.trim(), v.nonEmpty("required")),
-  slug: v.pipe(segment_shape, v.nonEmpty("required")),
+  name: v.pipe(v.string(), v.trim(), v.nonEmpty("Enter a name.")),
+  slug: v.pipe(v.string(), v.trim(), v.nonEmpty(address), segment_shape),
   campaign_type: v.optional(
     v.union([v.literal(""), v.picklist(CAMPAIGN_TYPES)])
   ),
-  description: richtext_content({ required: true, maxChars: 8000 }),
+  description: v.object({
+    value: v.pipe(v.string(story), v.nonEmpty(story)),
+    length: v.optional(
+      v.pipe(
+        v.number(),
+        v.maxValue(8000, ({ requirement: r }) => `max length is ${r} chars`)
+      )
+    ),
+  }),
   banner: img_output(),
   logo: img_output(),
   videos: v.array(video),

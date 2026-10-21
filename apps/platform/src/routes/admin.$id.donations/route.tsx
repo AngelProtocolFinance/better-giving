@@ -2,6 +2,7 @@ import { Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { use_table } from "#/hooks/use-table";
 import { use_admin_data } from "#/pages/admin/use-admin-data";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { default_allocation } from "@/constants/common";
 import type { Route } from "./+types/route";
 import { Allocation } from "./allocation";
@@ -10,6 +11,9 @@ import { DonationsTable } from "./donations-table";
 export { ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Donations", matches);
 
 export default CacheRoute(Page);
 function Page({ loaderData: page1 }: Route.ComponentProps) {

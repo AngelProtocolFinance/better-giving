@@ -9,7 +9,9 @@ import {
   it,
   vi,
 } from "vitest";
+import { seed_fund } from "#/__tests__/fixtures/funds";
 import { user } from "$/pg/schema/auth";
+import { fund_members, funds } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -41,6 +43,7 @@ const { admin_ctx, user_ctx } = await import("$/auth/test-utils");
 const { campaign_members, campaigns } = await import("$/pg/schema/campaign");
 const { campaign_update } = await import("$/pg/queries/campaign");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
+const { loader: list_loader } = await import("./api");
 const { action: create_action } = await import(
   "../admin.$id.campaigns_.new/api"
 );
@@ -60,6 +63,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const db = test_db.current!.db;
+  await db.delete(fund_members);
+  await db.delete(funds);
   await db.delete(campaign_members);
   await db.delete(campaigns);
   await db.delete(npos);
@@ -126,13 +131,18 @@ function outcome(res: unknown) {
       status: res.status,
       location: res.headers.get("Location"),
       error: undefined as string | undefined,
+      field: undefined as string | undefined,
     };
   }
-  const r = res as { data?: { error?: string }; init?: { status?: number } };
+  const r = res as {
+    data?: { error?: string; field?: string };
+    init?: { status?: number };
+  };
   return {
     status: r.init?.status ?? 200,
     location: null as string | null,
     error: r.data?.error,
+    field: r.data?.field,
   };
 }
 
@@ -232,6 +242,7 @@ describe("campaign slug", () => {
     expect(second.error).toBe(
       "That address is already used by another campaign."
     );
+    expect(second.field).toBe("slug");
   });
 
   it("lets the slug change until the first publish, then refuses", async () => {
@@ -281,6 +292,7 @@ describe("campaign slug", () => {
     expect(locked.error).toBe(
       "The address is locked. Changing it would break links that already point here."
     );
+    expect(locked.field).toBe("slug");
     const [after] = await db()
       .select()
       .from(campaigns)
@@ -339,5 +351,87 @@ describe("campaign slug", () => {
       .from(campaigns)
       .where(eq(campaigns.id, campaign_id));
     expect(row?.hide_bg_tip).toBe(true);
+  });
+
+  it("names the field a refusal belongs on, and leaves an ended publish unnamed", async () => {
+    const org = await npo("EIN-FIELD", "field-org");
+    const missing = outcome(
+      await create_action({
+        request: post(org.id, {
+          ...body("field-slug"),
+          program_id: "11111111-1111-4111-8111-111111111111",
+        }),
+        params: { id: String(org.id) },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(missing.status).toBe(400);
+    expect(missing.error).toBe("That program is not on this nonprofit.");
+    expect(missing.field).toBe("program_id");
+
+    const blank = outcome(
+      await create_action({
+        request: post(org.id, { ...body("field-slug"), name: "" }),
+        params: { id: String(org.id) },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(blank.status).toBe(400);
+    expect(blank.error).toBe("Enter a name.");
+    expect(blank.field).toBe("name");
+
+    const created = outcome(
+      await create_action({
+        request: post(org.id, body("field-slug", "publish")),
+        params: { id: String(org.id) },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(created.status).toBe(302);
+    const campaign_id = created.location!.split("/").pop()!;
+    const ended = outcome(
+      await edit_action({
+        request: post(org.id, { op: "end" }, campaign_id),
+        params: { id: String(org.id), campaign_id },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(ended.status).toBe(302);
+    const again = outcome(
+      await edit_action({
+        request: post(org.id, body("field-slug", "publish"), campaign_id),
+        params: { id: String(org.id), campaign_id },
+        context: ctx(org.id),
+      } as any)
+    );
+    expect(again.status).toBe(400);
+    expect(again.error).toBe("An ended campaign stays ended.");
+    expect(again.field).toBeUndefined();
+  });
+});
+
+describe("campaign list loader", () => {
+  it("puts an org-owned fund with campaigns and a member fund with supporters", async () => {
+    const org = await npo("EIN-LIST", "list-org");
+    await seed_fund(db(), {
+      id: "fund-owned",
+      name: "Owned drive",
+      npo_owner: org.id,
+      creator_id: USER,
+    });
+    await seed_fund(db(), {
+      id: "fund-supporter",
+      name: "Supporter drive",
+      npo_owner: null,
+      creator_id: USER,
+      members: [org.id],
+    });
+    const data = await list_loader({
+      request: new Request("https://x/admin/list/campaigns"),
+      params: { id: String(org.id) },
+      context: ctx(org.id),
+    } as any);
+    expect(data.org_funds.map((f) => f.id)).toEqual(["fund-owned"]);
+    expect(data.supporter_funds.map((f) => f.id)).toEqual(["fund-supporter"]);
   });
 });

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { admin_ctx } from "#/.server/auth";
 import { use_table } from "#/hooks/use-table";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { search } from "@/helpers/https";
 import { npo_payouts } from "$/pg/queries/payout";
 import { npo_sent_transfers } from "$/stripe-connect/sent";
@@ -26,6 +27,9 @@ export const loader = async (x: Route.LoaderArgs) => {
   };
 };
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Payouts", matches);
 
 export default CacheRoute(Page);
 function Page({ loaderData: page1 }: Route.ComponentProps) {

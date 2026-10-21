@@ -105,6 +105,14 @@ export async function campaign_list(npo_id: number): Promise<ICampaignRow[]> {
   return rows.map(present);
 }
 
+export async function campaign_count(npo_id: number): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(campaigns)
+    .where(eq(campaigns.owner_npo_id, npo_id));
+  return row?.n ?? 0;
+}
+
 export async function campaign_get(
   npo_id: number,
   id: string
@@ -248,6 +256,21 @@ export async function campaign_live_for_npo(
     )
     .orderBy(desc(campaigns.created_at));
   return rows.map(present);
+}
+
+/** a stored live whose ends_at has passed is not live. */
+export async function campaign_live_count(npo_id: number): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(campaigns)
+    .where(
+      and(
+        eq(campaigns.owner_npo_id, npo_id),
+        eq(campaigns.status, "live"),
+        or(isNull(campaigns.ends_at), sql`${campaigns.ends_at} > now()`)
+      )
+    );
+  return row?.n ?? 0;
 }
 
 export async function campaign_by_id(

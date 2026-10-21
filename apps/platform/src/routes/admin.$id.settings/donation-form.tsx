@@ -23,6 +23,7 @@ import {
   MAX_NUM_INCREMENTS,
   type TFrequency,
 } from "@/schemas";
+import { SaveAlert } from "./helpers";
 
 const schema = v.object({
   increments: v.pipe(
@@ -117,6 +118,7 @@ export function DonationFormTab(p: Props) {
       onReset={(e) => {
         e.preventDefault();
         reset();
+        fetcher.reset();
       }}
       onSubmit={onSubmit}
       className="grid content-start gap-6"
@@ -199,14 +201,21 @@ export function DonationFormTab(p: Props) {
         )}
       </div>
 
-      <Actions classes="mt-8">
-        <button type="reset" className="btn-secondary btn" disabled={!isDirty}>
-          Reset changes
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!isDirty}>
-          Submit changes
-        </button>
-      </Actions>
+      <div className="mt-8">
+        <SaveAlert data={fetcher.data} />
+        <Actions>
+          <button
+            type="reset"
+            className="btn-secondary btn"
+            disabled={!isDirty}
+          >
+            Reset changes
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={!isDirty}>
+            Submit changes
+          </button>
+        </Actions>
+      </div>
     </F>
   );
 }

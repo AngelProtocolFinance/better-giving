@@ -3,6 +3,7 @@ import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 import * as v from "valibot";
+import { SaveAlert } from "./helpers";
 
 const schema = v.object({
   fund_opt_in: v.boolean(),
@@ -45,6 +46,7 @@ export function FundraiserTab({ fund_opt_in }: Props) {
       onReset={(e) => {
         e.preventDefault();
         reset();
+        fetcher.reset();
       }}
       onSubmit={onSubmit}
       className="grid content-start gap-6"
@@ -62,14 +64,21 @@ export function FundraiserTab({ fund_opt_in }: Props) {
         </p>
       </div>
 
-      <Actions classes="mt-8">
-        <button type="reset" className="btn-secondary btn" disabled={!isDirty}>
-          Reset changes
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!isDirty}>
-          Submit changes
-        </button>
-      </Actions>
+      <div className="mt-8">
+        <SaveAlert data={fetcher.data} />
+        <Actions>
+          <button
+            type="reset"
+            className="btn-secondary btn"
+            disabled={!isDirty}
+          >
+            Reset changes
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={!isDirty}>
+            Submit changes
+          </button>
+        </Actions>
+      </div>
     </F>
   );
 }

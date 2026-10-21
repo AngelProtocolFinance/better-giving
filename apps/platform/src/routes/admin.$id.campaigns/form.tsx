@@ -1,10 +1,23 @@
 import { Field as BaseField } from "@ark-ui/react/field";
-import { DateField, Form as F, Field, Increments } from "@better-giving/ui";
+import {
+  Combo,
+  DateField,
+  Form as F,
+  Field,
+  Increments,
+  Modal,
+  Select,
+} from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { DollarSign } from "lucide-react";
-import { useRef } from "react";
-import { useController, useFieldArray, useForm } from "react-hook-form";
-import { useFetcher } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import {
+  type FieldPath,
+  useController,
+  useFieldArray,
+  useForm,
+} from "react-hook-form";
+import { Link, useFetcher } from "react-router";
 import { DonateFrequencies } from "#/components/donate-frequencies";
 import { DonateMethods, fill } from "#/components/donate-methods";
 import {
@@ -20,7 +33,7 @@ import { CAMPAIGN_TYPES } from "@/campaign";
 import { to_freq_bools, to_freqs } from "@/helpers/donation";
 import type { DonateMethodId, TFrequency } from "@/schemas";
 import { increment_label_max_chars } from "@/schemas";
-import { SLUG_LOCK_NOTE } from "./copy";
+import { publish_lock_body, SLUG_LOCK_NOTE, SLUG_PUBLISH_LOCK } from "./copy";
 import { type FV, form_schema } from "./form-schema";
 
 const TYPE_LABEL: Record<(typeof CAMPAIGN_TYPES)[number], string> = {
@@ -33,6 +46,62 @@ const TYPE_LABEL: Record<(typeof CAMPAIGN_TYPES)[number], string> = {
   program: "Program",
   other: "Other",
 };
+
+const TYPE_OPTIONS = ["", ...CAMPAIGN_TYPES] as const;
+type TypeOpt = (typeof TYPE_OPTIONS)[number];
+
+type Ask = "delete" | "end" | "publish" | null;
+
+const ASK = {
+  delete: {
+    title: "Delete this campaign?",
+    body: "The page and its links and QR code stop working.",
+    confirm: "Delete",
+  },
+  end: {
+    title: "End this campaign?",
+    body: "Donations stop for good.",
+    confirm: "End",
+  },
+  publish: {
+    title: "Publish this campaign?",
+    confirm: "Publish",
+  },
+} as const;
+
+const SERVER_FIELD: Partial<Record<string, FieldPath<FV>>> = {
+  name: "name",
+  slug: "slug",
+  description_pt: "description.value",
+  campaign_type: "campaign_type",
+  banner: "banner",
+  logo: "logo",
+  ends_at: "ends_at",
+  program_id: "program_id",
+  donate_methods: "donate_methods",
+  donate_frequencies: "freqs",
+  hide_bg_tip: "hide_bg_tip",
+  videos: "videos",
+  increments: "increments",
+  target: "target",
+};
+
+function leaf(source: unknown, path: string): unknown {
+  let cur = source;
+  for (const key of path.split(".")) {
+    if (cur == null || typeof cur !== "object") return undefined;
+    cur = (cur as Record<string, unknown>)[key];
+  }
+  return cur;
+}
+
+function error_message(source: unknown, path: string): string | undefined {
+  const node = leaf(source, path);
+  if (!node || typeof node !== "object" || !("message" in node))
+    return undefined;
+  const message = (node as { message?: unknown }).message;
+  return typeof message === "string" ? message : undefined;
+}
 
 export interface IProgramOpt {
   id: string;
@@ -64,6 +133,7 @@ interface Props {
   gift_count: number;
   fallback_methods: DonateMethodId[] | null | undefined;
   fallback_frequencies: TFrequency[] | null | undefined;
+  settings_donation_to: string;
 }
 
 export function CampaignForm({
@@ -74,10 +144,15 @@ export function CampaignForm({
   gift_count,
   fallback_methods,
   fallback_frequencies,
+  settings_donation_to,
 }: Props) {
-  const fetcher = useFetcher<{ error?: string }>();
+  const fetcher = useFetcher<{ error?: string; field?: string }>();
   const op = useRef<"save" | "publish" | "end" | "delete">("save");
   const ended = status === "ended";
+  const live = status === "live";
+  const [ask, set_ask] = useState<Ask>(null);
+  const cancel_ref = useRef<HTMLButtonElement>(null);
+  const summary_ref = useRef<HTMLDivElement>(null);
 
   const {
     register,
@@ -86,6 +161,10 @@ export function CampaignForm({
     watch,
     trigger,
     resetField,
+    getValues,
+    setError,
+    clearErrors,
+    setFocus,
     formState: { errors },
   } = useForm<FV>({
     resolver: valibotResolver(form_schema),
@@ -111,6 +190,68 @@ export function CampaignForm({
     },
   });
 
+  const submitted = useRef<Partial<Record<string, string>>>({});
+  const values = watch();
+
+  const remember = () => {
+    const next: Partial<Record<string, string>> = {};
+    for (const [field, path] of Object.entries(SERVER_FIELD)) {
+      if (!path) continue;
+      next[field] = JSON.stringify(getValues(path));
+    }
+    submitted.current = next;
+  };
+
+  const refusal_holds = (field: string) => {
+    const path = SERVER_FIELD[field];
+    if (!path) return false;
+    const snap = submitted.current[field];
+    if (snap === undefined) return true;
+    return JSON.stringify(leaf(values, path)) === snap;
+  };
+
+  const server_error = (field: string) => {
+    if (fetcher.state !== "idle") return undefined;
+    if (fetcher.data?.field !== field || !fetcher.data.error) return undefined;
+    return refusal_holds(field) ? fetcher.data.error : undefined;
+  };
+
+  let summary: string | undefined;
+  if (fetcher.state === "idle" && fetcher.data?.error) {
+    const field = fetcher.data.field;
+    if (!field || !SERVER_FIELD[field] || refusal_holds(field)) {
+      summary = fetcher.data.error;
+    }
+  }
+
+  useEffect(() => {
+    if (fetcher.state !== "idle") return;
+    const message = fetcher.data?.error;
+    if (!message) return;
+    const field = fetcher.data?.field;
+    const path = field ? SERVER_FIELD[field] : undefined;
+    if (!field || !path) {
+      summary_ref.current?.focus();
+      return;
+    }
+    const snap = submitted.current[field];
+    if (snap !== undefined && JSON.stringify(getValues(path)) !== snap) return;
+    setError(path, { message });
+    setFocus(path);
+  }, [fetcher.state, fetcher.data, setError, setFocus, getValues]);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle") return;
+    const message = fetcher.data?.error;
+    const field = fetcher.data?.field;
+    const path = field ? SERVER_FIELD[field] : undefined;
+    if (!field || !path || !message) return;
+    const snap = submitted.current[field];
+    if (snap === undefined || JSON.stringify(leaf(values, path)) === snap)
+      return;
+    if (error_message(errors, path) === message) clearErrors(path);
+  }, [values, errors, fetcher.state, fetcher.data, clearErrors]);
+
   const { field: banner } = useController({ control, name: "banner" });
   const { field: logo } = useController({ control, name: "logo" });
   const { field: desc } = useController({ control, name: "description" });
@@ -121,13 +262,19 @@ export function CampaignForm({
   const { field: methods } = useController({ control, name: "donate_methods" });
   const { field: freqs } = useController({ control, name: "freqs" });
   const { field: ends } = useController({ control, name: "ends_at" });
+  const { field: campaign_type } = useController({
+    control,
+    name: "campaign_type",
+  });
+  const { field: program } = useController({ control, name: "program_id" });
   const videos = useFieldArray({ control, name: "videos" });
   const increments = useFieldArray({ control, name: "increments" });
-  const incs = watch("increments");
+  const incs = values.increments;
   const uploading = banner.value === "loading" || logo.value === "loading";
   const busy = uploading || fetcher.state !== "idle";
 
   const submit = handleSubmit((fv) => {
+    remember();
     const ends_at = fv.ends_at
       ? new Date(`${fv.ends_at}T23:59:59.999Z`).toISOString()
       : "";
@@ -153,29 +300,79 @@ export function CampaignForm({
     );
   });
 
-  const act = (next: typeof op.current) => {
-    op.current = next;
+  const block = (e: { preventDefault: () => void }) => {
+    if (busy) e.preventDefault();
+  };
+  const confirm = (next: Exclude<Ask, null>) => {
+    set_ask(null);
     if (next === "end" || next === "delete") {
+      op.current = next;
       fetcher.submit(
         { op: next },
         { method: "POST", encType: "application/json" }
       );
       return;
     }
+    op.current = "publish";
+    void submit();
   };
+
+  const tip_settings = (
+    <Link to={settings_donation_to} className="link">
+      Settings › Donation
+    </Link>
+  );
+  const program_options = ["", ...programs.map((p) => p.id)];
+  const type_value = (campaign_type.value || "") as TypeOpt;
 
   return (
     <F onSubmit={submit} className="card grid gap-4">
-      {fetcher.data?.error && (
-        <p className="text-sm text-destructive-subtle-fg">
-          {fetcher.data.error}
-        </p>
+      <div ref={summary_ref} role="alert" tabIndex={-1}>
+        {summary ? (
+          <p className="text-sm text-destructive-subtle-fg">{summary}</p>
+        ) : null}
+      </div>
+      {ask && (
+        <Modal
+          open
+          onClose={() => set_ask(null)}
+          initialFocusEl={() => cancel_ref.current}
+          classes="bg-panel"
+        >
+          <div className="p-6 grid gap-4">
+            <h2 className="text-lg font-bold">{ASK[ask].title}</h2>
+            <p>
+              {ask === "publish"
+                ? publish_lock_body(values.slug.trim())
+                : ASK[ask].body}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                ref={cancel_ref}
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => set_ask(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={
+                  ask === "publish" ? "btn btn-primary" : "btn btn-destructive"
+                }
+                onClick={() => confirm(ask)}
+              >
+                {ASK[ask].confirm}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
       <Field
         {...register("name")}
         label="Name"
         required
-        error={errors.name?.message}
+        error={errors.name?.message || server_error("name")}
       />
       <Field
         {...register("slug")}
@@ -183,23 +380,21 @@ export function CampaignForm({
         sub={
           locked
             ? SLUG_LOCK_NOTE
-            : "Used in the public link. Letters, numbers, and - . _ ~."
+            : `Used in the public link. Letters, numbers, and - . _ ~. ${SLUG_PUBLISH_LOCK}`
         }
         required
         disabled={locked}
-        error={errors.slug?.message}
+        error={errors.slug?.message || server_error("slug")}
       />
-      <label className="grid gap-1">
-        <span className="label">Type</span>
-        <select {...register("campaign_type")} className="field-input rounded">
-          <option value="">No type</option>
-          {CAMPAIGN_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {TYPE_LABEL[t]}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        ref={campaign_type.ref}
+        label="Type"
+        value={type_value}
+        onChange={(next) => campaign_type.onChange(next)}
+        options={[...TYPE_OPTIONS]}
+        option_disp={(opt) => (opt ? TYPE_LABEL[opt] : "No type")}
+        error={errors.campaign_type?.message || server_error("campaign_type")}
+      />
       <div>
         <p className="label mb-1" data-required>
           Story
@@ -218,7 +413,8 @@ export function CampaignForm({
           }}
           error={
             errors.description?.value?.message ||
-            errors.description?.length?.message
+            errors.description?.length?.message ||
+            server_error("description_pt")
           }
         />
       </div>
@@ -341,67 +537,107 @@ export function CampaignForm({
       />
       <div className="grid gap-1">
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={init.hide_bg_tip} disabled />
+          <input
+            type="checkbox"
+            checked={init.hide_bg_tip}
+            disabled
+            aria-describedby="hide-bg-tip"
+          />
           Hide the Better Giving tip
         </label>
-        <p className="text-xs text-gray-11">
-          This follows the organization's payment settings.
+        <p id="hide-bg-tip" className="text-xs text-gray-11">
+          This follows the organization's payment settings in {tip_settings}.
         </p>
       </div>
-      <label className="grid gap-1">
-        <span className="label">Program</span>
-        <select {...register("program_id")} className="field-input rounded">
-          <option value="">No program</option>
-          {programs.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.title}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Combo
+        ref={program.ref}
+        label="Program"
+        value={program.value ?? ""}
+        on_change={(next) => program.onChange(next ?? "")}
+        options={program_options}
+        item_text={(id) =>
+          id ? (programs.find((p) => p.id === id)?.title ?? id) : "No program"
+        }
+        limit={program_options.length}
+        error={errors.program_id?.message || server_error("program_id")}
+      />
       <div className="flex flex-wrap gap-3 justify-end">
         {gift_count === 0 && status && (
           <button
             type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => act("delete")}
+            className="text-sm font-medium text-destructive-subtle-fg"
+            aria-disabled={busy || undefined}
+            onClick={(e) => {
+              block(e);
+              if (busy) return;
+              set_ask("delete");
+            }}
           >
             Delete
           </button>
         )}
-        {status === "live" && (
+        {live && (
           <button
             type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => act("end")}
+            className="text-sm font-medium text-destructive-subtle-fg"
+            aria-disabled={busy || undefined}
+            onClick={(e) => {
+              block(e);
+              if (busy) return;
+              set_ask("end");
+            }}
           >
             End
           </button>
         )}
-        {!ended && (
+        {!ended && !live && (
           <button
             type="submit"
-            className="btn"
-            disabled={busy}
-            onClick={() => {
+            className="btn btn-secondary"
+            aria-disabled={busy || undefined}
+            aria-busy={busy || undefined}
+            onClick={(e) => {
+              block(e);
+              if (busy) return;
               op.current = "save";
             }}
           >
             Save
           </button>
         )}
-        {!ended && (
+        {!ended && !live && (
           <button
-            type="submit"
+            type="button"
             className="btn btn-primary"
-            disabled={busy}
-            onClick={() => {
-              op.current = "publish";
+            aria-disabled={busy || undefined}
+            aria-busy={busy || undefined}
+            onClick={(e) => {
+              block(e);
+              if (busy) return;
+              if (!getValues("slug").trim()) {
+                void trigger("slug");
+                setFocus("slug");
+                return;
+              }
+              set_ask("publish");
             }}
           >
             Publish
+          </button>
+        )}
+        {live && (
+          <button
+            type="submit"
+            className="btn btn-primary"
+            aria-disabled={busy || undefined}
+            aria-busy={busy || undefined}
+            onClick={(e) => {
+              block(e);
+              if (busy) return;
+              op.current = "save";
+            }}
+          >
+            Save changes
           </button>
         )}
       </div>

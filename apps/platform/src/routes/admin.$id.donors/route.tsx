@@ -5,6 +5,7 @@ import {
   useParams,
 } from "react-router";
 import { admin_ctx } from "#/.server/auth";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { npo_donor_tab_counts } from "$/pg/queries/donor";
 import type { Route } from "./+types/route";
 
@@ -22,6 +23,9 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   defaultShouldRevalidate,
 }) =>
   currentUrl.pathname === nextUrl.pathname ? false : defaultShouldRevalidate;
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Donors", matches);
 
 export default function Page({
   loaderData: { donor_total, sub_count },

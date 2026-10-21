@@ -4,6 +4,7 @@ import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { admin_ctx } from "#/.server/auth";
 import { use_table } from "#/hooks/use-table";
 import { OwedHistory } from "#/routes/_helpers/owed-history";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { search } from "@/helpers/https";
 import {
   grant_run_deductions,
@@ -43,6 +44,9 @@ function with_deductions(
     })
   );
 }
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Grants", matches);
 
 export default CacheRoute(Page);
 function Page({ loaderData }: Route.ComponentProps) {

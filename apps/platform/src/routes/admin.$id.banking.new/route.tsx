@@ -1,13 +1,18 @@
 import { Group, use_ask_prompt } from "@better-giving/ui";
 import { ChevronLeft } from "lucide-react";
 import { useEffect } from "react";
+import type { MetaFunction } from "react-router";
 import { Link, useFetcher, useParams } from "react-router";
 import { BankDetails, type OnSubmit } from "#/components/bank-details";
 import { submit_error_prompt } from "#/helpers/error-prompt";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { FormButtons } from "./form-buttons";
 
 export { ErrorBoundary } from "#/components/error";
 export { action } from "./api";
+
+export const meta: MetaFunction = ({ matches }) =>
+  admin_page_meta("Bank account details", matches);
 
 export default function Banking() {
   const { id: endowIdParam = "" } = useParams();

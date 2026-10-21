@@ -11,6 +11,7 @@ import {
   Toggle,
   UrlInput,
 } from "@better-giving/ui";
+import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 import { href, Link, Outlet } from "react-router";
 import { ImgEditor } from "#/components/img-editor";
@@ -51,7 +52,8 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
   const save_button = (
     group: { is_dirty: boolean; save: () => void },
     label: string,
-    blocked = false
+    blocked = false,
+    variant: "btn-primary" | "btn-secondary" = "btn-primary"
   ) => (
     <button
       type="button"
@@ -60,7 +62,7 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
       // three identical "Save" buttons on one page: the group rides in the
       // accessible name so each still announces what it saves
       aria-label={label}
-      className="btn btn-primary justify-self-end"
+      className={`btn ${variant} justify-self-end`}
     >
       Save
     </button>
@@ -163,9 +165,11 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
             <p className="mt-2">
               <Link
                 to={href("/admin/:id/organization", { id: String(id) })}
-                className="link text-sm"
+                className="link inline-flex items-center gap-1 text-sm"
               >
-                Manage → Organization
+                Manage
+                <ChevronRightIcon className="icon-sm" aria-hidden />
+                Organization
               </Link>
             </p>
           </div>
@@ -192,7 +196,12 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
             label="Address"
             error={organization.errors.street_address?.message}
           />
-          {save_button(organization, "Save organization")}
+          {save_button(
+            organization,
+            "Save organization",
+            false,
+            "btn-secondary"
+          )}
         </Group>
       </Fieldset>
 
@@ -240,7 +249,12 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
             placeholder="discord.com/"
             error={social_media.errors.social_media_urls?.discord?.message}
           />
-          {save_button(social_media, "Save social media")}
+          {save_button(
+            social_media,
+            "Save social media",
+            false,
+            "btn-secondary"
+          )}
         </Group>
       </Fieldset>
 

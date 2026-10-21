@@ -4,10 +4,11 @@ import {
   Fieldset,
   Group,
   type IPrompt,
+  Modal,
   Prompt,
   Select,
 } from "@better-giving/ui";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { href, Link } from "react-router";
 import { CountryCombo } from "#/components/country-combo";
 import { ImgEditor } from "#/components/img-editor";
@@ -39,10 +40,13 @@ interface Props {
 
 export function Form({ init, id, base_url }: Props) {
   const [prompt, set_prompt] = useState<IPrompt>();
+  const [lock_open, set_lock_open] = useState(false);
+  const cancel_ref = useRef<HTMLButtonElement>(null);
   const form = use_organization_form(init, id, set_prompt);
   const uploading = form.logo.value === "loading";
   const marketplace = `${base_url}${href("/marketplace/:id", { id: init.slug })}`;
   const donate = `${base_url}${href("/donate/:id", { id: init.slug })}`;
+  const setting_slug = !form.locked && form.slug !== "";
 
   return (
     <F
@@ -50,10 +54,40 @@ export function Form({ init, id, base_url }: Props) {
       className="px-6 py-4 md:px-10 md:py-8 w-full max-w-4xl grid grid-cols-1 content-start gap-6"
     >
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
+      <Modal
+        open={lock_open}
+        size="panel"
+        onClose={() => set_lock_open(false)}
+        classes="grid gap-4 bg-panel p-6"
+        initialFocusEl={() => cancel_ref.current}
+      >
+        <h2 className="text-xl font-bold">Lock this address?</h2>
+        <p>This address can't be changed later.</p>
+        <div className="flex justify-end gap-2">
+          <button
+            ref={cancel_ref}
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => set_lock_open(false)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              set_lock_open(false);
+              void form.save();
+            }}
+          >
+            Save
+          </button>
+        </div>
+      </Modal>
       <h1 className="text-3xl font-bold">Organization</h1>
       <Fieldset disabled={form.busy} className="contents">
         <Group title="Organization" hide_title>
-          <label htmlFor="npo-logo" className="label -mb-4">
+          <label htmlFor="npo-logo" className="label -mb-4" data-required>
             Logo of your organization
           </label>
           <ImgEditor
@@ -104,6 +138,7 @@ export function Form({ init, id, base_url }: Props) {
           <CountryCombo
             required
             clearable
+            flags={false}
             label="Headquarters"
             value={form.hq_country.value || undefined}
             on_change={(c) => form.hq_country.onChange(c ?? "")}
@@ -143,7 +178,13 @@ export function Form({ init, id, base_url }: Props) {
           <button
             type="button"
             disabled={!form.is_dirty || uploading}
-            onClick={form.save}
+            onClick={() => {
+              if (setting_slug) {
+                set_lock_open(true);
+                return;
+              }
+              void form.save();
+            }}
             aria-label="Save organization"
             className="btn btn-primary justify-self-end"
           >

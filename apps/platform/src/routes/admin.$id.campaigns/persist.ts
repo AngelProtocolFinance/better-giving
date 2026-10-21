@@ -1,4 +1,4 @@
-import { safeParse } from "valibot";
+import { type BaseIssue, getDotPath, safeParse } from "valibot";
 import { is_unique_violation } from "$/pg/errors";
 import type { ICampaignInput, ICampaignPatch } from "$/pg/queries/campaign";
 import { npo_program_get } from "$/pg/queries/program";
@@ -23,13 +23,19 @@ export async function to_fields(
   body: ICampaignBody,
   hide_bg_tip: boolean
 ): Promise<
-  { error: string } | Omit<ICampaignInput, "id" | "owner_npo_id" | "creator_id">
+  | { error: string; field?: string }
+  | Omit<ICampaignInput, "id" | "owner_npo_id" | "creator_id">
 > {
   let program_id: string | null = null;
   let program_name: string | null = null;
   if (body.program_id) {
     const prog = await npo_program_get(body.program_id, npo_id);
-    if (!prog) return { error: "That program is not on this nonprofit." };
+    if (!prog) {
+      return {
+        error: "That program is not on this nonprofit.",
+        field: "program_id",
+      };
+    }
     program_id = prog.id;
     program_name = prog.title;
   }
@@ -60,12 +66,26 @@ export function to_patch(
   return fields;
 }
 
+export function refusal(error: string, field?: string) {
+  return field ? { error, field } : { error };
+}
+
+function issue_field(issue: BaseIssue<unknown>) {
+  const dot = getDotPath(issue);
+  if (!dot) return undefined;
+  const field = dot.split(".")[0];
+  return field || undefined;
+}
+
 export async function read_body(request: Request) {
   const json: unknown = await request.json().catch(() => undefined);
   if (json === undefined) return { error: "Request body is not JSON." };
   const op = (json as { op?: unknown }).op;
   if (op === "end" || op === "delete") return { op };
   const parsed = safeParse(campaign_body, json);
-  if (parsed.issues) return { error: parsed.issues[0].message };
+  if (parsed.issues) {
+    const issue = parsed.issues[0];
+    return refusal(issue.message, issue_field(issue));
+  }
   return { body: parsed.output };
 }

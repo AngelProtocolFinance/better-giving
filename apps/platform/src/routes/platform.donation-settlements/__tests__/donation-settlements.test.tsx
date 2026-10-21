@@ -177,7 +177,15 @@ async function fill_form_and_preview(
   }
 ) {
   if (opts.from) {
-    await screen.getByLabelText("From").selectOptions(opts.from);
+    const label = {
+      cheque: "Cheque",
+      daf: "DAF",
+      stocks: "Stocks",
+      match: "Employer match",
+    }[opts.from];
+    // the control shows the label; the action still receives the machine value
+    await screen.getByRole("combobox", { name: /^From/ }).click();
+    await screen.getByRole("option", { name: label, exact: true }).click();
   }
 
   const combo = screen.getByPlaceholder("Search for an organization...");

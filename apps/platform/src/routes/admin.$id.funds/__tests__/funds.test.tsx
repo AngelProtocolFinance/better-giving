@@ -1,4 +1,4 @@
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, useLocation } from "react-router";
 import {
   afterAll,
   beforeAll,
@@ -120,6 +120,10 @@ const MOCK_USER = {
   email: "admin@test.com",
 };
 
+function SearchProbe() {
+  return <output data-testid="url-search">{useLocation().search}</output>;
+}
+
 async function render_funds(npo_id: number, user = MOCK_USER, search = "") {
   const mdlwr = [
     async ({ context }: any, next: any) => {
@@ -131,7 +135,12 @@ async function render_funds(npo_id: number, user = MOCK_USER, search = "") {
   const Stub = createRoutesStub([
     {
       path: "/admin/:id/funds",
-      Component: FundsPage,
+      Component: (props: any) => (
+        <>
+          <FundsPage {...props} />
+          <SearchProbe />
+        </>
+      ),
       HydrateFallback: () => null,
       loader: loader as any,
       action: action as any,
@@ -221,7 +230,12 @@ describe("funds — filter and display", () => {
     });
 
     await expect
-      .element(screen.getByRole("heading", { name: /campaign opt-outs/i }))
+      .element(
+        screen.getByRole("heading", {
+          name: "Fundraiser opt-outs",
+          exact: true,
+        })
+      )
       .toBeInTheDocument();
 
     // default "All" shows both
@@ -233,6 +247,145 @@ describe("funds — filter and display", () => {
     await expect
       .element(screen.getByRole("link", { name: /\+ create/i }))
       .not.toBeInTheDocument();
+  });
+
+  it("Creator select writes creator=ours and hides supporter funds", async () => {
+    const npo = await seed_npo();
+    const other_npo = await seed_npo({
+      registration_number: "EIN-OTHER",
+      name: "Other NPO",
+    });
+
+    const npo_user = await seed_user("npo-user@test.com", "Our", "NPO");
+    const other_user = await seed_user("other-user@test.com", "Other", "NPO");
+
+    await seed_fund({
+      id: "aaaaaaaa-0001-0001-0001-000000000001",
+      name: "Our Gala Fund",
+      npo_owner: npo.id,
+      creator_id: npo_user.id,
+      members: [npo.id, other_npo.id],
+    });
+
+    await seed_fund({
+      id: "aaaaaaaa-0002-0002-0002-000000000002",
+      name: "Supporter Drive",
+      npo_owner: other_npo.id,
+      creator_id: other_user.id,
+      members: [npo.id, other_npo.id],
+    });
+
+    const screen = await render_funds(npo.id, {
+      ...MOCK_USER,
+      endowments: [npo.id],
+    });
+
+    await expect.element(screen.getByText("Our Gala Fund")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Supporter Drive"))
+      .toBeInTheDocument();
+
+    await screen.getByRole("combobox", { name: "Creator" }).click();
+    await screen.getByRole("option", { name: "By Us", exact: true }).click();
+
+    await expect.element(screen.getByText("Our Gala Fund")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Supporter Drive"))
+      .not.toBeInTheDocument();
+  });
+
+  it("choosing All after By Us clears creator and shows both funds", async () => {
+    const npo = await seed_npo();
+    const other_npo = await seed_npo({
+      registration_number: "EIN-OTHER",
+      name: "Other NPO",
+    });
+
+    const npo_user = await seed_user("npo-user@test.com", "Our", "NPO");
+    const other_user = await seed_user("other-user@test.com", "Other", "NPO");
+
+    await seed_fund({
+      id: "aaaaaaaa-0001-0001-0001-000000000001",
+      name: "Our Gala Fund",
+      npo_owner: npo.id,
+      creator_id: npo_user.id,
+      members: [npo.id, other_npo.id],
+    });
+
+    await seed_fund({
+      id: "aaaaaaaa-0002-0002-0002-000000000002",
+      name: "Supporter Drive",
+      npo_owner: other_npo.id,
+      creator_id: other_user.id,
+      members: [npo.id, other_npo.id],
+    });
+
+    const screen = await render_funds(npo.id, {
+      ...MOCK_USER,
+      endowments: [npo.id],
+    });
+
+    await screen.getByRole("combobox", { name: "Creator" }).click();
+    await screen.getByRole("option", { name: "By Us", exact: true }).click();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("url-search").element().textContent).toBe(
+        "?creator=ours"
+      );
+    });
+    await expect
+      .element(screen.getByText("Supporter Drive"))
+      .not.toBeInTheDocument();
+
+    await screen.getByRole("combobox", { name: "Creator" }).click();
+    await screen.getByRole("option", { name: "All", exact: true }).click();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("url-search").element().textContent).toBe("");
+    });
+    await expect.element(screen.getByText("Our Gala Fund")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Supporter Drive"))
+      .toBeInTheDocument();
+  });
+
+  it("treats creator=all as the unfiltered list", async () => {
+    const npo = await seed_npo();
+    const other_npo = await seed_npo({
+      registration_number: "EIN-OTHER",
+      name: "Other NPO",
+    });
+
+    const npo_user = await seed_user("npo-user@test.com", "Our", "NPO");
+    const other_user = await seed_user("other-user@test.com", "Other", "NPO");
+
+    await seed_fund({
+      id: "aaaaaaaa-0001-0001-0001-000000000001",
+      name: "Our Gala Fund",
+      npo_owner: npo.id,
+      creator_id: npo_user.id,
+      members: [npo.id],
+    });
+
+    await seed_fund({
+      id: "aaaaaaaa-0002-0002-0002-000000000002",
+      name: "Supporter Drive",
+      npo_owner: other_npo.id,
+      creator_id: other_user.id,
+      members: [npo.id, other_npo.id],
+    });
+
+    const screen = await render_funds(
+      npo.id,
+      { ...MOCK_USER, endowments: [npo.id] },
+      "?creator=all"
+    );
+
+    await expect.element(screen.getByText("Our Gala Fund")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Supporter Drive"))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("combobox", { name: "Creator" }))
+      .toHaveTextContent("All");
   });
 
   it("filters to own funds with ?creator=ours", async () => {
@@ -339,7 +492,9 @@ describe("funds — filter and display", () => {
     const screen = await render_funds(npo.id);
 
     await expect
-      .element(screen.getByText(/no campaign opt-outs found/i))
+      .element(
+        screen.getByText("No fundraiser opt-outs found", { exact: true })
+      )
       .toBeInTheDocument();
   });
 });

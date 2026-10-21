@@ -2,10 +2,14 @@ import { ExtLink } from "@better-giving/ui";
 import { CircleAlert, SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { NavLink, Outlet, useFetcher } from "react-router";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";
 export { default_action as action, loader } from "./api";
+
+export const meta: Route.MetaFunction = ({ matches, loaderData }) =>
+  admin_page_meta(loaderData?.ba.bank_summary || "Bank account", matches);
 
 export default function Page({ loaderData: d }: Route.ComponentProps) {
   const fetcher = useFetcher();

@@ -1,6 +1,7 @@
 import { useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { use_table } from "#/hooks/use-table";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { SubscribersKpis } from "./summary";
 import { SubscribersTable } from "./table";
@@ -8,6 +9,9 @@ import { SubscribersTable } from "./table";
 export { ErrorBoundary } from "#/components/error";
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Subscribers", matches);
 
 export default CacheRoute(Page);
 

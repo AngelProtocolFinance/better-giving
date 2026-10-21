@@ -1,8 +1,10 @@
 import { Toggle } from "@better-giving/ui";
 import { useState } from "react";
+import type { MetaFunction } from "react-router";
 import { useFetcher } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 import { use_admin_data } from "#/pages/admin/use-admin-data";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { EndowmentUpdate } from "#/services/types";
 import { default_allocation } from "@/constants/common";
 import type { IAllocation } from "@/donations";
@@ -14,6 +16,9 @@ export { ErrorModal as ErrorBoundary } from "#/components/error";
 
 // keyed, so the modal shell reads the submission Content makes
 const fetcher_key = "edit-alloc";
+
+export const meta: MetaFunction = ({ matches }) =>
+  admin_page_meta("Choose allocation", matches);
 
 export default function AllocationEdit() {
   const data = use_admin_data();

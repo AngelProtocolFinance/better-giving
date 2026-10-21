@@ -1,15 +1,15 @@
 import { NavLink, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { metas } from "#/helpers/seo";
 import { use_table } from "#/hooks/use-table";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { FormsTable } from "./table";
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
-export const meta: Route.MetaFunction = () =>
-  metas({ title: "Donation forms" });
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Donation forms", matches);
 
 export default CacheRoute(Page);
 function Page({ loaderData: d }: Route.ComponentProps) {

@@ -2,6 +2,7 @@ import { Button } from "@better-giving/ui";
 import { CircleAlert, X } from "lucide-react";
 import { NavLink, useFetcher } from "react-router";
 import { RouteModal } from "#/components/route-modal";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 
 interface IContent {
@@ -17,6 +18,9 @@ export {
 
 // keyed, so the modal shell reads the submission Content makes
 const fetcher_key = "delete-bank";
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Delete payout method", matches);
 
 export default function DeletePrompt({ loaderData }: Route.ComponentProps) {
   const fetcher = useFetcher({ key: fetcher_key });

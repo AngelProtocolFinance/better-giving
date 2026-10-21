@@ -69,6 +69,8 @@ describe("campaign page", () => {
     await donate.click();
     const close = screen.getByRole("button", { name: "Close", exact: true });
     await expect.element(close).toBeVisible();
+    expect(close.element().querySelector("svg")).not.toBeNull();
+    expect(close.element().textContent).not.toContain("×");
     await expect
       .element(screen.getByRole("dialog", { name: "Donate" }))
       .toBeVisible();
@@ -118,6 +120,9 @@ describe("campaign page", () => {
         )
       )
       .toBeVisible();
+    const visit = screen.getByRole("link", { name: "Visit Harbor Clinic" });
+    await expect.element(visit).toBeVisible();
+    expect(visit.element().getAttribute("href")).toBe("/marketplace/harbor");
   });
 
   test("sticky surfaces stay unmounted while Donate is in view", async () => {
@@ -240,9 +245,7 @@ describe("campaign page", () => {
   });
 
   test("a failed return says the gift did not go through", async () => {
-    const screen = await mount(
-      page({ gift_failed: true, thanks: { amount: "$100" } })
-    );
+    const screen = await mount(page({ gift_failed: true }));
     await expect
       .element(screen.getByText("This gift didn't go through"))
       .toBeVisible();
@@ -250,6 +253,65 @@ describe("campaign page", () => {
       .element(screen.getByText("You can try again from this page."))
       .toBeVisible();
     expect(screen.getByText("Your $100 gift is in.").query()).toBeNull();
+  });
+
+  test("a thank-you stays up when the gift also failed", async () => {
+    const screen = await mount(
+      page({ gift_failed: true, thanks: { amount: "$100" } })
+    );
+    await expect
+      .element(screen.getByText("Your $100 gift is in."))
+      .toBeVisible();
+    expect(screen.getByText("This gift didn't go through").query()).toBeNull();
+  });
+
+  test("a thank-you stays up after giving has ended", async () => {
+    const screen = await mount(
+      page({
+        open: false,
+        ended_body:
+          "It no longer takes donations. Thank you to everyone who gave.",
+        thanks: { amount: "$40", receipt: "/donations/gift-2" },
+      })
+    );
+    await expect
+      .element(screen.getByText("Your $40 gift is in."))
+      .toBeVisible();
+    const receipt = screen.getByRole("link", { name: "View your receipt" });
+    expect(receipt.element().getAttribute("href")).toBe("/donations/gift-2");
+    expect(
+      screen.getByRole("heading", { name: "Giving has ended" }).query()
+    ).toBeNull();
+  });
+
+  test("a failed gift stays up after giving has ended", async () => {
+    const screen = await mount(
+      page({
+        open: false,
+        ended_body:
+          "It no longer takes donations. Thank you to everyone who gave.",
+        gift_failed: true,
+      })
+    );
+    await expect
+      .element(screen.getByText("This gift didn't go through"))
+      .toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Giving has ended" }).query()
+    ).toBeNull();
+    expect(
+      screen.getByText("You can try again from this page.").query()
+    ).toBeNull();
+    await expect
+      .element(
+        screen.getByText(
+          "It no longer takes donations. Thank you to everyone who gave."
+        )
+      )
+      .toBeVisible();
+    const visit = screen.getByRole("link", { name: "Visit Harbor Clinic" });
+    await expect.element(visit).toBeVisible();
+    expect(visit.element().getAttribute("href")).toBe("/marketplace/harbor");
   });
 
   test("a payment in flight keeps the dialog from closing", async () => {

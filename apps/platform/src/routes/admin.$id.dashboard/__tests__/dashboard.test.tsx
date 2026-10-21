@@ -10,8 +10,10 @@ import {
 } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
 import type { IComposition } from "@/nav/interfaces";
+import { user } from "$/pg/schema/auth";
 import { bal_txs } from "$/pg/schema/bal-tx";
 import { banking_apps } from "$/pg/schema/banking";
+import { campaigns } from "$/pg/schema/campaign";
 import { nav_holders, nav_log_positions, nav_logs } from "$/pg/schema/nav";
 import { npos } from "$/pg/schema/npo";
 import { payouts, settlements } from "$/pg/schema/payout";
@@ -107,8 +109,20 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   active: true,
 };
 
+const DASH_USER = "dash-user";
+
 beforeAll(async () => {
   test_db.current = await create_test_db();
+  await test_db.current.db.insert(user).values({
+    id: DASH_USER,
+    name: "Dash User",
+    email: "dash-user@test.com",
+    emailVerified: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    first_name: "Dash",
+    last_name: "User",
+  });
 }, 30_000);
 
 afterAll(async () => {
@@ -117,6 +131,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await cleanup();
+  await test_db.current!.db.delete(campaigns);
   await test_db.current!.db.delete(nav_holders);
   await test_db.current!.db.delete(nav_logs);
   await test_db.current!.db.delete(bal_txs);
@@ -441,8 +456,19 @@ describe("dashboard — transfer savings → investments", () => {
 
     // dashboard structure renders
     await expect
-      .element(screen.getByRole("heading", { name: /dashboard/i }))
+      .element(
+        screen.getByRole("heading", {
+          level: 1,
+          name: "Dashboard",
+          exact: true,
+        })
+      )
       .toBeInTheDocument();
+    const start = screen.getByRole("link", { name: "Start a campaign" });
+    await expect.element(start).toBeVisible();
+    expect(start.element().getAttribute("href")).toBe(
+      `/admin/${npo.id}/campaigns/new`
+    );
     await expect.element(screen.getByText("Savings")).toBeInTheDocument();
     await expect.element(screen.getByText("Investments")).toBeInTheDocument();
     await expect
@@ -684,7 +710,13 @@ describe("cross-page — platform admin approves redemption", () => {
     screen = await render_dashboard(npo.id);
 
     await expect
-      .element(screen.getByRole("heading", { name: /dashboard/i }))
+      .element(
+        screen.getByRole("heading", {
+          level: 1,
+          name: "Dashboard",
+          exact: true,
+        })
+      )
       .toBeInTheDocument();
     // investments figure decreased
     await expect.element(screen.getByText(/\$ 700\.00/)).toBeInTheDocument();
@@ -745,5 +777,48 @@ describe("cross-page — platform admin rejects redemption", () => {
     await expect.element(screen.getByText(/^cancelled$/i)).toBeInTheDocument();
     // balance restored: lock_units back to 100, price=10 → $1,000
     await expect.element(screen.getByText(/\$1,000/)).toBeInTheDocument();
+  });
+});
+
+describe("dashboard — campaigns", () => {
+  it("counts live campaigns and links to the list", async () => {
+    const npo = await seed_npo();
+    await seed_nav_log({ price: 1, units: 0, value: 0 });
+    await test_db.current!.db.insert(campaigns).values([
+      {
+        id: "camp-live",
+        owner_npo_id: npo.id,
+        creator_id: DASH_USER,
+        name: "Winter",
+        slug: "winter",
+        status: "live",
+      },
+      {
+        id: "camp-draft",
+        owner_npo_id: npo.id,
+        creator_id: DASH_USER,
+        name: "Draft",
+        slug: "draft",
+        status: "draft",
+      },
+      {
+        id: "camp-past",
+        owner_npo_id: npo.id,
+        creator_id: DASH_USER,
+        name: "Past",
+        slug: "past",
+        status: "live",
+        ends_at: "2020-01-01T00:00:00.000Z",
+      },
+    ]);
+    const screen = await render_dashboard(npo.id);
+    const live = screen.getByRole("link", { name: "1 live", exact: true });
+    await expect.element(live).toBeVisible();
+    expect(live.element().getAttribute("href")).toBe(
+      `/admin/${npo.id}/campaigns`
+    );
+    expect(
+      screen.getByRole("link", { name: "Start a campaign" }).query()
+    ).toBeNull();
   });
 });

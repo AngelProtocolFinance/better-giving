@@ -34,7 +34,7 @@ export function Increments({
         <button
           type="button"
           aria-label="Add donation increment"
-          className="glyph-btn font-bold text-success"
+          className="glyph-btn font-bold"
           onClick={() => onAdd("")}
         >
           <Plus strokeWidth={3} className="icon-md" />
@@ -67,7 +67,7 @@ export function Increments({
                     by keyboard has to be removable by one too. */}
                 <button
                   aria-label="Remove donation increment"
-                  className="glyph-btn text-destructive justify-self-start"
+                  className="glyph-btn justify-self-start"
                   type="button"
                   onClick={() => onRemove(idx)}
                 >

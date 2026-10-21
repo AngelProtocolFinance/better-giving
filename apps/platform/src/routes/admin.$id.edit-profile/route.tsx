@@ -1,12 +1,16 @@
 import type { LinksFunction } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { richtext_styles, to_content } from "#/components/rich-text";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { sans_https } from "@/helpers/https";
 import type { Route } from "./+types/route";
 import { Form } from "./form";
 import type { FV } from "./schema";
 
 export { action, loader } from "./api";
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Public profile", matches);
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const links: LinksFunction = () => [...richtext_styles];
 

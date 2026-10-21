@@ -1,10 +1,14 @@
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { Explainer, Hub, Nonprofits, ReferralId } from "#/components/referrals";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { Earnings } from "./earnings";
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Referrals", matches);
+
 export default CacheRoute(Page);
 
 function Page({ loaderData }: Route.ComponentProps) {

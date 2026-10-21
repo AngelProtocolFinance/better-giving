@@ -4,21 +4,18 @@ import {
   npo_admin_mdlwr,
   user_ctx,
 } from "#/.server/auth";
-import { metas } from "#/helpers/seo";
 import { Layout } from "#/layout/dashboard";
 import { npo_get } from "$/pg/queries/npo";
 import type { Route } from "./+types/route";
 import { linkGroups } from "./constants";
+import { admin_title } from "./page-meta";
 import { Loader as SidebarHeader } from "./sidebar-header";
 import type { LoaderData } from "./types";
 
 export { ErrorBoundary } from "#/components/error";
 
-export const meta: Route.MetaFunction = ({ loaderData: d }) => {
-  return metas({
-    title: d ? `Dashboard - ${d.endow.name} ` : "Dashboard",
-  });
-};
+export const meta: Route.MetaFunction = ({ loaderData: d }) =>
+  admin_title("Dashboard", d?.endow.name);
 
 export const middleware = [auth_mdlwr, npo_admin_mdlwr];
 

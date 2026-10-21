@@ -1,9 +1,13 @@
 import { Connections } from "#/components/connector/connections";
+import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import type { Route } from "./+types/route";
 import { Display } from "./display";
 import { Form } from "./form";
 
 export { action, loader } from "./api";
+
+export const meta: Route.MetaFunction = ({ matches }) =>
+  admin_page_meta("Integrations", matches);
 
 export default function Page({
   loaderData: { apiKey, connections },
