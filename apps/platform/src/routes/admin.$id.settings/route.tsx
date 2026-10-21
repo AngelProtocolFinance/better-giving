@@ -19,7 +19,7 @@ export default CacheRoute(Page);
 
 const TABS = [
   { id: "donation", name: "Donation" },
-  { id: "fundraisers", name: "Fundraisers" },
+  { id: "fundraisers", name: "Supporter campaigns" },
   { id: "donation-form", name: "Donation Form" },
 ] as const;
 

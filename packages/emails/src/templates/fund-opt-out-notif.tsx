@@ -11,8 +11,8 @@ function Jsx({ opted_out_name, to_name }: IData) {
     <PublicLayout type="fund">
       <Text>Hello {to_name},</Text>
       <Text>
-        Your fundraiser was left by {opted_out_name}. For further details,
-        please contact {opted_out_name} directly.
+        Your campaign was left by {opted_out_name}. For further details, please
+        contact {opted_out_name} directly.
       </Text>
     </PublicLayout>
   );
@@ -21,6 +21,6 @@ function Jsx({ opted_out_name, to_name }: IData) {
 export const template = (data: IData) => {
   return {
     node: <Jsx {...data} />,
-    subject: `Left your fundraiser: ${data.opted_out_name}`,
+    subject: `Left your campaign: ${data.opted_out_name}`,
   };
 };
