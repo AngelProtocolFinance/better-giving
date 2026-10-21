@@ -597,6 +597,46 @@ async function vi_posted(posted: () => unknown, op: string) {
 }
 
 describe("campaign pages", () => {
+  it("does not scroll horizontally at 375px on the new campaign page", async () => {
+    const { page: browser_page } = await import("vitest/browser");
+    await browser_page.viewport(375, 667);
+    const Stub = createRoutesStub([
+      {
+        path: "/admin/:id/campaigns/new",
+        Component: NewPage,
+        loader: () => ({
+          endow: {
+            id: 7,
+            slug: "acme",
+            donate_methods: ["stripe", "paypal"],
+            donate_frequencies: ["one-time", "monthly"],
+            hide_bg_tip: false,
+          },
+          programs: [
+            { id: "11111111-1111-4111-8111-111111111111", title: "Meals" },
+          ],
+          profile_to: "/admin/7/organization",
+        }),
+      },
+    ]);
+    const screen = await render(
+      <Stub initialEntries={["/admin/7/campaigns/new"]} />
+    );
+    await expect
+      .element(screen.getByRole("heading", { name: "New campaign" }))
+      .toBeVisible();
+    await vi.waitFor(() => {
+      expect(
+        screen.container.querySelector('[contenteditable="true"]')
+      ).not.toBeNull();
+    });
+    await vi.waitFor(() => {
+      const doc = document.documentElement;
+      expect(doc.scrollWidth).toBeLessThanOrEqual(doc.clientWidth);
+    });
+    await browser_page.viewport(1280, 900);
+  });
+
   it("crumbs the new page back to the list", async () => {
     const Stub = createRoutesStub([
       {

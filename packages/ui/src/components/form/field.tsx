@@ -94,7 +94,7 @@ export function Field<T extends InputType = InputType>({
       .join(" ") || undefined;
 
   return (
-    <div className={`${style.container} `}>
+    <div className={`${style.container} min-w-0`}>
       <Label
         className={`${style.label} label ${has_sub ? "" : "mb-1"}`}
         required={required}
