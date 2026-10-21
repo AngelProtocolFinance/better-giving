@@ -203,7 +203,7 @@ export function DonationFormTab(p: Props) {
 
       <div className="mt-8">
         <SaveAlert data={fetcher.data} />
-        <Actions classes="sticky bottom-0 bg-panel">
+        <Actions>
           <button
             type="reset"
             className="btn-secondary btn"

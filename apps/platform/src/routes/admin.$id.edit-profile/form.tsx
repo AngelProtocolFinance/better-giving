@@ -61,7 +61,7 @@ export function Form({ profile_slug = "", init, id, base_url }: Props) {
       // three identical "Save" buttons on one page: the group rides in the
       // accessible name so each still announces what it saves
       aria-label={label}
-      className="btn btn-primary justify-self-end sticky bottom-0"
+      className="btn btn-primary justify-self-end"
     >
       Save
     </button>

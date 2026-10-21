@@ -183,7 +183,7 @@ export function Form({ init, id, base_url }: Props) {
               void form.save();
             }}
             aria-label="Save organization"
-            className="btn btn-primary justify-self-end sticky bottom-0 bg-panel"
+            className="btn btn-primary justify-self-end"
           >
             Save
           </button>
