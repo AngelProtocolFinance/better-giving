@@ -94,14 +94,24 @@ export const FundItem = (props: Props) => {
         target={to_target(props.target)}
       />
 
-      <div className="actions-split mt-6">
+      <div className="flex flex-wrap items-center gap-3 sm:justify-end mt-6 w-full">
+        {props.published && (
+          <Link
+            to={href("/fundraisers/:fund_id", { fund_id: props.id })}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link text-sm"
+          >
+            View
+          </Link>
+        )}
         {/** fund item won't show once NPO opted out of it: so no need to hide this button */}
         {!props.isSelf ? (
           // held, not `disabled`, while the leave is in flight: `disabled`
           // would drop the dialog's return focus onto `<body>`
           <button
             type="button"
-            className={`btn btn-destructive gap-2${busy ? " pending" : ""}`}
+            className={`btn btn-secondary text-destructive-subtle-fg gap-2${busy ? " pending" : ""}`}
             disabled={!props.active}
             aria-disabled={busy || undefined}
             aria-busy={busy}
@@ -116,32 +126,16 @@ export const FundItem = (props: Props) => {
               {busy ? "Leaving…" : "Leave fundraiser"}
             </span>
           </button>
-        ) : (
-          // holds the left slot open so `Edit` stays at the right edge; when
-          // the row stacks there is no slot to hold, only a phantom gap
-          <div data-placeholder className="max-sm:hidden" />
+        ) : null}
+        {props.isEditor && (
+          <NavLink
+            aria-disabled={!status.active}
+            className="btn btn-secondary"
+            to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
+          >
+            Edit
+          </NavLink>
         )}
-        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-          {props.published && (
-            <Link
-              to={href("/fundraisers/:fund_id", { fund_id: props.id })}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="link text-sm"
-            >
-              View
-            </Link>
-          )}
-          {props.isEditor && (
-            <NavLink
-              aria-disabled={!status.active}
-              className="btn btn-secondary"
-              to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
-            >
-              Edit
-            </NavLink>
-          )}
-        </div>
       </div>
     </div>
   );
