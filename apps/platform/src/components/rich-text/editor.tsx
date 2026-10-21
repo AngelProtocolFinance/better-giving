@@ -131,43 +131,41 @@ function Toolbar({
     selectors.isActiveAnnotation("link")
   );
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pb-2 border-b border-gray-3">
-      <div className="flex flex-wrap items-center gap-0.5 min-w-0">
-        <DecoratorBtn name="strong" icon={<BoldIcon className="icon-md" />} />
-        <DecoratorBtn name="em" icon={<ItalicIcon className="icon-md" />} />
-        <ListBtn name="number" icon={<ListOrderedIcon className="icon-md" />} />
-        <ListBtn name="bullet" icon={<ListIcon className="icon-md" />} />
-        <button
-          type="button"
-          aria-label={link_active ? "Remove link" : "Insert link"}
-          className="p-1.5 rounded cursor-pointer text-gray-11 hover:text-gray-12"
-          onPointerDown={(e) => e.preventDefault()}
-          onClick={() => {
-            const annotation = selectors.isActiveAnnotation("link")(
-              editor.getSnapshot()
-            );
-            if (annotation) {
-              editor.send({
-                type: "annotation.remove",
-                annotation: { name: "link" },
-              });
-              editor.send({ type: "focus" });
-              return;
-            }
-            const href = window.prompt("URL");
-            if (!href) return;
+    <div className="flex flex-wrap items-center gap-x-0.5 gap-y-1 pb-2 border-b border-gray-3">
+      <DecoratorBtn name="strong" icon={<BoldIcon className="icon-md" />} />
+      <DecoratorBtn name="em" icon={<ItalicIcon className="icon-md" />} />
+      <ListBtn name="number" icon={<ListOrderedIcon className="icon-md" />} />
+      <ListBtn name="bullet" icon={<ListIcon className="icon-md" />} />
+      <button
+        type="button"
+        aria-label={link_active ? "Remove link" : "Insert link"}
+        className="p-1.5 rounded cursor-pointer text-gray-11 hover:text-gray-12"
+        onPointerDown={(e) => e.preventDefault()}
+        onClick={() => {
+          const annotation = selectors.isActiveAnnotation("link")(
+            editor.getSnapshot()
+          );
+          if (annotation) {
             editor.send({
-              type: "annotation.add",
-              annotation: { name: "link", value: { href } },
+              type: "annotation.remove",
+              annotation: { name: "link" },
             });
             editor.send({ type: "focus" });
-          }}
-        >
-          <LinkIcon className="icon-md" />
-        </button>
-      </div>
+            return;
+          }
+          const href = window.prompt("URL");
+          if (!href) return;
+          editor.send({
+            type: "annotation.add",
+            annotation: { name: "link", value: { href } },
+          });
+          editor.send({ type: "focus" });
+        }}
+      >
+        <LinkIcon className="icon-md" />
+      </button>
       {char_limit != null ? (
-        <span className="text-xs uppercase text-gray-11 ml-auto shrink-0">
+        <span className="text-xs uppercase text-gray-11 shrink-0 basis-full text-right sm:basis-auto sm:ml-auto">
           chars : {char_count} /{char_limit}
         </span>
       ) : null}
