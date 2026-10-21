@@ -138,9 +138,9 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
     <div
       ref={root_ref}
       // scroll-mt-24 clears the sticky header when the handle scrolls here
-      className={`${styles.container} grid grid-rows-[1fr_auto] scroll-mt-24`}
+      className={`${styles.container} grid w-full min-w-0 max-w-full grid-rows-[1fr_auto] scroll-mt-24`}
     >
-      <p className="text-xs text-gray-11 mb-2">
+      <p className="text-sm text-gray-11 mb-2 min-w-0 break-words">
         <span id={hint_id}>
           Valid types are:{" "}
           {props.spec.type
@@ -201,7 +201,7 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
           const files = Array.from(e.dataTransfer.files);
           if (files.length) handle_files(files);
         }}
-        className={`relative ${overlay} ${styles.dropzone} group rounded border border-dashed bg-surface cursor-pointer
+        className={`relative min-w-0 max-w-full ${overlay} ${styles.dropzone} group rounded border border-dashed bg-surface cursor-pointer
           focus-visible:outline-2 has-focus-visible:outline-2 data-[focus-error]:outline-2 data-[drag="true"]:outline-2 outline-ring
           hover:bg-secondary
           data-[disabled="true"]:bg-gray-3 data-[disabled="true"]:pointer-events-none

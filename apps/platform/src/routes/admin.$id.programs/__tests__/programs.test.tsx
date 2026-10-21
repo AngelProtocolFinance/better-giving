@@ -126,7 +126,7 @@ it("programs: empty → create → delete", async () => {
 
   // 1. empty state
   const screen = await render_programs(npo.id);
-  await expect.element(screen.getByText("No programs")).toBeVisible();
+  await expect.element(screen.getByText("No programs yet")).toBeVisible();
 
   // 2. create program — redirects to editor
   await screen.getByRole("button", { name: /create program/i }).click();
@@ -157,7 +157,9 @@ it("programs: empty → create → delete", async () => {
     .not.toBeInTheDocument();
 
   // back to empty state
-  await expect.element(screen2.getByText("No programs")).toBeInTheDocument();
+  await expect
+    .element(screen2.getByText("No programs yet"))
+    .toBeInTheDocument();
 
   // 6. verify on marketplace profile — no programs
   await cleanup();

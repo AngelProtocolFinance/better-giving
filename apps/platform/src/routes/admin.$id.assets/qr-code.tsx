@@ -1,5 +1,5 @@
 import { QrCode as Ark } from "@ark-ui/react/qr-code";
-import { TabPanel, Tabs } from "@better-giving/ui";
+import { Group, TabPanel, Tabs } from "@better-giving/ui";
 import { ArrowDownToLineIcon } from "lucide-react";
 import { useState } from "react";
 import org_building from "#/assets/icons/org-building.svg";
@@ -14,6 +14,8 @@ interface Props {
   campaign_url?: string;
   /** published pages open the address. drafts, and the assets page, keep text. */
   link_url?: boolean;
+  /** assets page only. the campaign page leaves this unset and keeps its heading. */
+  grouped?: boolean;
 }
 
 export function QrCode({
@@ -23,6 +25,7 @@ export function QrCode({
   donate_url,
   campaign_url,
   link_url = false,
+  grouped = false,
 }: Props) {
   const tabs: { id: QRCodeType; name: string }[] = campaign_url
     ? [{ id: "campaign", name: "Campaign" }]
@@ -101,90 +104,116 @@ export function QrCode({
     qr_img.src = `data:image/svg+xml;base64,${btoa(svg_data)}`;
   };
 
-  return (
-    <div className={classes}>
-      <h2 className="text-2xl font-bold mb-2">QR Code</h2>
+  const panel = (tab: (typeof tabs)[number]) => (
+    <>
+      <Ark.Root
+        value={urls[tab.id]}
+        pixelSize={256}
+        encoding={{ ecc: "H" }}
+        ids={{ frame: "qr-code-svg" }}
+        className="relative bg-white w-fit"
+        style={{ color }}
+      >
+        <Ark.Frame className="w-64 h-64 fill-current">
+          <Ark.Pattern />
+        </Ark.Frame>
+        {show_logo && (
+          <Ark.Overlay className="bg-white p-1">
+            <img src={logo || org_building} alt="" width={48} height={48} />
+          </Ark.Overlay>
+        )}
+      </Ark.Root>
+      <p className="text-sm text-gray-11 mt-1">
+        {tab.name}:{" "}
+        {link_url ? (
+          <a
+            href={urls[tab.id]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link font-mono text-xs break-all"
+          >
+            {urls[tab.id]}
+          </a>
+        ) : (
+          <span className="font-mono text-xs break-all">{urls[tab.id]}</span>
+        )}
+      </p>
+    </>
+  );
 
+  const controls = (
+    <>
+      <div className="mt-4 flex gap-x-2 items-center justify-items-center">
+        <label htmlFor="qr-color" className="label">
+          Color
+        </label>
+        <input
+          id="qr-color"
+          type="color"
+          value={color}
+          onChange={(e) => set_color(e.target.value)}
+          className="h-(--field-size) w-(--field-size) cursor-pointer rounded border bg-panel p-1"
+        />
+
+        <div className="flex items-center gap-x-1">
+          <input
+            id="show-logo"
+            type="checkbox"
+            checked={show_logo}
+            onChange={(e) => set_show_logo(e.target.checked)}
+            className="checkbox"
+          />
+          <label htmlFor="show-logo" className="label">
+            Show logo in center
+          </label>
+        </div>
+      </div>
+
+      <button
+        className="flex items-center mt-4 btn btn-primary gap-x-2"
+        type="button"
+        onClick={handle_download}
+      >
+        <ArrowDownToLineIcon className="icon-sm" />
+        Download
+      </button>
+    </>
+  );
+
+  const body =
+    tabs.length > 1 ? (
       <Tabs
-        className="w-96"
+        className="w-full max-w-96"
         items={tabs.map((tab) => ({ value: tab.id, label: tab.name }))}
         defaultValue={tabs[0].id}
         onValueChange={set_selected_tab}
       >
-        {/* qr code panel */}
         {tabs.map((tab) => (
           <TabPanel key={tab.id} value={tab.id} className="mt-6">
-            <Ark.Root
-              value={urls[tab.id]}
-              pixelSize={256}
-              encoding={{ ecc: "H" }}
-              ids={{ frame: "qr-code-svg" }}
-              className="relative bg-white w-fit"
-              style={{ color }}
-            >
-              <Ark.Frame className="w-64 h-64 fill-current">
-                <Ark.Pattern />
-              </Ark.Frame>
-              {show_logo && (
-                <Ark.Overlay className="bg-white p-1">
-                  <img
-                    src={logo || org_building}
-                    alt=""
-                    width={48}
-                    height={48}
-                  />
-                </Ark.Overlay>
-              )}
-            </Ark.Root>
-            <p className="text-sm text-gray-11 mt-1">
-              {tab.name}:{" "}
-              {link_url ? (
-                <a
-                  href={urls[tab.id]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="link font-mono text-xs"
-                >
-                  {urls[tab.id]}
-                </a>
-              ) : (
-                <span className="font-mono text-xs">{urls[tab.id]}</span>
-              )}
-            </p>
+            {panel(tab)}
           </TabPanel>
         ))}
-
-        <div className="mt-4 flex gap-x-2 items-center justify-items-center">
-          <input
-            id="qr-color"
-            type="color"
-            value={color}
-            onChange={(e) => set_color(e.target.value)}
-          />
-
-          <div className="flex items-center gap-x-1">
-            <input
-              id="show-logo"
-              type="checkbox"
-              checked={show_logo}
-              onChange={(e) => set_show_logo(e.target.checked)}
-              className="checkbox"
-            />
-            <label htmlFor="show-logo" className="label">
-              Show logo in center
-            </label>
-          </div>
-        </div>
-
-        <button
-          className="flex items-center mt-4 btn btn-primary gap-x-2"
-          type="button"
-          onClick={handle_download}
-        >
-          <ArrowDownToLineIcon className="icon-sm" />
-          Download
-        </button>
+        {controls}
       </Tabs>
+    ) : (
+      <div className="w-full max-w-96">
+        {panel(tabs[0])}
+        {controls}
+      </div>
+    );
+
+  if (grouped) {
+    return (
+      <Group title="QR code" classes={classes}>
+        {body}
+      </Group>
+    );
+  }
+
+  return (
+    <div className={classes}>
+      <h2 className="text-2xl font-bold mb-2">QR Code</h2>
+      {body}
     </div>
   );
 }

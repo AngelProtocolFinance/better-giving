@@ -1,4 +1,4 @@
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -111,43 +111,79 @@ function press(locator: { element: () => Element }) {
   (locator.element() as HTMLElement).click();
 }
 
+function SearchProbe() {
+  return <output data-testid="url-search">{useLocation().search}</output>;
+}
+
 describe("campaign list", () => {
   const endow = { id: 7, slug: "acme" };
 
   async function render_list(
     campaigns: unknown[],
     org_funds: unknown[],
-    supporter_funds: unknown[]
+    search = ""
   ) {
     const Stub = createRoutesStub([
       {
         path: "/admin/:id/campaigns",
-        Component: ListPage,
-        loader: () => ({
-          endow,
-          campaigns,
-          org_funds,
-          supporter_funds,
-          profile_to: "/admin/7/edit-profile",
-        }),
+        HydrateFallback: () => null,
+        Component: (props) => (
+          <>
+            <ListPage {...props} />
+            <SearchProbe />
+          </>
+        ),
+        loader: ({ request }) => {
+          const tab = new URL(request.url).searchParams.get("tab");
+          if (tab === "fundraisers") {
+            return {
+              view: "fundraisers" as const,
+              endow,
+              funds: [],
+              user: { role: null },
+            };
+          }
+          return {
+            view: "campaigns" as const,
+            endow,
+            campaigns,
+            org_funds,
+            profile_to: "/admin/7/edit-profile",
+          };
+        },
       },
     ]);
-    return render(<Stub initialEntries={["/admin/7/campaigns"]} />);
+    return render(<Stub initialEntries={[`/admin/7/campaigns${search}`]} />);
   }
 
   it("offers a create action when campaigns and funds are all absent", async () => {
-    const screen = await render_list([], [], []);
+    const screen = await render_list([], []);
+    await expect
+      .element(screen.getByRole("heading", { level: 1, name: "Campaigns" }))
+      .toBeVisible();
+    expect(
+      screen
+        .getByRole("tab")
+        .elements()
+        .map((el) => el.textContent)
+    ).toEqual(["Your campaigns", "Supporter fundraisers"]);
+    await expect
+      .element(screen.getByRole("tab", { name: "Your campaigns", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
     await expect.element(screen.getByText("No campaigns yet")).toBeVisible();
     const create = screen.getByRole("link", { name: "Create campaign" });
     expect((create.element() as HTMLAnchorElement).getAttribute("href")).toBe(
       "/admin/7/campaigns/new"
     );
     expect(
+      screen.getByRole("link", { name: "Edit", exact: true }).query()
+    ).toBeNull();
+    expect(
       screen.getByRole("heading", { name: "Supporter fundraisers" }).query()
     ).toBeNull();
   });
 
-  it("omits the supporter heading when every fund belongs to the organization", async () => {
+  it("lists org campaigns on Your campaigns and not a supporter heading", async () => {
     const screen = await render_list(
       [
         {
@@ -169,62 +205,101 @@ describe("campaign list", () => {
           donation_total_usd: 3,
           expiration: NO_END,
         },
-      ],
-      []
+      ]
     );
     await expect
-      .element(screen.getByRole("heading", { name: "Campaigns", level: 2 }))
-      .toBeVisible();
+      .element(screen.getByRole("tab", { name: "Your campaigns", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
     expect(
       screen.getByRole("heading", { name: "Supporter fundraisers" }).query()
     ).toBeNull();
     expect(screen.getByText("No campaigns yet").query()).toBeNull();
-    const section = screen
-      .getByRole("heading", { name: "Campaigns", level: 2 })
-      .element().parentElement;
-    const text = section?.textContent ?? "";
+    const panel = screen.getByRole("tabpanel").element();
+    const text = panel.textContent ?? "";
     expect(text.indexOf("Spring")).toBeGreaterThan(-1);
     expect(text.indexOf("Spring")).toBeLessThan(text.indexOf("Owned page"));
-    const owned = screen.getByRole("link", { name: "Owned page" });
-    expect((owned.element() as HTMLAnchorElement).pathname).toBe(
-      "/fundraisers/f-owned/edit"
-    );
-  });
-
-  it("omits the campaigns heading when only a supporter fund is present", async () => {
-    const screen = await render_list(
-      [],
-      [],
-      [
-        {
-          id: "f-guest",
-          name: "Guest page",
-          active: true,
-          published: false,
-          donation_total_usd: 0,
-          expiration: NO_END,
-        },
-      ]
+    const spring_name = screen.getByText("Spring", { exact: true });
+    expect((spring_name.element() as HTMLElement).tagName).toBe("P");
+    expect((spring_name.element() as HTMLElement).className).toContain(
+      "font-semibold"
     );
     expect(
-      screen.getByRole("heading", { name: "Campaigns", level: 2 }).query()
+      screen.getByRole("link", { name: "Spring", exact: true }).query()
     ).toBeNull();
-    await expect
-      .element(screen.getByRole("heading", { name: "Supporter fundraisers" }))
-      .toBeVisible();
-    expect(screen.getByText("No campaigns yet").query()).toBeNull();
-    const section = screen
-      .getByRole("heading", { name: "Supporter fundraisers" })
-      .element().parentElement;
-    const guest = page
-      .elementLocator(section as HTMLElement)
-      .getByRole("link", { name: "Guest page" });
-    expect((guest.element() as HTMLAnchorElement).pathname).toBe(
-      "/fundraisers/f-guest"
-    );
+    const spring_row = (spring_name.element() as HTMLElement).closest("li");
+    expect(
+      (
+        page
+          .elementLocator(spring_row as HTMLElement)
+          .getByRole("link", { name: "Edit", exact: true })
+          .element() as HTMLAnchorElement
+      ).pathname
+    ).toBe("/admin/7/campaigns/c-draft");
+    const owned_name = screen.getByText("Owned page", { exact: true });
+    expect((owned_name.element() as HTMLElement).tagName).toBe("P");
+    expect(
+      screen.getByRole("link", { name: "Owned page", exact: true }).query()
+    ).toBeNull();
+    const owned_row = (owned_name.element() as HTMLElement).closest("li");
+    const owned_links = page
+      .elementLocator(owned_row as HTMLElement)
+      .getByRole("link")
+      .elements() as HTMLAnchorElement[];
+    expect(owned_links.map((el) => el.textContent)).toEqual(["Edit"]);
+    expect(owned_links.map((el) => el.pathname)).toEqual([
+      "/fundraisers/f-owned/edit",
+    ]);
   });
 
-  it("splits campaigns and supporter pages, and links the profile in the same tab", async () => {
+  it("opens supporter fundraisers on the other tab and treats an unknown tab as yours", async () => {
+    const screen = await render_list([], [], "?tab=nope");
+    await expect
+      .element(screen.getByRole("tab", { name: "Your campaigns", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect.element(screen.getByText("No campaigns yet")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Supporter fundraisers" }).query()
+    ).toBeNull();
+
+    await screen
+      .getByRole("tab", { name: "Supporter fundraisers", exact: true })
+      .click();
+    await expect
+      .element(
+        screen.getByRole("tab", { name: "Supporter fundraisers", exact: true })
+      )
+      .toHaveAttribute("aria-selected", "true");
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("url-search").element().textContent).toBe(
+        "?tab=fundraisers"
+      );
+    });
+    await expect
+      .element(
+        screen.getByText(
+          "These are fundraisers people started for your nonprofit. You can leave any you don't want to receive from.",
+          { exact: true }
+        )
+      )
+      .toBeVisible();
+    expect(screen.getByText("No campaigns yet").query()).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "New campaign" }).query()
+    ).toBeNull();
+    await expect
+      .element(screen.getByRole("heading", { level: 1, name: "Campaigns" }))
+      .toBeVisible();
+
+    await screen
+      .getByRole("tab", { name: "Your campaigns", exact: true })
+      .click();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("url-search").element().textContent).toBe("");
+    });
+    await expect.element(screen.getByText("No campaigns yet")).toBeVisible();
+  });
+
+  it("lists campaigns and the profile on Your campaigns", async () => {
     const screen = await render_list(
       [
         {
@@ -246,57 +321,39 @@ describe("campaign list", () => {
           ends_at: null,
         },
       ],
-      [],
-      [
-        {
-          id: "f-ended",
-          name: "Closed page",
-          active: false,
-          published: true,
-          donation_total_usd: 4,
-          expiration: NO_END,
-        },
-        {
-          id: "f-draft",
-          name: "Quiet page",
-          active: true,
-          published: false,
-          donation_total_usd: 2,
-          expiration: NO_END,
-        },
-        {
-          id: "f-live",
-          name: "Open page",
-          active: true,
-          published: true,
-          donation_total_usd: 9,
-          expiration: NO_END,
-        },
-      ]
+      []
     );
 
     expect(screen.getByText("No campaigns yet").query()).toBeNull();
     await expect
-      .element(screen.getByRole("heading", { name: "Supporter fundraisers" }))
-      .toBeVisible();
+      .element(screen.getByRole("tab", { name: "Your campaigns", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
 
-    const winter = screen.getByRole("link", { name: "Winter", exact: true });
-    expect((winter.element() as HTMLAnchorElement).pathname).toBe(
-      "/admin/7/campaigns/c-live"
+    const winter_name = screen.getByText("Winter", { exact: true });
+    expect((winter_name.element() as HTMLElement).tagName).toBe("P");
+    expect((winter_name.element() as HTMLElement).className).toContain(
+      "font-semibold"
     );
+    expect(
+      screen.getByRole("link", { name: "Winter", exact: true }).query()
+    ).toBeNull();
+    const winter_row = (winter_name.element() as HTMLElement).closest("li");
+    expect(
+      (
+        page
+          .elementLocator(winter_row as HTMLElement)
+          .getByRole("link", { name: "Edit", exact: true })
+          .element() as HTMLAnchorElement
+      ).pathname
+    ).toBe("/admin/7/campaigns/c-live");
     await expect
       .element(screen.getByText("Ended · $12 raised · Jan 2, 2020"))
       .toBeVisible();
-    const winter_row = (
-      screen
-        .getByRole("link", { name: "Winter", exact: true })
-        .element() as HTMLElement
-    ).closest("li");
     const winter_view = page
       .elementLocator(winter_row as HTMLElement)
-      .getByRole("link", { name: "/org/acme/winter", exact: true });
+      .getByRole("link", { name: "View", exact: true });
     expect((winter_view.element() as HTMLAnchorElement).textContent).toBe(
-      "/org/acme/winter"
+      "View"
     );
     expect(
       (winter_view.element() as HTMLAnchorElement).getAttribute("href")
@@ -310,39 +367,30 @@ describe("campaign list", () => {
     expect(
       screen.getByRole("link", { name: "/org/acme/spring" }).query()
     ).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Spring", exact: true }).query()
+    ).toBeNull();
+    const spring_row = (
+      screen.getByText("Spring", { exact: true }).element() as HTMLElement
+    ).closest("li");
+    expect(
+      (
+        page
+          .elementLocator(spring_row as HTMLElement)
+          .getByRole("link", { name: "Edit", exact: true })
+          .element() as HTMLAnchorElement
+      ).pathname
+    ).toBe("/admin/7/campaigns/c-draft");
 
     await expect
       .element(screen.getByText("Draft · $1 raised · No end date"))
       .toBeVisible();
-    await expect
-      .element(screen.getByText("Draft · $2 raised · No end date"))
-      .toBeVisible();
-    await expect
-      .element(screen.getByText("Ended · $4 raised · No end date"))
-      .toBeVisible();
-    expect(screen.getByRole("link", { name: "View" }).elements().length).toBe(
-      0
-    );
-
-    const supporters = screen
-      .getByRole("heading", { name: "Supporter fundraisers" })
-      .element().parentElement;
-    const supporter = page.elementLocator(supporters as HTMLElement);
-    const open = supporter.getByRole("link", { name: "Open page" });
-    expect((open.element() as HTMLAnchorElement).pathname).toBe(
-      "/fundraisers/f-live"
-    );
-    const closed = supporter.getByRole("link", { name: "Closed page" });
-    expect((closed.element() as HTMLAnchorElement).pathname).toBe(
-      "/fundraisers/f-ended"
-    );
-    expect(closed.elements().length).toBe(1);
     expect(
-      supporter.getByRole("link", { name: "View", exact: true }).query()
+      page
+        .elementLocator(spring_row as HTMLElement)
+        .getByRole("link", { name: "View", exact: true })
+        .query()
     ).toBeNull();
-    await expect
-      .element(screen.getByText("Live · $9 raised · No end date"))
-      .toBeVisible();
 
     const profile = screen.getByRole("link", { name: "/marketplace/acme" });
     expect(
@@ -398,6 +446,9 @@ describe("campaign form", () => {
 
   it("asks before the first publish and saves a live campaign without publishing", async () => {
     const draft = await render_form("draft");
+    await expect
+      .element(draft.screen.getByRole("button", { name: "Delete" }))
+      .toBeVisible();
     expect(
       draft.screen
         .getByRole("button", { name: "Save changes", exact: true })
@@ -546,6 +597,46 @@ async function vi_posted(posted: () => unknown, op: string) {
 }
 
 describe("campaign pages", () => {
+  it("does not scroll horizontally at 375px on the new campaign page", async () => {
+    const { page: browser_page } = await import("vitest/browser");
+    await browser_page.viewport(375, 667);
+    const Stub = createRoutesStub([
+      {
+        path: "/admin/:id/campaigns/new",
+        Component: NewPage,
+        loader: () => ({
+          endow: {
+            id: 7,
+            slug: "acme",
+            donate_methods: ["stripe", "paypal"],
+            donate_frequencies: ["one-time", "monthly"],
+            hide_bg_tip: false,
+          },
+          programs: [
+            { id: "11111111-1111-4111-8111-111111111111", title: "Meals" },
+          ],
+          profile_to: "/admin/7/organization",
+        }),
+      },
+    ]);
+    const screen = await render(
+      <Stub initialEntries={["/admin/7/campaigns/new"]} />
+    );
+    await expect
+      .element(screen.getByRole("heading", { name: "New campaign" }))
+      .toBeVisible();
+    await vi.waitFor(() => {
+      expect(
+        screen.container.querySelector('[contenteditable="true"]')
+      ).not.toBeNull();
+    });
+    await vi.waitFor(() => {
+      const doc = document.documentElement;
+      expect(doc.scrollWidth).toBeLessThanOrEqual(doc.clientWidth);
+    });
+    await browser_page.viewport(1280, 900);
+  });
+
   it("crumbs the new page back to the list", async () => {
     const Stub = createRoutesStub([
       {
@@ -582,8 +673,11 @@ describe("campaign pages", () => {
   it("names the edit page and links a published address", async () => {
     const screen = await render(edit_stub(true));
     await expect
-      .element(screen.getByRole("heading", { name: "Edit Winter" }))
+      .element(screen.getByRole("heading", { name: "Winter", exact: true }))
       .toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Winter", exact: true }).query()
+    ).toBeNull();
     await expect
       .element(screen.getByText("Live", { exact: true }))
       .toBeVisible();
@@ -591,13 +685,6 @@ describe("campaign pages", () => {
     expect((crumb.element() as HTMLElement).className).not.toContain(
       "pointer-events-none"
     );
-    expect(
-      (
-        screen
-          .getByRole("link", { name: "Winter", exact: true })
-          .element() as HTMLElement
-      ).className
-    ).toContain("pointer-events-none");
     const url = screen.getByRole("link", {
       name: "https://x.test/org/acme/winter",
     });

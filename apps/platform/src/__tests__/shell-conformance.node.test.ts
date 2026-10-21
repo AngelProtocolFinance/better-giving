@@ -270,6 +270,8 @@ describe("the card shell", () => {
       // a native <select>, and a control's box is components.css's
       "apps/platform/src/routes/dashboard.donations/route.tsx",
       "apps/platform/src/routes/platform.donation-settlements.create/form.tsx",
+      // a native color input sized with --field-size: a control's box
+      "apps/platform/src/routes/admin.$id.assets/qr-code.tsx",
       // a role="tablist" holding its tabs at a 4px inset
       "apps/platform/src/routes/dashboard.subscriptions/route.tsx",
       // a testimonial whose pt-24 is clearance for the avatar overlapping its

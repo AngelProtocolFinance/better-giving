@@ -1,16 +1,11 @@
-import { Plus } from "lucide-react";
-import { NavLink, Outlet } from "react-router";
+import { Outlet } from "react-router";
 import type { LoaderData } from "./api";
 import { DeleteForm } from "./delete-form";
 
 interface IList extends LoaderData {}
 export function List(props: IList) {
   return (
-    <div className="table-scroll">
-      <NavLink className="justify-self-end btn btn-primary gap-2 mb-2" to="add">
-        <Plus className="icon-md" />
-        <span>Invite user</span>
-      </NavLink>
+    <div className="table-scroll col-span-2">
       <Loaded {...props} />
       {/** render add form */}
       <Outlet />

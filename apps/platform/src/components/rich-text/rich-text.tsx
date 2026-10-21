@@ -52,16 +52,6 @@ export function RichText({
         ) : (
           fallback
         )}
-        {!props.readOnly && (
-          <span
-            className={`absolute top-4 right-4 text-xs uppercase ${
-              style.counter ?? ""
-            }`}
-          >
-            chars : {props.content.length ?? 0}
-            {props.charLimit && ` /${props.charLimit}`}
-          </span>
-        )}
       </div>
       <p
         className={`empty:hidden text-destructive-subtle-fg text-xs mt-1 ${style.error}`}

@@ -19,16 +19,25 @@ interface IShared {
    *  class-string order, so a second one is a coin flip. margin is the
    *  caller's, as everywhere else. */
   classes?: string;
+  /** a muted lucide mark for the full treatment (`heading` and/or `action`).
+   *  most table empties leave it off. */
+  icon?: ReactNode;
 }
 
 export function EmptyState({
   heading,
   action,
   classes = "",
+  icon,
   children,
 }: IShared) {
   return (
     <div className={`py-8 text-center text-gray-11 ${classes}`}>
+      {icon ? (
+        <div className="mb-3 flex justify-center text-gray-11" aria-hidden>
+          {icon}
+        </div>
+      ) : null}
       {heading && <h3 className="text-lg text-gray-12">{heading}</h3>}
       <p className={heading ? "mt-1" : ""}>{children}</p>
       {action && <div className="mt-4 flex justify-center">{action}</div>}

@@ -234,8 +234,9 @@ const click_after_reload = async (page, locate) => {
   return 3;
 };
 
-const assert_no_fundraiser = async (page, where) => {
-  const text = await page.locator("body").innerText();
+const assert_no_fundraiser = async (page, where, allowed = []) => {
+  let text = await page.locator("body").innerText();
+  for (const phrase of allowed) text = text.replaceAll(phrase, "");
   expect_ok(!/fundraiser/i.test(text), `${where} shows the word fundraiser`);
 };
 
@@ -852,7 +853,9 @@ const FLOWS = {
         list_text.indexOf("Winter Drive") > profile_at,
         "seeded campaign is not below the profile card"
       );
-      await assert_no_fundraiser(page, "campaigns list");
+      await assert_no_fundraiser(page, "campaigns list", [
+        "Supporter fundraisers",
+      ]);
       await shot("list");
 
       const profile_tries = await open_cold(
@@ -1003,7 +1006,9 @@ const FLOWS = {
         after.includes("Harbor Listing"),
         "existing listing is missing"
       );
-      await assert_no_fundraiser(page, "campaigns list after publish");
+      await assert_no_fundraiser(page, "campaigns list after publish", [
+        "Supporter fundraisers",
+      ]);
       await shot("published");
 
       const fund = await page.goto(`${BASE}/fundraisers/${SEEDED_FUND}`, {

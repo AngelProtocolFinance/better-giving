@@ -213,4 +213,7 @@ select
   10
 from npos where registration_number = 'VERIFY0003';
 
+-- before the select: launch.sh reads the last printed line as VERIFY0001's id.
+\ir seed-supporter-fundraiser.sql
+
 select id from npos where registration_number = 'VERIFY0001';

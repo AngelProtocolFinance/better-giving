@@ -699,7 +699,6 @@ describe("donation form tab — reset", () => {
       .toBeVisible();
     await screen.getByRole("tab", { name: /donation form/i }).click();
 
-    // check weekly
     await expect.element(screen.getByLabelText(/weekly/i)).toBeVisible();
     await screen.getByLabelText(/weekly/i).click();
 

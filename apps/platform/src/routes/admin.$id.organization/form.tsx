@@ -51,7 +51,7 @@ export function Form({ init, id, base_url }: Props) {
   return (
     <F
       onSubmit={(e) => e.preventDefault()}
-      className="px-6 py-4 md:px-10 md:py-8 w-full max-w-4xl grid grid-cols-1 content-start gap-6"
+      className="px-6 py-4 md:px-10 md:py-8 w-full max-w-[1112px] grid grid-cols-1 content-start gap-6"
     >
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
       <Modal
@@ -86,7 +86,7 @@ export function Form({ init, id, base_url }: Props) {
       </Modal>
       <h1 className="text-3xl font-bold">Organization</h1>
       <Fieldset disabled={form.busy} className="contents">
-        <Group title="Organization" hide_title>
+        <Group title="Organization">
           <label htmlFor="npo-logo" className="label -mb-4" data-required>
             Logo of your organization
           </label>
@@ -155,10 +155,7 @@ export function Form({ init, id, base_url }: Props) {
           />
           {form.locked && (
             <div className="-mt-4 grid gap-2">
-              <p
-                id={note_id}
-                className="text-xs sm:text-sm text-gray-11 italic"
-              >
+              <p id={note_id} className="text-sm text-gray-11">
                 {set_once_note}
               </p>
               <p className="text-sm break-all">

@@ -55,7 +55,7 @@ export function DonateMethods({
         axis="y"
         onReorder={(values) => on_change(values.map((v) => JSON.parse(v)))}
         values={values.map((v) => JSON.stringify(v))}
-        className="grid gap-4"
+        className="border rounded overflow-hidden divide-y"
       >
         {values.map((v, i) => (
           <Method
@@ -104,13 +104,13 @@ function Method({ value, index, total, hint_id, move, updator }: IMethod) {
   const checkbox_id = useId();
   return (
     <Reorder.Item
-      aria-disabled={value.disabled}
+      data-unchecked={value.disabled ? "" : undefined}
       value={JSON.stringify(value)}
       dragListener={false}
       dragControls={controls}
       id={value.id}
       style={{ y }}
-      className="flex items-center gap-2 border p-3 aria-disabled:bg-gray-3 aria-disabled:text-gray-11 rounded bg-panel select-none"
+      className="flex items-center gap-2 p-3 min-h-12 bg-panel data-unchecked:bg-gray-3 data-unchecked:text-gray-11 select-none"
     >
       <input
         id={checkbox_id}

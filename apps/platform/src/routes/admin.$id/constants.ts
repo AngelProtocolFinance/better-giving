@@ -4,7 +4,6 @@ import {
   Building2,
   CircleDollarSign,
   CircleUserRound,
-  Flag,
   HandshakeIcon,
   Heart,
   Image,
@@ -64,14 +63,6 @@ const group1: LinkGroup = {
       to: sidebar_routes.donors,
       icon: {
         fn: Heart,
-        size: 21,
-      },
-    },
-    {
-      title: "Fundraiser opt-outs",
-      to: sidebar_routes.funds,
-      icon: {
-        fn: Flag,
         size: 21,
       },
     },

@@ -22,7 +22,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
     loaderData;
   const id = String(endow.id);
   return (
-    <div className="grid px-6 py-4 md:px-10 md:py-8 gap-6 max-w-4xl">
+    <div className="grid min-w-0 px-6 py-4 md:px-10 md:py-8 gap-6 max-w-4xl">
       <Breadcrumbs
         items={[
           {
@@ -39,10 +39,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           },
         ]}
       />
-      <div>
-        <h1 className="text-3xl font-bold">Edit {campaign.name}</h1>
-        <p className="text-sm text-gray-11 mt-1">{STATUS_WORD[shown_status]}</p>
-      </div>
+      <p className="text-sm text-gray-11 mt-1">{STATUS_WORD[shown_status]}</p>
       <CampaignForm
         init={{
           name: campaign.name,

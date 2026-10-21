@@ -61,10 +61,10 @@ export function CsvExporter({
   return (
     <button
       type="button"
+      aria-label={label}
       onClick={handle_click}
       className={`flex gap-1 items-center ${classes ?? ""}`}
     >
-      <span className="sr-only">{label}</span>
       {children}
     </button>
   );

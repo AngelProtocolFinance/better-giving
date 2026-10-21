@@ -1,4 +1,4 @@
-import { EmptyRow, LoadMoreRow, Select, Target } from "@better-giving/ui";
+import { EmptyState, LoadMoreRow, Select, Target } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import { TagIcon } from "lucide-react";
 import { href, NavLink, useNavigate, useSearchParams } from "react-router";
@@ -27,44 +27,50 @@ export function FormsTable({
 }: Props) {
   return (
     <div className={classes}>
-      <div className="table-scroll">
-        <table className="table w-full">
-          <thead>
-            <tr>
-              <th>Form</th>
-              <th>
-                <StatusFilter value={status as Filter} />
-              </th>
-              <th>Program</th>
-              <th>Raised / Goal</th>
-              <th className="text-right">Donations</th>
-              <th>Created</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 ? (
-              <EmptyRow col_span={7}>
-                No {status === "all" ? "" : status} forms found
-              </EmptyRow>
-            ) : (
-              items.map((f) => (
+      <StatusFilter value={status as Filter} />
+      {items.length === 0 ? (
+        <EmptyState
+          heading={
+            status === "all" ? "No forms found" : `No ${status} forms found`
+          }
+          icon={<TagIcon className="icon-xl" />}
+        >
+          {status === "all"
+            ? "Forms you create will show up here."
+            : "Try another status."}
+        </EmptyState>
+      ) : (
+        <div className="table-scroll">
+          <table className="table w-full">
+            <thead>
+              <tr>
+                <th>Form</th>
+                <th>Status</th>
+                <th>Program</th>
+                <th>Raised / Goal</th>
+                <th className="text-right">Donations</th>
+                <th>Created</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((f) => (
                 <tr key={f.id}>
                   <Row {...f} />
                 </tr>
-              ))
+              ))}
+            </tbody>
+            {load_next && (
+              <LoadMoreRow
+                col_span={7}
+                disabled={disabled}
+                loading={loading}
+                on_load_next={load_next}
+              />
             )}
-          </tbody>
-          {load_next && (
-            <LoadMoreRow
-              col_span={7}
-              disabled={disabled}
-              loading={loading}
-              on_load_next={load_next}
-            />
-          )}
-        </table>
-      </div>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -151,6 +157,7 @@ function StatusFilter({ value }: { value: Filter }) {
   const navigate = useNavigate();
   return (
     <Select
+      compact
       label="Status"
       options={FILTER_OPTS}
       value={value}

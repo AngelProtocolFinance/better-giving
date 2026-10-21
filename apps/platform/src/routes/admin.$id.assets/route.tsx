@@ -25,10 +25,10 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
   };
 
   return (
-    <div className="px-6 py-4 md:px-10 md:py-8">
+    <div className="px-6 py-4 md:px-10 md:py-8 max-w-[1400px]">
       <h1 className="text-2xl font-bold mb-8">Alliance Member Badges</h1>
-      <div className="grid justify-start grid-cols-1 @lg:grid-cols-[auto_auto] grid-rows-[1fr_auto] gap-8 mb-12">
-        <div className="grid grid-rows-subgrid gap-y-2 row-span-2 justify-items-center">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-12">
+        <div className="card grid gap-y-2 justify-items-center xl:col-start-1 xl:row-start-1">
           <img
             className="self-center"
             width={190}
@@ -36,7 +36,7 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
             alt="Alliance Member Badge"
           />
           <button
-            className="flex text-sm items-center mt-2"
+            className="btn btn-secondary"
             type="button"
             onClick={() =>
               handle_download(
@@ -50,7 +50,7 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
           </button>
         </div>
 
-        <div className="grid grid-rows-subgrid gap-y-2 row-span-2 justify-items-center">
+        <div className="card grid gap-y-2 justify-items-center xl:col-start-1 xl:row-start-2">
           <img
             className="self-center"
             width={200}
@@ -58,7 +58,7 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
             alt="Alliance Member Badge"
           />
           <button
-            className="flex text-sm items-center mt-2"
+            className="btn btn-secondary"
             type="button"
             onClick={() =>
               handle_download(
@@ -71,14 +71,15 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
             Download
           </button>
         </div>
-      </div>
 
-      <QrCode
-        donate_url={`${d.base_url}${href("/donate/:id", { id: params.id })}`}
-        profile_url={`${d.base_url}${href("/marketplace/:id", { id: params.id })}`}
-        logo={d.logo}
-        classes="mt-16"
-      />
+        <QrCode
+          grouped
+          donate_url={`${d.base_url}${href("/donate/:id", { id: params.id })}`}
+          profile_url={`${d.base_url}${href("/marketplace/:id", { id: params.id })}`}
+          logo={d.logo}
+          classes="w-full max-w-96 xl:col-start-2 xl:row-start-1 xl:row-span-2"
+        />
+      </div>
     </div>
   );
 }

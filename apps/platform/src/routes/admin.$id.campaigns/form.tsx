@@ -326,7 +326,10 @@ export function CampaignForm({
   const type_value = (campaign_type.value || "") as TypeOpt;
 
   return (
-    <F onSubmit={submit} className="card grid gap-4">
+    <F
+      onSubmit={submit}
+      className="card grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-4"
+    >
       <div ref={summary_ref} role="alert" tabIndex={-1}>
         {summary ? (
           <p className="text-sm text-destructive-subtle-fg">{summary}</p>
@@ -406,8 +409,9 @@ export function CampaignForm({
           placeHolder="The story of this campaign"
           charLimit={8000}
           classes={{
+            container: "min-w-0",
             field:
-              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-surface p-3 min-h-60",
+              "rich-text-toolbar border text-sm grid min-w-0 grid-rows-[auto_1fr] rounded bg-surface p-3 min-h-60",
             counter: "text-gray-11",
             error: "text-right",
           }}

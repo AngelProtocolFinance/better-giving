@@ -42,13 +42,14 @@ function Media({ loaderData: page1 }: Route.ComponentProps) {
   });
 
   return (
-    <div className="grid content-start gap-y-6 @lg:gap-y-8 px-6 py-4 md:px-10 md:py-8">
+    <div className="grid content-start gap-y-6 @lg:gap-y-8 px-6 py-4 md:px-10 md:py-8 max-w-[1400px]">
       <h1 className="text-3xl font-bold">Media</h1>
       <div className="grid gap-y-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl">Videos</h2>
             <Select
+              compact
               value={filter}
               onChange={(v) => {
                 const p = new URLSearchParams();

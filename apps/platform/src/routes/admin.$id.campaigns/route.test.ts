@@ -426,12 +426,45 @@ describe("campaign list loader", () => {
       creator_id: USER,
       members: [org.id],
     });
-    const data = await list_loader({
-      request: new Request("https://x/admin/list/campaigns"),
+    const args = {
       params: { id: String(org.id) },
       context: ctx(org.id),
+    };
+    const data = await list_loader({
+      request: new Request("https://x/admin/list/campaigns"),
+      ...args,
     } as any);
+    if (data.view !== "campaigns")
+      throw new Error("expected the campaigns tab");
     expect(data.org_funds.map((f) => f.id)).toEqual(["fund-owned"]);
-    expect(data.supporter_funds.map((f) => f.id)).toEqual(["fund-supporter"]);
+    expect(data.supporter_funds).toEqual([]);
+
+    const tab = await list_loader({
+      request: new Request("https://x/admin/list/campaigns?tab=fundraisers"),
+      ...args,
+    } as any);
+    if (tab.view !== "fundraisers")
+      throw new Error("expected the fundraisers tab");
+    expect(tab.funds.map((f) => f.id).sort()).toEqual([
+      "fund-owned",
+      "fund-supporter",
+    ]);
+
+    const others = await list_loader({
+      request: new Request(
+        "https://x/admin/list/campaigns?tab=fundraisers&creator=others"
+      ),
+      ...args,
+    } as any);
+    if (others.view !== "fundraisers") {
+      throw new Error("expected the fundraisers tab");
+    }
+    expect(others.funds.map((f) => f.id)).toEqual(["fund-supporter"]);
+
+    const unknown = await list_loader({
+      request: new Request("https://x/admin/list/campaigns?tab=nope"),
+      ...args,
+    } as any);
+    expect(unknown.view).toBe("campaigns");
   });
 });

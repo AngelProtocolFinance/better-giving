@@ -42,8 +42,9 @@ describe("public profile banner", () => {
       },
     ]);
     const screen = await render(<Stub initialEntries={["/marketplace/7"]} />);
+    // the trail's last crumb is an h1 with this name; the profile title is the h3
     await expect
-      .element(screen.getByRole("heading", { name: "Acme Relief" }))
+      .element(screen.getByRole("heading", { name: "Acme Relief", level: 3 }))
       .toBeVisible();
     const banner = document.querySelector(
       '[style*="banner.png"]'

@@ -1,9 +1,7 @@
+import { href, redirect } from "react-router";
 import { safeParse } from "valibot";
-import { admin_ctx, user_ctx } from "#/.server/auth";
-import { get_funds_npo_memberof } from "#/.server/funds";
+import { admin_ctx } from "#/.server/auth";
 import { dataWithError, dataWithSuccess } from "#/.server/toast";
-import type { AuthUser } from "#/types/auth";
-import type { IFundItem } from "@/fundraiser";
 import { fund_id } from "@/fundraiser/schema";
 import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
@@ -14,32 +12,17 @@ import {
   fund_member_remove,
   fund_members_get,
 } from "$/pg/queries/fund";
-import type { INpo } from "$/pg/queries/npo";
-import { npo_get } from "$/pg/queries/npo";
 import type { Route } from "./+types/route";
+import { fund_creator } from "./creator";
 
-export interface LoaderData {
-  user: AuthUser;
-  funds: IFundItem[];
-  endow: INpo;
-}
-
-export const loader = async (x: Route.LoaderArgs) => {
-  const id = x.context.get(admin_ctx);
-  const user = x.context.get(user_ctx);
-
-  const endow = await npo_get(id);
-  if (!endow) throw resp.status(404);
-
-  const { searchParams: s } = new URL(x.request.url);
-  const raw = s.get("creator");
-  const creator = raw === "ours" || raw === "others" ? raw : undefined;
-
-  const funds = await get_funds_npo_memberof(
-    endow.id,
-    creator ? { creator } : {}
+export const loader = ({ request, context }: Route.LoaderArgs) => {
+  const id = context.get(admin_ctx);
+  const creator = fund_creator(
+    new URL(request.url).searchParams.get("creator")
   );
-  return { endow, funds, user } satisfies LoaderData;
+  const q = new URLSearchParams({ tab: "fundraisers" });
+  if (creator) q.set("creator", creator);
+  return redirect(`${href("/admin/:id/campaigns", { id: String(id) })}?${q}`);
 };
 
 export const action = async (x: Route.ActionArgs) => {
@@ -51,11 +34,11 @@ export const action = async (x: Route.ActionArgs) => {
   const fid = p.output;
 
   const fund = await fund_get_or_slug(fid);
-  if (!fund) return dataWithError(null, "Fund not found");
+  if (!fund) return dataWithError(null, "Fundraiser not found");
 
   const is_member = await fund_has_member(fund.id, id);
   if (!is_member) {
-    return dataWithError(null, "You're no longer a member of this fund");
+    return dataWithError(null, "You're no longer part of this fundraiser.");
   }
 
   const members = await fund_members_get(fund.id);
@@ -64,6 +47,6 @@ export const action = async (x: Route.ActionArgs) => {
 
   return dataWithSuccess(
     null,
-    "You have successfully opted out of this fund. Changes will take effect shortly."
+    "You left this fundraiser. It will disappear from this list shortly."
   );
 };

@@ -244,11 +244,11 @@ describe("edit profile — renders pre-filled", () => {
     expect(
       screen.getByRole("button", { name: "Save organization" }).element()
         .className
-    ).toContain("btn-secondary");
+    ).toContain("btn-primary");
     expect(
       screen.getByRole("button", { name: "Save social media" }).element()
         .className
-    ).toContain("btn-secondary");
+    ).toContain("btn-primary");
     expect(
       screen
         .getByRole("link", { name: "Manage Organization" })

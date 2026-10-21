@@ -81,106 +81,108 @@ export function SubscribersTable({
   }
 
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <Th
-            k="name"
-            sort={sort}
-            dir={dir}
-            on_click={toggle}
-            disabled={sort_disabled}
-          >
-            Name
-          </Th>
-          <Th
-            k="billed_month"
-            sort={sort}
-            dir={dir}
-            on_click={toggle}
-            disabled={sort_disabled}
-            align="right"
-          >
-            Billed this month
-          </Th>
-          <Th
-            k="pend_month"
-            sort={sort}
-            dir={dir}
-            on_click={toggle}
-            disabled={sort_disabled}
-            align="right"
-            info={PEND_MONTH_INFO}
-          >
-            Pending this month
-          </Th>
-          <Th
-            k="pend_year"
-            sort={sort}
-            dir={dir}
-            on_click={toggle}
-            disabled={sort_disabled}
-            align="right"
-            info={PEND_YEAR_INFO}
-          >
-            Pending this year
-          </Th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.length === 0 ? (
-          <EmptyRow col_span={4}>No subscribers yet</EmptyRow>
-        ) : (
-          rows.map((r) => {
-            const to = `/admin/${npo_id}/donors/${encodeURIComponent(r.from_email)}`;
-            return (
-              <tr
-                key={r.from_email}
-                className={`hover:bg-gray-3 ${r.active_count === 0 ? "text-gray-11" : ""}`}
-              >
-                <td className="p-0">
-                  <Link
-                    to={to}
-                    state={{ from: "subscribers" }}
-                    className="block px-2 py-2"
-                  >
-                    <div className="font-medium leading-tight">
-                      {r.from_name ?? r.from_email}
-                    </div>
-                    <div className="text-xs leading-snug text-gray-11">
-                      {r.from_email}
-                    </div>
-                  </Link>
-                </td>
-                <Money n={r.billed_month} to={to} bold />
-                <Money n={r.pend_month} to={to} />
-                <Money n={r.pend_year} to={to} />
+    <div className="table-scroll">
+      <table className="table">
+        <thead>
+          <tr>
+            <Th
+              k="name"
+              sort={sort}
+              dir={dir}
+              on_click={toggle}
+              disabled={sort_disabled}
+            >
+              Name
+            </Th>
+            <Th
+              k="billed_month"
+              sort={sort}
+              dir={dir}
+              on_click={toggle}
+              disabled={sort_disabled}
+              align="right"
+            >
+              Billed this month
+            </Th>
+            <Th
+              k="pend_month"
+              sort={sort}
+              dir={dir}
+              on_click={toggle}
+              disabled={sort_disabled}
+              align="right"
+              info={PEND_MONTH_INFO}
+            >
+              Pending this month
+            </Th>
+            <Th
+              k="pend_year"
+              sort={sort}
+              dir={dir}
+              on_click={toggle}
+              disabled={sort_disabled}
+              align="right"
+              info={PEND_YEAR_INFO}
+            >
+              Pending this year
+            </Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <EmptyRow col_span={4}>No subscribers yet</EmptyRow>
+          ) : (
+            rows.map((r) => {
+              const to = `/admin/${npo_id}/donors/${encodeURIComponent(r.from_email)}`;
+              return (
+                <tr
+                  key={r.from_email}
+                  className={`hover:bg-gray-3 ${r.active_count === 0 ? "text-gray-11" : ""}`}
+                >
+                  <td className="p-0">
+                    <Link
+                      to={to}
+                      state={{ from: "subscribers" }}
+                      className="block px-2 py-2"
+                    >
+                      <div className="font-medium leading-tight">
+                        {r.from_name ?? r.from_email}
+                      </div>
+                      <div className="text-xs leading-snug text-gray-11">
+                        {r.from_email}
+                      </div>
+                    </Link>
+                  </td>
+                  <Money n={r.billed_month} to={to} bold />
+                  <Money n={r.pend_month} to={to} />
+                  <Money n={r.pend_year} to={to} />
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+        {(rows.length > 0 || load_next) && (
+          <tfoot>
+            {rows.length > 0 && (
+              <tr className="bg-gray-3">
+                <td className="text-xs font-medium text-gray-11">Total</td>
+                <FootMoney n={totals.billed_month} />
+                <FootMoney n={totals.pend_month} />
+                <FootMoney n={totals.pend_year} />
               </tr>
-            );
-          })
+            )}
+            {load_next && (
+              <LoadMoreTr
+                col_span={4}
+                disabled={disabled}
+                loading={loading}
+                on_load_next={load_next}
+              />
+            )}
+          </tfoot>
         )}
-      </tbody>
-      {(rows.length > 0 || load_next) && (
-        <tfoot>
-          {rows.length > 0 && (
-            <tr className="bg-gray-3">
-              <td className="text-xs font-medium text-gray-11">Total</td>
-              <FootMoney n={totals.billed_month} />
-              <FootMoney n={totals.pend_month} />
-              <FootMoney n={totals.pend_year} />
-            </tr>
-          )}
-          {load_next && (
-            <LoadMoreTr
-              col_span={4}
-              disabled={disabled}
-              loading={loading}
-              on_load_next={load_next}
-            />
-          )}
-        </tfoot>
-      )}
-    </table>
+      </table>
+    </div>
   );
 }
 

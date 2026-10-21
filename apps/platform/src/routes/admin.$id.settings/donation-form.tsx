@@ -127,7 +127,7 @@ export function DonationFormTab(p: Props) {
         classes={{
           container: "mt-2",
           label: "",
-          tooltip: "italic text-sm",
+          tooltip: "text-sm",
         }}
         values={donate_methods.value}
         on_change={donate_methods.onChange}

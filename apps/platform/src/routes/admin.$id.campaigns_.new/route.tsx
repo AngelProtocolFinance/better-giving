@@ -17,7 +17,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   const { endow, programs, profile_to } = loaderData;
   const id = String(endow.id);
   return (
-    <div className="grid px-6 py-4 md:px-10 md:py-8 gap-6 max-w-4xl">
+    <div className="grid w-full min-w-0 max-w-4xl px-6 py-4 md:px-10 md:py-8 gap-6">
       <Breadcrumbs
         items={[
           {
@@ -31,7 +31,6 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           },
         ]}
       />
-      <h1 className="text-3xl font-bold">New campaign</h1>
       {endow.slug ? (
         <CampaignForm
           init={blank_init(

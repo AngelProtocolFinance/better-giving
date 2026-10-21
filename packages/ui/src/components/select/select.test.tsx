@@ -42,6 +42,43 @@ describe("Select: error announcement", () => {
   });
 });
 
+describe("Select: compact trigger", () => {
+  test("compact omits field-input; the default trigger keeps it", async () => {
+    const screen = await render(
+      <>
+        <Select
+          label="Currency"
+          value={undefined}
+          onChange={() => {}}
+          options={currencies}
+          option_disp={(o) => o.toUpperCase()}
+        />
+        <Select
+          compact
+          label="Compact currency"
+          value={undefined}
+          onChange={() => {}}
+          options={currencies}
+          option_disp={(o) => o.toUpperCase()}
+        />
+      </>
+    );
+
+    await expect
+      .element(screen.getByRole("combobox", { name: "Currency", exact: true }))
+      .toHaveClass("field-input");
+
+    const compact = screen.getByRole("combobox", {
+      name: "Compact currency",
+      exact: true,
+    });
+    await expect.element(compact).not.toHaveClass("field-input");
+    await expect
+      .element(compact)
+      .toHaveClass("selector-btn", "min-h-8", "py-1.5", "px-3", "text-sm");
+  });
+});
+
 describe("Select: labelling", () => {
   test("the trigger is named by the label", async () => {
     const screen = await render(

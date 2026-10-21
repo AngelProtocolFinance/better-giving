@@ -20,9 +20,11 @@ describe("admin sidebar", () => {
     expect(link("Campaigns")?.icon.fn).toBe(MegaphoneIcon);
   });
 
-  it("renames opt-outs and marks referrals with a handshake", () => {
-    expect(link("Fundraiser opt-outs")?.to).toBe(routes.funds);
+  it("drops supporter fundraisers and keeps campaigns and referrals", () => {
+    expect(link("Supporter fundraisers")).toBeUndefined();
+    expect(link("Fundraiser opt-outs")).toBeUndefined();
     expect(link("Campaign opt-outs")).toBeUndefined();
+    expect(link("Campaigns")?.to).toBe(routes.campaigns);
     expect(link("Referrals")?.to).toBe(routes.referrals);
     expect(link("Referrals")?.icon.fn).toBe(HandshakeIcon);
   });

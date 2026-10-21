@@ -42,7 +42,7 @@ export function Layout({
         />
         {/* the page's one main landmark: route focus lands on the first h1
             inside it, so the views below must not render a <main> of their own */}
-        <main className="@container min-h-[100dvh]">
+        <main className="@container min-h-[100dvh] min-w-0">
           <Outlet />
         </main>
       </div>
