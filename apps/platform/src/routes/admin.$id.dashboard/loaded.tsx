@@ -9,7 +9,7 @@ import {
   ArrowLeftRightIcon,
   ArrowUpFromLineIcon,
 } from "lucide-react";
-import { href, NavLink } from "react-router";
+import { NavLink } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 import { category_colors } from "#/pages/admin/ticker-category-colors";
 import { use_admin_data } from "#/pages/admin/use-admin-data";
@@ -114,11 +114,6 @@ export function Loaded({ classes = "", ...props }: Props) {
           }
           amount={`$ ${humanize(props.bal_lock, 2)}`}
         />
-        <Campaigns
-          id={props.id}
-          count={props.campaign_count}
-          live={props.campaign_live}
-        />
       </div>
       <div className="grid grid-cols-3 gap-3 mt-4">
         <NavLink to="deposit" className="btn btn-secondary gap-2 min-w-0">
@@ -135,10 +130,8 @@ export function Loaded({ classes = "", ...props }: Props) {
         </NavLink>
       </div>
 
-      <div className="w-full mt-16 h-1.5 bg-gray-3 rounded-full inset-shadow-track" />
-
       {/** div scopes when the sticky header ends */}
-      <div className="@container/period mt-2">
+      <div className="@container/period mt-10">
         <div className="flex items-center gap-x-2 mb-2">
           <h4 className="text-lg">Grant items</h4>
           {props.recent_payouts.items.length > 0 && (
@@ -154,7 +147,9 @@ export function Loaded({ classes = "", ...props }: Props) {
             items={props.recent_payouts.items}
           />
         ) : (
-          <EmptyState classes="mt-2 mb-3">No grant items yet</EmptyState>
+          <EmptyState classes="mt-2 mb-3" heading="No grant items yet">
+            Grant items will show up here.
+          </EmptyState>
         )}
 
         {props.recent_payouts.items.length > 0 && (
@@ -179,36 +174,11 @@ export function Loaded({ classes = "", ...props }: Props) {
         {props.recent_settlements.items.length > 0 ? (
           <GrantsTable items={props.recent_settlements.items} />
         ) : (
-          <EmptyState>No payout records yet</EmptyState>
+          <EmptyState heading="No payout records yet">
+            Payout records will show up here.
+          </EmptyState>
         )}
       </div>
-    </div>
-  );
-}
-
-interface ICampaigns {
-  id: number;
-  count: number;
-  live: number;
-}
-
-function Campaigns(props: ICampaigns) {
-  const empty = props.count === 0;
-  return (
-    <div className="card">
-      <div className="flex items-center mb-4">
-        <h4>Campaigns</h4>
-      </div>
-      <NavLink
-        to={
-          empty
-            ? href("/admin/:id/campaigns/new", { id: String(props.id) })
-            : href("/admin/:id/campaigns", { id: String(props.id) })
-        }
-        className="link text-lg font-medium"
-      >
-        {empty ? "Start a campaign" : `${props.live} live`}
-      </NavLink>
     </div>
   );
 }
