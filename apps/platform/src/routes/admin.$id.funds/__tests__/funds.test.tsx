@@ -1,3 +1,4 @@
+import { AskHost } from "@better-giving/ui";
 import { createRoutesStub, useLocation } from "react-router";
 import {
   afterAll,
@@ -64,6 +65,7 @@ vi.mock("remix-client-cache", () => ({
 
 import { Suspense } from "react";
 import { Await } from "react-router";
+import { dataWithSuccess } from "#/.server/toast";
 import {
   seed_fund as insert_fund,
   seed_npo as insert_npo,
@@ -139,6 +141,8 @@ async function render_funds(npo_id: number, user = MOCK_USER, search = "") {
         <>
           <FundsPage {...props} />
           <SearchProbe />
+          {/* the leave confirm is raised through `ask`, which mounts at `AskHost` */}
+          <AskHost />
         </>
       ),
       HydrateFallback: () => null,
@@ -232,9 +236,17 @@ describe("funds — filter and display", () => {
     await expect
       .element(
         screen.getByRole("heading", {
-          name: "Fundraiser opt-outs",
+          name: "Supporter fundraisers",
           exact: true,
         })
+      )
+      .toBeInTheDocument();
+    await expect
+      .element(
+        screen.getByText(
+          "These are fundraisers people started for your nonprofit. You can leave any you don't want to receive from.",
+          { exact: true }
+        )
       )
       .toBeInTheDocument();
 
@@ -493,9 +505,65 @@ describe("funds — filter and display", () => {
 
     await expect
       .element(
-        screen.getByText("No fundraiser opt-outs found", { exact: true })
+        screen.getByRole("heading", {
+          name: "No supporter fundraisers yet",
+          exact: true,
+        })
       )
       .toBeInTheDocument();
+    await expect
+      .element(
+        screen.getByText(
+          "Fundraisers people start for your nonprofit will show up here.",
+          { exact: true }
+        )
+      )
+      .toBeInTheDocument();
+  });
+
+  it("says found when Creator is By Us and nothing matches", async () => {
+    const npo = await seed_npo();
+    const other_npo = await seed_npo({
+      registration_number: "EIN-EMPTY-OURS",
+      name: "Empty Ours NPO",
+    });
+    const other_user = await seed_user("empty-ours@test.com", "Other", "NPO");
+
+    await seed_fund({
+      id: "aaaaaaaa-0004-0004-0004-000000000004",
+      name: "Supporter Only Drive",
+      npo_owner: other_npo.id,
+      creator_id: other_user.id,
+      members: [npo.id, other_npo.id],
+    });
+
+    const screen = await render_funds(
+      npo.id,
+      { ...MOCK_USER, endowments: [npo.id] },
+      "?creator=ours"
+    );
+
+    await expect
+      .element(
+        screen.getByText("No supporter fundraisers found", { exact: true })
+      )
+      .toBeInTheDocument();
+    await expect
+      .element(
+        screen.getByRole("heading", {
+          name: "No supporter fundraisers yet",
+          exact: true,
+        })
+      )
+      .not.toBeInTheDocument();
+    await expect
+      .element(
+        screen.getByText(
+          "Fundraisers people start for your nonprofit will show up here.",
+          { exact: true }
+        )
+      )
+      .not.toBeInTheDocument();
   });
 });
 
@@ -539,11 +607,54 @@ describe("funds — opt out", () => {
       .element(screen.getByText("Community Drive"))
       .toBeInTheDocument();
 
-    await screen.getByRole("button", { name: /opt out/i }).click();
+    vi.mocked(dataWithSuccess).mockClear();
+    await screen
+      .getByRole("button", { name: /leave fundraiser community drive/i })
+      .click();
+    const dialog = screen.getByRole("dialog", {
+      name: "Leave Community Drive?",
+      exact: true,
+    });
+    await expect.element(dialog).toBeVisible();
+    (
+      dialog
+        .getByRole("button", { name: "Cancel", exact: true })
+        .element() as HTMLElement
+    ).click();
+    await expect
+      .element(
+        screen.getByRole("dialog", {
+          name: "Leave Community Drive?",
+          exact: true,
+        })
+      )
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Community Drive"))
+      .toBeInTheDocument();
+    expect(dataWithSuccess).not.toHaveBeenCalled();
+
+    await screen
+      .getByRole("button", { name: /leave fundraiser community drive/i })
+      .click();
+    const confirm = screen.getByRole("dialog", {
+      name: "Leave Community Drive?",
+      exact: true,
+    });
+    await expect.element(confirm).toBeVisible();
+    (
+      confirm
+        .getByRole("button", { name: "Leave fundraiser", exact: true })
+        .element() as HTMLElement
+    ).click();
 
     await expect
       .element(screen.getByText("Community Drive"))
       .not.toBeInTheDocument();
+    expect(dataWithSuccess).toHaveBeenCalledWith(
+      null,
+      "You left this fundraiser. It will disappear from this list shortly."
+    );
     await cleanup();
 
     // profile page no longer shows the fund
@@ -578,8 +689,19 @@ describe("funds — opt out", () => {
 
     await expect.element(screen.getByText("Solo Fund")).toBeInTheDocument();
 
-    // opt out as last member
-    await screen.getByRole("button", { name: /opt out/i }).click();
+    await screen
+      .getByRole("button", { name: /leave fundraiser solo fund/i })
+      .click();
+    const dialog = screen.getByRole("dialog", {
+      name: "Leave Solo Fund?",
+      exact: true,
+    });
+    await expect.element(dialog).toBeVisible();
+    (
+      dialog
+        .getByRole("button", { name: "Leave fundraiser", exact: true })
+        .element() as HTMLElement
+    ).click();
 
     // fund disappears from supporter view
     await expect.element(screen.getByText("Solo Fund")).not.toBeInTheDocument();
@@ -641,7 +763,9 @@ describe("funds — edit visibility", () => {
       "?creator=others"
     );
     await expect
-      .element(screen.getByText("Supporter Fund"))
+      .element(
+        screen.getByRole("link", { name: "Supporter Fund", exact: true })
+      )
       .toBeInTheDocument();
     // `invisible` is real visibility:hidden under the stylesheet, so the link
     // leaves the accessibility tree and only an includeHidden query reaches it
@@ -756,7 +880,7 @@ describe("funds — stale opt out", () => {
 
     const res = await opt_out(npo.id, "ffffffff-0001-0001-0001-000000000001");
 
-    expect(res).toEqual({ error: "Fund not found" });
+    expect(res).toEqual({ error: "Fundraiser not found" });
   });
 
   it("a second press after the opt-out committed answers in place", async () => {
@@ -777,6 +901,8 @@ describe("funds — stale opt out", () => {
 
     const res = await opt_out(npo.id, fid);
 
-    expect(res).toEqual({ error: "You're no longer a member of this fund" });
+    expect(res).toEqual({
+      error: "You're no longer part of this fundraiser.",
+    });
   });
 });

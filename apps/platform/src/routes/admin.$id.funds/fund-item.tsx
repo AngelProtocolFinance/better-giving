@@ -1,6 +1,14 @@
-import { Target, to_target } from "@better-giving/ui";
+import {
+  Actions,
+  type AskProps,
+  Modal,
+  Target,
+  to_target,
+  use_ask,
+} from "@better-giving/ui";
 import { fromUnixTime } from "date-fns";
-import { LoaderCircle, Split } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
+import { useId, useRef } from "react";
 import { href, Link, NavLink, useFetcher } from "react-router";
 import {
   FundCreator,
@@ -16,6 +24,9 @@ interface Props extends IFundItem {
 }
 export const FundItem = (props: Props) => {
   const fetcher = useFetcher({ key: `fund-${props.id}` });
+  const ask = use_ask();
+  const name_id = useId();
+  const leave_label_id = useId();
   // the list query sends the max-expiration sentinel for a fund with no end date
   const has_end = props.expiration * 1000 < Date.parse(MAX_EXPIRATION_ISO);
   const status = status_fn(
@@ -23,9 +34,19 @@ export const FundItem = (props: Props) => {
     props.active,
     props.donation_total_usd
   );
+  const busy = fetcher.state !== "idle";
+  const leave = () => {
+    void ask(LeaveConfirm, {
+      name: props.name,
+      creator_name: props.creator_name,
+      on_leave: () => {
+        fetcher.submit({ fund_id: props.id }, { method: "POST" });
+      },
+    });
+  };
 
   return (
-    <div className="grid grid-rows-subgrid row-span-6 content-start gap-y-0 items-center border p-3 rounded">
+    <div className="card grid grid-rows-subgrid row-span-6 content-start gap-y-0 items-center">
       <div className="flex items-start justify-between">
         <img
           src={props.logo}
@@ -37,13 +58,14 @@ export const FundItem = (props: Props) => {
       </div>
 
       <Link
+        id={name_id}
         to={href("/fundraisers/:fund_id", { fund_id: props.id })}
         className="mt-4 font-semibold link"
       >
         {props.name}
       </Link>
       <div className="mb-2">
-        <span className="text-xs mr-1">by</span>
+        <span className="text-sm mr-1">by</span>
         <FundCreator
           name={props.creator_name}
           id={props.creator_id}
@@ -57,24 +79,26 @@ export const FundItem = (props: Props) => {
         target={to_target(props.target)}
       />
 
-      <fetcher.Form method="POST" className="actions-split mt-6">
+      <div className="actions-split mt-6">
         {/** fund item won't show once NPO opted out of it: so no need to hide this button */}
         {!props.isSelf ? (
+          // held, not `disabled`, while the leave is in flight: `disabled`
+          // would drop the dialog's return focus onto `<body>`
           <button
-            name="fund_id"
-            value={props.id}
-            className=" bg-warning enabled:hover:bg-warning text-warning-fg rounded px-4 py-2 text-xs flex items-center gap-1 disabled:bg-gray-3 disabled:text-gray-11"
-            type="submit"
-            disabled={fetcher.state !== "idle" || !props.active}
+            type="button"
+            className={`btn btn-destructive gap-2${busy ? " pending" : ""}`}
+            disabled={!props.active}
+            aria-disabled={busy || undefined}
+            aria-busy={busy}
+            aria-labelledby={`${leave_label_id} ${name_id}`}
+            onClick={() => {
+              if (busy) return;
+              leave();
+            }}
           >
-            {fetcher.state === "submitting" ? (
-              <LoaderCircle className="animate-spin icon-xs" />
-            ) : (
-              <Split className="rotate-90 icon-xs" />
-            )}
-
-            <span>
-              {fetcher.state === "submitting" ? "Opting out.." : "Opt out"}
+            {busy && <LoaderCircle className="animate-spin icon-xs" />}
+            <span id={leave_label_id}>
+              {busy ? "Leaving…" : "Leave fundraiser"}
             </span>
           </button>
         ) : (
@@ -89,7 +113,71 @@ export const FundItem = (props: Props) => {
         >
           Edit
         </NavLink>
-      </fetcher.Form>
+      </div>
     </div>
   );
 };
+
+interface ILeaveConfirm {
+  name: string;
+  creator_name: string;
+  on_leave: () => void;
+}
+
+/** asked, never mounted directly. */
+function LeaveConfirm({
+  name,
+  creator_name,
+  on_leave,
+  open,
+  resolve,
+  on_closed,
+}: ILeaveConfirm & AskProps) {
+  const cancel_ref = useRef<HTMLButtonElement>(null);
+  // the card's in-flight lock arrives on the next render, so a second
+  // press here would post twice
+  const sent = useRef(false);
+  return (
+    <Modal
+      open={open}
+      onClose={() => resolve()}
+      onExitComplete={on_closed}
+      initialFocusEl={() => cancel_ref.current}
+      returnFocusFallback={() => {
+        const heading = document.querySelector("h1");
+        return heading instanceof HTMLElement ? heading : null;
+      }}
+      classes="bg-panel text-gray-12"
+    >
+      <div className="p-6 sm:p-8 grid gap-2">
+        <h3 className="text-lg font-bold">Leave {name}?</h3>
+        <p className="text-sm text-gray-11">
+          An email goes to {creator_name}. You will stop receiving from this
+          fundraiser.
+        </p>
+      </div>
+      <Actions band>
+        <button
+          ref={cancel_ref}
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => resolve()}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn-destructive"
+          onClick={() => {
+            if (sent.current) return;
+            sent.current = true;
+            on_leave();
+            resolve();
+          }}
+        >
+          Leave fundraiser
+        </button>
+      </Actions>
+    </Modal>
+  );
+}

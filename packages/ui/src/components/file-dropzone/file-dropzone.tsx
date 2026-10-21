@@ -136,7 +136,7 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
       className={`${props.classes ?? ""} scroll-mt-24`}
     >
       {props.label}
-      <p className="text-xs text-gray-11 mb-2">
+      <p className="text-sm text-gray-11 mb-2">
         Valid types are:{" "}
         {props.specs.mimeTypes
           .map((m) => m.split("/")[1].toUpperCase())

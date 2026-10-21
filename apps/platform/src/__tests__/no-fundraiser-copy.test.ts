@@ -9,10 +9,16 @@ const ALLOW =
   /\/fundraisers|fundraisers\/|_app\.fundraisers|fundraiser-moderation|\.pdf|professional fundraiser|Charities and\s+Fundraisers|@\/fundraiser|#\/components\/fundraiser|\.\/fundraiser|^fundraisers$/i;
 
 const EXACT = new Set([
-  "Fundraiser opt-outs",
-  "No fundraiser opt-outs found",
   "Fundraisers",
   "Supporter fundraisers",
+  "These are fundraisers people started for your nonprofit. You can leave any you don't want to receive from.",
+  "No supporter fundraisers yet",
+  "Fundraisers people start for your nonprofit will show up here.",
+  "No supporter fundraisers found",
+  "Fundraiser not found",
+  "You're no longer part of this fundraiser.",
+  "You left this fundraiser. It will disappear from this list shortly.",
+  "Leave fundraiser",
 ]);
 
 function files(dir: string, out: string[] = []) {

@@ -140,7 +140,7 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
       // scroll-mt-24 clears the sticky header when the handle scrolls here
       className={`${styles.container} grid grid-rows-[1fr_auto] scroll-mt-24`}
     >
-      <p className="text-xs text-gray-11 mb-2">
+      <p className="text-sm text-gray-11 mb-2">
         <span id={hint_id}>
           Valid types are:{" "}
           {props.spec.type

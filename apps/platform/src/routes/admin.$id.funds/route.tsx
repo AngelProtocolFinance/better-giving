@@ -12,7 +12,7 @@ export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export { ErrorBoundary } from "#/components/error";
 // block body: the copy sweep reads `=>` … `<` as text, and `Record<` is the next `<`
 export const meta: Route.MetaFunction = ({ matches }) => {
-  return admin_page_meta("Fundraiser opt-outs", matches);
+  return admin_page_meta("Supporter fundraisers", matches);
 };
 
 export default CacheRoute(Page);
@@ -33,7 +33,13 @@ function Page({ loaderData }: Route.ComponentProps) {
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-3xl font-bold">Fundraiser opt-outs</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Supporter fundraisers</h1>
+          <p className="mt-1 text-sm text-gray-11">
+            These are fundraisers people started for your nonprofit. You can
+            leave any you don't want to receive from.
+          </p>
+        </div>
         <Select
           label="Creator"
           options={OPTIONS}
@@ -48,7 +54,15 @@ function Page({ loaderData }: Route.ComponentProps) {
       </div>
       <div className="grid @xl:grid-cols-2 @2xl:grid-cols-3 gap-4">
         {funds.length === 0 ? (
-          <EmptyState classes="mt-4">No fundraiser opt-outs found</EmptyState>
+          creator === "all" ? (
+            <EmptyState classes="mt-4" heading="No supporter fundraisers yet">
+              Fundraisers people start for your nonprofit will show up here.
+            </EmptyState>
+          ) : (
+            <EmptyState classes="mt-4">
+              No supporter fundraisers found
+            </EmptyState>
+          )
         ) : (
           funds.map((fund) => (
             <FundItem
