@@ -4,6 +4,7 @@ import { richtext_styles } from "#/components/rich-text";
 import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { ORG_SLUG_PROMPT } from "../admin.$id.campaigns/copy";
 import { blank_init, CampaignForm } from "../admin.$id.campaigns/form";
+import { campaign_link_base } from "../admin.$id.campaigns/link";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";
@@ -14,7 +15,7 @@ export const meta: Route.MetaFunction = ({ matches }) =>
 export const links: LinksFunction = () => [...richtext_styles];
 
 export default function Page({ loaderData }: Route.ComponentProps) {
-  const { endow, programs, profile_to } = loaderData;
+  const { endow, programs, profile_to, origin } = loaderData;
   const id = String(endow.id);
   return (
     <div className="grid w-full min-w-0 max-w-4xl px-6 py-4 md:px-10 md:py-8 gap-6">
@@ -45,6 +46,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           fallback_methods={endow.donate_methods}
           fallback_frequencies={endow.donate_frequencies}
           settings_donation_to={`${href("/admin/:id/settings", { id })}?tab=donation`}
+          link_base={campaign_link_base(origin, endow.slug)}
         />
       ) : (
         <div className="card grid gap-3">

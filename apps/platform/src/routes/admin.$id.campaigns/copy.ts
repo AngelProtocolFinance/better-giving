@@ -10,19 +10,21 @@ export function fund_row_status(row: { active: boolean; published: boolean }) {
   return STATUS_WORD.draft;
 }
 
+export const SLUG_HELP = "Letters, numbers, and - . _ ~";
+
 export const SLUG_LOCK_NOTE =
-  "The address is locked. Changing it would break links that already point here.";
+  "This link is fixed because the campaign is published.";
 
-export const SLUG_PUBLISH_LOCK = "This address locks when you publish.";
+export const SLUG_PUBLISH_LOCK = "The link can't change after you publish.";
 
-export function publish_lock_body(address: string) {
-  return `The address ${address} locks when you publish and can't be changed later.`;
+export function publish_lock_body(link: string) {
+  return `Donors will find this campaign at ${link}. The link can't change after you publish.`;
 }
 
 export const ORG_SLUG_PROMPT =
   "Set your organization slug on Organization before creating a campaign.";
 
-const SLUG_TAKEN = "That address is already used by another campaign.";
+const SLUG_TAKEN = "That link is already used by another campaign.";
 
 export function slug_taken_message() {
   return SLUG_TAKEN;

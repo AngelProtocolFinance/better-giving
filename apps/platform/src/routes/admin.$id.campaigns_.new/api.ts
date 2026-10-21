@@ -19,7 +19,7 @@ import {
 } from "../admin.$id.campaigns/persist";
 import type { Route } from "./+types/route";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+export const loader = async ({ context, request }: Route.LoaderArgs) => {
   const id = context.get(admin_ctx);
   const endow = await npo_get(id);
   if (!endow) throw resp.status(404);
@@ -28,6 +28,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
     endow,
     programs: programs.map((p) => ({ id: p.id, title: p.title })),
     profile_to: href("/admin/:id/organization", { id: String(id) }),
+    origin: new URL(request.url).origin,
   };
 };
 

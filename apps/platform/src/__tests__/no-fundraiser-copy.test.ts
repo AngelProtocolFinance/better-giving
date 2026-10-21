@@ -8,19 +8,6 @@ const SRC = join(import.meta.dirname, "..");
 const ALLOW =
   /\/fundraisers|fundraisers\/|_app\.fundraisers|fundraiser-moderation|\.pdf|professional fundraiser|Charities and\s+Fundraisers|@\/fundraiser|#\/components\/fundraiser|\.\/fundraiser|^fundraisers$/i;
 
-const EXACT = new Set([
-  "Fundraisers",
-  "Supporter fundraisers",
-  "These are fundraisers people started for your nonprofit. You can leave any you don't want to receive from.",
-  "No supporter fundraisers yet",
-  "Fundraisers people start for your nonprofit will show up here.",
-  "No supporter fundraisers found",
-  "Fundraiser not found",
-  "You're no longer part of this fundraiser.",
-  "You left this fundraiser. It will disappear from this list shortly.",
-  "Leave fundraiser",
-]);
-
 function files(dir: string, out: string[] = []) {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
@@ -56,8 +43,7 @@ describe("campaign copy", () => {
     const hits: string[] = [];
     for (const file of files(SRC)) {
       for (const text of visible(readFileSync(file, "utf8"))) {
-        if (!/fundraiser/i.test(text) || ALLOW.test(text) || EXACT.has(text))
-          continue;
+        if (!/fundraiser/i.test(text) || ALLOW.test(text)) continue;
         hits.push(`${file.replace(SRC, "src")}: ${text.slice(0, 160)}`);
       }
     }

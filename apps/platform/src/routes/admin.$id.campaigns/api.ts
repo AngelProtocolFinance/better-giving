@@ -1,7 +1,6 @@
 import { href } from "react-router";
 import { admin_ctx, user_ctx } from "#/.server/auth";
 import { get_funds_npo_memberof } from "#/.server/funds";
-import { fund_creator } from "#/routes/admin.$id.funds/creator";
 import { resp } from "@/helpers/https";
 import { campaign_list, campaign_shown_status } from "$/pg/queries/campaign";
 import { npo_get } from "$/pg/queries/npo";
@@ -14,8 +13,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
   const url = new URL(request.url);
   if (url.searchParams.get("tab") === "fundraisers") {
-    const creator = fund_creator(url.searchParams.get("creator"));
-    const funds = await get_funds_npo_memberof(id, creator ? { creator } : {});
+    // org-created funds list on Your campaigns; a stale ?creator= is ignored
+    const funds = await get_funds_npo_memberof(id, { creator: "others" });
     return {
       view: "fundraisers" as const,
       endow,

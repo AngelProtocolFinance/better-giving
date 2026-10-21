@@ -33,8 +33,10 @@ import { CAMPAIGN_TYPES } from "@/campaign";
 import { to_freq_bools, to_freqs } from "@/helpers/donation";
 import type { DonateMethodId, TFrequency } from "@/schemas";
 import { increment_label_max_chars } from "@/schemas";
-import { publish_lock_body, SLUG_LOCK_NOTE, SLUG_PUBLISH_LOCK } from "./copy";
+import { publish_lock_body } from "./copy";
 import { type FV, form_schema } from "./form-schema";
+import { link_from_name } from "./link";
+import { LinkField } from "./link-field";
 
 const TYPE_LABEL: Record<(typeof CAMPAIGN_TYPES)[number], string> = {
   year_end: "Year-end",
@@ -134,6 +136,8 @@ interface Props {
   fallback_methods: DonateMethodId[] | null | undefined;
   fallback_frequencies: TFrequency[] | null | undefined;
   settings_donation_to: string;
+  /** `https://host/org/<org-slug>/`, or null while the org has no slug */
+  link_base: string | null;
 }
 
 export function CampaignForm({
@@ -145,6 +149,7 @@ export function CampaignForm({
   fallback_methods,
   fallback_frequencies,
   settings_donation_to,
+  link_base,
 }: Props) {
   const fetcher = useFetcher<{ error?: string; field?: string }>();
   const op = useRef<"save" | "publish" | "end" | "delete">("save");
@@ -165,7 +170,8 @@ export function CampaignForm({
     setError,
     clearErrors,
     setFocus,
-    formState: { errors },
+    setValue,
+    formState: { errors, isSubmitted },
   } = useForm<FV>({
     resolver: valibotResolver(form_schema),
     defaultValues: {
@@ -187,6 +193,22 @@ export function CampaignForm({
       ),
       hide_bg_tip: init.hide_bg_tip,
       program_id: init.program_id ?? "",
+    },
+  });
+
+  // a new campaign's link follows its name until the link itself is typed in
+  const link_typed = useRef(status !== null);
+  const name_reg = register("name", {
+    onChange: (e) => {
+      if (link_typed.current) return;
+      setValue("slug", link_from_name(e.target.value), {
+        shouldValidate: isSubmitted,
+      });
+    },
+  });
+  const slug_reg = register("slug", {
+    onChange: () => {
+      link_typed.current = true;
     },
   });
 
@@ -346,7 +368,7 @@ export function CampaignForm({
             <h2 className="text-lg font-bold">{ASK[ask].title}</h2>
             <p>
               {ask === "publish"
-                ? publish_lock_body(values.slug.trim())
+                ? publish_lock_body(`${link_base ?? ""}${values.slug.trim()}`)
                 : ASK[ask].body}
             </p>
             <div className="flex justify-end gap-3">
@@ -372,21 +394,16 @@ export function CampaignForm({
         </Modal>
       )}
       <Field
-        {...register("name")}
+        {...name_reg}
         label="Name"
         required
         error={errors.name?.message || server_error("name")}
       />
-      <Field
-        {...register("slug")}
-        label="Address"
-        sub={
-          locked
-            ? SLUG_LOCK_NOTE
-            : `Used in the public link. Letters, numbers, and - . _ ~. ${SLUG_PUBLISH_LOCK}`
-        }
-        required
-        disabled={locked}
+      <LinkField
+        reg={slug_reg}
+        value={values.slug}
+        base={link_base}
+        locked={locked}
         error={errors.slug?.message || server_error("slug")}
       />
       <Select

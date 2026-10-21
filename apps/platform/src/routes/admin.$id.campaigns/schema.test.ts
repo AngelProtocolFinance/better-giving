@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { form_schema } from "./form-schema";
 import { campaign_body } from "./schema";
 
-const ADDRESS = "Enter an address. Use letters, numbers, and - . _ ~.";
+const LINK = "Enter the end of the link. Use letters, numbers, and - . _ ~.";
 
 describe("campaign field messages", () => {
-  it("asks for a name, an address, and a story", () => {
+  it("asks for a name, a link, and a story", () => {
     const server = safeParse(campaign_body, {
       name: "",
       slug: "",
@@ -17,7 +17,7 @@ describe("campaign field messages", () => {
     });
     const messages = server.issues?.map((issue) => issue.message) ?? [];
     expect(messages).toContain("Enter a name.");
-    expect(messages).toContain(ADDRESS);
+    expect(messages).toContain(LINK);
     expect(messages).toContain("Enter a story.");
 
     const client = safeParse(form_schema, {
@@ -37,7 +37,7 @@ describe("campaign field messages", () => {
     });
     const client_messages = client.issues?.map((issue) => issue.message) ?? [];
     expect(client_messages).toContain("Enter a name.");
-    expect(client_messages).toContain(ADDRESS);
+    expect(client_messages).toContain(LINK);
     expect(client_messages).toContain("Enter a story.");
   });
 

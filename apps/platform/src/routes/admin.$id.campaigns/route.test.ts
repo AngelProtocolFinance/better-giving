@@ -239,9 +239,7 @@ describe("campaign slug", () => {
       } as any)
     );
     expect(second.status).toBe(400);
-    expect(second.error).toBe(
-      "That address is already used by another campaign."
-    );
+    expect(second.error).toBe("That link is already used by another campaign.");
     expect(second.field).toBe("slug");
   });
 
@@ -290,7 +288,7 @@ describe("campaign slug", () => {
     );
     expect(locked.status).toBe(400);
     expect(locked.error).toBe(
-      "The address is locked. Changing it would break links that already point here."
+      "This link is fixed because the campaign is published."
     );
     expect(locked.field).toBe("slug");
     const [after] = await db()
@@ -445,21 +443,19 @@ describe("campaign list loader", () => {
     } as any);
     if (tab.view !== "fundraisers")
       throw new Error("expected the fundraisers tab");
-    expect(tab.funds.map((f) => f.id).sort()).toEqual([
-      "fund-owned",
-      "fund-supporter",
-    ]);
+    expect(tab.funds.map((f) => f.id)).toEqual(["fund-supporter"]);
 
-    const others = await list_loader({
+    // the tab is others-only; a stale ?creator= from the removed filter is ignored
+    const stale = await list_loader({
       request: new Request(
-        "https://x/admin/list/campaigns?tab=fundraisers&creator=others"
+        "https://x/admin/list/campaigns?tab=fundraisers&creator=ours"
       ),
       ...args,
     } as any);
-    if (others.view !== "fundraisers") {
+    if (stale.view !== "fundraisers") {
       throw new Error("expected the fundraisers tab");
     }
-    expect(others.funds.map((f) => f.id)).toEqual(["fund-supporter"]);
+    expect(stale.funds.map((f) => f.id)).toEqual(["fund-supporter"]);
 
     const unknown = await list_loader({
       request: new Request("https://x/admin/list/campaigns?tab=nope"),

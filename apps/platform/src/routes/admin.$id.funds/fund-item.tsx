@@ -1,11 +1,4 @@
-import {
-  Actions,
-  type AskProps,
-  Modal,
-  Target,
-  to_target,
-  use_ask,
-} from "@better-giving/ui";
+import { Actions, type AskProps, Modal, use_ask } from "@better-giving/ui";
 import { fromUnixTime } from "date-fns";
 import { LoaderCircle } from "lucide-react";
 import { useId, useRef } from "react";
@@ -17,11 +10,13 @@ import {
   useLocation,
   useParams,
 } from "react-router";
+import { FundCreator, status_fn } from "#/components/fundraiser";
+import { STATUS_WORD } from "#/routes/admin.$id.campaigns/copy";
 import {
-  FundCreator,
-  FundStatusBadge,
-  status_fn,
-} from "#/components/fundraiser";
+  fund_end,
+  Row,
+  type TRowStatus,
+} from "#/routes/admin.$id.campaigns/row";
 import type { IFundItem } from "@/fundraiser";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 
@@ -33,7 +28,7 @@ export const FundItem = (props: Props) => {
   const fetcher = useFetcher({ key: `fund-${props.id}` });
   const { pathname } = useLocation();
   const { id: npo_id } = useParams();
-  // leave stays on the funds action; this card also renders under /campaigns
+  // leave stays on the funds action; this row also renders under /campaigns
   const leave_action =
     npo_id && pathname.includes("/campaigns")
       ? href("/admin/:id/funds", { id: npo_id })
@@ -65,81 +60,79 @@ export const FundItem = (props: Props) => {
   };
 
   return (
-    <div className="card grid grid-rows-subgrid row-span-6 content-start gap-y-0 items-center">
-      <div className="flex items-start justify-between">
-        <img
-          src={props.logo}
-          width={50}
-          className="object-cover aspect-square rounded-full"
-          alt=""
-        />
-        <FundStatusBadge status={status} />
-      </div>
-
-      <p id={name_id} className="mt-4 font-semibold">
-        {props.name}
-      </p>
-      <div className="mb-2">
-        <span className="text-sm mr-1">by</span>
-        <FundCreator
-          name={props.creator_name}
-          id={props.creator_id}
-          classes="text-sm inline"
-        />
-      </div>
-
-      <Target
-        classes="mt-4"
-        progress={props.donation_total_usd}
-        target={to_target(props.target)}
-      />
-
-      <div className="flex flex-wrap items-center gap-3 sm:justify-end mt-6 w-full">
-        {props.published && (
-          <Link
-            to={href("/fundraisers/:fund_id", { fund_id: props.id })}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="link text-sm"
-          >
-            View
-          </Link>
-        )}
-        {/** fund item won't show once NPO opted out of it: so no need to hide this button */}
-        {!props.isSelf ? (
-          // held, not `disabled`, while the leave is in flight: `disabled`
-          // would drop the dialog's return focus onto `<body>`
-          <button
-            type="button"
-            className={`btn btn-secondary text-destructive-subtle-fg gap-2${busy ? " pending" : ""}`}
-            disabled={!props.active}
-            aria-disabled={busy || undefined}
-            aria-busy={busy}
-            aria-labelledby={`${leave_label_id} ${name_id}`}
-            onClick={() => {
-              if (busy) return;
-              leave();
-            }}
-          >
-            {busy && <LoaderCircle className="animate-spin icon-xs" />}
-            <span id={leave_label_id}>
-              {busy ? "Leaving…" : "Leave fundraiser"}
-            </span>
-          </button>
-        ) : null}
-        {props.isEditor && (
-          <NavLink
-            aria-disabled={!status.active}
-            className="btn btn-secondary"
-            to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
-          >
-            Edit
-          </NavLink>
-        )}
-      </div>
-    </div>
+    <Row
+      name={props.name}
+      name_id={name_id}
+      status={supporter_status(status)}
+      thumb={props.banner || props.logo || null}
+      raised={props.donation_total_usd}
+      target={props.target}
+      byline={
+        <div className="text-sm">
+          <span className="mr-1">by</span>
+          <FundCreator
+            name={props.creator_name}
+            id={props.creator_id}
+            classes="inline"
+          />
+        </div>
+      }
+      ends={fund_end(props.expiration)}
+      actions={
+        <>
+          {props.published && (
+            <Link
+              to={href("/fundraisers/:fund_id", { fund_id: props.id })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link text-sm"
+            >
+              View
+            </Link>
+          )}
+          {/** fund item won't show once NPO opted out of it: so no need to hide this button */}
+          {!props.isSelf ? (
+            // held, not `disabled`, while the leave is in flight: `disabled`
+            // would drop the dialog's return focus onto `<body>`
+            <button
+              type="button"
+              className={`btn btn-secondary text-destructive-subtle-fg gap-2${busy ? " pending" : ""}`}
+              disabled={!props.active}
+              aria-disabled={busy || undefined}
+              aria-busy={busy}
+              aria-labelledby={`${leave_label_id} ${name_id}`}
+              onClick={() => {
+                if (busy) return;
+                leave();
+              }}
+            >
+              {busy && <LoaderCircle className="animate-spin icon-xs" />}
+              <span id={leave_label_id}>
+                {busy ? "Leaving…" : "Leave campaign"}
+              </span>
+            </button>
+          ) : null}
+          {props.isEditor && (
+            <NavLink
+              aria-disabled={!status.active}
+              className="btn btn-secondary"
+              to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
+            >
+              Edit
+            </NavLink>
+          )}
+        </>
+      }
+    />
   );
 };
+
+/** an inactive fund was closed by its members; a lapsed one has ended */
+function supporter_status(s: ReturnType<typeof status_fn>): TRowStatus {
+  if (s.text === "closed") return "Closed";
+  if (!s.active) return STATUS_WORD.ended;
+  return STATUS_WORD.live;
+}
 
 interface ILeaveConfirm {
   name: string;
@@ -176,7 +169,7 @@ function LeaveConfirm({
         <h3 className="text-lg font-bold">Leave {name}?</h3>
         <p className="text-sm text-gray-11">
           An email goes to {creator_name}. You will stop receiving from this
-          fundraiser.
+          campaign.
         </p>
       </div>
       <Actions band>
@@ -198,7 +191,7 @@ function LeaveConfirm({
             resolve();
           }}
         >
-          Leave fundraiser
+          Leave campaign
         </button>
       </Actions>
     </Modal>

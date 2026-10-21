@@ -12,11 +12,11 @@ import {
 
 const https = v.pipe(v.string(), v.trim(), v.url("Enter a valid https link."));
 
-const address = "Enter an address. Use letters, numbers, and - . _ ~.";
+const link = "Enter the end of the link. Use letters, numbers, and - . _ ~.";
 
 export const campaign_body = v.object({
   name: v.pipe($, v.nonEmpty("Enter a name.")),
-  slug: v.pipe(v.string(), v.trim(), v.nonEmpty(address), segment_shape),
+  slug: v.pipe(v.string(), v.trim(), v.nonEmpty(link), segment_shape),
   campaign_type: v.optional(v.picklist(CAMPAIGN_TYPES)),
   description_pt: v.pipe($, v.nonEmpty("Enter a story.")),
   banner: v.optional(v.union([v.literal(""), https])),
