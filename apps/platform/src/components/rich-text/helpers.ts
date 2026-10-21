@@ -35,3 +35,33 @@ export function to_text(json: string | undefined): string {
   const doc = to_document(json);
   return toPlainText(doc);
 }
+
+interface IListBlock {
+  _key: string;
+  listItem?: string;
+  level?: number;
+}
+
+/** the number a numbered item paints, counted the way the editor counts its
+ *  `data-list-index`: consecutive items of one list at one level, with deeper
+ *  items passed over and anything shallower, unlisted or of another list at
+ *  this level ending the run. the editor puts that index on its own wrapper,
+ *  out of reach of `renderListItem`, and each `<li>` sits in a block of its
+ *  own, so no `<ol>` is there to count them. */
+export function list_ordinal(
+  blocks: readonly Partial<IListBlock>[],
+  key: string
+): number {
+  const at = blocks.findIndex((b) => b._key === key);
+  const self = blocks[at];
+  if (!self?.listItem || self.level === undefined) return 1;
+  let n = 1;
+  for (let i = at - 1; i >= 0; i--) {
+    const b = blocks[i];
+    if (!b.listItem || b.level === undefined || b.level < self.level) break;
+    if (b.level > self.level) continue;
+    if (b.listItem !== self.listItem) break;
+    n++;
+  }
+  return n;
+}
