@@ -3,10 +3,10 @@ import { href, type LinksFunction } from "react-router";
 import { richtext_styles } from "#/components/rich-text";
 import { admin_page_meta } from "#/routes/admin.$id/page-meta";
 import { QrCode } from "#/routes/admin.$id.assets/qr-code";
-import { STATUS_WORD } from "../admin.$id.campaigns/copy";
-import { CampaignForm } from "../admin.$id.campaigns/form";
-import { campaign_link_base } from "../admin.$id.campaigns/link";
-import { StatusBadge } from "../admin.$id.campaigns/row";
+import { STATUS_WORD } from "#/routes/admin.$id.campaigns/copy";
+import { CampaignForm } from "#/routes/admin.$id.campaigns/form";
+import { campaign_link_base } from "#/routes/admin.$id.campaigns/link";
+import { StatusBadge } from "#/routes/admin.$id.campaigns/row";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";

@@ -1,6 +1,15 @@
 import { data, href } from "react-router";
 import { admin_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
+import {
+  read_body,
+  refusal,
+  SLUG_LOCK_NOTE,
+  slug_taken,
+  slug_taken_message,
+  to_fields,
+  to_patch,
+} from "#/routes/admin.$id.campaigns/persist";
 import { resp } from "@/helpers/https";
 import {
   campaign_delete,
@@ -15,15 +24,6 @@ import {
 } from "$/pg/queries/campaign";
 import { npo_get } from "$/pg/queries/npo";
 import { npo_programs } from "$/pg/queries/program";
-import {
-  read_body,
-  refusal,
-  SLUG_LOCK_NOTE,
-  slug_taken,
-  slug_taken_message,
-  to_fields,
-  to_patch,
-} from "../admin.$id.campaigns/persist";
 import type { Route } from "./+types/route";
 
 async function owned(npo_id: number, campaign_id: string) {

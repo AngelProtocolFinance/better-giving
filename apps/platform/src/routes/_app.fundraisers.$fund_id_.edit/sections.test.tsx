@@ -152,7 +152,7 @@ describe("fundraiser edit — per-section save", () => {
       .toBeVisible();
     const general = screen.getByRole("button", { name: "Save general" });
     const media = screen.getByRole("button", { name: "Save media" });
-    const goal = screen.getByRole("button", { name: "Save goal" });
+    const goal = screen.getByRole("button", { name: "Save goal and amounts" });
     await expect.element(general).toHaveAttribute("aria-disabled", "true");
     await expect.element(media).toHaveAttribute("aria-disabled", "true");
     await expect.element(goal).toHaveAttribute("aria-disabled", "true");
@@ -170,7 +170,7 @@ describe("fundraiser edit — per-section save", () => {
 
     await name.fill("Unsaved name");
     await screen.getByText("No goal or progress bar").click();
-    const goal = screen.getByRole("button", { name: "Save goal" });
+    const goal = screen.getByRole("button", { name: "Save goal and amounts" });
     await goal.click();
 
     await vi.waitFor(async () =>
@@ -262,7 +262,7 @@ describe("fundraiser edit — per-section save", () => {
     expect(sent).toEqual([]);
 
     await screen.getByText("No goal or progress bar").click();
-    await screen.getByRole("button", { name: "Save goal" }).click();
+    await screen.getByRole("button", { name: "Save goal and amounts" }).click();
     await vi.waitFor(async () =>
       expect((await fund_get_or_slug(FUND_ID))?.target).toBe("0")
     );

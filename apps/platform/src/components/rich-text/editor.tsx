@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { type Ref, useImperativeHandle, useState } from "react";
 import { is_absolute_web_href } from "@/helpers/safe-href";
-import { to_document } from "./helpers";
+import { list_ordinal, to_document } from "./helpers";
 import { pt_schema } from "./schema";
 import type { Editable as EditableProps, Props } from "./types";
 
@@ -115,12 +115,43 @@ const render_decorator: RenderDecoratorFunction = (p) => {
   return <>{p.children}</>;
 };
 
-const render_list_item: RenderListItemFunction = (p) => {
-  // margin, not padding: an outside marker hangs off the li's border box, so
-  // padding leaves the bullet sitting on the field's edge
-  const cls = p.value === "number" ? "list-decimal ml-6" : "list-disc ml-6";
-  return <li className={cls}>{p.children}</li>;
-};
+const render_list_item: RenderListItemFunction = (p) => (
+  <ListItem block_key={p.block._key} kind={p.value} level={p.level}>
+    {p.children}
+  </ListItem>
+);
+
+interface IListItem {
+  block_key: string;
+  kind: string;
+  level: number;
+  children: React.ReactNode;
+}
+
+function ListItem({ block_key, kind, level, children }: IListItem) {
+  const editor = useEditor();
+  const ordinal = useEditorSelector(editor, (s) =>
+    kind === "number" ? list_ordinal(s.context.value, block_key) : undefined
+  );
+  return (
+    <li
+      className={kind === "number" ? "list-decimal" : "list-disc"}
+      style={{
+        // margin, not padding: an outside marker hangs off the li's border
+        // box, so padding leaves the bullet sitting on the field's edge.
+        // one ml-6 step per level; the read-only view nests real lists instead
+        marginInlineStart: `calc(var(--spacing) * ${6 * level})`,
+        // no <ol> wraps these, so each li would otherwise count from 1
+        counterSet: ordinal ? `list-item ${ordinal}` : undefined,
+      }}
+    >
+      {children}
+    </li>
+  );
+}
+
+const tool_btn =
+  "p-1.5 rounded cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2";
 
 function Toolbar({
   char_count,
@@ -143,7 +174,7 @@ function Toolbar({
       <button
         type="button"
         aria-label={link_active ? "Remove link" : "Insert link"}
-        className="p-1.5 rounded cursor-pointer text-gray-11 hover:text-gray-12"
+        className={`${tool_btn} text-gray-11 hover:text-gray-12`}
         onPointerDown={(e) => e.preventDefault()}
         onClick={() => {
           const annotation = selectors.isActiveAnnotation("link")(
@@ -193,7 +224,7 @@ function DecoratorBtn({
       type="button"
       aria-label={decorator_names[name]}
       aria-pressed={active}
-      className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-gray-11 hover:text-gray-12"}`}
+      className={`${tool_btn} ${active ? "text-primary" : "text-gray-11 hover:text-gray-12"}`}
       onPointerDown={(e) => e.preventDefault()}
       onClick={() => {
         editor.send({ type: "decorator.toggle", decorator: name });
@@ -224,7 +255,7 @@ function ListBtn({
       type="button"
       aria-label={list_names[name]}
       aria-pressed={active}
-      className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-gray-11 hover:text-gray-12"}`}
+      className={`${tool_btn} ${active ? "text-primary" : "text-gray-11 hover:text-gray-12"}`}
       onPointerDown={(e) => e.preventDefault()}
       onClick={() => {
         editor.send({ type: "list item.toggle", listItem: name });

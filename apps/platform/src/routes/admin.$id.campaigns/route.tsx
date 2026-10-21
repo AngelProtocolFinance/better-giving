@@ -140,15 +140,16 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                         campaign: c.slug,
                       })
                     : undefined;
+                const status = STATUS_WORD[c.status_label];
                 return (
                   <Row
                     key={c.id}
                     name={c.name}
-                    status={STATUS_WORD[c.status_label]}
+                    status={status}
                     thumb={c.hero || null}
                     raised={c.raised}
                     target={c.target}
-                    ends={when(c.ends_at)}
+                    ends={when(c.ends_at, status)}
                     actions={(name_id) => (
                       <RowLinks
                         edit_to={href("/admin/:id/campaigns/:campaign_id", {
@@ -162,20 +163,23 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                   />
                 );
               })}
-              {loaderData.org_funds.map((f) => (
-                <Row
-                  key={f.id}
-                  name={f.name}
-                  status={fund_row_status(f)}
-                  thumb={f.banner || endow.image || null}
-                  raised={f.donation_total_usd}
-                  target={f.target}
-                  ends={fund_end(f.expiration)}
-                  actions={(name_id) => (
-                    <RowLinks {...fund_links(f)} name_id={name_id} />
-                  )}
-                />
-              ))}
+              {loaderData.org_funds.map((f) => {
+                const status = fund_row_status(f);
+                return (
+                  <Row
+                    key={f.id}
+                    name={f.name}
+                    status={status}
+                    thumb={f.banner || endow.image || null}
+                    raised={f.donation_total_usd}
+                    target={f.target}
+                    ends={fund_end(f.expiration, status)}
+                    actions={(name_id) => (
+                      <RowLinks {...fund_links(f)} name_id={name_id} />
+                    )}
+                  />
+                );
+              })}
             </ul>
           </TabPanel>
         ) : (

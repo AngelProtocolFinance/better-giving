@@ -67,12 +67,12 @@ import {
   seed_user as insert_user,
 } from "#/__tests__/fixtures/funds";
 import { loader as profile_loader } from "#/routes/_app.marketplace_.$id/api";
+import { loader as campaigns_loader } from "#/routes/admin.$id.campaigns/api";
+import CampaignsPage from "#/routes/admin.$id.campaigns/route";
 import type { IFundItem } from "@/fundraiser";
 import { admin_ctx, user_ctx } from "$/auth/test-utils";
 import { enqueue } from "$/kit/queue";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import { loader as campaigns_loader } from "../../admin.$id.campaigns/api";
-import CampaignsPage from "../../admin.$id.campaigns/route";
 import { action, loader } from "../api";
 
 // --- setup ---
@@ -362,7 +362,7 @@ describe("funds — filter and display", () => {
     await seed(1, "Draft drive", { published: false });
     await seed(2, "Closed drive", { active: false });
     await seed(3, "Ended drive", { expiration: "2020-01-02T00:00:00.000Z" });
-    await seed(4, "Live drive", {});
+    await seed(4, "Live drive", { expiration: "2099-03-04T00:00:00.000Z" });
 
     const screen = await render_funds(npo.id);
     const pill = (name: string, word: string) =>
@@ -374,6 +374,10 @@ describe("funds — filter and display", () => {
     await expect.element(pill("Closed drive", "Closed")).toBeVisible();
     await expect.element(pill("Ended drive", "Ended")).toBeVisible();
     await expect.element(pill("Live drive", "Live")).toBeVisible();
+    await expect
+      .element(pill("Ended drive", "Ended Jan 2, 2020"))
+      .toBeVisible();
+    await expect.element(pill("Live drive", "Ends Mar 4, 2099")).toBeVisible();
   });
 
   it("shows empty message when no funds exist", async () => {

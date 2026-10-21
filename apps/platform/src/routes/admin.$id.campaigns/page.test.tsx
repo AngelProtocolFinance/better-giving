@@ -415,11 +415,16 @@ describe("campaign list", () => {
       [],
       [
         fund("f-draft", "Draft page", { published: false }),
-        fund("f-closed", "Closed page", { active: false }),
+        fund("f-closed", "Closed page", {
+          active: false,
+          expiration: Date.parse("2099-03-04T00:00:00Z") / 1000,
+        }),
         fund("f-ended", "Ended page", {
           expiration: Date.parse("2020-01-02T00:00:00Z") / 1000,
         }),
-        fund("f-live", "Live page", {}),
+        fund("f-live", "Live page", {
+          expiration: Date.parse("2099-03-04T00:00:00Z") / 1000,
+        }),
       ]
     );
     const pill = (row: string, word: string) =>
@@ -431,6 +436,12 @@ describe("campaign list", () => {
     await expect
       .element(pill("Live page", "Live"))
       .toHaveAttribute("data-tone", "success");
+    await expect.element(pill("Draft page", "No end date")).toBeVisible();
+    await expect
+      .element(pill("Closed page", "Ended Mar 4, 2099"))
+      .toBeVisible();
+    await expect.element(pill("Ended page", "Ended Jan 2, 2020")).toBeVisible();
+    await expect.element(pill("Live page", "Ends Mar 4, 2099")).toBeVisible();
 
     const live = row_of(screen, "Live page");
     expect(
@@ -512,7 +523,7 @@ describe("campaign list", () => {
       .element(winter.getByText("$12 Raised", { exact: true }))
       .toBeVisible();
     await expect
-      .element(winter.getByText("Jan 2, 2020", { exact: true }))
+      .element(winter.getByText("Ended Jan 2, 2020", { exact: true }))
       .toBeVisible();
     const winter_view = page
       .elementLocator(winter_row as HTMLElement)

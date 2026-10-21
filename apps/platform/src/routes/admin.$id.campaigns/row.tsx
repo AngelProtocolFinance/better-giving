@@ -37,20 +37,23 @@ export function StatusBadge({ status, className }: IStatusBadge) {
 
 const NO_END_MS = Date.parse(MAX_EXPIRATION_ISO);
 
-export function when(iso: string | null) {
+/** a closed row stopped taking donations, so its end date reads as past whatever the date */
+export function when(iso: string | null, status: TRowStatus) {
   if (!iso) return "No end date";
-  return new Date(iso).toLocaleDateString("en-US", {
+  const date = new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     timeZone: "UTC",
   });
+  const verb = status === "Ended" || status === "Closed" ? "Ended" : "Ends";
+  return `${verb} ${date}`;
 }
 
 /** fund search docs store expiration as unix seconds; the year-9999 sentinel is no end date */
-export function fund_end(expiration: number) {
+export function fund_end(expiration: number, status: TRowStatus) {
   if (expiration * 1000 >= NO_END_MS) return "No end date";
-  return when(new Date(expiration * 1000).toISOString());
+  return when(new Date(expiration * 1000).toISOString(), status);
 }
 
 /** a smart or absent target has no fixed goal to measure against */

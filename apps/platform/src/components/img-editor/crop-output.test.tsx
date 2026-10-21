@@ -83,7 +83,11 @@ async function save_crop(
   if (adjust) await adjust();
   const save = page.getByRole("button", { name: "Save cropped image" });
   (save.element() as HTMLElement).click();
-  await vi.waitFor(() => expect(file).toBeInstanceOf(File));
+  // canvas.toBlob encodes in an idle task, which chromium runs after 1s at the
+  // latest. a file entered right after another one's page.viewport() change
+  // (admin.$id.campaigns/page.test.tsx) starts with the page unable to go idle,
+  // so every encode in it takes that full 1s, the default vi.waitFor timeout.
+  await vi.waitFor(() => expect(file).toBeInstanceOf(File), { timeout: 5_000 });
   return file!;
 }
 
