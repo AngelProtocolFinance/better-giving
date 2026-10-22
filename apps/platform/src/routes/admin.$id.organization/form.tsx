@@ -176,7 +176,7 @@ export function Form({ init, profile, id, base_url }: IProps) {
         <section
           id="page"
           aria-labelledby={page_title_id}
-          // scroll-mt clears the sticky app header (~65px) on a #page landing
+          // scroll-mt clears the sticky app header on a #page landing
           className="card grid grid-cols-1 w-full gap-6 scroll-mt-20"
         >
           <h3 id={page_title_id} className="text-2xl">

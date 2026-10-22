@@ -5,7 +5,7 @@ interface IGoalBar {
   classes?: string;
 }
 
-/** raised against a goal; the fill caps at full while the count runs on */
+/** raised against a goal; past the goal the fill stays full */
 export function GoalBar({
   raised,
   goal,

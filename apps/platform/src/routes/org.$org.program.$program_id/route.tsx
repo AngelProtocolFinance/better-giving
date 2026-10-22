@@ -99,7 +99,7 @@ function Page({ loaderData: d }: Route.ComponentProps) {
         classes={ACTION_BAR_CLEARANCE}
       />
       <ActionBar>
-        {/* the profile's bar: half each, so the full label stays on desktop */}
+        {/* half each, as on the profile: the full label doesn't fit half a phone row */}
         <Share trigger="button" classes="min-w-0 flex-1" {...share} />
         <Link to={donate_to} className="btn btn-primary btn-lg min-w-0 flex-1">
           Donate
