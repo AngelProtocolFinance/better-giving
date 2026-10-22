@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { user } from "$/pg/schema/auth";
+import { campaigns } from "$/pg/schema/campaign";
 import { dists } from "$/pg/schema/dist";
 import { donation_donors, donations } from "$/pg/schema/donation";
 import { donation_messages } from "$/pg/schema/donation-message";
@@ -24,6 +26,7 @@ vi.mock("$/pg/db", () => ({
 vi.mock("#/errors/report", () => ({ report_error }));
 
 const npo_queries = await import("$/pg/queries/npo");
+const campaign_queries = await import("$/pg/queries/campaign");
 const { NPO_PUBLIC_KEYS } = npo_queries;
 const { donation_message_list } = await import("$/pg/queries/donation-message");
 const { loader } = await import("./api");
@@ -58,8 +61,14 @@ async function seed_npo(overrides: Partial<typeof npos.$inferInsert> = {}) {
 }
 
 /** a settled one-time gift from `email` to the org, worth `upusd` base units a dollar */
-async function seed_gift(id: string, email: string, to_id: number) {
+async function seed_gift(
+  id: string,
+  email: string,
+  to_id: number,
+  campaign_id?: string
+) {
   await db().insert(donations).values({
+    campaign_id,
     id,
     upusd: 1,
     status: "settled",
@@ -81,6 +90,54 @@ async function seed_gift(id: string, email: string, to_id: number) {
       date_created: new Date().toISOString(),
       to_id,
       amount_denom: "USD",
+    });
+}
+
+async function seed_creator() {
+  counter++;
+  const [row] = await db()
+    .insert(user)
+    .values({
+      id: `creator-${counter}`,
+      name: "Cam Creator",
+      email: `creator-${counter}@example.com`,
+      emailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      first_name: "Cam",
+      last_name: "Creator",
+    })
+    .returning();
+  return row!;
+}
+
+/** a live campaign the org runs; `story` is its paragraphs as portable text */
+async function seed_campaign(
+  owner_npo_id: number,
+  id: string,
+  story: string[] = [],
+  overrides: Partial<typeof campaigns.$inferInsert> = {}
+) {
+  const creator = await seed_creator();
+  await db()
+    .insert(campaigns)
+    .values({
+      id,
+      owner_npo_id,
+      creator_id: creator.id,
+      name: `Campaign ${id}`,
+      slug: id,
+      status: "live",
+      description_pt: JSON.stringify(
+        story.map((text, i) => ({
+          _type: "block",
+          _key: `b${i}`,
+          style: "normal",
+          markDefs: [],
+          children: [{ _type: "span", _key: `s${i}`, text, marks: [] }],
+        }))
+      ),
+      ...overrides,
     });
 }
 
@@ -285,6 +342,89 @@ describe("public npo profile loader", () => {
     await Promise.all([d.funds, d.programs]);
 
     expect((await d.media).map((m) => m.id)).toEqual(["v1", "v2", "v3", "v4"]);
+  });
+
+  it("sends each campaign as official, with its mark, donate link and story excerpt", async () => {
+    const npo = await seed_npo({ logo: "https://img/org-logo.png" });
+    await seed_campaign(
+      npo.id,
+      "cmp-story",
+      ["  Clean  water\tfor", "every village.  "],
+      {
+        logo: "https://img/cmp-logo.png",
+      }
+    );
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect(d.campaigns).toEqual([
+      expect.objectContaining({
+        id: "cmp-story",
+        official: true,
+        mark: "https://img/cmp-logo.png",
+        to: `/org/${npo.slug}/cmp-story`,
+        donate_to: `/org/${npo.slug}/cmp-story`,
+        excerpt: "Clean water for every village.",
+      }),
+    ]);
+  });
+
+  it("cuts a long story on a word boundary within 160 characters, and sends none as empty", async () => {
+    const npo = await seed_npo();
+    const words = Array.from({ length: 40 }, (_, i) => `word${i}`);
+    await seed_campaign(npo.id, "cmp-long", [words.join(" ")], {
+      created_at: hours_ago(1),
+    });
+    await seed_campaign(npo.id, "cmp-none", [], { created_at: hours_ago(2) });
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    const [long, none] = d.campaigns;
+    expect(long!.excerpt.length).toBeLessThanOrEqual(160);
+    expect(long!.excerpt).toMatch(/…$/);
+    // whole words only: the text before the ellipsis is a prefix of the story
+    const kept = long!.excerpt.slice(0, -1).split(" ");
+    expect(kept).toEqual(words.slice(0, kept.length));
+    expect(kept.length).toBeGreaterThan(20);
+    expect(none!.excerpt).toBe("");
+  });
+
+  it("counts each campaign's distinct settled donors as its supporters", async () => {
+    const npo = await seed_npo();
+    await seed_campaign(npo.id, "cmp-backed", [], { created_at: hours_ago(1) });
+    await seed_campaign(npo.id, "cmp-quiet", [], { created_at: hours_ago(2) });
+    await seed_gift("don-cmp-1", "ana@example.com", npo.id, "cmp-backed");
+    await seed_gift("don-cmp-2", "ANA@example.com", npo.id, "cmp-backed");
+    await seed_gift("don-cmp-3", "ben@example.com", npo.id, "cmp-backed");
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect(d.campaigns.map((c) => [c.id, c.supporters])).toEqual([
+      ["cmp-backed", 2],
+      ["cmp-quiet", 0],
+    ]);
+  });
+
+  it("still serves a campaign whose supporter count fails, without a count", async () => {
+    const npo = await seed_npo();
+    await seed_campaign(npo.id, "cmp-count-down");
+    report_error.mockClear();
+    vi.spyOn(campaign_queries, "campaign_donor_count").mockRejectedValueOnce(
+      new Error("campaign count down")
+    );
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect(d.campaigns).toEqual([
+      expect.objectContaining({ id: "cmp-count-down", supporters: null }),
+    ]);
+    expect(report_error).toHaveBeenCalledWith(expect.any(Error), {
+      endow_id: npo.id,
+    });
   });
 
   it("answers 404 for an unknown org, by slug or by id", async () => {
