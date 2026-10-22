@@ -445,7 +445,7 @@ describe("donation page and catalog", () => {
       blocks: { type: string; text?: string; image_url?: string | null }[];
     };
     expect(body.status).toBe("published");
-    expect(body.public_url).toBe("http://localhost:4200/marketplace/red-bird");
+    expect(body.public_url).toBe("http://localhost:4200/org/red-bird");
     expect(body.has_unpublished_changes).toBe(false);
     expect(body.blocks.map((block) => block.type)).toEqual([
       "title",

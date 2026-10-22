@@ -147,7 +147,7 @@ export const action: ActionFunction = async ({ request }) => {
   const path =
     to.to_type === "fund"
       ? href("/fundraisers/:fund_id", { fund_id: to.to_id })
-      : href("/marketplace/:id", { id: to.to_id });
+      : href("/org/:org", { org: to.to_id });
 
   const { user } = await get_session(request);
   const donor_email = user?.email ?? "Anonymous";

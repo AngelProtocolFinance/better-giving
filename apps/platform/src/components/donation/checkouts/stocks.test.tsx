@@ -28,7 +28,7 @@ const fv: StocksDonationDetails = {
   tip_format: "15",
 };
 
-const PROFILE_URL = "https://test.example.com/marketplace/1";
+const PROFILE_URL = "https://test.example.com/org/1";
 
 async function email_fields(screen: Awaited<ReturnType<typeof render>>) {
   const email = screen.getByRole("link", { name: /generate email/i });

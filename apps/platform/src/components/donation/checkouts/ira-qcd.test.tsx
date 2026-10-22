@@ -8,7 +8,7 @@ import { emails } from "@/constants/common";
 import type { IraQcdDonationDetails } from "../types";
 import { IraQcdCheckout } from "./ira-qcd";
 
-const PROFILE_URL = "https://test.example.com/marketplace/1";
+const PROFILE_URL = "https://test.example.com/org/1";
 
 const don_mock = vi.hoisted(() => ({
   recipient: { id: "1", name: "Boys & Girls Club #7 (100% volunteer)" },

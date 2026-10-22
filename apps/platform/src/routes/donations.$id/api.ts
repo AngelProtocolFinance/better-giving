@@ -119,7 +119,7 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
   const profile_path =
     don.to_type === "fund"
       ? href("/fundraisers/:fund_id", { fund_id: don.to_id })
-      : href("/marketplace/:id", { id: don.to_id });
+      : href("/org/:org", { org: don.to_id });
   const profile_url = `${base_url}${profile_path}`;
 
   return {

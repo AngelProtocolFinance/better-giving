@@ -141,7 +141,7 @@ describe("donation thank-you loader", () => {
       from_public_msg_to_npo: "keep it up!",
       donate_url: "https://app.test/donate/42",
       donate_thanks_url: `https://app.test/donations/${DON_ID}`,
-      profile_url: "https://app.test/marketplace/42",
+      profile_url: "https://app.test/org/42",
       is_donor: false,
     });
   });

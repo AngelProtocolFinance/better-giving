@@ -303,8 +303,7 @@ export async function get_donation_page(
   const hero = npo.logo || npo.image || album?.url || null;
   return json({
     status,
-    public_url:
-      status === "published" ? absolute(`/marketplace/${public_id}`) : null,
+    public_url: status === "published" ? absolute(`/org/${public_id}`) : null,
     has_unpublished_changes: false,
     sharing: { message: null, channels: null },
     blocks: [

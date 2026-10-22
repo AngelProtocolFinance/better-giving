@@ -18,7 +18,7 @@ export function Nonprofits({ classes = "", npos }: Props) {
       <tr key={npo.id}>
         <td className="text-sm">
           <Link
-            to={href("/marketplace/:id", { id: npo.id.toString() })}
+            to={href("/org/:org", { org: npo.id.toString() })}
             className="link"
           >
             {npo.name}

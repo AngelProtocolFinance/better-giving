@@ -19,8 +19,8 @@ export function Row(props: IRow) {
         {props.program_id ? (
           <Link
             className="link"
-            to={href("/marketplace/:id/program/:program_id", {
-              id: props.recipient_id.toString(),
+            to={href("/org/:org/program/:program_id", {
+              org: props.recipient_id.toString(),
               program_id: props.program_id,
             })}
           >

@@ -21,7 +21,7 @@ function page(over: Partial<ICampaignPage> = {}): ICampaignPage {
   return {
     title: "Winter fuel for Harbor Clinic",
     org_name: "Harbor Clinic",
-    org_href: "/marketplace/harbor",
+    org_href: "/org/harbor",
     logo: null,
     tag: "Year-end",
     program_name: "Warmth fund",
@@ -122,7 +122,7 @@ describe("campaign page", () => {
       .toBeVisible();
     const visit = screen.getByRole("link", { name: "Visit Harbor Clinic" });
     await expect.element(visit).toBeVisible();
-    expect(visit.element().getAttribute("href")).toBe("/marketplace/harbor");
+    expect(visit.element().getAttribute("href")).toBe("/org/harbor");
   });
 
   test("sticky surfaces stay unmounted while Donate is in view", async () => {
@@ -311,7 +311,7 @@ describe("campaign page", () => {
       .toBeVisible();
     const visit = screen.getByRole("link", { name: "Visit Harbor Clinic" });
     await expect.element(visit).toBeVisible();
-    expect(visit.element().getAttribute("href")).toBe("/marketplace/harbor");
+    expect(visit.element().getAttribute("href")).toBe("/org/harbor");
   });
 
   test("a payment in flight keeps the dialog from closing", async () => {

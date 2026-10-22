@@ -156,7 +156,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
               >
                 <Image src={m.logo} className="aspect-2/1 rounded" width={50} />
                 <Link
-                  to={href("/marketplace/:id", { id: m.id.toString() })}
+                  to={href("/org/:org", { org: m.id.toString() })}
                   className="font-bold link"
                 >
                   {m.name}

@@ -114,7 +114,7 @@ function make_loader_data(overrides: Record<string, any> = {}) {
     is_donor: true,
     donate_url: "http://localhost/donate/123",
     donate_thanks_url: `http://localhost/donations/${DON_ID}`,
-    profile_url: "http://localhost/marketplace/123",
+    profile_url: "http://localhost/org/123",
     ...overrides,
   };
 }
@@ -135,7 +135,7 @@ function make_public_loader_data(overrides: Record<string, any> = {}) {
     is_donor: false,
     donate_url: "http://localhost/donate/123",
     donate_thanks_url: `http://localhost/donations/${DON_ID}`,
-    profile_url: "http://localhost/marketplace/123",
+    profile_url: "http://localhost/org/123",
     ...overrides,
   };
 }
@@ -1009,7 +1009,7 @@ describe("Integration — loader", () => {
 
     expect(result.id).toBe(DON_ID);
     expect(result.donate_url).toContain("/donate/");
-    expect(result.profile_url).toContain("/marketplace/");
+    expect(result.profile_url).toContain("/org/");
     expect(result.donate_thanks_url).toContain(`/donations/${DON_ID}`);
   });
 
