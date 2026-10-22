@@ -116,8 +116,7 @@ const not_a_glyph: Record<string, string[]> = {
   // the social row's marks are raster/svg assets in an <img>, and the number
   // is its `width`. they sit off the ladder on purpose, at seven sizes tuned
   // to each mark's own optical weight.
-  "apps/platform/src/routes/_app.marketplace_.$id._index/details-column/socials.tsx":
-    ["SocialsIcon"],
+  "apps/platform/src/components/org-page/socials.tsx": ["SocialsIcon"],
 };
 
 /** components declaring a numeric `size` of their own and forwarding it to a

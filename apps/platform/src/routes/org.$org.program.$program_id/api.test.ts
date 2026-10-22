@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -47,14 +48,31 @@ beforeEach(async () => {
   ]);
 });
 
-const load = (program_id: string) =>
-  (loader as any)({ params: { id: String(npo_a), program_id } });
+const load = (program_id: string, org = String(npo_a)) =>
+  (loader as any)({
+    params: { org, program_id },
+    request: new Request(`https://x/org/${org}/program/${program_id}`),
+  });
 
-describe("marketplace program page", () => {
+describe("program page", () => {
   it("shows a program on its own nonprofit's page", async () => {
-    const prog = await load(A_PID);
+    const d = await load(A_PID);
 
-    expect(prog).toMatchObject({ id: A_PID, title: "A wells" });
+    expect(d.prog).toMatchObject({ id: A_PID, title: "A wells" });
+    expect(d.url).toBe(`https://x/org/${npo_a}/program/${A_PID}`);
+  });
+
+  it("301s a slugged org's id url to its slug url", async () => {
+    const db = test_db.current!.db;
+    await db.update(npos).set({ slug: "a-org" }).where(eq(npos.id, npo_a));
+    const thrown = await load(A_PID).catch((e: unknown) => e);
+
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(301);
+    expect((thrown as Response).headers.get("location")).toBe(
+      `/org/a-org/program/${A_PID}`
+    );
+    expect((await load(A_PID, "a-org")).prog).toMatchObject({ id: A_PID });
   });
 
   it("404s another nonprofit's program under this nonprofit's url", async () => {

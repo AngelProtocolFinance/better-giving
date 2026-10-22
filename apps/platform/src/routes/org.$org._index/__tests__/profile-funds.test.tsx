@@ -59,9 +59,8 @@ vi.mock("remix-client-cache", () => ({
 // --- imports after mocks ---
 
 import { seed_npo } from "#/__tests__/fixtures/funds";
-import ProfilePage, { loader } from "#/routes/_app.marketplace_.$id/route";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import ProfileIndex from "../route";
+import ProfilePage, { loader } from "../route";
 
 // --- setup ---
 
@@ -97,14 +96,13 @@ afterEach(async () => {
 async function render_profile(npo_id: number) {
   const Stub = createRoutesStub([
     {
-      path: "/marketplace/:id",
+      path: "/org/:org",
       Component: ProfilePage as any,
       HydrateFallback: () => null,
       loader: loader as any,
-      children: [{ index: true, Component: ProfileIndex }],
     },
   ]);
-  return await render(<Stub initialEntries={[`/marketplace/${npo_id}`]} />);
+  return await render(<Stub initialEntries={[`/org/${npo_id}`]} />);
 }
 
 // --- tests ---
@@ -126,11 +124,12 @@ describe("npo profile — fundraisers section", () => {
     await expect.element(screen.getByText(COULDNT_LOAD)).toBeVisible();
     await expect.element(screen.getByText("87 Outage Ave")).toBeVisible();
     await expect
-      .element(screen.getByText("Overview", { exact: true }))
+      .element(screen.getByRole("heading", { level: 1 }))
       .toBeVisible();
+    // the section says so under its own heading
     await expect
-      .element(screen.getByRole("heading", { name: "Fundraisers" }))
-      .not.toBeInTheDocument();
+      .element(screen.getByRole("heading", { name: "Campaigns" }))
+      .toBeVisible();
     // a rejected deferred never reaches handleError, so the loader reports it
     expect(report_error_mock).toHaveBeenCalledOnce();
     expect(report_error_mock).toHaveBeenCalledWith(err, { endow_id: npo.id });
@@ -147,13 +146,13 @@ describe("npo profile — fundraisers section", () => {
 
     await expect.element(screen.getByText("1 Quiet St")).toBeVisible();
     await expect
-      .element(screen.getByText("Overview", { exact: true }))
+      .element(screen.getByRole("heading", { level: 1 }))
       .toBeVisible();
     await expect
       .element(screen.getByText(COULDNT_LOAD))
       .not.toBeInTheDocument();
     await expect
-      .element(screen.getByRole("heading", { name: "Fundraisers" }))
+      .element(screen.getByRole("heading", { name: "Campaigns" }))
       .not.toBeInTheDocument();
     expect(report_error_mock).not.toHaveBeenCalled();
   });

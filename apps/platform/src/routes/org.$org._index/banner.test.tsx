@@ -20,31 +20,39 @@ describe("public profile banner", () => {
   test("the saved banner is covered, not stretched, in the hero frame", async () => {
     const Stub = createRoutesStub([
       {
-        path: "/marketplace/:id",
+        path: "/org/:org",
         Component: Profile,
         loader: () => ({
           npo: {
             id: 7,
             name: "Acme Relief",
+            endow_designation: "Charity",
             image: "https://example.com/banner.png",
             // a real pixel, so the logo img stays mounted and its fit is readable
             logo: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
             tagline: "Food and shelter",
             hq_country: "United States",
             url: "https://acme.example",
+            overview_pt: "[]",
+            active_in_countries: [],
+            sdgs: [],
+            social_media_urls: null,
             contributions_total: 0,
             target: null,
           },
+          url: "https://x/org/7",
+          donors: 0,
+          messages: [],
+          campaigns: [],
           funds: Promise.resolve([]),
           media: Promise.resolve([]),
           programs: Promise.resolve([]),
         }),
       },
     ]);
-    const screen = await render(<Stub initialEntries={["/marketplace/7"]} />);
-    // the trail's last crumb is an h1 with this name; the profile title is the h3
+    const screen = await render(<Stub initialEntries={["/org/7"]} />);
     await expect
-      .element(screen.getByRole("heading", { name: "Acme Relief", level: 3 }))
+      .element(screen.getByRole("heading", { name: "Acme Relief", level: 1 }))
       .toBeVisible();
     const banner = document.querySelector(
       '[style*="banner.png"]'
@@ -55,16 +63,12 @@ describe("public profile banner", () => {
     expect(banner!.className).toContain("bg-cover");
     expect(banner!.className).not.toContain("bg-[length:");
 
-    // the round logo is object-cover on the light panel. clear pixels in a
-    // cropped png have to stay clear, or this ground cannot show through.
-    await vi.waitFor(() => {
-      const img = document.querySelector(
-        "img.rounded-full"
-      ) as HTMLImageElement | null;
-      expect(img?.complete).toBe(true);
-    });
-    const logo = document.querySelector("img.rounded-full") as HTMLImageElement;
-    const logo_style = getComputedStyle(logo);
+    // the logo is object-cover on the light panel. clear pixels in a cropped
+    // png have to stay clear, or this ground cannot show through.
+    const logo_of = () =>
+      document.querySelector("main section img") as HTMLImageElement | null;
+    await vi.waitFor(() => expect(logo_of()?.complete).toBe(true));
+    const logo_style = getComputedStyle(logo_of()!);
     expect(logo_style.objectFit).toBe("cover");
     // the panel token is a light oklch. a logo with baked-in black cannot
     // show this ground through its clear pixels.

@@ -16,6 +16,8 @@ import type { INposSearchObj } from "@/npo/schema";
 import type { IBalanceDeltas } from "@/types/donation";
 import { db } from "../db";
 import { finite } from "../schema/columns";
+import { dists } from "../schema/dist";
+import { donation_donors } from "../schema/donation";
 import { npos } from "../schema/npo";
 import { user_npo_memberships } from "../schema/user";
 import { v_contributions } from "../schema/views";
@@ -234,6 +236,24 @@ export async function npo_by_slug(slug: string): Promise<INpo | undefined> {
   );
   if (!row) return undefined;
   return row_to_npo(row);
+}
+
+/** distinct donors with a settled gift to the npo. a dist is one gift's
+ * share, so a split gift still counts its donor once */
+export async function npo_donor_count(npo_id: number): Promise<number> {
+  const [row] = await db
+    .select({
+      n: sql<number>`count(distinct lower(${donation_donors.email}))`.mapWith(
+        Number
+      ),
+    })
+    .from(dists)
+    .innerJoin(
+      donation_donors,
+      eq(dists.donation_id, donation_donors.donation_id)
+    )
+    .where(and(eq(dists.to_id, npo_id), eq(dists.status, "settled")));
+  return row?.n ?? 0;
 }
 
 export async function npos_batch_get(ids: number[]): Promise<INpo[]> {

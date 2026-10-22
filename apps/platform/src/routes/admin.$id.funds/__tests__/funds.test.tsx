@@ -66,9 +66,9 @@ import {
   seed_npo as insert_npo,
   seed_user as insert_user,
 } from "#/__tests__/fixtures/funds";
-import { loader as profile_loader } from "#/routes/_app.marketplace_.$id/api";
 import { loader as campaigns_loader } from "#/routes/admin.$id.campaigns/api";
 import CampaignsPage from "#/routes/admin.$id.campaigns/route";
+import { loader as profile_loader } from "#/routes/org.$org._index/api";
 import type { IFundItem } from "@/fundraiser";
 import { admin_ctx, user_ctx } from "$/auth/test-utils";
 import { enqueue } from "$/kit/queue";
@@ -190,7 +190,7 @@ async function render_funds(
 async function render_profile(npo_id: number) {
   const Stub = createRoutesStub([
     {
-      path: "/profile/:id",
+      path: "/org/:org",
       HydrateFallback: () => null,
       Component: ({ loaderData }: any) => (
         <Suspense fallback={null}>
@@ -212,7 +212,7 @@ async function render_profile(npo_id: number) {
       loader: profile_loader as any,
     },
   ]);
-  return await render(<Stub initialEntries={[`/profile/${npo_id}`]} />);
+  return await render(<Stub initialEntries={[`/org/${npo_id}`]} />);
 }
 
 // --- tests ---

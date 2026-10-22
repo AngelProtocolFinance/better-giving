@@ -102,7 +102,7 @@ export function Form({ init, profile, id, base_url }: IProps) {
   const page_uploading = [page.card_img.value, page.banner.value].some(
     (v) => v === "loading"
   );
-  const profile_url = href("/marketplace/:id", { id: init.slug || String(id) });
+  const profile_url = href("/org/:org", { org: init.slug || String(id) });
   const page_title_id = useId();
 
   return (
@@ -317,8 +317,8 @@ function OrgGroup({ init, id, base_url, set_prompt }: IOrgGroup) {
   const cancel_ref = useRef<HTMLButtonElement>(null);
   const form = use_organization_form(init, id, set_prompt);
   const uploading = form.logo.value === "loading";
-  const profile_base = `${base_url}${href("/marketplace")}/`;
-  const id_url = `${base_url}${href("/marketplace/:id", { id: String(id) })}`;
+  const profile_base = `${base_url}/org/`;
+  const id_url = `${base_url}${href("/org/:org", { org: String(id) })}`;
   const campaigns_note = `Your campaign links start with it too (…${href("/org/:org", { org: form.slug.trim() || "your-link" })}/…).`;
   const donate = `${base_url}${href("/donate/:id", { id: init.slug })}`;
   const setting_slug = !form.locked && form.slug !== "";

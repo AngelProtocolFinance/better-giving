@@ -50,20 +50,30 @@ describe("public npo profile loader", () => {
       })
       .returning();
 
-    for (const id of [String(npo.id), "profile-org"]) {
-      const d = await loader({
-        request: new Request(`https://x/marketplace/${id}`),
-        params: { id },
-      } as any);
-      // settle the deferred reads before afterAll closes the db under them
-      await Promise.all([d.funds, d.media, d.programs]);
+    const d = await loader({
+      request: new Request("https://x/org/profile-org"),
+      params: { org: "profile-org" },
+    } as any);
+    // settle the deferred reads before afterAll closes the db under them
+    await Promise.all([d.funds, d.media, d.programs]);
 
-      expect(d.npo).toMatchObject({
-        id: npo.id,
-        name: "Profile Org",
-        street_address: "1 Main St",
-      });
-      expect(Object.keys(d.npo).sort()).toEqual([...NPO_PUBLIC_KEYS].sort());
-    }
+    expect(d.npo).toMatchObject({
+      id: npo.id,
+      name: "Profile Org",
+      street_address: "1 Main St",
+    });
+    expect(Object.keys(d.npo).sort()).toEqual([...NPO_PUBLIC_KEYS].sort());
+    expect(d.url).toBe("https://x/org/profile-org");
+
+    // the id url is an alias of a slugged org's profile
+    const thrown = await loader({
+      request: new Request(`https://x/org/${npo.id}`),
+      params: { org: String(npo.id) },
+    } as any).catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(301);
+    expect((thrown as Response).headers.get("location")).toBe(
+      "/org/profile-org"
+    );
   });
 });

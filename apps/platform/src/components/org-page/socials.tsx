@@ -8,11 +8,16 @@ import xIcon from "#/assets/icons/social/x.webp";
 import youtubeIcon from "#/assets/icons/social/youtube.webp";
 import type { INpo } from "$/pg/queries/npo";
 
-export function Socials(props: Pick<INpo, "social_media_urls">) {
+interface ISocials extends Pick<INpo, "social_media_urls"> {
+  classes?: string;
+}
+
+/** the org's own accounts, each by its official brand icon */
+export function Socials({ classes = "", ...props }: ISocials) {
   const { facebook, linkedin, twitter, discord, instagram, youtube, tiktok } =
     props.social_media_urls ?? {};
   return (
-    <div className="flex items-center gap-4">
+    <div className={`flex flex-wrap items-center gap-1 ${classes}`}>
       {facebook && (
         <SocialsIcon
           href={facebook}
@@ -71,7 +76,12 @@ interface ISocialsIcon {
 }
 
 const SocialsIcon = (props: ISocialsIcon) => (
-  <ExtLink href={props.href} aria-label={props.label}>
+  // 44px target around the glyph
+  <ExtLink
+    href={props.href}
+    aria-label={props.label}
+    className="grid size-11 place-items-center"
+  >
     <img src={props.src} width={props.size} alt="" />
   </ExtLink>
 );

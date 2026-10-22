@@ -126,7 +126,7 @@ afterAll(async () => {
   await test_db.current?.client.close();
 });
 
-describe("marketplace profile campaigns", () => {
+describe("profile campaigns", () => {
   it("lists live campaigns only", async () => {
     const [npo] = await test_db.current!.db.select().from(npos);
     const rows = await campaign_live_for_npo(npo!.id);

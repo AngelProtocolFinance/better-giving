@@ -1,12 +1,6 @@
 import { eq } from "drizzle-orm";
 import { HttpResponse, http } from "msw";
-import {
-  createRoutesStub,
-  Link,
-  Outlet,
-  useFetcher,
-  useOutletContext,
-} from "react-router";
+import { createRoutesStub, Link, Outlet, useFetcher } from "react-router";
 import {
   afterAll,
   beforeAll,
@@ -57,12 +51,12 @@ vi.mock("#/.server/funds", () => ({
   get_funds_npo_memberof: vi.fn(async () => []),
 }));
 
-import { Target, to_target } from "@better-giving/ui";
 import MarketplacePage, {
   loader as marketplace_loader,
 } from "#/routes/_app.marketplace/route";
-import ProfilePage from "#/routes/_app.marketplace_.$id/route";
-import { DetailsColumn } from "#/routes/_app.marketplace_.$id._index/details-column";
+import ProfilePage, {
+  loader as profile_loader,
+} from "#/routes/org.$org._index/route";
 import type { INpoUpdate } from "@/npo";
 import { action, loader } from "../api";
 import OrganizationPage from "../route";
@@ -147,47 +141,19 @@ async function render_org(npo_id: number, route_action: unknown = action) {
 }
 
 async function render_profile(npo_id: number) {
+  const npo = await npo_get(npo_id);
   const Stub = createRoutesStub([
     {
-      path: "/profile/:id",
-      Component: ProfilePage,
+      path: "/org/:org",
+      Component: ProfilePage as any,
       HydrateFallback: () => null,
-      loader: async ({ params }) => {
-        const npo = await npo_get(Number(params!.id));
-        if (!npo) throw new Response(null, { status: 404 });
-        return {
-          npo,
-          programs: Promise.resolve([]),
-          media: Promise.resolve([]),
-          funds: Promise.resolve([]),
-        };
-      },
-      children: [
-        {
-          index: true,
-          Component: function ProfileDetails() {
-            const { npo } = useOutletContext<{ npo: any }>();
-            return (
-              <DetailsColumn
-                npo={npo}
-                target={
-                  npo.target && (
-                    <Target
-                      text={<Target.Text classes="mb-2" />}
-                      progress={npo.contributions_total ?? 0}
-                      target={to_target(npo.target)}
-                    />
-                  )
-                }
-              />
-            );
-          },
-        },
-      ],
+      loader: profile_loader as any,
     },
   ]);
 
-  return await render(<Stub initialEntries={[`/profile/${npo_id}`]} />);
+  return await render(
+    <Stub initialEntries={[`/org/${npo?.slug || npo_id}`]} />
+  );
 }
 
 async function render_marketplace() {
@@ -293,7 +259,7 @@ describe("organization — slug unset", () => {
     await expect.element(screen.getByLabelText("Profile link")).toBeDisabled();
     await expect.element(screen.getByText(note)).toBeVisible();
     await expect
-      .element(screen.getByRole("link", { name: /\/marketplace\/acme-org$/ }))
+      .element(screen.getByRole("link", { name: /\/org\/acme-org$/ }))
       .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: /\/donate\/acme-org$/ }))
@@ -308,7 +274,7 @@ describe("organization — slug unset", () => {
       .element(
         screen.getByText(
           new RegExp(
-            `^Donors will find your profile at https?://[^/]+/marketplace/${npo.id} until you set a link$`
+            `^Donors will find your profile at https?://[^/]+/org/${npo.id} until you set a link$`
           )
         )
       )
@@ -318,7 +284,7 @@ describe("organization — slug unset", () => {
     await expect
       .element(
         screen.getByText(
-          /^Donors will find your profile at https?:\/\/[^/]+\/marketplace\/acme-org$/
+          /^Donors will find your profile at https?:\/\/[^/]+\/org\/acme-org$/
         )
       )
       .toBeVisible();
@@ -362,7 +328,7 @@ describe("organization — slug unset", () => {
 });
 
 describe("organization — slug set", () => {
-  it("is read-only and lists the marketplace and donate urls", async () => {
+  it("is read-only and lists the profile and donate urls", async () => {
     const npo = await seed_npo({ slug: "already-set" });
     const screen = await render_org(npo.id);
     const slug = screen.getByLabelText("Profile link");
@@ -371,9 +337,7 @@ describe("organization — slug set", () => {
     await expect.element(slug).toHaveDisplayValue("already-set");
     await expect.element(screen.getByText(note)).toBeVisible();
     await expect
-      .element(
-        screen.getByRole("link", { name: /\/marketplace\/already-set$/ })
-      )
+      .element(screen.getByRole("link", { name: /\/org\/already-set$/ }))
       .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: /\/donate\/already-set$/ }))
@@ -564,9 +528,7 @@ describe("organization — renders pre-filled", () => {
     const page_link = screen.getByRole("link", {
       name: "Your Better Giving Page",
     });
-    await expect
-      .element(page_link)
-      .toHaveAttribute("href", `/marketplace/${npo.id}`);
+    await expect.element(page_link).toHaveAttribute("href", `/org/${npo.id}`);
     await expect.element(page_link).toHaveAttribute("target", "_blank");
     expect(page_link.element().querySelector("svg")).not.toBeNull();
     await expect
@@ -606,7 +568,7 @@ describe("organization — renders pre-filled", () => {
     expect(page_section.id).toBe("page");
     await expect
       .element(screen.getByRole("link", { name: "Your Better Giving Page" }))
-      .toHaveAttribute("href", "/marketplace/kept-slug");
+      .toHaveAttribute("href", "/org/kept-slug");
 
     const pos = (el: Element) =>
       [...document.querySelectorAll("*")].indexOf(el as HTMLElement);

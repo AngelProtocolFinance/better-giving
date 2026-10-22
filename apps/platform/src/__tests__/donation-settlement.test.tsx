@@ -275,19 +275,20 @@ const INTENT = {
   payment_method: "pm_test_456",
 };
 
-import { loader as profile_loader } from "#/routes/_app.marketplace_.$id/api";
-// npo profile page
-import ProfilePage from "#/routes/_app.marketplace_.$id/route";
-import GeneralInfoPage from "#/routes/_app.marketplace_.$id._index/route";
-import { loader as program_loader } from "#/routes/_app.marketplace_.$id.program.$program_id/api";
 // program page (nested under profile)
-import ProgramPage from "#/routes/_app.marketplace_.$id.program.$program_id/route";
 import { loader as admin_forms_loader } from "#/routes/admin.$id.forms/api";
 // admin forms page
 import AdminFormsPage from "#/routes/admin.$id.forms/route";
 import { loader as user_forms_loader } from "#/routes/dashboard.forms/api";
 // user-dashboard forms page
 import UserFormsPage from "#/routes/dashboard.forms/route";
+// npo profile page
+import ProfilePage, {
+  loader as profile_loader,
+} from "#/routes/org.$org._index/route";
+import ProgramPage, {
+  loader as program_loader,
+} from "#/routes/org.$org.program.$program_id/route";
 // platform-admin revenue pages
 import { loader as rev_loader } from "#/routes/platform.revenue/api";
 import RevenuePage from "#/routes/platform.revenue/route";
@@ -519,43 +520,32 @@ describe("payment_intent.succeeded → settlement → UI", () => {
   it("profile page Target shows contributions_total after settlement", async () => {
     await fire_webhook();
 
-    // npo has target_smart → profile page renders Target with contributions_total
+    // npo has target_smart → the raised card shows its goal bar
     // v_contributions: amount_usd=100, so progress=100
     // smart_next(100) → 200 (100 <= 100, doubles)
     const Stub = createRoutesStub([
       {
-        path: "/marketplace/:id",
-        Component: ProfilePage,
+        path: "/org/:org",
+        Component: ProfilePage as any,
         HydrateFallback: () => null,
         loader: profile_loader as any,
-        children: [
-          {
-            index: true,
-            Component: GeneralInfoPage,
-          },
-        ],
       },
     ]);
 
     const screen = await render(
       <Stub
-        initialEntries={[`/marketplace/${npo_id}`]}
+        initialEntries={[`/org/${npo_id}`]}
         future={{ v8_middleware: true }}
       />
     );
     render_screen = screen;
 
-    // npo Target shows contributions progress (rendered in both Body and DetailsColumn)
-    const raised = screen.getByText("$100").elements();
-    expect(raised.length).toBeGreaterThanOrEqual(1);
-    const goals = screen.getByText("$200").elements();
-    expect(goals.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Raised").elements().length).toBeGreaterThanOrEqual(
-      1
-    );
-    expect(screen.getByText("Goal").elements().length).toBeGreaterThanOrEqual(
-      1
-    );
+    await expect
+      .element(screen.getByText("$100", { exact: true }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByText("50% of $200 goal", { exact: true }))
+      .toBeInTheDocument();
   });
 
   it("increments form ltd and program total_donations after settlement", async () => {
@@ -575,39 +565,35 @@ describe("payment_intent.succeeded → settlement → UI", () => {
     expect(prog.total_donations).toBeCloseTo(NET, P);
   });
 
-  it("program page shows TargetProgress after settlement", async () => {
+  it("program page shows its target card after settlement", async () => {
     await fire_webhook();
 
     const Stub = createRoutesStub([
       {
-        path: "/marketplace/:id",
-        Component: ProfilePage,
+        path: "/org/:org/program/:program_id",
+        Component: ProgramPage as any,
         HydrateFallback: () => null,
-        loader: profile_loader as any,
-        children: [
-          {
-            path: "program/:program_id",
-            Component: ProgramPage,
-            loader: program_loader as any,
-          },
-        ],
+        loader: program_loader as any,
       },
     ]);
 
     const screen = await render(
       <Stub
-        initialEntries={[`/marketplace/${npo_id}/program/${PROGRAM_ID}`]}
+        initialEntries={[`/org/${npo_id}/program/${PROGRAM_ID}`]}
         future={{ v8_middleware: true }}
       />
     );
     render_screen = screen;
 
-    await expect.element(screen.getByText("Test Program")).toBeInTheDocument();
-    // program target_raise=500 shown as "Target raise:"
-    await expect.element(screen.getByText("$500")).toBeInTheDocument();
-    // program total_donations ≈ NET shown as "Donations received"
     await expect
-      .element(screen.getByText("Donations received"))
+      .element(screen.getByRole("heading", { name: "Test Program" }))
+      .toBeInTheDocument();
+    // target_raise=500; total_donations ≈ NET is the received figure
+    await expect
+      .element(screen.getByText("of $500 target", { exact: true }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("progressbar", { name: "Amount received" }))
       .toBeInTheDocument();
   });
 
