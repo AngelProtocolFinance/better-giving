@@ -143,12 +143,17 @@ describe("npo profile — fundraisers section", () => {
     expect(report_error_mock).toHaveBeenCalledWith(err, { endow_id: npo.id });
   });
 
-  it("lists a live fundraiser under Campaigns", async () => {
+  it("lists a live fundraiser under Campaigns, by its creator, donating on its own page", async () => {
     const npo = await seed_npo(db(), {
       registration_number: "EIN-PROFILE-LIVEFUND",
       name: "Live Fund Org",
     });
-    const creator = await seed_user(db(), "live-fund@example.com");
+    const creator = await seed_user(
+      db(),
+      "live-fund@example.com",
+      "Maya",
+      "Lin"
+    );
     await seed_fund(db(), {
       id: "fund-live",
       name: "Spring Drive",
@@ -164,9 +169,19 @@ describe("npo profile — fundraisers section", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Campaigns" }))
       .toBeVisible();
+    const card = screen
+      .getByRole("article")
+      .filter({ hasText: "Spring Drive" });
     await expect
-      .element(screen.getByRole("link", { name: /Spring Drive/ }))
+      .element(card.getByRole("link", { name: /Spring Drive/ }))
       .toHaveAttribute("href", "/fundraisers/fund-live");
+    await expect.element(card.getByText("By Maya Lin")).toBeVisible();
+    await expect
+      .element(card.getByRole("link", { name: "Donate", exact: true }))
+      .toHaveAttribute("href", "/fundraisers/fund-live/donate");
+    await expect
+      .element(card.getByRole("button", { name: "Share Spring Drive" }))
+      .toBeVisible();
   });
 
   it("shows nothing for a nonprofit with no fundraisers", async () => {

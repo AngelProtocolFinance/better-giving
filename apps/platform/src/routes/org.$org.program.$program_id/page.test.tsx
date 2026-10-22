@@ -111,6 +111,14 @@ describe("program page", () => {
       .element(donate)
       .toHaveAttribute("href", "/donate/7?programId=p1");
 
+    // the shared header stays plain here: the bar carries the page's actions
+    const header = screen.getByRole("banner");
+    expect(header.getByRole("link", { name: "Donate" }).query()).toBeNull();
+    expect(header.getByRole("button", { name: "Share" }).query()).toBeNull();
+    expect(
+      screen.getByRole("contentinfo").getByText("Organization details").query()
+    ).toBeNull();
+
     await screen.getByRole("button", { name: "Share", exact: true }).click();
     await expect
       .element(screen.getByRole("dialog", { name: "Share" }))

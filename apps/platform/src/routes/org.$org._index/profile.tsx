@@ -5,14 +5,10 @@ import { type ReactNode, Suspense } from "react";
 import { Await, href, Link } from "react-router";
 import fallback_banner from "#/assets/images/bg-banner.webp";
 import flying_character from "#/assets/images/flying-character.webp";
-import {
-  ACTION_BAR_CLEARANCE,
-  ActionBar,
-} from "#/components/org-page/action-bar";
 import { OrgFooter } from "#/components/org-page/footer";
 import { GoalBar } from "#/components/org-page/goal-bar";
 import { OrgHeader } from "#/components/org-page/header";
-import { RichText, to_text } from "#/components/rich-text";
+import { RichText, to_excerpt, to_text } from "#/components/rich-text";
 import { extract_youtube_id } from "#/components/youtube-player";
 import { unsdgs } from "#/constants/unsdgs";
 import { org_href, program_href } from "#/helpers/org-href";
@@ -30,6 +26,16 @@ interface ICampaignCard {
   image: string | null;
   raised: number;
   target?: string;
+  /** run by the org itself, rather than by a supporter on its behalf */
+  official: boolean;
+  /** the owner's mark */
+  mark: string | null;
+  excerpt: string;
+  /** null when the count is unavailable */
+  supporters: number | null;
+  donate_to: string;
+  /** who runs it, when that is not the org */
+  byline?: string;
 }
 
 interface IMessage {
@@ -49,12 +55,11 @@ export interface IProfile {
   programs: Promise<IProgramDb[]>;
 }
 
-const h2 = "text-2xl font-bold";
+const h2 = "text-xl font-bold lg:text-2xl";
 
 export function Profile(props: IProfile) {
   const { npo } = props;
   const donate_to = href("/donate/:id", { id: String(npo.id) });
-  const share = { recipientName: npo.name, url: props.url };
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background text-gray-12">
@@ -67,51 +72,42 @@ export function Profile(props: IProfile) {
           name: npo.name,
           logo: npo.logo ?? undefined,
         }}
+        share={{ recipientName: npo.name, url: props.url }}
+        donate_to={donate_to}
       />
-      <div
-        className="h-32 w-full bg-cover bg-center sm:h-72"
-        style={{ backgroundImage: `url('${npo.image || fallback_banner}')` }}
-      />
-      <main className="page flex-1 pb-8 lg:pb-20">
-        <Mast npo={npo} />
-        <div className="mt-8 flex flex-col gap-8 lg:mt-10 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
-          <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-12">
-            <About npo={npo} />
-            <Campaigns campaigns={props.campaigns} funds={props.funds} />
+      <main className="page flex flex-1 flex-col gap-6 pt-4 pb-6 lg:gap-8 lg:pt-8 lg:pb-20">
+        <Mast npo={npo} donors={props.donors} donate_to={donate_to} />
+        {/* one column below xl, in the phone's reading order; two from xl */}
+        <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[26.25rem_minmax(0,1fr)] xl:items-start xl:gap-8">
+          <div className="contents xl:flex xl:flex-col xl:gap-8">
+            <Hero npo={npo} />
+            <Messages messages={props.messages} />
+          </div>
+          <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-8">
+            <Campaigns
+              npo_id={npo.id}
+              origin={new URL(props.url).origin}
+              campaigns={props.campaigns}
+              funds={props.funds}
+            />
             <Programs npo={npo} programs={props.programs} />
             <Media media={props.media} name={npo.name} />
           </div>
-          <aside className="contents lg:flex lg:flex-col lg:gap-5">
-            <section
-              aria-label="Fundraising progress"
-              className="order-1 flex flex-col gap-2 lg:order-none"
-            >
-              <Raised npo={npo} donors={props.donors} />
-              <Link
-                to={donate_to}
-                className="btn btn-primary btn-lg max-lg:hidden"
-              >
-                Donate
-              </Link>
-              <Share trigger="button" classes="max-lg:hidden" {...share} />
-            </section>
-            <Messages messages={props.messages} />
-            <Details npo={npo} />
-          </aside>
         </div>
       </main>
       <OrgFooter
         name={npo.name}
         logo={npo.logo}
         social_media_urls={npo.social_media_urls}
-        classes={ACTION_BAR_CLEARANCE}
+        details={{
+          registration_number: npo.registration_number,
+          address: npo.street_address,
+          active_in:
+            npo.active_in_countries.length > 0
+              ? npo.active_in_countries.join(", ")
+              : npo.hq_country,
+        }}
       />
-      <ActionBar>
-        <Share trigger="button" classes="min-w-0 flex-1" {...share} />
-        <Link to={donate_to} className="btn btn-primary btn-lg min-w-0 flex-1">
-          Donate
-        </Link>
-      </ActionBar>
     </div>
   );
 }
@@ -120,114 +116,178 @@ interface INpoProps {
   npo: INpoPublic;
 }
 
-function Mast({ npo }: INpoProps) {
+interface IMast extends INpoProps {
+  donors: number | null;
+  donate_to: string;
+}
+
+/** the org's card. a phone sets the name beside the logo and everything else
+ * full width under them, ending on Donate; wider screens put the text in a
+ * column beside the logo and the raised block at the right, and leave Donate
+ * to the header */
+function Mast({ npo, donors, donate_to }: IMast) {
   const tag = npo.endow_designation !== "Other" ? npo.endow_designation : null;
+  const has_meta = !!(tag || npo.hq_country || npo.url);
   return (
-    // only the logo rides up over the banner; the text stays on the page ground
-    <section className="flex flex-wrap items-start gap-4 sm:gap-6">
+    <section className="card grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 lg:grid-cols-[auto_minmax(0,1fr)_18.75rem] lg:gap-x-7">
       <Image
         src={npo.logo || flying_character}
         alt=""
-        width={144}
-        height={144}
-        className="-mt-10 size-22 shrink-0 rounded border-4 border-panel bg-panel object-cover sm:-mt-16 sm:size-36"
+        width={128}
+        height={128}
+        className="size-18 shrink-0 rounded-full border bg-surface object-cover lg:size-32"
       />
-      <div className="flex min-w-0 flex-[999_1_26rem] flex-col gap-2 sm:pt-4">
-        {tag && (
-          <p className="w-fit rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase tracking-badge text-gray-12">
-            {tag}
-          </p>
-        )}
-        <h1 className="text-3xl font-bold break-words sm:text-4xl">
+      <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-3">
+        <h1 className="text-2xl font-bold break-words lg:text-4xl">
           {npo.name}
         </h1>
         {npo.tagline && (
-          <p className="max-w-3xl text-lg text-gray-11">{npo.tagline}</p>
+          <p className="col-span-2 text-gray-11 lg:max-w-3xl lg:text-lg">
+            {npo.tagline}
+          </p>
         )}
-        <div className="flex flex-wrap gap-x-5 gap-y-2 font-semibold">
-          {npo.hq_country && (
-            <span className="flex items-center gap-2">
-              <MapPin aria-hidden className="icon-md text-primary" />
-              {npo.hq_country}
-            </span>
-          )}
-          {npo.url && (
-            <span className="flex items-center gap-2">
-              <Globe aria-hidden className="icon-md text-primary" />
-              <ExtLink href={npo.url} className="link underline">
+        {has_meta && (
+          <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-semibold">
+            {tag && (
+              <p className="rounded bg-secondary px-2 py-1 text-xs font-bold uppercase tracking-badge text-gray-12">
+                {tag}
+              </p>
+            )}
+            {npo.hq_country && (
+              <span className="flex items-center gap-2">
+                <MapPin aria-hidden className="icon-md text-gray-11" />
+                {npo.hq_country}
+              </span>
+            )}
+            {npo.url && (
+              <ExtLink
+                href={npo.url}
+                className="link flex items-center gap-2 underline underline-offset-4"
+              >
+                <Globe aria-hidden className="icon-md" />
                 {npo.url.replace(/^https?:\/\//i, "")}
               </ExtLink>
-            </span>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
+      <Raised
+        npo={npo}
+        donors={donors}
+        classes="col-span-2 max-lg:pt-1 lg:col-span-1"
+      />
+      <Link
+        to={donate_to}
+        className="btn btn-primary btn-lg col-span-2 mt-1 lg:hidden"
+      >
+        Donate
+      </Link>
     </section>
   );
 }
 
 interface IRaised extends INpoProps {
   donors: number | null;
+  classes?: string;
 }
 
-function Raised({ npo, donors }: IRaised) {
+function Raised({ npo, donors, classes = "" }: IRaised) {
   const raised = npo.contributions_total ?? 0;
   const goal = goal_amount(npo.target, raised);
   return (
-    <div className="card flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <p className="text-3xl font-bold">{to_usd(raised)}</p>
-        <p className="text-gray-11">
-          {donors == null ? "raised" : `raised from ${donor_label(donors)}`}
-        </p>
-      </div>
+    <div className={`flex flex-col gap-2 ${classes}`}>
+      <p className="text-sm">
+        <strong className="text-lg">{to_usd(raised)}</strong>{" "}
+        {donors == null ? "raised" : `raised from ${donor_label(donors)}`}
+      </p>
       {goal != null && (
-        <div className="flex flex-col gap-1.5">
+        <>
           <GoalBar raised={raised} goal={goal} />
-          <p className="text-sm text-gray-11">
+          <p className="text-xs text-gray-11">
             {Math.floor((raised / goal) * 100)}% of {to_usd(goal)} goal
           </p>
-        </div>
+        </>
       )}
     </div>
   );
 }
 
-function About({ npo }: INpoProps) {
-  if (!to_text(npo.overview_pt).trim()) return null;
+/** the banner on top, then the org's goals and its story */
+function Hero({ npo }: INpoProps) {
+  const sdgs = (npo.sdgs ?? []) as UnSdgNum[];
+  const has_about = !!to_text(npo.overview_pt).trim();
   return (
-    <section className="order-2 flex flex-col gap-4 lg:order-none">
-      <h2 className={h2}>About</h2>
-      <RichText
-        readOnly
-        content={{ value: npo.overview_pt }}
-        classes={{ field: "w-full text-base leading-relaxed" }}
+    <section className="order-1 flex flex-col overflow-hidden rounded border bg-panel xl:order-none">
+      <Image
+        src={npo.image || fallback_banner}
+        alt=""
+        className="aspect-video w-full object-cover"
       />
+      {(sdgs.length > 0 || has_about) && (
+        <div className="flex flex-col gap-4 p-6 lg:gap-6">
+          {sdgs.length > 0 && (
+            <ul
+              aria-label="Goals"
+              className="flex flex-wrap gap-x-4 gap-y-2 lg:gap-x-5 lg:gap-y-3"
+            >
+              {sdgs.map((n) => (
+                <li
+                  key={n}
+                  className="flex items-center gap-2 text-sm font-semibold lg:text-base"
+                >
+                  {/* the goal icons are white glyphs, drawn for a filled ground */}
+                  <span
+                    aria-hidden
+                    className="surface-primary grid size-7 shrink-0 place-items-center rounded-full lg:size-8"
+                  >
+                    <img
+                      src={unsdgs[n].icon}
+                      alt=""
+                      className="size-4 object-contain lg:size-5"
+                    />
+                  </span>
+                  {unsdgs[n].title}
+                </li>
+              ))}
+            </ul>
+          )}
+          {sdgs.length > 0 && has_about && <hr />}
+          {has_about && (
+            <div className="flex flex-col gap-3">
+              <h2 className={h2}>About</h2>
+              <RichText
+                readOnly
+                content={{ value: npo.overview_pt }}
+                classes={{ field: "w-full text-base leading-relaxed" }}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
 
 interface ICampaignsProps {
+  npo_id: number;
+  /** the page's origin, which campaign share links are built on */
+  origin: string;
   campaigns: ICampaignCard[];
   funds: Promise<IFundItem[]>;
 }
 
 /** live campaigns, then the org's open fundraisers. the fundraisers stream in;
  * the section waits on them only when there is nothing else to show */
-function Campaigns({ campaigns, funds }: ICampaignsProps) {
+function Campaigns({ npo_id, origin, campaigns, funds }: ICampaignsProps) {
   const section = (cards: ICampaignCard[], note?: ReactNode) =>
     cards.length === 0 && !note ? null : (
-      <section className="order-3 flex flex-col gap-4 lg:order-none">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className={h2}>Campaigns</h2>
-          {cards.length > 0 && (
-            <span className="text-sm text-gray-11">{cards.length} live</span>
-          )}
-        </div>
+      <section className="order-2 flex flex-col gap-3 xl:order-none">
+        <h2 className={h2}>Campaigns</h2>
         {cards.length > 0 && (
           <ul className="grid gap-4 sm:grid-cols-2">
             {cards.map((c) => (
               <li key={c.id}>
-                <CampaignCard {...c} />
+                <CampaignCard {...c} share_url={new URL(c.to, origin).href} />
               </li>
             ))}
           </ul>
@@ -248,52 +308,134 @@ function Campaigns({ campaigns, funds }: ICampaignsProps) {
           </p>
         )}
       >
-        {(f) => section([...campaigns, ...live_funds(f)])}
+        {(f) => section([...campaigns, ...live_funds(f, npo_id)])}
       </Await>
     </Suspense>
   );
 }
 
-function live_funds(funds: IFundItem[]): ICampaignCard[] {
+/** the open fundraisers among `funds`, as cards. one the org owns is its own
+ * campaign; anyone else's carries its creator's name */
+function live_funds(funds: IFundItem[], npo_id: number): ICampaignCard[] {
   const now = Date.now() / 1000;
   return funds
     .filter((f) => f.active && f.expiration > now)
-    .map((f) => ({
-      id: f.id,
-      name: f.name,
-      to: href("/fundraisers/:fund_id", { fund_id: f.id }),
-      image: f.banner || f.logo || null,
-      raised: f.donation_total_usd,
-      target: f.target,
-    }));
+    .map((f) => {
+      const official = f.npo_owner === npo_id;
+      return {
+        id: f.id,
+        name: f.name,
+        to: href("/fundraisers/:fund_id", { fund_id: f.id }),
+        image: f.banner || f.logo || null,
+        raised: f.donation_total_usd,
+        target: f.target,
+        official,
+        byline: official ? undefined : f.creator_name,
+        mark: f.logo ?? null,
+        excerpt: to_excerpt(f.description_pt),
+        supporters: null,
+        donate_to: href("/fundraisers/:fund_id/donate", { fund_id: f.id }),
+      };
+    });
 }
 
-function CampaignCard(c: ICampaignCard) {
+function supporter_label(n: number): string {
+  if (n === 1) return "1 supporter";
+  return `${n.toLocaleString("en-US")} supporters`;
+}
+
+interface ICampaignCardProps extends ICampaignCard {
+  /** absolute, for the networks the card shares to */
+  share_url: string;
+}
+
+/** the image and name open the campaign; Share and Donate are their own
+ * controls under it */
+function CampaignCard(c: ICampaignCardProps) {
   const goal = goal_amount(c.target, c.raised);
   return (
-    <Link
-      to={c.to}
-      className="flex h-full flex-col overflow-hidden rounded border bg-panel text-gray-12"
-    >
-      {c.image ? (
-        <Image
-          src={c.image}
-          alt=""
-          className="aspect-2/1 w-full object-cover"
-        />
-      ) : (
-        <div className="aspect-2/1 w-full bg-gray-3" />
-      )}
-      <div className="flex flex-col gap-2.5 p-4">
-        <span className="text-lg font-bold">{c.name}</span>
-        {goal != null && <GoalBar raised={c.raised} goal={goal} />}
-        <span className="text-sm text-gray-11">
-          {goal != null
-            ? `${to_usd(c.raised)} of ${to_usd(goal)}`
-            : `${to_usd(c.raised)} raised`}
+    <article className="flex h-full flex-col overflow-hidden rounded border bg-panel">
+      <p className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-11">
+        {c.mark ? (
+          <Image
+            src={c.mark}
+            alt=""
+            width={24}
+            height={24}
+            className="size-6 shrink-0 rounded-full border object-cover"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="size-6 shrink-0 rounded-full border bg-gray-3"
+          />
+        )}
+        <span className="min-w-0 truncate">
+          {c.official ? "Official campaign" : `By ${c.byline}`}
         </span>
+      </p>
+      <Link
+        to={c.to}
+        className="relative block aspect-video bg-gray-3 text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      >
+        {c.image && (
+          <Image
+            src={c.image}
+            alt=""
+            className="absolute inset-0 size-full object-cover"
+          />
+        )}
+        {/* primary-deep/70 is the measured scrim for white copy over a photo */}
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-primary-deep/70 p-4 text-center lg:p-6">
+          <span className="text-xl font-bold">{c.name}</span>
+          {c.excerpt && (
+            <span className="line-clamp-2 text-sm">{c.excerpt}</span>
+          )}
+        </span>
+      </Link>
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        {goal != null ? (
+          <>
+            <GoalBar raised={c.raised} goal={goal} />
+            <div className="flex justify-between gap-2">
+              <p className="flex flex-col gap-1">
+                <strong className="text-lg">{to_usd(c.raised)}</strong>
+                <span className="text-xs text-gray-11">Raised</span>
+              </p>
+              <p className="flex flex-col items-end gap-1">
+                <strong className="text-lg">{to_usd(goal)}</strong>
+                <span className="text-xs text-gray-11">Goal</span>
+              </p>
+            </div>
+          </>
+        ) : (
+          <p className="flex flex-col gap-1">
+            <strong className="text-lg">{to_usd(c.raised)}</strong>
+            <span className="text-xs text-gray-11">Raised · no goal set</span>
+          </p>
+        )}
+        <div className="mt-auto flex items-center gap-2 pt-1">
+          {/* -ml-3 sets the glyph, not its 44px target, on the card's edge */}
+          <Share
+            trigger="icon"
+            label={`Share ${c.name}`}
+            recipientName={c.name}
+            url={c.share_url}
+            classes="-ml-3"
+          />
+          <div className="ml-auto flex items-center gap-2">
+            {c.supporters != null && (
+              <span className="text-sm font-semibold text-gray-11">
+                {supporter_label(c.supporters)}
+              </span>
+            )}
+            <Link to={c.donate_to} className="btn btn-primary">
+              Donate
+            </Link>
+          </div>
+        </div>
       </div>
-    </Link>
+    </article>
   );
 }
 
@@ -307,7 +449,7 @@ function Programs({ npo, programs }: IProgramsProps) {
       <Await
         resolve={programs}
         errorElement={
-          <p className="order-4 text-sm text-gray-11 lg:order-none">
+          <p className="order-3 text-sm text-gray-11 xl:order-none">
             We couldn't load this nonprofit's programs right now. Please try
             again later.
           </p>
@@ -315,7 +457,7 @@ function Programs({ npo, programs }: IProgramsProps) {
       >
         {(p) =>
           p.length === 0 ? null : (
-            <section className="order-4 flex flex-col gap-4 lg:order-none">
+            <section className="order-3 flex flex-col gap-3 xl:order-none">
               <h2 className={h2}>Programs</h2>
               <ul className="divide-y overflow-hidden rounded border bg-panel">
                 {p.map((prog) => (
@@ -369,7 +511,7 @@ function Media({ media, name }: IMediaProps) {
       <Await
         resolve={media}
         errorElement={
-          <p className="order-5 text-sm text-gray-11 lg:order-none">
+          <p className="order-4 text-sm text-gray-11 xl:order-none">
             We couldn't load this nonprofit's videos right now. Please try again
             later.
           </p>
@@ -385,7 +527,7 @@ function Media({ media, name }: IMediaProps) {
               : null,
           }));
           return (
-            <section className="order-5 flex flex-col gap-4 lg:order-none">
+            <section className="order-4 flex flex-col gap-3 xl:order-none">
               <h2 className={h2}>Media</h2>
               <Medium {...first} />
               {rest.length > 0 && (
@@ -427,69 +569,16 @@ interface IMessages {
 function Messages({ messages }: IMessages) {
   if (messages.length === 0) return null;
   return (
-    <section className="order-6 flex flex-col gap-3 lg:order-none">
-      <h2 className="text-xl font-bold lg:text-base">Donor messages</h2>
+    <section className="order-5 flex flex-col gap-3 xl:order-none">
+      <h2 className={h2}>Donor messages</h2>
       {messages.map((m) => (
-        <figure
-          key={m.id}
-          className="flex flex-col gap-2 rounded border bg-band p-4"
-        >
+        <figure key={m.id} className="card flex flex-col gap-2">
           <figcaption className="text-sm font-bold">{m.name}</figcaption>
-          <blockquote className="break-words">{m.message}</blockquote>
+          <blockquote className="break-words leading-relaxed">
+            {m.message}
+          </blockquote>
         </figure>
       ))}
     </section>
-  );
-}
-
-function Details({ npo }: INpoProps) {
-  const active_in =
-    npo.active_in_countries.length > 0
-      ? npo.active_in_countries.join(", ")
-      : npo.hq_country;
-  const sdgs = (npo.sdgs ?? []) as UnSdgNum[];
-  return (
-    <section className="card order-7 flex flex-col gap-4 lg:order-none">
-      <h2 className="text-base font-bold">Organization details</h2>
-      <dl className="flex flex-col gap-3.5">
-        {npo.registration_number && (
-          <Detail term="EIN / Registration">{npo.registration_number}</Detail>
-        )}
-        {npo.street_address && (
-          <Detail term="Address">{npo.street_address}</Detail>
-        )}
-        {active_in && <Detail term="Active in">{active_in}</Detail>}
-        {sdgs.length > 0 && (
-          <Detail term="Goals">
-            <span className="flex flex-wrap gap-1.5">
-              {sdgs.map((n) => (
-                <span
-                  key={n}
-                  className="rounded-full bg-gray-3 px-2.5 py-1 text-sm font-semibold"
-                >
-                  {unsdgs[n].title}
-                </span>
-              ))}
-            </span>
-          </Detail>
-        )}
-      </dl>
-    </section>
-  );
-}
-
-interface IDetail {
-  term: string;
-  children: ReactNode;
-}
-
-function Detail({ term, children }: IDetail) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs font-bold uppercase tracking-badge text-gray-11">
-        {term}
-      </dt>
-      <dd>{children}</dd>
-    </div>
   );
 }

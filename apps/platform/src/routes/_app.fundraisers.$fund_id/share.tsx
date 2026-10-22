@@ -1,5 +1,5 @@
 import { ExtLink, Modal } from "@better-giving/ui";
-import { X, XIcon } from "lucide-react";
+import { LucideShare, X, XIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import facebook from "#/assets/icons/social/facebook.webp";
 import linkedin from "#/assets/icons/social/linkedin.webp";
@@ -43,9 +43,12 @@ type ShareProps = {
   /**
    * omitted: the heading and the icon row.
    * `"button"`: one Share button that opens the same four networks.
-   * that trigger does not append the invested line unless `line` is set.
+   * `"icon"`: the same, as a 44px share glyph named by `label`.
+   * neither trigger appends the invested line unless `line` is set.
    */
-  trigger?: "button";
+  trigger?: "button" | "icon";
+  /** the icon trigger's accessible name */
+  label?: string;
 };
 
 const invested_line =
@@ -53,16 +56,27 @@ const invested_line =
 
 export function Share(props: ShareProps) {
   const [chooser, set_chooser] = useState(false);
-  if (props.trigger === "button") {
+  if (props.trigger === "button" || props.trigger === "icon") {
     return (
       <>
-        <button
-          type="button"
-          onClick={() => set_chooser(true)}
-          className={`h-12 w-full rounded border border-gray-7 bg-surface text-base font-semibold text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${props.classes ?? ""}`}
-        >
-          Share
-        </button>
+        {props.trigger === "button" ? (
+          <button
+            type="button"
+            onClick={() => set_chooser(true)}
+            className={`h-12 w-full rounded border border-gray-7 bg-surface text-base font-semibold text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${props.classes ?? ""}`}
+          >
+            Share
+          </button>
+        ) : (
+          <button
+            type="button"
+            aria-label={props.label ?? "Share"}
+            onClick={() => set_chooser(true)}
+            className={`glyph-btn size-11 text-primary hover:bg-secondary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${props.classes ?? ""}`}
+          >
+            <LucideShare aria-hidden className="icon-xl" />
+          </button>
+        )}
         <Modal
           open={chooser}
           onClose={() => set_chooser(false)}
@@ -74,7 +88,7 @@ export function Share(props: ShareProps) {
               type="button"
               aria-label="Close"
               onClick={() => set_chooser(false)}
-              className="grid size-11 place-items-center rounded text-2xl leading-none text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className={`grid size-11 place-items-center rounded text-2xl leading-none text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`}
             >
               <XIcon className="icon-2xl" />
             </button>

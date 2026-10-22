@@ -39,4 +39,35 @@ describe("Share", () => {
     expect(prompt.element().textContent).toContain("Donate to");
     expect(prompt.element().textContent).toContain("Harbor Clinic");
   });
+
+  test("the icon trigger is named by its label and opens the same chooser", async () => {
+    const screen = await render(
+      <>
+        <Share
+          trigger="icon"
+          recipientName="Harbor Clinic"
+          url="https://better.giving/c"
+        />
+        <Share
+          trigger="icon"
+          label="Share Spring Drive"
+          recipientName="Spring Drive"
+          url="https://better.giving/f"
+        />
+      </>
+    );
+    expect(screen.getByText("Spread the word!").query()).toBeNull();
+    await expect
+      .element(screen.getByRole("button", { name: "Share", exact: true }))
+      .toBeVisible();
+    await screen
+      .getByRole("button", { name: "Share Spring Drive", exact: true })
+      .click();
+    await expect
+      .element(screen.getByRole("dialog", { name: "Share" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Share on LinkedIn" }))
+      .toBeVisible();
+  });
 });

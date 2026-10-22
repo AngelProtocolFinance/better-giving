@@ -16,6 +16,10 @@ vi.mock("./api", () => ({
 
 import Profile from "./route";
 
+// a real 2x1 pixel, so the banner img stays mounted rather than falling back
+const BANNER =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGM8kWLEwMAAAAd6AWCUFlkyAAAAAElFTkSuQmCC";
+
 describe("public profile banner", () => {
   test("the saved banner is covered, not stretched, in the hero frame", async () => {
     const Stub = createRoutesStub([
@@ -27,7 +31,7 @@ describe("public profile banner", () => {
             id: 7,
             name: "Acme Relief",
             endow_designation: "Charity",
-            image: "https://example.com/banner.png",
+            image: BANNER,
             // a real pixel, so the logo img stays mounted and its fit is readable
             logo: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
             tagline: "Food and shelter",
@@ -55,22 +59,22 @@ describe("public profile banner", () => {
       .element(screen.getByRole("heading", { name: "Acme Relief", level: 1 }))
       .toBeVisible();
     const banner = document.querySelector(
-      '[style*="banner.png"]'
-    ) as HTMLElement | null;
+      `img[src="${BANNER}"]`
+    ) as HTMLImageElement | null;
     expect(banner).not.toBeNull();
-    const fit = getComputedStyle(banner!).backgroundSize;
-    expect(fit).toBe("cover");
-    expect(banner!.className).toContain("bg-cover");
-    expect(banner!.className).not.toContain("bg-[length:");
+    expect(getComputedStyle(banner!).objectFit).toBe("cover");
+    // the frame is 16:9 whatever the saved image's own shape
+    const { width, height } = banner!.getBoundingClientRect();
+    expect(width / height).toBeCloseTo(16 / 9, 1);
 
-    // the logo is object-cover on the light panel. clear pixels in a cropped
+    // the logo is object-cover on a light ground. clear pixels in a cropped
     // png have to stay clear, or this ground cannot show through.
     const logo_of = () =>
       document.querySelector("main section img") as HTMLImageElement | null;
     await vi.waitFor(() => expect(logo_of()?.complete).toBe(true));
     const logo_style = getComputedStyle(logo_of()!);
     expect(logo_style.objectFit).toBe("cover");
-    // the panel token is a light oklch. a logo with baked-in black cannot
+    // the ground token is a light oklch. a logo with baked-in black cannot
     // show this ground through its clear pixels.
     const panel = logo_style.backgroundColor;
     expect(panel).toMatch(/^oklch\(/);

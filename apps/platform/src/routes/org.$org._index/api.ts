@@ -1,6 +1,6 @@
 import { href } from "react-router";
 import { get_funds_npo_memberof } from "#/.server/funds";
-import { to_text } from "#/components/rich-text/helpers";
+import { to_excerpt } from "#/components/rich-text/helpers";
 import { report_error } from "#/errors/report";
 import { moved } from "#/helpers/moved";
 import { org_href } from "#/helpers/org-href";
@@ -26,18 +26,6 @@ export const headers: Route.HeadersFunction = () => ({
 
 /** the profile shows up to this many featured videos */
 export const MAX_VIDEOS = 4;
-
-const EXCERPT_MAX = 160;
-
-/** a campaign story as one line of plain text, cut on a word boundary with
- * "…" when it runs past `EXCERPT_MAX` characters */
-function excerpt(story_pt: string): string {
-  const text = to_text(story_pt).replace(/\s+/g, " ").trim();
-  if (text.length <= EXCERPT_MAX) return text;
-  const room = EXCERPT_MAX - 1; // the ellipsis takes the last character
-  const space = text.lastIndexOf(" ", room);
-  return `${text.slice(0, space > 0 ? space : room)}…`;
-}
 
 export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const id = npo_id(params.org);
@@ -82,7 +70,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
               target: c.target,
               official: true as const,
               mark: c.mark,
-              excerpt: excerpt(c.description_pt),
+              excerpt: to_excerpt(c.description_pt),
               supporters: await count_or_null(campaign_donor_count(c.id)),
               // the campaign page carries the donation form
               donate_to: to,

@@ -36,6 +36,16 @@ export function to_text(json: string | undefined): string {
   return toPlainText(doc);
 }
 
+/** PT json as one line of plain text, cut on a word boundary with "…" when it
+ * runs past `max` characters */
+export function to_excerpt(json: string | undefined, max = 160): string {
+  const text = to_text(json).replace(/\s+/g, " ").trim();
+  if (text.length <= max) return text;
+  const room = max - 1; // the ellipsis takes the last character
+  const space = text.lastIndexOf(" ", room);
+  return `${text.slice(0, space > 0 ? space : room)}…`;
+}
+
 interface IListBlock {
   _key: string;
   listItem?: string;

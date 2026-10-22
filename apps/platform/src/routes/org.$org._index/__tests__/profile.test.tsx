@@ -2,15 +2,19 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
+import type { IFundItem } from "@/fundraiser";
 import type { INpoPublic } from "$/pg/queries/npo";
 import { type IProfile, Profile } from "../profile";
 
+// a signed-in viewer is what puts the favorite button in the header
+const user_mock = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("#/hooks/use-user", () => ({
-  use_user: () => ({ user: null, toggle_bookmark: vi.fn() }),
+  use_user: () => ({ user: user_mock.current, toggle_bookmark: vi.fn() }),
 }));
 
 afterEach(async () => {
   await cleanup();
+  user_mock.current = null;
   await page.viewport(1280, 900);
 });
 
@@ -45,6 +49,36 @@ const empty: IProfile = {
   programs: Promise.resolve([]),
 };
 
+const campaign: IProfile["campaigns"][number] = {
+  id: "c1",
+  name: "Winter coats",
+  to: "/org/acme/winter",
+  image: null,
+  raised: 50,
+  target: "100",
+  official: true,
+  mark: null,
+  excerpt: "Coats for every child in the shelter this winter",
+  supporters: 1,
+  donate_to: "/org/acme/winter",
+};
+
+const fund = (o: Partial<IFundItem>) =>
+  ({
+    id: "f1",
+    name: "Spring Drive",
+    description_pt: "[]",
+    banner: null,
+    logo: null,
+    active: true,
+    expiration: Date.now() / 1000 + 86_400,
+    donation_total_usd: 20,
+    target: "0",
+    npo_owner: null,
+    creator_name: "Maya Lin",
+    ...o,
+  }) as IFundItem;
+
 function mount(props: Partial<IProfile> = {}) {
   const Stub = createRoutesStub([
     { path: "/org/:org", Component: () => <Profile {...empty} {...props} /> },
@@ -67,25 +101,78 @@ describe("org profile", () => {
     ]) {
       expect(screen.getByRole("heading", { name }).query()).toBeNull();
     }
-    expect(screen.getByText("Goals").query()).toBeNull();
+    expect(screen.getByRole("list", { name: "Goals" }).query()).toBeNull();
     expect(screen.getByText("Address").query()).toBeNull();
     expect(
       screen.getByRole("link", { name: "Facebook", exact: true }).query()
     ).toBeNull();
   });
 
-  it("shows raised and donors above a Donate link, with no form, no FAQ and no goal bar without a target", async () => {
+  it("pins a header with the org's name, Share, Favorite and Donate, and no bottom action bar", async () => {
+    await page.viewport(1280, 900);
+    user_mock.current = { bookmarks: [] };
+    const screen = await mount();
+    const header = screen.getByRole("banner");
+    await expect
+      .element(header.getByRole("link", { name: "Acme Relief" }))
+      .toHaveAttribute("href", "/org/acme");
+    expect(getComputedStyle(header.element()).position).toBe("sticky");
+    await expect
+      .element(header.getByRole("button", { name: "Add to favorites" }))
+      .toBeVisible();
+    await expect
+      .element(header.getByRole("link", { name: "Donate", exact: true }))
+      .toHaveAttribute("href", "/donate/7");
+    // on desktop the header's is the one Donate: the card's is display:none,
+    // which takes it out of the accessibility tree
+    expect(
+      screen.getByRole("link", { name: "Donate", exact: true }).elements()
+    ).toHaveLength(1);
+
+    await header.getByRole("button", { name: "Share", exact: true }).click();
+    await expect
+      .element(screen.getByRole("dialog", { name: "Share" }))
+      .toBeVisible();
+    // the chooser is a modal; with it closed nothing on the page is pinned
+    // to the viewport, which is what the old phone action bar was
+    await cleanup();
+    await page.viewport(375, 667);
+    const phone = await mount();
+    await expect
+      .element(phone.getByRole("heading", { level: 1 }))
+      .toBeVisible();
+    const fixed = [...document.querySelectorAll("body *")].filter(
+      (el) => getComputedStyle(el).position === "fixed"
+    );
+    expect(fixed).toEqual([]);
+  });
+
+  it("on a phone, the header card ends on a large Donate beside the header's", async () => {
+    await page.viewport(375, 667);
+    const screen = await mount();
+    const card_donate = screen
+      .getByRole("main")
+      .getByRole("link", { name: "Donate", exact: true });
+    await expect.element(card_donate).toBeVisible();
+    await expect.element(card_donate).toHaveAttribute("href", "/donate/7");
+    await expect
+      .element(
+        screen
+          .getByRole("banner")
+          .getByRole("link", { name: "Donate", exact: true })
+      )
+      .toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Donate", exact: true }).elements()
+    ).toHaveLength(2);
+  });
+
+  it("shows raised and donors, with no form, no FAQ and no goal bar without a target", async () => {
     const screen = await mount();
     await expect
-      .element(screen.getByText("raised from 3 donors"))
+      .element(screen.getByText("$90 raised from 3 donors", { exact: true }))
       .toBeVisible();
     expect(screen.getByRole("progressbar").query()).toBeNull();
-    // each width shows one Donate link, the other is display:none: the phone
-    // bar's at the default width, the side column's on desktop
-    const donate = screen.getByRole("link", { name: "Donate", exact: true });
-    await expect.element(donate).toHaveAttribute("href", "/donate/7");
-    await page.viewport(1280, 900);
-    await expect.element(donate).toHaveAttribute("href", "/donate/7");
     expect(document.querySelector("form")).toBeNull();
     expect(screen.getByText(/frequently asked/i).query()).toBeNull();
     expect(screen.getByText(/tax-deductible/i).query()).toBeNull();
@@ -94,7 +181,7 @@ describe("org profile", () => {
   it("reads just raised when the donor count is unavailable", async () => {
     const screen = await mount({ donors: null });
     await expect
-      .element(screen.getByText("raised", { exact: true }))
+      .element(screen.getByText("$90 raised", { exact: true }))
       .toBeVisible();
     expect(screen.getByText("raised from").query()).toBeNull();
   });
@@ -109,18 +196,34 @@ describe("org profile", () => {
     await expect.element(screen.getByRole("progressbar")).toBeVisible();
   });
 
+  it("puts the org's goals in the hero card, above About", async () => {
+    const screen = await mount({
+      npo: {
+        ...npo,
+        sdgs: [1, 4],
+        overview_pt: JSON.stringify([
+          {
+            _type: "block",
+            _key: "a",
+            children: [{ _type: "span", _key: "s", text: "We feed people" }],
+          },
+        ]),
+      } as INpoPublic,
+    });
+    const goals = screen.getByRole("list", { name: "Goals" });
+    await expect.element(goals.getByText("No Poverty")).toBeVisible();
+    await expect.element(goals.getByText("Quality Education")).toBeVisible();
+    const about = screen.getByRole("heading", { name: "About" });
+    await expect.element(about).toBeVisible();
+    expect(
+      goals.element().compareDocumentPosition(about.element()) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
   it("lists campaigns, programs, videos and messages, a message by name", async () => {
     const screen = await mount({
-      campaigns: [
-        {
-          id: "c1",
-          name: "Winter coats",
-          to: "/org/acme/winter",
-          image: null,
-          raised: 50,
-          target: "100",
-        },
-      ],
+      campaigns: [campaign],
       programs: Promise.resolve([
         { id: "p1", title: "Wells", description_pt: "[]" },
       ] as never),
@@ -132,9 +235,19 @@ describe("org profile", () => {
     });
 
     await expect
+      .element(screen.getByRole("heading", { name: "Campaigns" }))
+      .toBeVisible();
+    // the section heading carries no count
+    expect(screen.getByText(/\d+ live/).query()).toBeNull();
+    await expect
       .element(screen.getByRole("link", { name: /Winter coats/ }))
       .toHaveAttribute("href", "/org/acme/winter");
-    await expect.element(screen.getByText("$50 of $100")).toBeVisible();
+    await expect
+      .element(screen.getByText("$50", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("$100", { exact: true }))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: /Wells/ }))
       .toHaveAttribute("href", "/org/acme/program/p1");
@@ -151,6 +264,99 @@ describe("org profile", () => {
     const msg = screen.getByRole("figure");
     await expect.element(msg.getByText("Ana")).toBeVisible();
     await expect.element(msg.getByText("Keep going")).toBeVisible();
+  });
+
+  it("names a campaign card's runner, supporters and Share, and donates to the campaign or the fundraiser", async () => {
+    const screen = await mount({
+      campaigns: [
+        campaign,
+        {
+          ...campaign,
+          id: "c2",
+          name: "Roof repair",
+          to: "/org/acme/roof",
+          donate_to: "/org/acme/roof",
+          target: undefined,
+          supporters: 12,
+        },
+        {
+          ...campaign,
+          id: "c3",
+          name: "Pantry",
+          to: "/org/acme/pantry",
+          donate_to: "/org/acme/pantry",
+          supporters: null,
+        },
+      ],
+      funds: Promise.resolve([
+        fund({}),
+        fund({
+          id: "f2",
+          name: "Org Gala",
+          npo_owner: 7,
+          creator_name: "Acme Admin",
+        }),
+      ]),
+    });
+    const card = (name: string) =>
+      screen.getByRole("article").filter({ hasText: name });
+
+    await expect
+      .element(card("Winter coats").getByText("Official campaign"))
+      .toBeVisible();
+    await expect
+      .element(card("Winter coats").getByText("1 supporter", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(card("Winter coats").getByRole("link", { name: "Donate" }))
+      .toHaveAttribute("href", "/org/acme/winter");
+    await expect
+      .element(
+        card("Winter coats").getByRole("button", {
+          name: "Share Winter coats",
+        })
+      )
+      .toBeVisible();
+
+    await expect
+      .element(card("Roof repair").getByText("12 supporters", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(card("Roof repair").getByText("Raised · no goal set"))
+      .toBeVisible();
+    expect(
+      card("Pantry")
+        .getByText(/supporter/)
+        .query()
+    ).toBeNull();
+
+    // a fundraiser someone else runs carries their name, and its own form
+    await expect
+      .element(card("Spring Drive").getByText("By Maya Lin"))
+      .toBeVisible();
+    expect(
+      card("Spring Drive")
+        .getByText(/supporter/)
+        .query()
+    ).toBeNull();
+    await expect
+      .element(card("Spring Drive").getByRole("link", { name: "Donate" }))
+      .toHaveAttribute("href", "/fundraisers/f1/donate");
+    await expect
+      .element(card("Spring Drive").getByRole("link", { name: /Spring Drive/ }))
+      .toHaveAttribute("href", "/fundraisers/f1");
+    // one the org owns is its own campaign
+    await expect
+      .element(card("Org Gala").getByText("Official campaign"))
+      .toBeVisible();
+    expect(card("Org Gala").getByText(/^By /).query()).toBeNull();
+
+    await card("Spring Drive")
+      .getByRole("button", { name: "Share Spring Drive" })
+      .click();
+    await expect
+      .element(screen.getByRole("dialog", { name: "Share" }))
+      .toBeVisible();
   });
 
   it("names each video frame by the org and its place in the list", async () => {
@@ -196,16 +402,13 @@ describe("org profile", () => {
     expect(box(3).top).toBe(box(2).top);
   });
 
-  it("carries the org's mark, name and socials in header and footer", async () => {
+  it("carries the org's mark, name, socials and details in the footer", async () => {
     const screen = await mount({
       npo: {
         ...npo,
         social_media_urls: { facebook: "https://facebook.com/acme" },
       } as INpoPublic,
     });
-    const home = screen.getByRole("banner").getByRole("link");
-    await expect.element(home).toHaveAttribute("href", "/org/acme");
-    await expect.element(home).toHaveTextContent("Acme Relief");
     const footer = screen.getByRole("contentinfo");
     await expect.element(footer.getByText("Acme Relief")).toBeVisible();
     await expect
@@ -214,5 +417,19 @@ describe("org profile", () => {
     await expect
       .element(footer.getByRole("link", { name: /Powered by Better Giving/ }))
       .toHaveAttribute("href", "/");
+    // details live in the footer alone: the registration and, with no
+    // countries listed, the hq; no address, which this org has none of
+    const details = footer.getByRole("region", {
+      name: "Organization details",
+    });
+    await expect.element(details.getByText("EIN123")).toBeVisible();
+    await expect.element(details.getByText("Active in")).toBeVisible();
+    await expect
+      .element(details.getByText("United States", { exact: true }))
+      .toBeVisible();
+    expect(details.getByText("Address").query()).toBeNull();
+    expect(
+      screen.getByRole("main").getByText("Organization details").query()
+    ).toBeNull();
   });
 });
