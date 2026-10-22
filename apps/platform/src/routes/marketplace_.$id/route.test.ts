@@ -23,7 +23,12 @@ afterAll(async () => {
   await test_db.current?.client.close();
 });
 
-const location = (r: Response) => [r.status, r.headers.get("location")];
+const location = (r: Response) => [
+  r.status,
+  r.headers.get("location"),
+  r.headers.get("cache-control"),
+];
+const MOVED = "public, max-age=3600, s-maxage=86400";
 const call = (fn: unknown, path: string, params: object) =>
   (fn as (a: unknown) => Promise<Response>)({
     params,
@@ -45,15 +50,15 @@ describe("old marketplace urls", () => {
           id: String(slugged!.id),
         })
       )
-    ).toEqual([301, "/org/acme"]);
+    ).toEqual([301, "/org/acme", MOVED]);
     expect(
       location(await call(loader, "/marketplace/acme?x=1", { id: "acme" }))
-    ).toEqual([301, "/org/acme?x=1"]);
+    ).toEqual([301, "/org/acme?x=1", MOVED]);
     expect(
       location(
         await call(loader, `/marketplace/${bare!.id}`, { id: String(bare!.id) })
       )
-    ).toEqual([301, `/org/${bare!.id}`]);
+    ).toEqual([301, `/org/${bare!.id}`, MOVED]);
   });
 
   it("301 a program to /org/<slug|id>/program/<id>", async () => {
@@ -67,6 +72,6 @@ describe("old marketplace urls", () => {
       `/marketplace/${npo!.id}/program/p1`,
       { id: String(npo!.id), program_id: "p1" }
     );
-    expect(location(res)).toEqual([301, "/org/wells-org/program/p1"]);
+    expect(location(res)).toEqual([301, "/org/wells-org/program/p1", MOVED]);
   });
 });

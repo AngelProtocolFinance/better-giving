@@ -48,10 +48,10 @@ beforeEach(async () => {
   ]);
 });
 
-const load = (program_id: string, org = String(npo_a)) =>
+const load = (program_id: string, org = String(npo_a), search = "") =>
   (loader as any)({
     params: { org, program_id },
-    request: new Request(`https://x/org/${org}/program/${program_id}`),
+    request: new Request(`https://x/org/${org}/program/${program_id}${search}`),
   });
 
 describe("program page", () => {
@@ -65,12 +65,17 @@ describe("program page", () => {
   it("301s a slugged org's id url to its slug url", async () => {
     const db = test_db.current!.db;
     await db.update(npos).set({ slug: "a-org" }).where(eq(npos.id, npo_a));
-    const thrown = await load(A_PID).catch((e: unknown) => e);
+    const thrown = await load(A_PID, String(npo_a), "?utm_source=x").catch(
+      (e: unknown) => e
+    );
 
     expect(thrown).toBeInstanceOf(Response);
     expect((thrown as Response).status).toBe(301);
     expect((thrown as Response).headers.get("location")).toBe(
-      `/org/a-org/program/${A_PID}`
+      `/org/a-org/program/${A_PID}?utm_source=x`
+    );
+    expect((thrown as Response).headers.get("cache-control")).toBe(
+      "public, max-age=3600, s-maxage=86400"
     );
     expect((await load(A_PID, "a-org")).prog).toMatchObject({ id: A_PID });
   });

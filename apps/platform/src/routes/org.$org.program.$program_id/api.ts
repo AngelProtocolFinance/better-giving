@@ -1,5 +1,5 @@
-import { redirect } from "react-router";
 import { safeParse } from "valibot";
+import { moved } from "#/helpers/moved";
 import { program_href } from "#/helpers/org-href";
 import { npo_id } from "#/pages/marketplace/npo-id";
 import { resp } from "@/helpers/https";
@@ -22,7 +22,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   if (!npo || npo.active === false) throw resp.status(404);
   // an org with a slug lives at it; its id url is an alias
   if (typeof id === "number" && npo.slug) {
-    throw redirect(program_href(npo, pid), 301);
+    throw moved(`${program_href(npo, pid)}${new URL(request.url).search}`);
   }
 
   const prog = await npo_program_get(pid, npo.id);

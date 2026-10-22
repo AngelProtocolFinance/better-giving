@@ -37,7 +37,7 @@ interface IMessage {
 export interface IProfile {
   npo: INpoPublic;
   url: string;
-  donors: number;
+  donors: number | null;
   messages: IMessage[];
   campaigns: ICampaignCard[];
   funds: Promise<IFundItem[]>;
@@ -159,7 +159,7 @@ function Mast({ npo }: INpoProps) {
 }
 
 interface IRaised extends INpoProps {
-  donors: number;
+  donors: number | null;
 }
 
 function Raised({ npo, donors }: IRaised) {
@@ -169,7 +169,9 @@ function Raised({ npo, donors }: IRaised) {
     <div className="card flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <p className="text-3xl font-bold">{to_usd(raised)}</p>
-        <p className="text-gray-11">raised from {donor_label(donors)}</p>
+        <p className="text-gray-11">
+          {donors == null ? "raised" : `raised from ${donor_label(donors)}`}
+        </p>
       </div>
       {goal != null && (
         <div className="flex flex-col gap-1.5">

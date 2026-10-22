@@ -87,6 +87,14 @@ describe("org profile", () => {
     expect(screen.getByText(/tax-deductible/i).query()).toBeNull();
   });
 
+  it("reads just raised when the donor count is unavailable", async () => {
+    const screen = await mount({ donors: null });
+    await expect
+      .element(screen.getByText("raised", { exact: true }))
+      .toBeVisible();
+    expect(screen.getByText("raised from").query()).toBeNull();
+  });
+
   it("shows a goal bar with a target", async () => {
     const screen = await mount({
       npo: { ...npo, target: "300" } as INpoPublic,

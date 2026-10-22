@@ -23,7 +23,7 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
     title: `${d.prog.title} - ${d.npo.name} - ${app_name}`,
     description: to_text(d.prog.description_pt).slice(0, 140),
     name: d.prog.title,
-    image: d.prog.banner,
+    image: d.prog.banner ?? undefined,
     url: d.url,
   });
 };

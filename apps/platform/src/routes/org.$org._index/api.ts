@@ -1,6 +1,7 @@
-import { href, redirect } from "react-router";
+import { href } from "react-router";
 import { get_funds_npo_memberof } from "#/.server/funds";
 import { report_error } from "#/errors/report";
+import { moved } from "#/helpers/moved";
 import { org_href } from "#/helpers/org-href";
 import { npo_id } from "#/pages/marketplace/npo-id";
 import { campaign_live_for_npo } from "$/pg/queries/campaign";
@@ -28,7 +29,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   if (!npo || npo.active === false) throw new Response(null, { status: 404 });
   // an org with a slug lives at it; its id url is an alias
   if (typeof id === "number" && npo.slug) {
-    throw redirect(org_href(npo), 301);
+    throw moved(`${org_href(npo)}${new URL(request.url).search}`);
   }
 
   // a rejected deferred streams to <Await errorElement> and never reaches handleError
@@ -40,7 +41,10 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
 
   const [campaigns, donors, messages] = await Promise.all([
     campaign_live_for_npo(npo.id),
-    npo_donor_count(npo.id),
+    npo_donor_count(npo.id).catch((err) => {
+      report_error(err, { endow_id: npo.id });
+      return null;
+    }),
     donation_message_list(String(npo.id), { limit: 10 })
       .then((page) =>
         page.items

@@ -9,7 +9,7 @@ vi.mock("remix-client-cache", () => ({
 }));
 vi.mock("./api", () => ({ loader: () => null, headers: () => ({}) }));
 
-import ProgramPage from "./route";
+import ProgramPage, { meta } from "./route";
 
 const data = (prog: object) => ({
   npo: { id: 7, slug: "acme", name: "Acme Relief", logo: null },
@@ -79,5 +79,17 @@ describe("program page", () => {
       .element(screen.getByRole("heading", { name: "Drill first well" }))
       .toBeVisible();
     await expect.element(screen.getByText("Jan 2, 2020")).toBeVisible();
+  });
+
+  it("shares its banner, or the default image without one", () => {
+    const og_image = (prog: object) =>
+      (meta as any)({ loaderData: data(prog) }).find(
+        (m: { property?: string }) => m.property === "og:image"
+      )?.content;
+
+    expect(og_image({ banner: "https://x/banner.png" })).toBe(
+      "https://x/banner.png"
+    );
+    expect(og_image({ banner: null })).toMatch(/\/og-default\.png$/);
   });
 });
