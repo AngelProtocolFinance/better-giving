@@ -18,7 +18,6 @@ vi.mock("$/kit/queue", () => ({ enqueue: vi.fn() }));
 import { meta as campaigns_meta } from "#/routes/admin.$id.campaigns/route";
 import { meta as edit_meta } from "../admin.$id.campaigns_.$campaign_id/route";
 import * as dashboard_route from "../admin.$id.dashboard/route";
-import { meta as profile_meta } from "../admin.$id.edit-profile/route";
 import { meta as organization_meta } from "../admin.$id.organization/route";
 import { meta as settings_meta } from "../admin.$id.settings/route";
 import { meta as layout_meta } from "./route";
@@ -94,10 +93,6 @@ describe("admin document titles", () => {
       [
         "Organization - North Shore",
         organization_meta({ matches: layout_matches() } as never),
-      ],
-      [
-        "Public profile - North Shore",
-        profile_meta({ matches: layout_matches() } as never),
       ],
     ] as const;
 
