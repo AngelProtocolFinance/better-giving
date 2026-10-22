@@ -5,6 +5,10 @@ import { type ReactNode, Suspense } from "react";
 import { Await, href, Link } from "react-router";
 import fallback_banner from "#/assets/images/bg-banner.webp";
 import flying_character from "#/assets/images/flying-character.webp";
+import {
+  ACTION_BAR_CLEARANCE,
+  ActionBar,
+} from "#/components/org-page/action-bar";
 import { OrgFooter } from "#/components/org-page/footer";
 import { GoalBar } from "#/components/org-page/goal-bar";
 import { OrgHeader } from "#/components/org-page/header";
@@ -68,14 +72,14 @@ export function Profile(props: IProfile) {
         className="h-32 w-full bg-cover bg-center sm:h-72"
         style={{ backgroundImage: `url('${npo.image || fallback_banner}')` }}
       />
-      <main className="page flex-1 pb-28 lg:pb-20">
+      <main className="page flex-1 pb-8 lg:pb-20">
         <Mast npo={npo} />
         <div className="mt-8 flex flex-col gap-8 lg:mt-10 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
           <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-12">
             <About npo={npo} />
             <Campaigns campaigns={props.campaigns} funds={props.funds} />
             <Programs npo={npo} programs={props.programs} />
-            <Media media={props.media} />
+            <Media media={props.media} name={npo.name} />
           </div>
           <aside className="contents lg:flex lg:flex-col lg:gap-5">
             <section
@@ -83,7 +87,10 @@ export function Profile(props: IProfile) {
               className="order-1 flex flex-col gap-2 lg:order-none"
             >
               <Raised npo={npo} donors={props.donors} />
-              <Link to={donate_to} className="btn btn-primary max-lg:hidden">
+              <Link
+                to={donate_to}
+                className="btn btn-primary btn-lg max-lg:hidden"
+              >
                 Donate
               </Link>
               <Share trigger="button" classes="max-lg:hidden" {...share} />
@@ -97,14 +104,14 @@ export function Profile(props: IProfile) {
         name={npo.name}
         logo={npo.logo}
         social_media_urls={npo.social_media_urls}
+        classes={ACTION_BAR_CLEARANCE}
       />
-      {/* on a phone the action column folds into the page, so donate pins */}
-      <div className="fixed inset-x-0 bottom-0 z-sticky flex gap-2 border-t bg-panel px-4 py-3 lg:hidden">
+      <ActionBar>
         <Share trigger="button" classes="min-w-0 flex-1" {...share} />
-        <Link to={donate_to} className="btn btn-primary min-w-0 flex-1">
+        <Link to={donate_to} className="btn btn-primary btn-lg min-w-0 flex-1">
           Donate
         </Link>
-      </div>
+      </ActionBar>
     </div>
   );
 }
@@ -127,7 +134,7 @@ function Mast({ npo }: INpoProps) {
       />
       <div className="flex min-w-0 flex-[999_1_26rem] flex-col gap-2 sm:pt-4">
         {tag && (
-          <p className="w-fit rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase tracking-badge text-primary-deep">
+          <p className="w-fit rounded-full bg-secondary px-3 py-1 text-xs font-bold uppercase tracking-badge text-gray-12">
             {tag}
           </p>
         )}
@@ -352,9 +359,11 @@ function Programs({ npo, programs }: IProgramsProps) {
  * is not youtube (from before entry was youtube-only) stays a plain link */
 interface IMediaProps {
   media: Promise<IMedia[]>;
+  /** the org's name, which tells its video frames apart for assistive tech */
+  name: string;
 }
 
-function Media({ media }: IMediaProps) {
+function Media({ media, name }: IMediaProps) {
   return (
     <Suspense fallback={null}>
       <Await
@@ -368,7 +377,13 @@ function Media({ media }: IMediaProps) {
       >
         {(m) => {
           if (m.length === 0) return null;
-          const [first, ...rest] = m;
+          let frames = 0;
+          const [first, ...rest] = m.map((item) => ({
+            item,
+            title: extract_youtube_id(item.url)
+              ? `${name} video ${++frames}`
+              : null,
+          }));
           return (
             <section className="order-5 flex flex-col gap-4 lg:order-none">
               <h2 className={h2}>Media</h2>
@@ -376,7 +391,7 @@ function Media({ media }: IMediaProps) {
               {rest.length > 0 && (
                 <div className="grid gap-4 sm:grid-cols-3">
                   {rest.map((v) => (
-                    <Medium key={v.id} {...v} />
+                    <Medium key={v.item.id} {...v} />
                   ))}
                 </div>
               )}
@@ -388,15 +403,21 @@ function Media({ media }: IMediaProps) {
   );
 }
 
-function Medium(m: IMedia) {
-  if (!extract_youtube_id(m.url)) {
+interface IMedium {
+  item: IMedia;
+  /** null for a link that is not youtube, which renders as a plain link */
+  title: string | null;
+}
+
+function Medium({ item, title }: IMedium) {
+  if (title == null) {
     return (
-      <ExtLink href={m.url} className="link break-all">
-        {m.url}
+      <ExtLink href={item.url} className="link break-all">
+        {item.url}
       </ExtLink>
     );
   }
-  return <Video url={m.url} />;
+  return <Video url={item.url} title={title} />;
 }
 
 interface IMessages {

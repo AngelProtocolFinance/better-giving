@@ -120,11 +120,16 @@ export function use_organization_form(
   const slug = useWatch({ control, name: "slug" });
   const name = useWatch({ control, name: "name" });
 
+  /** the group's own fields, focusing the first invalid one. a locked slug is
+   * not part of the group */
+  const validate = () =>
+    form.trigger(
+      locked ? fields.filter((name) => name !== "slug") : [...fields],
+      { shouldFocus: true }
+    );
+
   const submit = async () => {
-    const checked = locked
-      ? fields.filter((name) => name !== "slug")
-      : [...fields];
-    if (!(await form.trigger(checked, { shouldFocus: true }))) return;
+    if (!(await validate())) return;
     const values = structuredClone(form.getValues());
     await save(
       async () => {
@@ -172,6 +177,7 @@ export function use_organization_form(
     is_dirty: formState.isDirty,
     busy,
     save: submit,
+    validate,
     locked,
     logo,
     designation,

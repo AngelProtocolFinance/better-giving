@@ -147,6 +147,31 @@ describe("org profile", () => {
     expect(msg.element().textContent).not.toMatch(/\$/);
   });
 
+  it("names each video frame by the org and its place in the list", async () => {
+    const screen = await mount({
+      media: Promise.resolve([
+        { id: "m1", url: "https://youtu.be/dQw4w9WgXcQ", featured: true },
+        { id: "m2", url: "https://vimeo.com/123", featured: true },
+        { id: "m3", url: "https://youtu.be/9bZkp7q19f0", featured: true },
+        { id: "m4", url: "https://youtu.be/kJQP7kiw5Fk", featured: true },
+      ] as never),
+    });
+    await expect
+      .element(screen.getByRole("heading", { name: "Media" }))
+      .toBeVisible();
+    // the plain link between them is not a frame and takes no number
+    await vi.waitFor(() => {
+      const titles = [...screen.container.querySelectorAll("iframe")].map(
+        (f) => f.title
+      );
+      expect(titles).toEqual([
+        "Acme Relief video 1",
+        "Acme Relief video 2",
+        "Acme Relief video 3",
+      ]);
+    });
+  });
+
   it("carries the org's mark, name and socials in header and footer", async () => {
     const screen = await mount({
       npo: {

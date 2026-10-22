@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { createRoutesStub } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 vi.mock("remix-client-cache", () => ({
@@ -35,6 +36,10 @@ function mount(prog: object) {
 }
 
 describe("program page", () => {
+  afterEach(async () => {
+    await page.viewport(1280, 900);
+  });
+
   it("has no milestones or target card when it has neither", async () => {
     const screen = await mount({});
     await expect
@@ -79,6 +84,37 @@ describe("program page", () => {
       .element(screen.getByRole("heading", { name: "Drill first well" }))
       .toBeVisible();
     await expect.element(screen.getByText("Jan 2, 2020")).toBeVisible();
+  });
+
+  it("on a phone, pins Share beside the donate link", async () => {
+    await page.viewport(375, 667);
+    const screen = await mount({});
+    // the side column's pair is display:none here, so each name resolves to
+    // the pinned bar's control alone
+    await expect
+      .element(screen.getByRole("button", { name: "Share", exact: true }))
+      .toBeVisible();
+    const donate = screen.getByRole("link", { name: "Donate", exact: true });
+    await expect.element(donate).toBeVisible();
+    await document.fonts.ready;
+    const link = donate.element();
+    const label = document.createRange();
+    label.selectNodeContents(link);
+    expect(label.getClientRects()).toHaveLength(1);
+    expect(link.getBoundingClientRect().height).toBeGreaterThanOrEqual(
+      screen
+        .getByRole("button", { name: "Share", exact: true })
+        .element()
+        .getBoundingClientRect().height
+    );
+    await expect
+      .element(donate)
+      .toHaveAttribute("href", "/donate/7?programId=p1");
+
+    await screen.getByRole("button", { name: "Share", exact: true }).click();
+    await expect
+      .element(screen.getByRole("dialog", { name: "Share" }))
+      .toBeVisible();
   });
 
   it("shares its banner, or the default image without one", () => {

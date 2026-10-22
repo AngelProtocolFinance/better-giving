@@ -2,6 +2,10 @@ import { Image } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import { href, Link } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import {
+  ACTION_BAR_CLEARANCE,
+  ActionBar,
+} from "#/components/org-page/action-bar";
 import { OrgFooter } from "#/components/org-page/footer";
 import { GoalBar } from "#/components/org-page/goal-bar";
 import { OrgHeader } from "#/components/org-page/header";
@@ -34,11 +38,12 @@ function Page({ loaderData: d }: Route.ComponentProps) {
   const donate_to = `${href("/donate/:id", { id: String(npo.id) })}?programId=${prog.id}`;
   const target = prog.target_raise ?? 0;
   const received = prog.total_donations ?? 0;
+  const share = { recipientName: prog.title, url: d.url };
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background text-gray-12">
       <OrgHeader name={npo.name} logo={npo.logo} to={org_href(npo)} />
-      <main className="page flex flex-1 flex-col gap-7 pt-6 pb-28 lg:pb-20">
+      <main className="page flex flex-1 flex-col gap-7 pt-6 pb-8 lg:pb-20">
         {prog.banner && (
           <Image
             src={prog.banner}
@@ -77,15 +82,13 @@ function Page({ loaderData: d }: Route.ComponentProps) {
                 />
               </div>
             )}
-            <Link to={donate_to} className="btn btn-primary max-lg:hidden">
+            <Link
+              to={donate_to}
+              className="btn btn-primary btn-lg max-lg:hidden"
+            >
               Donate to this program
             </Link>
-            <Share
-              trigger="button"
-              classes="max-lg:hidden"
-              recipientName={prog.title}
-              url={d.url}
-            />
+            <Share trigger="button" classes="max-lg:hidden" {...share} />
           </aside>
         </div>
       </main>
@@ -93,12 +96,15 @@ function Page({ loaderData: d }: Route.ComponentProps) {
         name={npo.name}
         logo={npo.logo}
         social_media_urls={npo.social_media_urls}
+        classes={ACTION_BAR_CLEARANCE}
       />
-      <div className="fixed inset-x-0 bottom-0 z-sticky flex gap-2 border-t bg-panel px-4 py-3 lg:hidden">
-        <Link to={donate_to} className="btn btn-primary min-w-0 flex-1">
-          Donate to this program
+      <ActionBar>
+        {/* the profile's bar: half each, so the full label stays on desktop */}
+        <Share trigger="button" classes="min-w-0 flex-1" {...share} />
+        <Link to={donate_to} className="btn btn-primary btn-lg min-w-0 flex-1">
+          Donate
         </Link>
-      </div>
+      </ActionBar>
     </div>
   );
 }

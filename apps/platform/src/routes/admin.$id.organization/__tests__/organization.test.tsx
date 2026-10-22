@@ -310,6 +310,31 @@ describe("organization — slug unset", () => {
     expect((await npo_get(npo.id))?.registration_number).toBe("EIN123456");
   });
 
+  it("a first slug beside an invalid website focuses the website and asks nothing", async () => {
+    free_slug();
+    const npo = await seed_npo();
+    const screen = await render_org(npo.id);
+    await screen.getByLabelText("Profile link").fill("acme-org");
+    const website = screen.getByLabelText("Website of your organization");
+    // a port that is not a number: chromium's parser escapes a space in a
+    // host, so a spaced name would pass
+    await website.fill("acme.example:web");
+    await screen.getByRole("button", { name: "Save organization" }).click();
+
+    await expect.element(website).toHaveFocus();
+    await expect.element(screen.getByText("invalid url")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Lock your profile link?" }).query()
+    ).toBeNull();
+
+    // fixed, the same press asks to lock
+    await website.fill("acme.example");
+    await screen.getByRole("button", { name: "Save organization" }).click();
+    await expect
+      .element(screen.getByRole("heading", { name: "Lock your profile link?" }))
+      .toBeVisible();
+  });
+
   it("asks before the first slug and cancel leaves it unset", async () => {
     free_slug();
     const npo = await seed_npo();
@@ -406,16 +431,17 @@ describe("organization — server refusal", () => {
   it("refuses a reserved slug", async () => {
     const npo = await seed_npo();
     const screen = await render_org(npo.id);
-    await screen.getByLabelText("Profile link").fill("donate");
+    const slug = screen.getByLabelText("Profile link");
+    await slug.fill("donate");
     await screen.getByRole("button", { name: "Save organization" }).click();
-    (
-      screen
-        .getByRole("button", { name: "Save", exact: true })
-        .element() as HTMLElement
-    ).click();
+    // refused before the lock prompt, which a slug that can't save never opens
     await expect
       .element(screen.getByText("donate matches a top-level route"))
       .toBeVisible();
+    await expect.element(slug).toHaveFocus();
+    expect(
+      screen.getByRole("heading", { name: "Lock your profile link?" }).query()
+    ).toBeNull();
     expect((await npo_get(npo.id))?.slug).toBeFalsy();
 
     await cleanup();

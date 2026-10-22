@@ -30,9 +30,14 @@ export function OrgFooter({
           />
         )}
         <span className="text-sm font-semibold">{name}</span>
-        <Socials social_media_urls={social_media_urls} classes="ml-auto" />
+        {/* a phone stacks them under the name, the glyphs (not their 44px
+            targets) on the name's edge; wider screens push them right */}
+        <Socials
+          social_media_urls={social_media_urls}
+          classes="empty:hidden max-sm:-ml-2.5 max-sm:basis-full sm:ml-auto"
+        />
       </div>
-      <div className="page flex justify-center pb-4">
+      <div className="page flex pb-4 sm:justify-center">
         <Link
           to="/"
           className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-gray-11"

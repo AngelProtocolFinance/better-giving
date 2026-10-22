@@ -176,7 +176,8 @@ export function Form({ init, profile, id, base_url }: IProps) {
         <section
           id="page"
           aria-labelledby={page_title_id}
-          className="card grid grid-cols-1 w-full gap-6"
+          // scroll-mt clears the sticky app header (~65px) on a #page landing
+          className="card grid grid-cols-1 w-full gap-6 scroll-mt-20"
         >
           <h3 id={page_title_id} className="text-2xl">
             <ExtLink
@@ -471,12 +472,13 @@ function OrgGroup({ init, id, base_url, set_prompt }: IOrgGroup) {
             group={form}
             label="Save organization"
             blocked={uploading}
-            onClick={() => {
-              if (setting_slug) {
-                set_lock_open(true);
+            onClick={async () => {
+              if (!setting_slug) {
+                void form.save();
                 return;
               }
-              void form.save();
+              // only a group that would save asks to lock the link
+              if (await form.validate()) set_lock_open(true);
             }}
           />
         </Group>
