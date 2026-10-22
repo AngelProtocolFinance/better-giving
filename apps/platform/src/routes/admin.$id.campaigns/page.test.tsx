@@ -164,7 +164,7 @@ describe("campaign list", () => {
             endow,
             campaigns,
             org_funds,
-            profile_to: "/admin/7/edit-profile",
+            profile_to: "/admin/7/organization#page",
           };
         },
       },
@@ -172,7 +172,7 @@ describe("campaign list", () => {
     return render(<Stub initialEntries={[`/admin/7/campaigns${search}`]} />);
   }
 
-  it("lists the profile as the only row when campaigns and funds are all absent", async () => {
+  it("shows the empty state, no profile row, when campaigns and funds are all absent", async () => {
     const screen = await render_list([], []);
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Campaigns" }))
@@ -193,25 +193,17 @@ describe("campaign list", () => {
     await expect
       .element(screen.getByRole("tab", { name: "Your campaigns", exact: true }))
       .toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("No campaigns yet").query()).toBeNull();
-    expect(
-      screen.getByRole("link", { name: "Create campaign" }).query()
-    ).toBeNull();
-    expect(screen.getByRole("listitem").elements()).toHaveLength(1);
-    const profile = row_of(screen, "Acme Fund");
-    await expect
-      .element(profile.getByText("Profile", { exact: true }))
-      .toBeVisible();
-    await expect
-      .element(profile.getByText("$90 Raised", { exact: true }))
-      .toBeVisible();
+    await expect.element(screen.getByText("No campaigns yet")).toBeVisible();
     expect(
       (
-        profile
-          .getByRole("link", { name: "Edit Acme Fund", exact: true })
+        screen
+          .getByRole("link", { name: "Create campaign" })
           .element() as HTMLAnchorElement
-      ).pathname
-    ).toBe("/admin/7/edit-profile");
+      ).getAttribute("href")
+    ).toBe("/admin/7/campaigns/new");
+    expect(screen.getByRole("listitem").elements()).toHaveLength(0);
+    expect(screen.getByText("Acme Fund", { exact: true }).query()).toBeNull();
+    expect(screen.getByText("Profile", { exact: true }).query()).toBeNull();
     expect(
       screen.getByRole("heading", { name: "Supporter campaigns" }).query()
     ).toBeNull();
@@ -291,7 +283,7 @@ describe("campaign list", () => {
       .element(screen.getByRole("tab", { name: "Your campaigns", exact: true }))
       .toHaveAttribute("aria-selected", "true");
     await expect
-      .element(screen.getByText("Acme Fund", { exact: true }))
+      .element(screen.getByText("No campaigns yet", { exact: true }))
       .toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Supporter campaigns" }).query()
@@ -318,7 +310,9 @@ describe("campaign list", () => {
         )
       )
       .toBeVisible();
-    expect(screen.getByText("Acme Fund", { exact: true }).query()).toBeNull();
+    expect(
+      screen.getByText("No campaigns yet", { exact: true }).query()
+    ).toBeNull();
     expect(
       screen.getByRole("link", { name: "New campaign" }).query()
     ).toBeNull();
@@ -333,7 +327,7 @@ describe("campaign list", () => {
       expect(screen.getByTestId("url-search").element().textContent).toBe("");
     });
     await expect
-      .element(screen.getByText("Acme Fund", { exact: true }))
+      .element(screen.getByText("No campaigns yet", { exact: true }))
       .toBeVisible();
   });
 
@@ -458,17 +452,10 @@ describe("campaign list", () => {
           .element() as HTMLAnchorElement
       ).pathname
     ).toBe("/fundraisers/f-live/edit");
-    await expect
-      .element(
-        row_of(screen, "Acme Fund").getByRole("link", {
-          name: "Edit Acme Fund",
-          exact: true,
-        })
-      )
-      .toBeVisible();
+    expect(screen.getByText("Acme Fund", { exact: true }).query()).toBeNull();
   });
 
-  it("lists campaigns and the profile on Your campaigns", async () => {
+  it("lists campaigns, without the profile, on Your campaigns", async () => {
     const screen = await render_list(
       [
         {
@@ -577,24 +564,9 @@ describe("campaign list", () => {
 
     const items = screen.getByRole("listitem").elements();
     expect(items.map((el) => el.querySelector("p")?.textContent)).toEqual([
-      "Acme Fund",
       "Winter",
       "Spring",
     ]);
-    const profile = row_of(screen, "Acme Fund");
-    const profile_view = profile
-      .getByRole("link", { name: "View Acme Fund", exact: true })
-      .element() as HTMLAnchorElement;
-    expect(profile_view.getAttribute("href")).toBe("/marketplace/acme");
-    expect(profile_view.getAttribute("target")).toBeNull();
-    expect(
-      (
-        profile
-          .getByRole("link", { name: "Edit Acme Fund", exact: true })
-          .element() as HTMLAnchorElement
-      ).pathname
-    ).toBe("/admin/7/edit-profile");
-    expect(profile.getByText("No end date").query()).toBeNull();
   });
 });
 

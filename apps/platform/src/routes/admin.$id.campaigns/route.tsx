@@ -1,4 +1,4 @@
-import { TabPanel, Tabs } from "@better-giving/ui";
+import { EmptyState, TabPanel, Tabs } from "@better-giving/ui";
 import { useId } from "react";
 import { href, Link, useSearchParams } from "react-router";
 import { admin_page_meta } from "#/routes/admin.$id/page-meta";
@@ -27,8 +27,6 @@ interface IListedFund {
 interface IRowLinks {
   edit_to?: string;
   view_to?: string;
-  /** the profile is the org's own page, so it opens in place */
-  view_in_place?: boolean;
 }
 
 interface IRowLinksProps extends IRowLinks {
@@ -36,12 +34,7 @@ interface IRowLinksProps extends IRowLinks {
   name_id: string;
 }
 
-function RowLinks({
-  edit_to,
-  view_to,
-  view_in_place,
-  name_id,
-}: IRowLinksProps) {
+function RowLinks({ edit_to, view_to, name_id }: IRowLinksProps) {
   const view_id = useId();
   const edit_id = useId();
   return (
@@ -49,9 +42,8 @@ function RowLinks({
       {view_to && (
         <Link
           to={view_to}
-          {...(view_in_place
-            ? {}
-            : { target: "_blank", rel: "noopener noreferrer" })}
+          target="_blank"
+          rel="noopener noreferrer"
           className="link text-sm"
           aria-labelledby={`${view_id} ${name_id}`}
         >
@@ -85,9 +77,6 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   const [params, setParams] = useSearchParams();
   const tab = loaderData.view;
   const { endow } = loaderData;
-  const profile = endow.slug
-    ? `/marketplace/${endow.slug}`
-    : `/marketplace/${endow.id}`;
   const new_to = href("/admin/:id/campaigns/new", { id: String(endow.id) });
 
   return (
@@ -116,71 +105,69 @@ export default function Page({ loaderData }: Route.ComponentProps) {
       >
         {loaderData.view === "campaigns" ? (
           <TabPanel value="campaigns" className="grid gap-6">
-            <ul className="grid gap-3">
-              <Row
-                name={endow.name || "Better Giving profile"}
-                status="Profile"
-                thumb={endow.image || null}
-                raised={endow.contributions_total}
-                target={endow.target}
-                actions={(name_id) => (
-                  <RowLinks
-                    edit_to={loaderData.profile_to}
-                    view_to={profile}
-                    view_in_place
-                    name_id={name_id}
-                  />
-                )}
-              />
-              {loaderData.campaigns.map((c) => {
-                const public_to =
-                  c.status !== "draft" && endow.slug
-                    ? href("/org/:org/:campaign", {
-                        org: endow.slug,
-                        campaign: c.slug,
-                      })
-                    : undefined;
-                const status = STATUS_WORD[c.status_label];
-                return (
-                  <Row
-                    key={c.id}
-                    name={c.name}
-                    status={status}
-                    thumb={c.hero || null}
-                    raised={c.raised}
-                    target={c.target}
-                    ends={when(c.ends_at, status)}
-                    actions={(name_id) => (
-                      <RowLinks
-                        edit_to={href("/admin/:id/campaigns/:campaign_id", {
-                          id: String(endow.id),
-                          campaign_id: c.id,
-                        })}
-                        view_to={public_to}
-                        name_id={name_id}
-                      />
-                    )}
-                  />
-                );
-              })}
-              {loaderData.org_funds.map((f) => {
-                const status = fund_row_status(f);
-                return (
-                  <Row
-                    key={f.id}
-                    name={f.name}
-                    status={status}
-                    thumb={f.banner || endow.image || null}
-                    raised={f.donation_total_usd}
-                    target={f.target}
-                    ends={fund_end(f.expiration, status)}
-                    actions={(name_id) => (
-                      <RowLinks {...fund_links(f)} name_id={name_id} />
-                    )}
-                  />
-                );
-              })}
-            </ul>
+            {loaderData.campaigns.length === 0 &&
+            loaderData.org_funds.length === 0 ? (
+              <EmptyState
+                action={
+                  <Link to={new_to} className="btn btn-primary">
+                    Create campaign
+                  </Link>
+                }
+              >
+                No campaigns yet
+              </EmptyState>
+            ) : (
+              <ul className="grid gap-3">
+                {loaderData.campaigns.map((c) => {
+                  const public_to =
+                    c.status !== "draft" && endow.slug
+                      ? href("/org/:org/:campaign", {
+                          org: endow.slug,
+                          campaign: c.slug,
+                        })
+                      : undefined;
+                  const status = STATUS_WORD[c.status_label];
+                  return (
+                    <Row
+                      key={c.id}
+                      name={c.name}
+                      status={status}
+                      thumb={c.hero || null}
+                      raised={c.raised}
+                      target={c.target}
+                      ends={when(c.ends_at, status)}
+                      actions={(name_id) => (
+                        <RowLinks
+                          edit_to={href("/admin/:id/campaigns/:campaign_id", {
+                            id: String(endow.id),
+                            campaign_id: c.id,
+                          })}
+                          view_to={public_to}
+                          name_id={name_id}
+                        />
+                      )}
+                    />
+                  );
+                })}
+                {loaderData.org_funds.map((f) => {
+                  const status = fund_row_status(f);
+                  return (
+                    <Row
+                      key={f.id}
+                      name={f.name}
+                      status={status}
+                      thumb={f.banner || endow.image || null}
+                      raised={f.donation_total_usd}
+                      target={f.target}
+                      ends={fund_end(f.expiration, status)}
+                      actions={(name_id) => (
+                        <RowLinks {...fund_links(f)} name_id={name_id} />
+                      )}
+                    />
+                  );
+                })}
+              </ul>
+            )}
           </TabPanel>
         ) : (
           <TabPanel value="fundraisers" className="grid gap-6">
