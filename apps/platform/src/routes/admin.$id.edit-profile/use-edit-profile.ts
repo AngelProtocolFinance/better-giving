@@ -10,8 +10,8 @@ import {
 } from "react-hook-form";
 import * as v from "valibot";
 import { to_text } from "#/components/rich-text";
+import { type Update, use_save } from "../admin.$id.organization/use-save";
 import { type FV, schema } from "./schema";
-import { type Update, use_save } from "./use-save";
 
 type SetPrompt = (p: IPrompt) => void;
 

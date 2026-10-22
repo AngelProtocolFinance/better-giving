@@ -15,7 +15,7 @@ import {
   bannerSpec,
   cardImgSpec,
   logoSpec,
-} from "./admin.$id.edit-profile/schema";
+} from "./admin.$id.organization/schema";
 import { img_spec as program_img_spec } from "./admin.$id.program-editor.$program_id/common";
 import { action } from "./api.file-upload";
 import { avatar_spec } from "./dashboard.edit-profile/use-rhf";
