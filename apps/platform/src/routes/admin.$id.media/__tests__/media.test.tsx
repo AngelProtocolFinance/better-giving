@@ -178,10 +178,15 @@ it("empty → add video → edit → feature toggle → delete", async () => {
     screen.getByRole("button", { name: /continue/i }).element() as HTMLElement
   ).click();
 
-  // redirects to parent — video appears (not featured)
+  // redirects to parent — video appears, featured so the profile shows it
   await expect
-    .element(screen.getByRole("button", { name: /feature/i }))
+    .element(screen.getByRole("button", { name: /unfeature/i }))
     .toBeVisible();
+  const [added] = await test_db
+    .current!.db.select()
+    .from(npo_media)
+    .where(eq(npo_media.npo_id, npo.id));
+  expect(added.featured).toBe(true);
 
   // 3. seed a featured video, re-render
   const vid = await seed_video(npo.id, {
@@ -191,9 +196,9 @@ it("empty → add video → edit → feature toggle → delete", async () => {
   await screen.unmount();
   screen = await render_media(npo.id);
 
-  // featured video shows "unfeature" aria-label
+  // featured videos show "unfeature" aria-label; newest first
   await expect
-    .element(screen.getByRole("button", { name: /unfeature/i }))
+    .element(screen.getByRole("button", { name: /unfeature/i }).nth(1))
     .toBeVisible();
 
   // 4. edit video — click pencil for the featured video, change URL, submit
@@ -205,14 +210,16 @@ it("empty → add video → edit → feature toggle → delete", async () => {
     .toHaveDisplayValue("https://youtu.be/abc123");
 
   await screen.getByLabelText(/web address/i).clear();
-  await screen.getByLabelText(/web address/i).fill("https://youtu.be/xyz789");
+  await screen
+    .getByLabelText(/web address/i)
+    .fill("https://youtu.be/xyz789abcde");
   (
     screen.getByRole("button", { name: /continue/i }).element() as HTMLElement
   ).click();
 
   // redirects back — video still featured
   await expect
-    .element(screen.getByRole("button", { name: /unfeature/i }))
+    .element(screen.getByRole("button", { name: /unfeature/i }).nth(0))
     .toBeVisible();
 
   // verify URL updated in DB
@@ -220,10 +227,13 @@ it("empty → add video → edit → feature toggle → delete", async () => {
     .current!.db.select()
     .from(npo_media)
     .where(eq(npo_media.id, vid.id));
-  expect(updated.url).toBe("https://youtu.be/xyz789");
+  expect(updated.url).toBe("https://youtu.be/xyz789abcde");
 
   // 5. unfeature — click star, verify DB toggled
-  await screen.getByRole("button", { name: /unfeature/i }).click();
+  await screen
+    .getByRole("button", { name: /unfeature/i })
+    .nth(0)
+    .click();
   await vi.waitFor(async () => {
     const [row] = await test_db
       .current!.db.select()
@@ -235,9 +245,12 @@ it("empty → add video → edit → feature toggle → delete", async () => {
   // re-render to confirm UI reflects the toggle
   await screen.unmount();
   screen = await render_media(npo.id);
-  const feature_btns = screen.getByRole("button", { name: /^feature$/i });
-  await expect.element(feature_btns.nth(0)).toBeVisible();
-  await expect.element(feature_btns.nth(1)).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: /^feature$/i }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: /unfeature/i }))
+    .toBeVisible();
 
   // 6. delete one video
   await screen
@@ -332,6 +345,21 @@ it("video editor: validation errors → fix → submit", async () => {
   await expect
     .element(screen.getByRole("button", { name: /continue/i }))
     .toBeDisabled();
+
+  // a link that isn't YouTube → refused with a message
+  await screen.getByLabelText(/web address/i).fill("https://vimeo.com/123456");
+  (
+    screen.getByRole("button", { name: /continue/i }).element() as HTMLElement
+  ).click();
+  await expect
+    .element(screen.getByText(/only youtube links are supported/i))
+    .toBeVisible();
+  expect(
+    await test_db
+      .current!.db.select()
+      .from(npo_media)
+      .where(eq(npo_media.npo_id, npo.id))
+  ).toHaveLength(0);
 
   // fix → submit succeeds → redirects back
   await screen

@@ -50,7 +50,8 @@ export async function npo_media_put(
   await db.insert(npo_media).values({
     id: mid,
     npo_id,
-    featured: false,
+    // the profile shows featured videos only; a new one reaches it unasked
+    featured: true,
     url,
     type: "video",
     date_created: new Date().toISOString(),
