@@ -94,7 +94,7 @@ import FundPage from "#/routes/_app.fundraisers.$fund_id/route";
 import { loader as user_forms_loader } from "#/routes/dashboard.forms/api";
 // user-dashboard forms — for form ltd verification
 import UserFormsPage from "#/routes/dashboard.forms/route";
-// profile page — for fund Target on npo profile
+// org profile page — the fund's goal on its Campaigns card
 import ProfilePage, {
   loader as profile_loader,
 } from "#/routes/org.$org._index/route";

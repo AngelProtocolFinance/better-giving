@@ -1090,7 +1090,7 @@ describe("organization — per-group save", () => {
     expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
 
     // organization's save disarms only once its write is confirmed, after the
-    // loader has revalidated — general is read past that point
+    // loader has revalidated — the page group is read past that point
     await expect.element(organization).toBeDisabled();
     await expect
       .element(screen.getByLabelText(/address/i))
@@ -1129,7 +1129,7 @@ describe("organization — per-group save", () => {
       expect((await npo_get(npo.id))?.street_address).toBe("456 New Ave")
     );
     expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
-    // general validates only on its own save
+    // the page group validates only on its own save
     expect(screen.getByText(/required/i).query()).toBeNull();
   });
 
@@ -1410,9 +1410,9 @@ describe("organization — focus on error", () => {
   });
 
   it("all three images missing → the banner wins, not the card image", async () => {
-    // focus on error follows the general group's field list passed to
+    // focus on error follows the page group's field list passed to
     // `trigger` — which has to match DOM order or the user is sent to the card
-    // image at the bottom of the group. the logo lives on Organization.
+    // image at the bottom of the group. the logo is in the org-facts group.
     const npo = await seed_npo({ image: "", logo: "", card_img: "" });
     const screen = await render_org(npo.id);
 
@@ -1504,7 +1504,7 @@ describe("organization — fundraising goal", () => {
   });
 });
 
-/** edit profile itself never sends `target` — only the settings donation form
+/** this page itself never sends `target` — only the settings donation form
  * does. this drives the same action over the same json transport so the
  * sent-target half of the contract is covered here too. */
 async function submit_json(npo_id: number, body: INpoUpdate) {
