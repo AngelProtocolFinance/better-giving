@@ -6,22 +6,30 @@ import { donation_donors } from "../schema/donation";
 import { subscriptions } from "../schema/subscription";
 import { decode_cursor, encode_cursor, type IPage } from "./helpers";
 
+/** distinct donors with a settled gift to the npo. a dist is one gift's
+ * share, so a split gift still counts its donor once. email as stored, not
+ * case-folded: the donors list and summary group by it the same way */
+export async function npo_donor_count(npo_id: number): Promise<number> {
+  const [row] = await db
+    .select({
+      n: sql<number>`count(distinct ${donation_donors.email})::int`,
+    })
+    .from(dists)
+    .innerJoin(
+      donation_donors,
+      eq(donation_donors.donation_id, dists.donation_id)
+    )
+    .where(and(eq(dists.to_id, npo_id), eq(dists.status, "settled")));
+  return row?.n ?? 0;
+}
+
 // -- tab badge counts (cheap) --
 
 export async function npo_donor_tab_counts(
   npo_id: number
 ): Promise<{ donor_total: number; sub_count: number }> {
-  const [[donor], [sub]] = await Promise.all([
-    db
-      .select({
-        n: sql<number>`count(distinct ${donation_donors.email})::int`,
-      })
-      .from(dists)
-      .innerJoin(
-        donation_donors,
-        eq(donation_donors.donation_id, dists.donation_id)
-      )
-      .where(and(eq(dists.to_id, npo_id), eq(dists.status, "settled"))),
+  const [donor_total, [sub]] = await Promise.all([
+    npo_donor_count(npo_id),
     db
       .select({
         n: sql<number>`count(distinct ${subscriptions.from_id})::int`,
@@ -29,7 +37,7 @@ export async function npo_donor_tab_counts(
       .from(subscriptions)
       .where(eq(subscriptions.to_npo_id, npo_id)),
   ]);
-  return { donor_total: donor?.n ?? 0, sub_count: sub?.n ?? 0 };
+  return { donor_total, sub_count: sub?.n ?? 0 };
 }
 
 // -- all-donors list --
