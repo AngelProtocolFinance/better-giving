@@ -41,6 +41,8 @@ describe("program page", () => {
   });
 
   it("has no milestones or target card when it has neither", async () => {
+    // the labelled link sits in the side column, hidden below lg
+    await page.viewport(1280, 900);
     const screen = await mount({});
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Wells" }))
@@ -49,11 +51,9 @@ describe("program page", () => {
       null
     );
     expect(screen.getByRole("progressbar").query()).toBeNull();
-    for (const el of screen
-      .getByRole("link", { name: "Donate to this program" })
-      .elements()) {
-      expect(el.getAttribute("href")).toBe("/donate/7?programId=p1");
-    }
+    await expect
+      .element(screen.getByRole("link", { name: "Donate to this program" }))
+      .toHaveAttribute("href", "/donate/7?programId=p1");
     await expect
       .element(screen.getByRole("banner").getByRole("link"))
       .toHaveAttribute("href", "/org/acme");

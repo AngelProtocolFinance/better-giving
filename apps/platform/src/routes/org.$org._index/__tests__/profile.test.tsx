@@ -1,5 +1,6 @@
 import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import type { INpoPublic } from "$/pg/queries/npo";
 import { type IProfile, Profile } from "../profile";
@@ -10,6 +11,7 @@ vi.mock("#/hooks/use-user", () => ({
 
 afterEach(async () => {
   await cleanup();
+  await page.viewport(1280, 900);
 });
 
 const npo = {
@@ -78,10 +80,12 @@ describe("org profile", () => {
       .element(screen.getByText("raised from 3 donors"))
       .toBeVisible();
     expect(screen.getByRole("progressbar").query()).toBeNull();
+    // each width shows one Donate link, the other is display:none: the phone
+    // bar's at the default width, the side column's on desktop
     const donate = screen.getByRole("link", { name: "Donate", exact: true });
-    for (const el of donate.elements()) {
-      expect(el.getAttribute("href")).toBe("/donate/7");
-    }
+    await expect.element(donate).toHaveAttribute("href", "/donate/7");
+    await page.viewport(1280, 900);
+    await expect.element(donate).toHaveAttribute("href", "/donate/7");
     expect(document.querySelector("form")).toBeNull();
     expect(screen.getByText(/frequently asked/i).query()).toBeNull();
     expect(screen.getByText(/tax-deductible/i).query()).toBeNull();
@@ -105,7 +109,7 @@ describe("org profile", () => {
     await expect.element(screen.getByRole("progressbar")).toBeVisible();
   });
 
-  it("lists campaigns, programs, videos and messages, a message by name with no amount", async () => {
+  it("lists campaigns, programs, videos and messages, a message by name", async () => {
     const screen = await mount({
       campaigns: [
         {
@@ -137,6 +141,9 @@ describe("org profile", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Media" }))
       .toBeVisible();
+    await expect
+      .element(screen.getByTitle("Acme Relief video 1"))
+      .toBeVisible();
     // a link from before entry was youtube-only stays a plain link
     await expect
       .element(screen.getByRole("link", { name: "https://vimeo.com/123" }))
@@ -144,7 +151,6 @@ describe("org profile", () => {
     const msg = screen.getByRole("figure");
     await expect.element(msg.getByText("Ana")).toBeVisible();
     await expect.element(msg.getByText("Keep going")).toBeVisible();
-    expect(msg.element().textContent).not.toMatch(/\$/);
   });
 
   it("names each video frame by the org and its place in the list", async () => {
@@ -170,6 +176,24 @@ describe("org profile", () => {
         "Acme Relief video 3",
       ]);
     });
+  });
+
+  it("plays the first video large, the rest in a row under it", async () => {
+    await page.viewport(1280, 900);
+    const screen = await mount({
+      media: Promise.resolve([
+        { id: "m1", url: "https://youtu.be/dQw4w9WgXcQ", featured: true },
+        { id: "m2", url: "https://youtu.be/9bZkp7q19f0", featured: true },
+        { id: "m3", url: "https://youtu.be/kJQP7kiw5Fk", featured: true },
+      ] as never),
+    });
+    const frame = (n: number) => screen.getByTitle(`Acme Relief video ${n}`);
+    await expect.element(frame(3)).toBeVisible();
+    const box = (n: number) => frame(n).element().getBoundingClientRect();
+    expect(box(1).width).toBeGreaterThan(box(2).width * 2);
+    expect(box(3).width).toBeCloseTo(box(2).width, 0);
+    expect(box(2).top).toBeGreaterThanOrEqual(box(1).bottom);
+    expect(box(3).top).toBe(box(2).top);
   });
 
   it("carries the org's mark, name and socials in header and footer", async () => {

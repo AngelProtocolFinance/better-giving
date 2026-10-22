@@ -1,4 +1,5 @@
 import { HttpResponse, http } from "msw";
+import { act } from "react";
 import { createRoutesStub } from "react-router";
 import {
   afterAll,
@@ -12,6 +13,7 @@ import {
 } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
+import { funds } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -58,7 +60,7 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports after mocks ---
 
-import { seed_npo } from "#/__tests__/fixtures/funds";
+import { seed_fund, seed_npo, seed_user } from "#/__tests__/fixtures/funds";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import ProfilePage, { loader } from "../route";
 
@@ -78,6 +80,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await db().delete(funds);
   await db().delete(npos);
   mswWorker.use(
     http.get("/api/me", () => HttpResponse.json(null, { status: 401 })),
@@ -93,13 +96,18 @@ afterEach(async () => {
   report_error_mock.mockReset();
 });
 
+// the last loader result, whose deferred `funds` a test can wait out
+let loaded: Awaited<ReturnType<typeof loader>> | null = null;
+
 async function render_profile(npo_id: number) {
+  loaded = null;
   const Stub = createRoutesStub([
     {
       path: "/org/:org",
       Component: ProfilePage as any,
       HydrateFallback: () => null,
-      loader: loader as any,
+      loader: (async (args: Parameters<typeof loader>[0]) =>
+        (loaded = await loader(args))) as any,
     },
   ]);
   return await render(<Stub initialEntries={[`/org/${npo_id}`]} />);
@@ -135,6 +143,32 @@ describe("npo profile — fundraisers section", () => {
     expect(report_error_mock).toHaveBeenCalledWith(err, { endow_id: npo.id });
   });
 
+  it("lists a live fundraiser under Campaigns", async () => {
+    const npo = await seed_npo(db(), {
+      registration_number: "EIN-PROFILE-LIVEFUND",
+      name: "Live Fund Org",
+    });
+    const creator = await seed_user(db(), "live-fund@example.com");
+    await seed_fund(db(), {
+      id: "fund-live",
+      name: "Spring Drive",
+      npo_owner: null,
+      creator_id: creator.id,
+      members: [npo.id],
+      published: true,
+      expiration: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+
+    const screen = await render_profile(npo.id);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Campaigns" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: /Spring Drive/ }))
+      .toHaveAttribute("href", "/fundraisers/fund-live");
+  });
+
   it("shows nothing for a nonprofit with no fundraisers", async () => {
     const npo = await seed_npo(db(), {
       registration_number: "EIN-PROFILE-NOFUNDS",
@@ -145,6 +179,13 @@ describe("npo profile — fundraisers section", () => {
     const screen = await render_profile(npo.id);
 
     await expect.element(screen.getByText("1 Quiet St")).toBeVisible();
+    // the section renders nothing both while the fundraisers load and after
+    // they come back empty, so wait for the deferred read and the render it
+    // triggers before asserting absence
+    await vi.waitFor(() => expect(loaded).not.toBeNull());
+    await act(async () => {
+      await loaded!.funds;
+    });
     await expect
       .element(screen.getByRole("heading", { level: 1 }))
       .toBeVisible();

@@ -700,6 +700,37 @@ describe("organization — text fields", () => {
 });
 
 describe("organization — organization fields", () => {
+  it("designation and website changed here persist, the website under its https prefix", async () => {
+    const npo = await seed_npo();
+    const screen = await render_org(npo.id);
+
+    const website = screen.getByLabelText(/website/i);
+    await expect.element(website).toHaveDisplayValue("example.org");
+    await website.clear();
+    await website.fill("newsite.org");
+    await screen.getByRole("combobox", { name: /designation/i }).click();
+    await screen.getByRole("option", { name: "University" }).click();
+    await screen.getByRole("button", { name: "Save organization" }).click();
+
+    await vi.waitFor(async () => {
+      const saved = await npo_get(npo.id);
+      expect(saved?.url).toBe("https://newsite.org");
+      expect(saved?.endow_designation).toBe("University");
+    });
+    // the form reads back the stored value without the prefix, and is clean
+    await expect.element(website).toHaveDisplayValue("newsite.org");
+    await expect
+      .element(screen.getByRole("button", { name: "Save organization" }))
+      .toBeDisabled();
+
+    await screen.unmount();
+    const profile = await render_profile(npo.id);
+    await expect
+      .element(profile.getByRole("link", { name: "newsite.org" }))
+      .toHaveAttribute("href", "https://newsite.org");
+    await expect.element(profile.getByText("University")).toBeVisible();
+  });
+
   it("an address save leaves designation + hq_country → DB + profile", async () => {
     const npo = await seed_npo();
     const screen = await render_org(npo.id);

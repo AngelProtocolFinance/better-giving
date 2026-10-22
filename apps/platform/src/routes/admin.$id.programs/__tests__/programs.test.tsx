@@ -154,9 +154,18 @@ it("programs: empty → create → delete", async () => {
     .element(screen2.getByText("No programs yet"))
     .toBeInTheDocument();
 
-  // 6. verify on marketplace profile — no programs
+  // 6. verify on the public profile — the deleted program is gone. the
+  // programs section streams in, so a program that must still be there goes
+  // first: absence only means something once the section has rendered
+  await test_db.current!.db.insert(programs).values({
+    id: crypto.randomUUID(),
+    npo_id: npo.id,
+    title: "Kept Program",
+    description_pt: "[]",
+  });
   await cleanup();
   const profile2 = await render_profile(npo.id);
+  await expect.element(profile2.getByText("Kept Program")).toBeVisible();
   await expect
     .element(profile2.getByText("New Program"))
     .not.toBeInTheDocument();
