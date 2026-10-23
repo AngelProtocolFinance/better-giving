@@ -20,7 +20,7 @@ const report_error_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/env", () => ({ alchemy_signing_key: keys }));
 vi.mock("$/kit/coingecko", () => ({ coingecko: coingecko_mock }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   aws_monitor: { send_alert: send_alert_mock },
 }));
 vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));

@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
 import type { ActionFunctionArgs } from "react-router";
 import { report_error } from "#/errors/report";
-import type { Alert } from "@/discord";
+import type { Alert } from "@/slack";
 import { deposit_addr } from "../deposit-addr";
 import { alchemy_signing_key } from "../env";
 import { coingecko } from "../kit/coingecko";
-import { aws_monitor } from "../kit/discord";
+import { aws_monitor } from "../kit/slack";
 import {
   ALCHEMY_CHAINS,
   type IActivity,
@@ -152,10 +152,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     try {
       const res = await aws_monitor.send_alert(alert);
-      console.info("discord notif", res.status, res.statusText);
+      console.info("slack notif", res.status, res.statusText);
       if (!res.ok) alerts_failed++;
     } catch (err) {
-      console.error("discord notif failed", err);
+      console.error("slack notif failed", err);
       alerts_failed++;
     }
   }

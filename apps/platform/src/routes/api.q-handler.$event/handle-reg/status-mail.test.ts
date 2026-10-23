@@ -13,7 +13,7 @@ const report_error = vi.hoisted(() => vi.fn());
 vi.mock("$/email", () => ({ send_email, send_email_or_throw: vi.fn() }));
 vi.mock("#/errors/report", () => ({ report_error }));
 vi.mock("$/env", () => ({ base_url: "http://x", hubspot: { owner_id: "1" } }));
-vi.mock("$/kit/discord", () => ({ bg_sales: { send_alert: vi.fn() } }));
+vi.mock("$/kit/slack", () => ({ bg_sales: { send_alert: vi.fn() } }));
 vi.mock("$/kit/wise", () => ({ wise: { v2_account: vi.fn() } }));
 vi.mock("#/.server/auth/auth", () => ({ auth: {} }));
 vi.mock("#/.server/auth/resume-link", () => ({ mint_resume_link: vi.fn() }));

@@ -67,7 +67,7 @@ vi.mock("../pg/queries/dist", async (importOriginal) => {
   };
 });
 vi.mock("../kit/queue", () => ({ enqueue }));
-vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
+vi.mock("../kit/slack", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
 vi.mock("#/errors/report", () => ({ report_error }));
 vi.mock("../env", async (importOriginal) => {
   const real = await importOriginal<typeof import("../env")>();

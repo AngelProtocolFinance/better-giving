@@ -4,8 +4,8 @@ import {
   type IPaypalOrderCapturePayload,
   PAYPAL_CAPTURE_DELAY_S,
 } from "@/queue";
-import { fiat_monitor } from "$/kit/discord";
 import { paypal } from "$/kit/paypal";
+import { fiat_monitor } from "$/kit/slack";
 
 const issues_of = (e: PayPalApiError): string[] => {
   try {

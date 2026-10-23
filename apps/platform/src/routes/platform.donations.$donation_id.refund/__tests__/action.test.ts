@@ -60,7 +60,7 @@ vi.mock("$/kit/stripe", () => ({
   },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue }));
-vi.mock("$/kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
+vi.mock("$/kit/slack", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
 vi.mock("#/errors/report", () => ({ report_error }));
 
 const { action, loader } = await import("../api");

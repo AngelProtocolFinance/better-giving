@@ -44,7 +44,7 @@ vi.mock("../pg/db", () => ({
 }));
 
 const fiat_alert = vi.hoisted(() => vi.fn());
-vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: fiat_alert } }));
+vi.mock("../kit/slack", () => ({ fiat_monitor: { send_alert: fiat_alert } }));
 
 const report_error = vi.hoisted(() => vi.fn());
 vi.mock("#/errors/report", () => ({ report_error }));

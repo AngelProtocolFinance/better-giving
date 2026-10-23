@@ -1,8 +1,8 @@
 import { tokens_map } from "@better-giving/crypto";
-import type { Alert } from "@/discord";
 import type { IAmount, IDonation, ISettlement } from "@/donations";
 import { amnt_sum, partition } from "@/donations/helpers";
 import type { NP } from "@/nowpayments/types";
+import type { Alert } from "@/slack";
 
 /** an alert the caller sends; mapping a payload never sends one itself */
 export type Warning = Omit<Alert, "from">;

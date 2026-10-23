@@ -12,7 +12,7 @@ import { Progress } from "@/reg/progress";
 import type { IReg } from "@/reg/schema";
 import { send_email, send_email_or_throw } from "$/email";
 import { base_url, hubspot } from "$/env";
-import { bg_sales } from "$/kit/discord";
+import { bg_sales } from "$/kit/slack";
 import { wise } from "$/kit/wise";
 import { reg_get } from "$/pg/queries/registration";
 import { REFERRALS, ROLES } from "./constants";

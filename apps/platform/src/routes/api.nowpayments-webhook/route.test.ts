@@ -13,7 +13,7 @@ vi.mock("$/env", () => ({
   nowpayments: { ipn_secret: "ipn-secret" },
   stage: "test",
 }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   aws_monitor: { send_alert: send_alert_mock },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: vi.fn() }));

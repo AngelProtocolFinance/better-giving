@@ -82,7 +82,7 @@ vi.mock("$/refund/reverse", async (io) => ({
   ...(await io<typeof import("$/refund/reverse")>()),
   reverse_charge: reverse_charge_mock,
 }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
 vi.mock("$/pg/queries/donation", async (io) => {

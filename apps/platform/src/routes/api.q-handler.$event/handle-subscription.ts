@@ -13,9 +13,9 @@ import {
 import type { ISub } from "@/subscriptions";
 import { send_email_or_throw } from "$/email";
 import { base_url } from "$/env";
-import { fiat_monitor } from "$/kit/discord";
 import { paypal } from "$/kit/paypal";
 import { enqueue } from "$/kit/queue";
+import { fiat_monitor } from "$/kit/slack";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
 import { sub_get, sub_reactivate_if } from "$/pg/queries/subscription";

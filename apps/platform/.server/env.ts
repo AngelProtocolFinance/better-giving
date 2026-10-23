@@ -91,8 +91,8 @@ export const database = {
   url_unpooled: process.env.DATABASE_URL_UNPOOLED,
 } as const;
 
-export const discord = {
-  bot_token: process.env.DISCORD_BOT_TOKEN,
+export const slack = {
+  bot_token: process.env.SLACK_BOT_TOKEN,
 } as const;
 
 export const finnhub = {

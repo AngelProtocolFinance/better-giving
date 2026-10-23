@@ -1,12 +1,12 @@
 import { owed_npo_notif, owed_referrer_notif } from "emails";
 import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
-import type { Alert } from "@/discord";
 import { to_utc_day } from "@/helpers/date";
 import type { IOwedNoticePayload } from "@/queue";
+import type { Alert } from "@/slack";
 import { send_email_or_throw } from "$/email";
 import { base_url } from "$/env";
-import { fiat_monitor } from "$/kit/discord";
+import { fiat_monitor } from "$/kit/slack";
 import type { DbOrTx } from "$/pg/queries/helpers";
 import { npo_by_rid, npo_get } from "$/pg/queries/npo";
 import type { OwedParty } from "$/pg/queries/owed";

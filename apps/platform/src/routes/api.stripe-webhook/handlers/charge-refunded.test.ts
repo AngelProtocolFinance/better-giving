@@ -27,7 +27,7 @@ vi.mock("$/pg/queries/donation", () => ({
 // what the handler hands it is the handler's whole answer
 vi.mock("$/refund/reverse", () => ({ reverse_charge: reverse_charge_mock }));
 vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));

@@ -48,7 +48,7 @@ export const SERVER_KEYS = [
   "AI_GATEWAY_API_KEY",
   "BETTER_AUTH_API_KEY",
   "COINGECKO_API_KEY",
-  "DISCORD_BOT_TOKEN",
+  "SLACK_BOT_TOKEN",
   "FINNHUB_API_KEY",
   "OPENEXCHANGE_APP_ID",
   "SMTP_PASSWORD",
@@ -114,6 +114,8 @@ export const OPTIONAL_KEYS = [
   // list may be empty
   "CONNECTOR_RETURN_URL",
   "CONNECTOR_ORIGINS",
+  // ops alerts: production sets the bot token; preview and dev leave it blank
+  "SLACK_BOT_TOKEN",
 ] as const satisfies readonly ServerKey[];
 
 export type OptionalKey = (typeof OPTIONAL_KEYS)[number];

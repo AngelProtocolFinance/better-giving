@@ -73,7 +73,7 @@ vi.mock("@/terms", async (io) => ({
   },
   TERMS_POSTED: "",
 }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   aws_monitor: { send_alert },
   fiat_monitor: { send_alert: vi.fn() },
 }));

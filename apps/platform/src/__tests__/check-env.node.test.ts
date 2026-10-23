@@ -370,6 +370,7 @@ describe("missing_keys", () => {
       "STRIPE_CONNECT_ROUTING",
       "CONNECTOR_RETURN_URL",
       "CONNECTOR_ORIGINS",
+      "SLACK_BOT_TOKEN",
     ]);
   });
 

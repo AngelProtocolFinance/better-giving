@@ -1,4 +1,3 @@
-import type { Alert } from "../discord";
 import type {
   IDonation,
   IDonationSettled,
@@ -6,6 +5,7 @@ import type {
 } from "../donations";
 import type { IReg } from "../reg/schema";
 import type { TFrequency } from "../schemas";
+import type { Alert } from "../slack";
 import type { ISub } from "../subscriptions";
 import type { IDelivery, IMsg } from "./types";
 
