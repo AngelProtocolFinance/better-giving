@@ -6,10 +6,14 @@ import { dists } from "$/pg/schema/dist";
 import { donation_donors, donations } from "$/pg/schema/donation";
 import { donation_messages } from "$/pg/schema/donation-message";
 import { npo_media, npos } from "$/pg/schema/npo";
+import { user_npo_memberships } from "$/pg/schema/user";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const report_error = vi.hoisted(() => vi.fn());
+const get_session = vi.hoisted(() =>
+  vi.fn(async (_: Request) => ({ user: undefined as any }))
+);
 
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
@@ -26,12 +30,17 @@ vi.mock("$/pg/db", () => ({
 
 vi.mock("#/errors/report", () => ({ report_error }));
 
+vi.mock("#/.server/auth", async () => ({
+  ...(await import("$/auth/test-utils")).make_auth_mock(),
+  get_session,
+}));
+
 const npo_queries = await import("$/pg/queries/npo");
 const campaign_queries = await import("$/pg/queries/campaign");
 const { NPO_PUBLIC_KEYS } = npo_queries;
 const message_queries = await import("$/pg/queries/donation-message");
 const { donation_message_list } = message_queries;
-const { loader } = await import("./api");
+const { headers, loader } = await import("./api");
 const { npo_donors } = await import("#/.server/npo-donors");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 
@@ -57,6 +66,7 @@ async function seed_npo(overrides: Partial<typeof npos.$inferInsert> = {}) {
       endow_designation: "Charity",
       overview_pt: "[]",
       hq_country: "United States",
+      published: true,
       ...overrides,
     })
     .returning();
@@ -147,11 +157,35 @@ async function seed_campaign(
 const hours_ago = (h: number) =>
   new Date(Date.now() - h * 3_600_000).toISOString();
 
-const load = (param: string, search = "") =>
+/** the loader's answer as it leaves the route: its data plus response init */
+const respond = (param: string, search = "") =>
   loader({
     request: new Request(`https://x/org/${param}${search}`),
     params: { org: param },
   } as any);
+
+const load = (param: string, search = "") =>
+  respond(param, search).then((r) => r.data);
+
+/** the document's cache-control, composed as react-router does: the route's
+ * `headers` export over the loader's headers, or over the thrown response's
+ * as `errorHeaders` when the loader threw */
+function cache_control(outcome: unknown) {
+  const threw = outcome instanceof Response;
+  const own = new Headers(
+    threw
+      ? outcome.headers
+      : (outcome as Awaited<ReturnType<typeof respond>>).init?.headers
+  );
+  return new Headers(
+    headers({
+      loaderHeaders: own,
+      parentHeaders: new Headers(),
+      actionHeaders: new Headers(),
+      errorHeaders: threw ? own : undefined,
+    })
+  ).get("cache-control");
+}
 
 /** what the loader throws; a loader that answers instead has its deferred
  * reads settled, so a failure here reports before afterAll closes the db */
@@ -186,13 +220,11 @@ describe("public npo profile loader", () => {
         w_form: "w9-eid",
         referral_id: "REF-PROFILE",
         payout_minimum: 50,
+        published: true,
       })
       .returning();
 
-    const d = await loader({
-      request: new Request("https://x/org/profile-org"),
-      params: { org: "profile-org" },
-    } as any);
+    const d = await load("profile-org");
     // settle the deferred reads before afterAll closes the db under them
     await Promise.all([d.funds, d.media, d.programs]);
 
@@ -229,16 +261,14 @@ describe("public npo profile loader", () => {
         endow_designation: "Charity",
         overview_pt: "[]",
         hq_country: "United States",
+        published: true,
       })
       .returning();
     vi.spyOn(npo_queries, "npo_donor_count").mockRejectedValueOnce(
       new Error("donor count down")
     );
 
-    const d = await loader({
-      request: new Request("https://x/org/no-count-org"),
-      params: { org: "no-count-org" },
-    } as any);
+    const d = await load("no-count-org");
     await Promise.all([d.funds, d.media, d.programs]);
 
     expect(d.npo).toMatchObject({ id: npo!.id, name: "No Count Org" });
@@ -419,6 +449,42 @@ describe("public npo profile loader", () => {
     ]);
   });
 
+  it("lists a slugless org's live campaign under the org's id", async () => {
+    const npo = await seed_npo({ slug: null });
+    await seed_campaign(npo.id, "cmp-slugless");
+
+    const d = await load(String(npo.id));
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect(d.campaigns).toEqual([
+      expect.objectContaining({
+        id: "cmp-slugless",
+        to: `/org/${npo.id}/cmp-slugless`,
+        donate_to: `/org/${npo.id}/cmp-slugless`,
+      }),
+    ]);
+  });
+
+  it("sends an owned campaign as official with no partner org, and its end date when it has one", async () => {
+    const npo = await seed_npo();
+    const ends = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    await seed_campaign(npo.id, "cmp-ends", [], {
+      created_at: hours_ago(1),
+      ends_at: ends,
+    });
+    await seed_campaign(npo.id, "cmp-open", [], { created_at: hours_ago(2) });
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect(
+      d.campaigns.map((c) => [c.id, c.official, c.with_org, c.ends_at])
+    ).toEqual([
+      ["cmp-ends", true, null, ends],
+      ["cmp-open", true, null, null],
+    ]);
+  });
+
   it("gives a campaign the org's logo as its mark and the org's banner as its image, unless it has its own", async () => {
     const npo = await seed_npo({
       logo: "https://img/org-logo.png",
@@ -501,6 +567,65 @@ describe("public npo profile loader", () => {
     ]);
     expect(report_error).toHaveBeenCalledOnce();
     expect(report_error).toHaveBeenCalledWith(down, { endow_id: npo.id });
+  });
+
+  it("answers 404 for an unpublished org to an anonymous visitor, kept out of shared caches", async () => {
+    const npo = await seed_npo({ published: false });
+    get_session.mockResolvedValueOnce({ user: undefined });
+
+    const res = await respond(npo.slug!).catch((e: unknown) => e);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(404);
+    expect(cache_control(res)).toBe("private, no-store");
+  });
+
+  it("answers 404 for an unpublished org to a signed-in admin of another org, kept out of shared caches", async () => {
+    const npo = await seed_npo({ published: false });
+    const other = await seed_npo();
+    const outsider = await seed_creator();
+    await db()
+      .insert(user_npo_memberships)
+      .values({ user_id: outsider.id, npo_id: other.id });
+    get_session.mockResolvedValueOnce({ user: outsider });
+
+    const res = await respond(npo.slug!).catch((e: unknown) => e);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(404);
+    expect(cache_control(res)).toBe("private, no-store");
+  });
+
+  it("shows an unpublished org to its own admin and to a platform admin, kept out of shared caches", async () => {
+    const npo = await seed_npo({ published: false });
+    const member = await seed_creator();
+    await db()
+      .insert(user_npo_memberships)
+      .values({ user_id: member.id, npo_id: npo.id });
+    const platform_admin = { ...(await seed_creator()), role: "admin" };
+
+    for (const viewer of [member, platform_admin]) {
+      get_session.mockResolvedValueOnce({ user: viewer });
+      const res = await respond(npo.slug!);
+      await Promise.all([res.data.funds, res.data.media, res.data.programs]);
+
+      expect(res.data.npo.id).toBe(npo.id);
+      expect(cache_control(res)).toBe("private, no-store");
+    }
+  });
+
+  it("serves a published org to the shared cache without reading the session", async () => {
+    const npo = await seed_npo();
+    get_session.mockClear();
+
+    const res = await respond(npo.slug!);
+    await Promise.all([res.data.funds, res.data.media, res.data.programs]);
+
+    expect(res.data.npo.id).toBe(npo.id);
+    expect(cache_control(res)).toBe(
+      "public, s-maxage=60, stale-while-revalidate=300"
+    );
+    expect(get_session).not.toHaveBeenCalled();
   });
 
   it("answers 404 for an unknown org, by slug or by id", async () => {

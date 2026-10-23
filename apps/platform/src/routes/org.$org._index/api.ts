@@ -1,4 +1,5 @@
-import { href } from "react-router";
+import { data, href } from "react-router";
+import { get_session } from "#/.server/auth";
 import { get_funds_npo_memberof } from "#/.server/funds";
 import { to_excerpt } from "#/components/rich-text/helpers";
 import { report_error } from "#/errors/report";
@@ -18,10 +19,20 @@ import {
 } from "$/pg/queries/npo";
 import { npo_media_list } from "$/pg/queries/npo-media";
 import { npo_programs } from "$/pg/queries/program";
+import { npo_admin_member } from "$/pg/queries/user";
 import type { Route } from "./+types/route";
 
-export const headers: Route.HeadersFunction = () => ({
-  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+/** the cdn keys on the url alone, so a response that depends on who asked
+ * stays out of shared caches */
+const PRIVATE = { "cache-control": "private, no-store" };
+
+export const headers: Route.HeadersFunction = ({
+  loaderHeaders,
+  errorHeaders,
+}) => ({
+  "cache-control":
+    (errorHeaders ?? loaderHeaders).get("cache-control") ??
+    "public, s-maxage=60, stale-while-revalidate=300",
 });
 
 /** the profile shows up to this many featured videos */
@@ -35,6 +46,10 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   // case (npo_by_slug matches case-insensitively), are aliases
   if (npo.slug && (typeof id === "number" || id !== npo.slug)) {
     throw moved(`${org_href(npo)}${new URL(request.url).search}`);
+  }
+  // the session is read only here, so a published profile stays anonymous
+  if (!npo.published && !(await can_preview(request, npo.id))) {
+    throw new Response(null, { status: 404, headers: PRIVATE });
   }
 
   // a rejected deferred streams to <Await errorElement> and never reaches handleError
@@ -53,16 +68,16 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
 
   const [campaigns, donors, { messages, messages_next }] = await Promise.all([
     campaign_live_for_npo(npo.id).then(async (rows) => {
-      // a campaign page lives under its org's slug
-      const listed = rows.flatMap((c) => (c.owner_slug ? [c] : []));
       const supporters = await count_or_null(
-        campaign_donor_counts(listed.map((c) => c.id))
+        campaign_donor_counts(rows.map((c) => c.id))
       );
-      return listed.map((c) => {
+      return rows.map((c) => {
+        // a campaign page lives under its owner's slug, else its owner's id
         const to = href("/org/:org/:campaign", {
-          org: c.owner_slug as string,
+          org: c.owner_slug ?? String(c.owner_npo_id),
           campaign: c.slug,
         });
+        const official = c.owner_npo_id === npo.id;
         return {
           id: c.id,
           name: c.name,
@@ -70,7 +85,10 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
           image: c.hero ?? null,
           raised: c.raised,
           target: c.target,
-          official: true as const,
+          official,
+          // the owner's name, on a campaign this org joined but doesn't run
+          with_org: official ? null : c.owner_name,
+          ends_at: c.ends_at,
           mark: c.mark,
           excerpt: to_excerpt(c.description_pt),
           supporters: supporters?.get(c.id) ?? null,
@@ -98,23 +116,33 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
       }),
   ]);
 
-  return {
-    npo: npo_public(npo),
-    url: new URL(org_href(npo), request.url).toString(),
-    donors,
-    messages,
-    messages_next,
-    campaigns,
+  return data(
+    {
+      npo: npo_public(npo),
+      url: new URL(org_href(npo), request.url).toString(),
+      donors,
+      messages,
+      messages_next,
+      campaigns,
 
-    //lazy
-    funds: reported(get_funds_npo_memberof(npo.id, { published: true })),
-    media: reported(
-      npo_media_list(npo.id, {
-        type: "video",
-        featured: true,
-        limit: MAX_VIDEOS,
-      }).then((x) => x.items)
-    ),
-    programs: reported(npo_programs(npo.id)),
-  };
+      //lazy
+      funds: reported(get_funds_npo_memberof(npo.id, { published: true })),
+      media: reported(
+        npo_media_list(npo.id, {
+          type: "video",
+          featured: true,
+          limit: MAX_VIDEOS,
+        }).then((x) => x.items)
+      ),
+      programs: reported(npo_programs(npo.id)),
+    },
+    npo.published ? undefined : { headers: PRIVATE }
+  );
 };
+
+/** an unpublished org shows to its own admins and to platform admins */
+async function can_preview(request: Request, npo_id: number) {
+  const { user } = await get_session(request);
+  if (!user) return false;
+  return user.role === "admin" || npo_admin_member(user.id, npo_id);
+}

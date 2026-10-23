@@ -38,7 +38,7 @@ type Descriptor = MetaDescriptor & Record<string, unknown>;
 
 /** the meta a crawler reads for `/org/<param>`, from the real loader */
 async function meta_of(param: string) {
-  const d = await loader({
+  const { data: d } = await loader({
     request: new Request(`${base_url}/org/${param}`),
     params: { org: param },
   } as never);
@@ -56,6 +56,7 @@ async function seed(label: string, slug?: string) {
       endow_designation: "Charity",
       overview_pt: "[]",
       hq_country: "United States",
+      published: true,
       ...(slug ? { slug } : {}),
     })
     .returning();

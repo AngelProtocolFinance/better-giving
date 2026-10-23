@@ -23,7 +23,9 @@ vi.mock("$/pg/db", () => ({
 }));
 
 vi.mock("#/.server/auth", async () =>
-  (await import("$/auth/test-utils")).make_auth_mock()
+  (await import("$/auth/test-utils")).make_auth_mock({
+    session: { user: undefined },
+  })
 );
 
 vi.mock("#/.server/toast", async () => {
@@ -59,6 +61,7 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   endow_designation: "Charity",
   overview_pt: "[]",
   hq_country: "United States",
+  published: true,
 };
 
 async function seed_npo() {

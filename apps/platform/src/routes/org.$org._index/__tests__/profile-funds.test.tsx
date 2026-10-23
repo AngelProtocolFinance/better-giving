@@ -53,6 +53,11 @@ vi.mock("#/errors/report", async (orig) => ({
   report_error: report_error_mock,
 }));
 
+vi.mock("#/.server/auth", async () =>
+  (await import("$/auth/test-utils")).make_auth_mock({
+    session: { user: undefined },
+  })
+);
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: any) => Component,
   createClientLoaderCache: () => undefined,
@@ -60,7 +65,11 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports after mocks ---
 
-import { seed_fund, seed_npo, seed_user } from "#/__tests__/fixtures/funds";
+import {
+  seed_npo as seed_any_npo,
+  seed_fund,
+  seed_user,
+} from "#/__tests__/fixtures/funds";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import ProfilePage, { loader } from "../route";
 
@@ -70,6 +79,12 @@ const COULDNT_LOAD =
   "We couldn't load this nonprofit's campaigns right now. Please try again later.";
 
 const db = () => test_db.current!.db;
+
+/** a profile anyone can see; an unpublished one is the loader suite's */
+const seed_npo = (
+  db: Parameters<typeof seed_any_npo>[0],
+  o: Parameters<typeof seed_any_npo>[1] = {}
+) => seed_any_npo(db, { published: true, ...o });
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -203,7 +218,7 @@ describe("npo profile — fundraisers section", () => {
     // triggers before asserting absence
     await vi.waitFor(() => expect(loaded).not.toBeNull());
     await act(async () => {
-      await loaded!.funds;
+      await loaded!.data.funds;
     });
     await expect
       .element(screen.getByRole("heading", { level: 1 }))

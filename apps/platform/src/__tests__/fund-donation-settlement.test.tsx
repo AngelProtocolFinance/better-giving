@@ -67,6 +67,7 @@ vi.mock("#/.server/auth/middleware", async () =>
 );
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock({
+    session: { user: undefined },
     user_ctx: true,
     middleware: true,
   })

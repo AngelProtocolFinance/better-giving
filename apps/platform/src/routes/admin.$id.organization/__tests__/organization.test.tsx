@@ -34,7 +34,9 @@ vi.mock("$/pg/db", () => ({
 }));
 
 vi.mock("#/.server/auth", async () =>
-  (await import("$/auth/test-utils")).make_auth_mock()
+  (await import("$/auth/test-utils")).make_auth_mock({
+    session: { user: undefined },
+  })
 );
 
 vi.mock("#/.server/toast", () => ({
@@ -73,7 +75,7 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   overview_pt: "Test charity overview text.",
   overview_v2: "Test charity overview text.",
   active_in_countries: [],
-  published: false,
+  published: true,
   active: true,
   street_address: "123 Main St",
   url: "https://example.org",

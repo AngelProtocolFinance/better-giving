@@ -198,6 +198,35 @@ describe("public campaign page", () => {
     expect(await status_of(load("https://x/org/acme/missing"))).toBe(404);
   });
 
+  it("301s the owner's id url to its slug url, keeping the query", async () => {
+    const npo = await org();
+    await campaign(npo.id);
+
+    const res = await load(`https://x/org/${npo.id}/WINTER?amount=50`).catch(
+      (e: unknown) => e
+    );
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(301);
+    expect((res as Response).headers.get("location")).toBe(
+      "/org/acme/winter?amount=50"
+    );
+  });
+
+  it("serves a slugless owner's campaign at the owner's id url", async () => {
+    const npo = await org();
+    await test_db
+      .current!.db.update(npos)
+      .set({ slug: null })
+      .where(eq(npos.id, npo.id));
+    await campaign(npo.id);
+
+    const data = await load(`https://x/org/${npo.id}/winter`);
+
+    expect(data.campaign.slug).toBe("winter");
+    expect(data.npo.id).toBe(npo.id);
+  });
+
   it("returns a live campaign and ignores an invalid prefill", async () => {
     const npo = await org();
     await campaign(npo.id);

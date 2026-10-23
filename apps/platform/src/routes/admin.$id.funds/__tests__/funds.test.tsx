@@ -102,6 +102,7 @@ const seed_npo = (
   insert_npo(db(), {
     registration_number: "EIN-FUNDS",
     name: "Funds Test NPO",
+    published: true,
     ...overrides,
   });
 
