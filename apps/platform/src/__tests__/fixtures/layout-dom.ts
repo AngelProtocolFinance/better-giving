@@ -9,3 +9,21 @@ export const donates = (root: Element) =>
   Array.from(root.querySelectorAll("a")).filter(
     (a) => a.textContent === "Donate"
   );
+
+/** a page root's pinned bar (its last child) and the footer's last content
+ * line, measured in document coordinates with the page scrolled to its end */
+export function pinned_at_end(root: Element) {
+  window.scrollTo(0, document.documentElement.scrollHeight);
+  const bar = root.lastElementChild as HTMLElement;
+  const footer = root.querySelector("footer") as HTMLElement;
+  const lines = footer.querySelectorAll("dl, a");
+  const y = window.scrollY;
+  return {
+    footer_bottom: Math.max(
+      ...Array.from(lines, (l) => l.getBoundingClientRect().bottom + y)
+    ),
+    bar_top: bar.getBoundingClientRect().top + y,
+    bar_bottom: bar.getBoundingClientRect().bottom + y,
+    doc_bottom: document.documentElement.scrollHeight,
+  };
+}

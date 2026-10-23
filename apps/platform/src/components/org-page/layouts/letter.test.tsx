@@ -2,7 +2,11 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
-import { BANNER, donates } from "#/__tests__/fixtures/layout-dom";
+import {
+  BANNER,
+  donates,
+  pinned_at_end,
+} from "#/__tests__/fixtures/layout-dom";
 import {
   EIN,
   give,
@@ -247,4 +251,24 @@ describe("Letter", () => {
     await expect.poll(() => name.checkVisibility()).toBe(true);
     expect(name).toHaveTextContent("Riverside Literacy");
   });
+
+  test.each([
+    [375, 812],
+    [1440, 900],
+  ])(
+    "at %i the deep bar rests under the footer's details at the page's end, with nothing after it",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount({
+        footer: { registration_number: EIN, active_in: "Uganda" },
+      });
+      await expect.element(screen.getByText("Active in")).toBeInTheDocument();
+      expect(document.documentElement.scrollHeight).toBeGreaterThan(
+        window.innerHeight
+      );
+      const end = pinned_at_end(root_of(screen.container));
+      expect(end.footer_bottom).toBeLessThanOrEqual(end.bar_top);
+      expect(Math.abs(end.bar_bottom - end.doc_bottom)).toBeLessThanOrEqual(1);
+    }
+  );
 });

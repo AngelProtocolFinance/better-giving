@@ -2,7 +2,11 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
-import { BANNER, donates } from "#/__tests__/fixtures/layout-dom";
+import {
+  BANNER,
+  donates,
+  pinned_at_end,
+} from "#/__tests__/fixtures/layout-dom";
 import {
   EIN,
   give,
@@ -15,6 +19,7 @@ import {
 } from "#/__tests__/fixtures/org-layout";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import type { INpoPublic } from "$/pg/queries/npo";
+import { OrgPageFrame } from "./org-page-frame";
 import { Poster } from "./poster";
 import type { IOrgLayout } from "./types";
 
@@ -28,6 +33,12 @@ afterEach(async () => {
   await reset_viewport();
   window.scrollTo(0, 0);
 });
+
+const DETAILS = {
+  registration_number: EIN,
+  address: "3131 Olympic Blvd, Santa Monica CA 90404",
+  active_in: "United States",
+};
 
 const STORY_AT_MAX =
   "Riverside Literacy puts a trained reading tutor beside every adult learner who asks for one, twice a week, in libraries and church halls across three counties. Last year 212 adults read their first full book with us, and most of them came back the next year to tutor the newcomers who followed them in.";
@@ -192,5 +203,51 @@ describe("Poster", () => {
       0
     );
     expect(bar.textContent).toContain("$3,322 raised");
+  });
+
+  test("on a phone page taller than the screen, the bar rests under the footer's details at the end, with nothing after it", async () => {
+    await page.viewport(375, 812);
+    const screen = await mount(
+      { footer: DETAILS },
+      { overview_pt: story(STORY_AT_MAX) }
+    );
+    await expect
+      .element(screen.getByText("Organization details"))
+      .toBeVisible();
+    const root = screen.container.querySelector("main")
+      ?.parentElement as HTMLElement;
+    expect(document.documentElement.scrollHeight).toBeGreaterThan(
+      window.innerHeight
+    );
+    const end = pinned_at_end(root);
+    expect(end.footer_bottom).toBeLessThanOrEqual(end.bar_top);
+    expect(Math.abs(end.bar_bottom - end.doc_bottom)).toBeLessThanOrEqual(1);
+  });
+
+  test("on a phone page shorter than the screen, the bar sits on the bottom edge under the footer", async () => {
+    await page.viewport(375, 812);
+    const props = org_layout({ footer: DETAILS });
+    const Stub = createRoutesStub([
+      {
+        path: "/",
+        Component: () => (
+          <OrgPageFrame page={props} hero_donate={null}>
+            <h1>Riverside Literacy</h1>
+          </OrgPageFrame>
+        ),
+      },
+    ]);
+    const screen = await render(<Stub initialEntries={["/"]} />);
+    await expect
+      .element(screen.getByText("Organization details"))
+      .toBeVisible();
+    const root = screen.container.querySelector("main")
+      ?.parentElement as HTMLElement;
+    const end = pinned_at_end(root);
+    expect(Math.abs(end.doc_bottom - window.innerHeight)).toBeLessThanOrEqual(
+      1
+    );
+    expect(end.footer_bottom).toBeLessThanOrEqual(end.bar_top);
+    expect(Math.abs(end.bar_bottom - end.doc_bottom)).toBeLessThanOrEqual(1);
   });
 });
