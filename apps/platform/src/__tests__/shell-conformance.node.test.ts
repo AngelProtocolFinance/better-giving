@@ -50,10 +50,16 @@ describe("the scrollbar skin", () => {
 describe("the table scroller", () => {
   test("a horizontal scroller with the skin is spelled `table-scroll`", () => {
     // `table-scroll` IS `overflow-x-auto scrollbars`, so writing both is the
-    // hand-spelling the name replaced. the two exemptions below scroll
-    // sideways but hold no table, and naming them for one would be a lie in
-    // the markup.
+    // hand-spelling the name replaced. the exemptions below scroll sideways
+    // but hold no table, and naming them for one would be a lie in the
+    // markup.
     const exempt = [
+      // a tab row wider than its box
+      "packages/ui/src/components/tabs.tsx",
+      // a row of campaign cards, swiped
+      "apps/platform/src/components/org-page/swipe-row.tsx",
+      // the org page's section links, under the header on narrow widths
+      "apps/platform/src/components/org-page/layouts/feature.tsx",
       // a row of referral cards, scrolled by drag
       "apps/platform/src/components/referrals/hub/index.tsx",
       // a rebalance summary panel: paragraphs and a diff, no table

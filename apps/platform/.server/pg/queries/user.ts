@@ -238,6 +238,24 @@ export async function npo_admins(npo_id: number): Promise<INpoAdmin[]> {
   return rows as unknown as INpoAdmin[];
 }
 
+/** holds a membership in this org. a platform admin is the caller's check */
+export async function npo_admin_member(
+  user_id: string,
+  npo_id: number
+): Promise<boolean> {
+  const [row] = await db
+    .select({ npo_id: user_npo_memberships.npo_id })
+    .from(user_npo_memberships)
+    .where(
+      and(
+        eq(user_npo_memberships.user_id, user_id),
+        eq(user_npo_memberships.npo_id, npo_id)
+      )
+    )
+    .limit(1);
+  return row != null;
+}
+
 export async function npo_admin_tx(
   db: DbOrTx,
   npo_id: number,

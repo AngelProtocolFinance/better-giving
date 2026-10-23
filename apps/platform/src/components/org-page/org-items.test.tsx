@@ -1,0 +1,477 @@
+import type { ReactNode } from "react";
+import { createRoutesStub } from "react-router";
+import { afterEach, describe, expect, test } from "vitest";
+import { page } from "vitest/browser";
+import { cleanup, render } from "vitest-browser-react";
+import { BANNER } from "#/__tests__/fixtures/layout-dom";
+import { reset_viewport } from "#/__tests__/fixtures/viewport";
+import { GiveCard } from "./give-card";
+import type { IGiveItem, IProgramItem, IVideoItem } from "./items";
+import { ItemsByCount, ShowMoreGrid } from "./items-by-count";
+import { SwipeRow } from "./swipe-row";
+
+/** a square picture, so a slot that isn't 4:1 would show it uncropped */
+const SQUARE = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="teal"/></svg>'
+)}`;
+
+const NOW = Date.parse("2026-10-01T12:00:00Z");
+const HOUR = 3_600_000;
+const DAY = 24 * HOUR;
+
+afterEach(async () => {
+  await cleanup();
+  await reset_viewport();
+});
+
+function mount(ui: ReactNode) {
+  const Stub = createRoutesStub([{ path: "/", Component: () => ui }]);
+  return render(<Stub initialEntries={["/"]} />);
+}
+
+const give = (n: number, o: Partial<IGiveItem> = {}): IGiveItem => ({
+  kind: "campaign",
+  id: `give-${n}`,
+  title: `Clean water ${n}`,
+  to: `/campaigns/${n}`,
+  image: null,
+  raised: 2400,
+  goal: 7900,
+  ends_at: null,
+  byline: null,
+  excerpt:
+    "Wells for three villages in the Kasese district before the dry season.",
+  ...o,
+});
+
+const gives = (n: number) => Array.from({ length: n }, (_, i) => give(i + 1));
+
+const program = (n: number): IProgramItem => ({
+  kind: "program",
+  id: `program-${n}`,
+  title: `School meals ${n}`,
+  to: `/programs/${n}`,
+  image: null,
+  summary: "A hot lunch for every pupil, every school day.",
+  goal: null,
+  raised: 0,
+});
+
+const video = (n: number): IVideoItem => ({
+  kind: "video",
+  id: `video-${n}`,
+  url: `https://www.youtube.com/watch?v=dQw4w9WgXc${n}`,
+  title: null,
+});
+
+/** the column tracks a list lays out in, from its computed style */
+function tracks(el: Element): number {
+  return getComputedStyle(el).gridTemplateColumns.split(" ").length;
+}
+
+function list_of(container: HTMLElement): HTMLElement {
+  const el = container.querySelector<HTMLElement>("[data-count]");
+  if (!el) throw new Error("no list rendered");
+  return el;
+}
+
+describe("GiveCard", () => {
+  test("says how long is left and how far it is from its goal", async () => {
+    const screen = await mount(
+      <div>
+        <GiveCard
+          orientation="vertical"
+          now={NOW}
+          item={give(1, {
+            ends_at: new Date(NOW + 5 * DAY + HOUR).toISOString(),
+          })}
+        />
+        <GiveCard
+          orientation="vertical"
+          now={NOW}
+          item={give(2, { ends_at: new Date(NOW + 3 * HOUR).toISOString() })}
+        />
+        <GiveCard
+          orientation="vertical"
+          now={NOW}
+          item={give(3, {
+            ends_at: new Date(NOW - HOUR).toISOString(),
+            goal: null,
+            raised: 540,
+            kind: "supporter",
+            byline: "by Jane",
+          })}
+        />
+        <GiveCard orientation="vertical" now={NOW} item={give(4)} />
+      </div>
+    );
+    const card = (n: number) =>
+      screen.getByRole("article").filter({ hasText: `Clean water ${n}` });
+
+    await expect.element(card(1)).toMatchTextContent("Ends in 5 days");
+    await expect.element(card(2)).toMatchTextContent("Ends today");
+    await expect.element(card(3)).not.toMatchTextContent("Ends");
+    await expect.element(card(4)).not.toMatchTextContent("Ends");
+
+    // a goal draws the bar and "of"; none says what came in
+    await expect
+      .element(
+        card(1).getByRole("progressbar", {
+          name: "Clean water 1: amount raised",
+        })
+      )
+      .toBeVisible();
+    await expect.element(card(1)).toMatchTextContent("$2,400 of $7,900");
+    expect(card(3).getByRole("progressbar").query()).toBeNull();
+    await expect.element(card(3)).toMatchTextContent("$540 raised");
+    await expect.element(card(3)).toMatchTextContent("Supporter campaign");
+    await expect.element(card(3)).toMatchTextContent("by Jane");
+
+    // the title is the card's only link
+    expect(card(1).getByRole("link").elements()).toHaveLength(1);
+  });
+});
+
+describe("card image", () => {
+  test.each([
+    [1440, 900],
+    [375, 812],
+  ])(
+    "every card's image slot is 4:1 and the image fills it, at %i wide",
+    async (width, height) => {
+      await page.viewport(width, height);
+      const pictured = <T extends { image: string | null }>(x: T) => ({
+        ...x,
+        image: SQUARE,
+      });
+      // one is the feature card, two are halves, three are thirds
+      const lists = [1, 2, 3].map((n) => gives(n).map(pictured));
+      const screen = await mount(
+        <div>
+          {lists.map((items) => (
+            <ItemsByCount key={items.length} items={items} now={NOW} />
+          ))}
+          <ItemsByCount items={[pictured(program(1))]} now={NOW} />
+        </div>
+      );
+      await expect
+        .element(screen.getByRole("link", { name: "School meals 1" }))
+        .toBeVisible();
+
+      const cards = Array.from(
+        screen.container.querySelectorAll<HTMLElement>("article")
+      );
+      expect(cards).toHaveLength(7);
+      const wide = width >= 768;
+      for (const [i, card] of cards.entries()) {
+        const slot = (
+          card.firstElementChild as HTMLElement
+        ).getBoundingClientRect();
+        const box = card.getBoundingClientRect();
+        expect(Math.abs(slot.width / slot.height - 4) / 4).toBeLessThan(0.01);
+        const is_program = i === 6;
+        // the feature card (0) and the halves (1, 2) sit beside their text
+        const beside = wide && i < 3;
+        if (beside) {
+          // centred down its column: no dead block under it
+          expect(
+            Math.abs(slot.top - box.top - (box.bottom - slot.bottom))
+          ).toBeLessThanOrEqual(2);
+        } else {
+          // on top, or a top-aligned thumbnail
+          expect(slot.top).toBeCloseTo(box.top + 1, 0);
+        }
+        if (is_program && wide) {
+          // a thumbnail, not a banner
+          expect(slot.width).toBeLessThanOrEqual(15 * 16);
+        } else if (beside) {
+          expect(slot.width / card.clientWidth).toBeLessThanOrEqual(0.45);
+          expect(slot.width / card.clientWidth).toBeGreaterThan(0.3);
+        } else {
+          // on top, across the card
+          expect(slot.width).toBeCloseTo(card.clientWidth, 0);
+        }
+        const img = card.querySelector("img") as HTMLImageElement;
+        await expect.poll(() => img.complete).toBe(true);
+        const shown = img.getBoundingClientRect();
+        expect(shown.width).toBeCloseTo(slot.width, 0);
+        expect(shown.height).toBeCloseTo(slot.height, 0);
+        // a square picture in a 4:1 slot fills it by cropping, not squeezing
+        expect(getComputedStyle(img).objectFit).toBe("cover");
+      }
+    }
+  );
+
+  test("neighbouring cards end on one line, with or without an end date, and the bar spans the text column", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      <ItemsByCount
+        items={[
+          give(1, { ends_at: new Date(NOW + 5 * DAY).toISOString() }),
+          give(2),
+        ]}
+        now={NOW}
+      />
+    );
+    const bars = screen.getByRole("progressbar").elements();
+    expect(bars).toHaveLength(2);
+    const [a, b] = bars.map((x) => x.getBoundingClientRect());
+    expect(a.top).toBeCloseTo(b.top, 0);
+    const column = (bars[0].parentElement as HTMLElement)
+      .parentElement as HTMLElement;
+    const inner = column.getBoundingClientRect().width - 32; // p-4 either side
+    expect(a.width).toBeCloseTo(inner, 0);
+  });
+
+  test("a card with no goal has no bar and no band where one would be, beside cards that have one", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      <ItemsByCount
+        items={[
+          give(1, { ends_at: new Date(NOW + 5 * DAY).toISOString() }),
+          give(2),
+          give(3, { goal: null }),
+        ]}
+        now={NOW}
+      />
+    );
+    const card = screen
+      .getByRole("article")
+      .filter({ hasText: "Clean water 3" });
+    await expect.element(card).toMatchTextContent("$2,400 raised");
+    expect(card.getByRole("progressbar").query()).toBeNull();
+    // the raised line follows the title at the column's gap
+    const title = card.getByRole("heading").element();
+    const raised = card.getByText("$2,400 raised").element();
+    const gap = Number.parseFloat(
+      getComputedStyle(title.parentElement as HTMLElement).rowGap
+    );
+    expect(
+      raised.getBoundingClientRect().top - title.getBoundingClientRect().bottom
+    ).toBeCloseTo(gap, 0);
+    // the cards in the row still share a bottom edge
+    const boxes = screen
+      .getByRole("article")
+      .elements()
+      .map((a) => a.getBoundingClientRect().bottom);
+    expect(new Set(boxes).size).toBe(1);
+  });
+
+  test("a program row on a phone has its image across the top and the title on at most two lines", async () => {
+    await page.viewport(375, 812);
+    const screen = await mount(
+      <ItemsByCount
+        items={[
+          {
+            ...program(1),
+            image: BANNER,
+            title: "After-school reading clubs for every primary pupil",
+          },
+        ]}
+        now={NOW}
+      />
+    );
+    const link = screen.getByRole("link", { name: /After-school reading/ });
+    await expect.element(link).toBeVisible();
+    const row = link.element().closest("article") as HTMLElement;
+    const slot = (row.firstElementChild as HTMLElement).getBoundingClientRect();
+    const title = row.querySelector("h3") as HTMLElement;
+    const text = (title.parentElement as HTMLElement).getBoundingClientRect();
+    expect(slot.width).toBeCloseTo(row.clientWidth, 0);
+    expect(Math.abs(slot.width / slot.height - 4) / 4).toBeLessThan(0.01);
+    expect(text.top).toBeGreaterThanOrEqual(slot.bottom - 0.5);
+    const lines =
+      title.getBoundingClientRect().height /
+      Number.parseFloat(getComputedStyle(title).lineHeight);
+    expect(Math.round(lines)).toBeLessThanOrEqual(2);
+  });
+
+  test("the feature card's excerpt shows on a phone too", async () => {
+    await page.viewport(375, 812);
+    const screen = await mount(<ItemsByCount items={gives(1)} now={NOW} />);
+    await expect
+      .element(screen.getByText("Wells for three villages"))
+      .toBeVisible();
+  });
+
+  test("rows: every campaign a horizontal row, one per line, lined up with the program rows", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      <div style={{ width: 768 }}>
+        <ItemsByCount
+          items={[...gives(2), { ...program(1), goal: 900 }]}
+          now={NOW}
+          rows
+        />
+      </div>
+    );
+    const lists = screen.container.querySelectorAll("[data-count]");
+    expect(tracks(lists[0])).toBe(1);
+    const titles = Array.from(screen.container.querySelectorAll("h3"));
+    expect(titles).toHaveLength(3);
+    const sizes = titles.map((h) => getComputedStyle(h).fontSize);
+    expect(new Set(sizes).size).toBe(1);
+    const insets = titles.map(
+      (h) => getComputedStyle(h.parentElement as HTMLElement).padding
+    );
+    expect(new Set(insets).size).toBe(1);
+  });
+});
+
+describe("ItemsByCount", () => {
+  test("1, 2 and 3 items take a feature card, halves and thirds; none renders nothing", async () => {
+    await page.viewport(1440, 900);
+
+    const none = await mount(<ItemsByCount items={[]} now={NOW} />);
+    expect(none.container.querySelector("[data-count]")).toBeNull();
+    expect(none.container.querySelector("article")).toBeNull();
+    await cleanup();
+
+    const one = await mount(<ItemsByCount items={gives(1)} now={NOW} />);
+    const feature = list_of(one.container);
+    expect(feature.dataset.count).toBe("1");
+    expect(tracks(feature)).toBe(1);
+    await expect
+      .element(one.getByText("Wells for three villages"))
+      .toBeVisible();
+    await cleanup();
+
+    const two = await mount(<ItemsByCount items={gives(2)} now={NOW} />);
+    expect(tracks(list_of(two.container))).toBe(2);
+    // the excerpt is the feature card's alone
+    expect(two.getByText("Wells for three villages").query()).toBeNull();
+    await cleanup();
+
+    const three = await mount(<ItemsByCount items={gives(3)} now={NOW} />);
+    expect(tracks(list_of(three.container))).toBe(3);
+  });
+
+  test("a phone stacks every count", async () => {
+    await page.viewport(375, 812);
+    const screen = await mount(<ItemsByCount items={gives(3)} now={NOW} />);
+    expect(tracks(list_of(screen.container))).toBe(1);
+  });
+
+  test("one program is a row, not a lone card", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(<ItemsByCount items={[program(1)]} now={NOW} />);
+    const rows = list_of(screen.container);
+    expect(tracks(rows)).toBe(1);
+    // a row runs the list's full width
+    const row = rows.querySelector("article") as HTMLElement;
+    expect(row.getBoundingClientRect().width).toBe(
+      rows.getBoundingClientRect().width
+    );
+    await expect
+      .element(screen.getByRole("link", { name: "School meals 1" }))
+      .toBeVisible();
+  });
+
+  test("videos: one full, two halves, three as one large over two", async () => {
+    await page.viewport(1440, 900);
+
+    const one = await mount(<ItemsByCount items={[video(1)]} now={NOW} />);
+    expect(tracks(list_of(one.container))).toBe(1);
+    await cleanup();
+
+    const two = await mount(
+      <ItemsByCount items={[video(1), video(2)]} now={NOW} />
+    );
+    expect(tracks(list_of(two.container))).toBe(2);
+    await cleanup();
+
+    const three = await mount(
+      <ItemsByCount items={[video(1), video(2), video(3)]} now={NOW} />
+    );
+    const set = list_of(three.container);
+    expect(set.dataset.count).toBe("3");
+    expect(tracks(set)).toBe(1);
+    const small = set.lastElementChild as HTMLElement;
+    expect(tracks(small)).toBe(2);
+    // untitled frames are still told apart
+    expect(
+      three.container.querySelector('iframe[title="Video 3 of 3"]')
+    ).not.toBeNull();
+  });
+
+  test('4+ shows the first 3 and "See all N" brings in the rest', async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(<ItemsByCount items={gives(5)} now={NOW} />);
+    const link = (n: number) =>
+      screen.getByRole("link", { name: `Clean water ${n}`, exact: true });
+
+    await expect.element(link(3)).toBeVisible();
+    expect(link(4).query()).toBeNull();
+    await screen.getByRole("button", { name: "See all 5" }).click();
+
+    await expect.element(link(5)).toBeVisible();
+    await expect.element(link(4)).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "See all 5" }).query()
+    ).toBeNull();
+  });
+});
+
+describe("ShowMoreGrid", () => {
+  test('shows 6 in three columns, then the rest on "Show N more"', async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(<ShowMoreGrid items={gives(8)} now={NOW} />);
+    const link = (n: number) =>
+      screen.getByRole("link", { name: `Clean water ${n}`, exact: true });
+
+    expect(tracks(list_of(screen.container))).toBe(3);
+    await expect.element(link(6)).toBeVisible();
+    expect(link(7).query()).toBeNull();
+
+    await screen.getByRole("button", { name: "Show 2 more" }).click();
+    await expect.element(link(8)).toBeVisible();
+    await expect.element(link(7)).toHaveFocus();
+    expect(screen.getByRole("button", { name: /more/ }).query()).toBeNull();
+  });
+
+  test("a phone shows 3 first", async () => {
+    await page.viewport(375, 812);
+    const screen = await mount(<ShowMoreGrid items={gives(8)} now={NOW} />);
+    const link = (n: number) =>
+      screen.getByRole("link", { name: `Clean water ${n}`, exact: true });
+
+    await expect.element(link(3)).toBeVisible();
+    expect(link(4).query()).toBeNull();
+    await screen.getByRole("button", { name: "Show 5 more" }).click();
+    await expect.element(link(8)).toBeVisible();
+    await expect.element(link(4)).toHaveFocus();
+  });
+});
+
+describe("SwipeRow", () => {
+  test('scrolls by keyboard, cuts off its last card, and "See all N" opens it into a grid', async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      <SwipeRow heading="Campaigns" items={gives(5)} now={NOW} />
+    );
+    const region = screen.getByRole("region", {
+      name: "Campaigns",
+    });
+    const toggle = screen.getByRole("button", { name: "See all 5" });
+
+    await expect.element(region).toHaveAttribute("tabindex", "0");
+    const row = region.element() as HTMLElement;
+    expect(row.scrollWidth).toBeGreaterThan(row.clientWidth);
+    await expect.element(toggle).toHaveAttribute("aria-expanded", "false");
+
+    await toggle.click();
+    const shown = screen.getByRole("button", { name: "Show fewer" });
+    await expect.element(shown).toHaveAttribute("aria-expanded", "true");
+    expect(region.query()).toBeNull();
+    const grid = list_of(screen.container);
+    expect(grid.id).toBe(shown.element().getAttribute("aria-controls"));
+    expect(tracks(grid)).toBe(3);
+    await expect
+      .element(screen.getByRole("link", { name: "Clean water 5" }))
+      .toBeVisible();
+
+    await shown.click();
+    await expect.element(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect.element(region).toBeVisible();
+  });
+});

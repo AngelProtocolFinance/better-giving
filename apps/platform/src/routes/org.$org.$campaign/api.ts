@@ -1,6 +1,8 @@
 import { to_usd } from "@better-giving/ui/helpers";
+import { href } from "react-router";
 import { safeParse } from "valibot";
 import { get_session } from "#/.server/auth";
+import { moved } from "#/helpers/moved";
 import { resp } from "@/helpers/https";
 import { frequency } from "@/schemas";
 import {
@@ -44,6 +46,17 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const campaign = await campaign_public(params.org, params.campaign);
   if (!campaign || campaign.owner_npo_id == null) throw resp.status(404);
   const url = new URL(request.url);
+  // a published owner with a slug lives at it; its id url is an alias. an
+  // unpublished owner's slug stays out of this public, cached redirect
+  if (
+    /^\d+$/.test(params.org) &&
+    campaign.owner_slug &&
+    campaign.owner_published
+  ) {
+    throw moved(
+      `${href("/org/:org/:campaign", { org: campaign.owner_slug, campaign: campaign.slug })}${url.search}`
+    );
+  }
   const donation_id = url.searchParams.get("donation_id")?.trim() ?? "";
   const redirect_failed =
     url.searchParams.get("redirect_status")?.trim() === "failed";

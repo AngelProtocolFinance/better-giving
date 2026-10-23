@@ -18,3 +18,16 @@ export const fund_is_open = (
   if (!fund.expiration) return true;
   return now.getTime() < fund_closes_at(fund.expiration).getTime();
 };
+
+/** `fund_is_open` for a list item, whose expiration is unix seconds */
+export const fund_item_is_open = (
+  fund: { active: boolean; expiration: number },
+  now: Date
+): boolean =>
+  fund_is_open(
+    {
+      active: fund.active,
+      expiration: new Date(fund.expiration * 1000).toISOString(),
+    },
+    now
+  );

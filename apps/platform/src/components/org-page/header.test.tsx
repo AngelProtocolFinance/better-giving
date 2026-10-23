@@ -1,8 +1,10 @@
+import { useMemo, useState } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
+import { DonateButton } from "./donate";
 import { OrgHeader } from "./header";
 
 const user_mock = vi.hoisted(() => ({ current: null as unknown }));
@@ -14,6 +16,7 @@ afterEach(async () => {
   await cleanup();
   vi.unstubAllGlobals();
   user_mock.current = null;
+  window.scrollTo(0, 0);
   await reset_viewport();
 });
 
@@ -30,26 +33,38 @@ const header = (name = "Acme Relief") => (
 );
 
 describe("org header", () => {
-  it("makes Favorite a 44px button in Share's ink, signed in or not", async () => {
+  it("makes Favorite a 44px target in Share's ink, signed in or not", async () => {
     await page.viewport(1280, 900);
-    for (const user of [{ bookmarks: [] }, null]) {
+    // signed out it is a link to log in, signed in a toggle button
+    for (const [user, role] of [
+      [{ bookmarks: [] }, "button"],
+      [null, "link"],
+    ] as const) {
       user_mock.current = user;
       const screen = await render(header());
-      const fav = screen.getByRole("button", { name: "Add to favorites" });
+      const fav = screen.getByRole(role, {
+        name: "Add to favorites",
+        exact: true,
+      });
       await expect.element(fav).toBeVisible();
       const box = fav.element().getBoundingClientRect();
       expect(box.width).toBeGreaterThanOrEqual(44);
       expect(box.height).toBeGreaterThanOrEqual(44);
-      const ink = (name: string) =>
-        getComputedStyle(
-          screen
-            .getByRole("button", { name, exact: true })
-            .element()
-            .querySelector("svg") as SVGElement
-        ).color;
-      expect(ink("Add to favorites")).toBe(ink("Share"));
+      const ink = (el: Element) =>
+        getComputedStyle(el.querySelector("svg") as SVGElement).color;
+      const share = screen.getByRole("button", { name: "Share", exact: true });
+      expect(ink(fav.element())).toBe(ink(share.element()));
       await cleanup();
     }
+  });
+
+  it("leads with the monogram when the org has no logo", async () => {
+    const screen = await render(header());
+    const home = screen.getByRole("link", { name: "Acme Relief" });
+    await expect.element(home).toBeVisible();
+    const mark = home.element().querySelector("[data-monogram]");
+    expect(mark).toHaveTextContent("A");
+    expect(mark).toHaveAttribute("aria-hidden", "true");
   });
 
   it("narrows Donate's side padding on a phone", async () => {
@@ -92,5 +107,94 @@ describe("org header", () => {
     expect(counts).toEqual({ made: 1, disconnected: 0 });
     await screen.unmount();
     expect(counts).toEqual({ made: 1, disconnected: 1 });
+  });
+
+  describe("Donate once the hero's has scrolled away", () => {
+    /** a hero Donate the header watches, with page enough to scroll it off */
+    function Page() {
+      const [hero_donate, set_hero_donate] = useState<HTMLElement | null>(null);
+      return (
+        <MemoryRouter>
+          <OrgHeader
+            name="Acme Relief"
+            to="/org/acme"
+            donate_to="/donate/7"
+            donate_after={[hero_donate]}
+          />
+          <main className="h-[300dvh]">
+            <DonateButton to="/donate/7" size="lg" ref={set_hero_donate} />
+          </main>
+        </MemoryRouter>
+      );
+    }
+
+    it("stays out of the header while the hero's Donate is in view, and comes in after", async () => {
+      await page.viewport(1280, 900);
+      const screen = await render(<Page />);
+      const in_header = screen
+        .getByRole("banner")
+        .getByRole("link", { name: "Donate" });
+      const hero = screen.getByRole("main").getByRole("link", {
+        name: "Donate",
+      });
+      await expect.element(hero).toBeVisible();
+      await expect.element(in_header).not.toBeInTheDocument();
+
+      // just under the pinned header is out of view too
+      const top = hero.element().getBoundingClientRect().top;
+      window.scrollTo(0, top);
+      await expect.element(in_header).toBeVisible();
+      await expect.element(in_header).toHaveAttribute("href", "/donate/7");
+
+      window.scrollTo(0, 0);
+      await expect.element(in_header).not.toBeInTheDocument();
+    });
+
+    it("follows the same rule on a phone", async () => {
+      await page.viewport(375, 800);
+      const screen = await render(<Page />);
+      const in_header = screen
+        .getByRole("banner")
+        .getByRole("link", { name: "Donate" });
+      await expect
+        .element(screen.getByRole("main").getByRole("link", { name: "Donate" }))
+        .toBeVisible();
+      await expect.element(in_header).not.toBeInTheDocument();
+      window.scrollTo(0, 2000);
+      await expect.element(in_header).toBeVisible();
+    });
+
+    it("waits on every hero Donate it is given, and one with no box counts as away", async () => {
+      await page.viewport(1280, 900);
+      function Split() {
+        const [wide, set_wide] = useState<HTMLElement | null>(null);
+        const [phone, set_phone] = useState<HTMLElement | null>(null);
+        const after = useMemo(() => [wide, phone], [wide, phone]);
+        return (
+          <MemoryRouter>
+            <OrgHeader
+              name="Acme Relief"
+              to="/org/acme"
+              donate_to="/donate/7"
+              donate_after={after}
+            />
+            <main className="h-[300dvh]">
+              <DonateButton to="/donate/7" ref={set_wide} />
+              <DonateButton to="/donate/7" ref={set_phone} classes="hidden" />
+            </main>
+          </MemoryRouter>
+        );
+      }
+      const screen = await render(<Split />);
+      const in_header = screen
+        .getByRole("banner")
+        .getByRole("link", { name: "Donate" });
+      await expect
+        .element(screen.getByRole("main").getByRole("link", { name: "Donate" }))
+        .toBeVisible();
+      await expect.element(in_header).not.toBeInTheDocument();
+      window.scrollTo(0, 2000);
+      await expect.element(in_header).toBeVisible();
+    });
   });
 });

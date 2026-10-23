@@ -75,6 +75,7 @@ function campaign_query() {
       campaign: campaigns,
       raised,
       owner_slug: npos.slug,
+      owner_published: npos.published,
       owner_name: npos.name,
       owner_image: npos.image,
       owner_logo: npos.logo,
@@ -98,6 +99,7 @@ function present(
     target: to_target(target_number, target_smart),
     raised: row.raised ?? 0,
     owner_slug: row.owner_slug,
+    owner_published: row.owner_published,
     owner_name: row.owner_name,
     owner_image: row.owner_image,
     owner_logo: row.owner_logo,
@@ -134,14 +136,23 @@ export async function campaign_get(
   return row && present(row);
 }
 
-/** public page: draft and unknown stay absent. ended and live both return */
+const PG_INT_MAX = 2_147_483_647;
+
+/** public page: draft and unknown stay absent. ended and live both return.
+ * an all-digit `org` is the owner's id (a slug is never all digits), any other
+ * value its slug */
 export async function campaign_public(
-  org_slug: string,
+  org: string,
   campaign_slug: string
 ): Promise<ICampaignRow | undefined> {
+  const owner_id = /^\d+$/.test(org) ? Number(org) : null;
+  // past int4 the bound param would raise instead of matching nothing
+  if (owner_id !== null && owner_id > PG_INT_MAX) return undefined;
   const [row] = await campaign_query().where(
     and(
-      sql`LOWER(${npos.slug}) = LOWER(${org_slug})`,
+      owner_id === null
+        ? sql`LOWER(${npos.slug}) = LOWER(${org})`
+        : eq(campaigns.owner_npo_id, owner_id),
       sql`LOWER(${campaigns.slug}) = LOWER(${campaign_slug})`,
       sql`${campaigns.status} <> 'draft'`
     )

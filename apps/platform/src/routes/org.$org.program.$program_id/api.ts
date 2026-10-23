@@ -24,8 +24,9 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
 
   const npo = await (typeof id === "number" ? npo_get(id) : npo_by_slug(id));
   if (!npo || npo.active === false) throw resp.status(404);
-  // an org with a slug lives at it; its id url is an alias
-  if (typeof id === "number" && npo.slug) {
+  // a published org with a slug lives at it; its id url is an alias. an
+  // unpublished org's slug stays out of this public, cached redirect
+  if (typeof id === "number" && npo.slug && npo.published) {
     throw moved(`${program_href(npo, pid)}${new URL(request.url).search}`);
   }
 

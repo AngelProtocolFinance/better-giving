@@ -70,11 +70,9 @@ export default function WpPlugin() {
             width={30}
           />
           <span>
-            <strong>NOTE:</strong> If you do not know your Nonprofit Account
-            number, you can easily locate by navigating to the Marketplace and
-            searching for your nonprofit by name. The account number is found at
-            the end of the link to your profile on it's marketplace card (ex:
-            https://better.giving/marketplace/121).
+            <strong>NOTE:</strong> If you do not know your Nonprofit Account ID,
+            log in and open your nonprofit's dashboard. The ID is the number in
+            its web address (ex: https://better.giving/admin/121).
           </span>
         </div>
         <div className="py-5">

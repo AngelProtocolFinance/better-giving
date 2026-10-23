@@ -6,6 +6,9 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
+// .env.test carries a gateway key, so an unmocked layout pick would call the real gateway
+vi.mock("$/jev", () => ({ jev_choice: async () => null }));
+
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
     {},
@@ -38,7 +41,7 @@ type Descriptor = MetaDescriptor & Record<string, unknown>;
 
 /** the meta a crawler reads for `/org/<param>`, from the real loader */
 async function meta_of(param: string) {
-  const d = await loader({
+  const { data: d } = await loader({
     request: new Request(`${base_url}/org/${param}`),
     params: { org: param },
   } as never);
@@ -56,6 +59,7 @@ async function seed(label: string, slug?: string) {
       endow_designation: "Charity",
       overview_pt: "[]",
       hq_country: "United States",
+      published: true,
       ...(slug ? { slug } : {}),
     })
     .returning();

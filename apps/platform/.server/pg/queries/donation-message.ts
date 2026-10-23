@@ -18,18 +18,41 @@ export async function donation_message_del(db: DbOrTx, id: string) {
   await db.delete(donation_messages).where(eq(donation_messages.id, id));
 }
 
+/** `date` isn't unique — rows written in one instant tie, and a date-only
+ * `< cursor` drops every tied row past the page edge. `id` breaks the tie,
+ * carried as `<iso>|<id>` through the date cursor's base64url (an iso date has
+ * no pipe). a cursor without one is a date-only cursor an older client still
+ * holds, and pages as it always did: strictly older rows. */
+function message_keyset(next?: string) {
+  const raw = decode_date_cursor(next);
+  if (!raw) return undefined;
+  const pipe = raw.indexOf("|");
+  if (pipe < 0) return sql`${donation_messages.date} < ${raw}`;
+  const date = raw.slice(0, pipe);
+  const id = raw.slice(pipe + 1);
+  return sql`(${donation_messages.date}, ${donation_messages.id}) < (${date}::timestamptz, ${id}::text)`;
+}
+
 type DonationMessageRow = typeof donation_messages.$inferSelect & {
   donor_email: string | null;
   avatar_url: string | null;
 };
 
+/** a non-whitespace char: `trim()` strips spaces only, so a message of
+ * newlines or tabs would pass `trim(x) <> ''` and render blank */
+const HAS_TEXT = "\\S";
+
 export async function donation_message_list(
   npo_id: string,
-  opts?: { limit?: number; next?: string; campaign_id?: string }
+  opts?: {
+    limit?: number;
+    next?: string;
+    campaign_id?: string;
+    /** only rows with a message, so `limit` counts messages and not every public gift */
+    with_message?: boolean;
+  }
 ): Promise<IPage<DonationMessageRow>> {
-  const { limit = 10, next, campaign_id } = opts || {};
-  const cursor = decode_date_cursor(next);
-
+  const { limit = 10, next, campaign_id, with_message = false } = opts || {};
   const rows = await db
     .select({
       ...getTableColumns(donation_messages),
@@ -48,10 +71,13 @@ export async function donation_message_list(
       and(
         eq(donation_messages.npo_id, npo_id),
         campaign_id ? eq(donations.campaign_id, campaign_id) : undefined,
-        cursor ? sql`${donation_messages.date} < ${cursor}` : undefined
+        with_message
+          ? sql`${donation_messages.donor_message} ~ ${HAS_TEXT}`
+          : undefined,
+        message_keyset(next)
       )
     )
-    .orderBy(desc(donation_messages.date))
+    .orderBy(desc(donation_messages.date), desc(donation_messages.id))
     .limit(limit + 1);
 
   const has_more = rows.length > limit;
@@ -59,10 +85,12 @@ export async function donation_message_list(
     ...row,
     amount: message_amount_usd(row.amount, upusd),
   }));
+  const last = items[items.length - 1];
   return {
     items,
-    next: has_more
-      ? encode_date_cursor(items[items.length - 1]?.date ?? undefined)
-      : undefined,
+    next:
+      has_more && last?.date
+        ? encode_date_cursor(`${last.date}|${last.id}`)
+        : undefined,
   };
 }

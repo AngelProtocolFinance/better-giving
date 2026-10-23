@@ -1,8 +1,8 @@
-import { Image } from "@better-giving/ui";
 import { ArrowUpRight } from "lucide-react";
 import { useId } from "react";
 import { Link } from "react-router";
 import type { INpo } from "$/pg/queries/npo";
+import { OrgMark } from "./org-mark";
 import { Socials } from "./socials";
 
 export interface IOrgDetails {
@@ -43,15 +43,7 @@ export function OrgFooter({
       <div
         className={`page flex flex-wrap items-center gap-x-3 gap-y-4 pt-6 ${facts.length > 0 ? "pb-4 sm:pb-6" : "pb-2"}`}
       >
-        {logo && (
-          <Image
-            src={logo}
-            alt=""
-            width={28}
-            height={28}
-            className="size-7 shrink-0 rounded-full border object-cover"
-          />
-        )}
+        <OrgMark name={name} logo={logo} size="sm" />
         <span className="text-sm font-semibold">{name}</span>
         {facts.length > 0 && (
           <section

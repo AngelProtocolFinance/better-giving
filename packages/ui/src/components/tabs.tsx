@@ -26,10 +26,11 @@ const trigger_size = {
   md: "gap-2 px-4 py-2 text-sm",
 };
 
+// a row wider than its box scrolls sideways rather than squeezing its labels.
 // the underline is always 2px, transparent at rest, so selecting a tab never
 // shifts the row.
 const trigger =
-  "flex items-center border-b-2 border-transparent font-medium text-gray-11 transition-colors hover:text-gray-12 data-selected:border-primary data-selected:text-primary focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2";
+  "flex shrink-0 items-center whitespace-nowrap border-b-2 border-transparent font-medium text-gray-11 transition-colors hover:text-gray-12 data-selected:border-primary data-selected:text-primary focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2";
 
 export function Tabs<T extends string>({
   items,
@@ -48,7 +49,9 @@ export function Tabs<T extends string>({
       onValueChange={onValueChange && ((e) => onValueChange(e.value as T))}
       className={className}
     >
-      <Ark.List className={`flex border-b ${size === "md" ? "gap-2" : ""}`}>
+      <Ark.List
+        className={`scrollbars flex overflow-x-auto border-b ${size === "md" ? "gap-2" : ""}`}
+      >
         {items.map((it) => (
           <Ark.Trigger
             key={it.value}

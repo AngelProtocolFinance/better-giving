@@ -80,20 +80,24 @@ export function Share(props: ShareProps) {
         <Modal
           open={chooser}
           onClose={() => set_chooser(false)}
-          title="Share"
-          classes="grid content-start border bg-surface"
+          size="panel"
+          // `!`: the tier's own width classes match this specificity and would
+          // otherwise win or lose by stylesheet order
+          classes="w-fit! grid content-start gap-2 border bg-surface pb-4"
         >
-          <div className="flex justify-end px-2 pt-2">
+          {/* no `title`: Modal names the dialog by this heading */}
+          <div className="flex items-center justify-between gap-4 pt-2 pr-2 pl-4">
+            <h2 className="text-lg font-bold text-gray-12">Share</h2>
             <button
               type="button"
               aria-label="Close"
               onClick={() => set_chooser(false)}
-              className={`grid size-11 place-items-center rounded text-2xl leading-none text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`}
+              className="grid size-11 place-items-center rounded text-gray-12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <XIcon className="icon-2xl" />
+              <XIcon aria-hidden className="icon-2xl" />
             </button>
           </div>
-          <div className="flex items-center justify-center gap-2 px-4 pb-6">
+          <div className="flex items-center justify-center gap-2 px-4">
             {socials.map((s) => (
               <ShareBtn
                 key={s.id}
@@ -146,7 +150,7 @@ function ShareBtn(props: IShare) {
         type="button"
         aria-label={`Share on ${props.title}`}
         onClick={() => set_open(true)}
-        className="relative size-10 grid place-items-center"
+        className="relative size-11 grid place-items-center"
       >
         <img
           src={props.src}

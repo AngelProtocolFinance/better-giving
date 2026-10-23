@@ -19,6 +19,9 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
+// .env.test carries a gateway key, so an unmocked layout pick would call the real gateway
+vi.mock("$/jev", () => ({ jev_choice: async () => null }));
+
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
     {},
@@ -102,6 +105,7 @@ const seed_npo = (
   insert_npo(db(), {
     registration_number: "EIN-FUNDS",
     name: "Funds Test NPO",
+    published: true,
     ...overrides,
   });
 

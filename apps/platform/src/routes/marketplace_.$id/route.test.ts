@@ -40,9 +40,13 @@ describe("old marketplace urls", () => {
     const db = test_db.current!.db;
     const slugged = await seed_npo(db, {
       registration_number: "EIN-SLUG",
+      published: true,
       slug: "acme",
     });
-    const bare = await seed_npo(db, { registration_number: "EIN-BARE" });
+    const bare = await seed_npo(db, {
+      registration_number: "EIN-BARE",
+      published: true,
+    });
 
     expect(
       location(
@@ -61,10 +65,78 @@ describe("old marketplace urls", () => {
     ).toEqual([301, `/org/${bare!.id}`, MOVED]);
   });
 
+  it("301 a slug in any case to the stored one, and 404 an unknown slug in place", async () => {
+    const db = test_db.current!.db;
+    await seed_npo(db, {
+      registration_number: "EIN-CASE",
+      published: true,
+      slug: "mixed-case",
+    });
+
+    expect(
+      location(
+        await call(loader, "/marketplace/Mixed-Case?x=1", { id: "Mixed-Case" })
+      )
+    ).toEqual([301, "/org/mixed-case?x=1", MOVED]);
+
+    const unknown = await call(loader, "/marketplace/no-such-org", {
+      id: "no-such-org",
+    }).catch((e: unknown) => e);
+    expect(unknown).toBeInstanceOf(Response);
+    expect((unknown as Response).status).toBe(404);
+  });
+
+  it("404 an inactive org in place", async () => {
+    const db = test_db.current!.db;
+    const off = await seed_npo(db, {
+      registration_number: "EIN-OFF",
+      slug: "gone-org",
+      active: false,
+    });
+    for (const id of ["gone-org", String(off!.id)]) {
+      const res = await call(loader, `/marketplace/${id}`, { id }).catch(
+        (e: unknown) => e
+      );
+      expect((res as Response).status).toBe(404);
+    }
+  });
+
+  it("404 an unpublished org in place, naming no slug", async () => {
+    const db = test_db.current!.db;
+    const hidden = await seed_npo(db, {
+      registration_number: "EIN-HIDDEN",
+      slug: "hidden-org",
+      published: false,
+    });
+    for (const id of ["Hidden-Org", String(hidden!.id)]) {
+      const res = await call(loader, `/marketplace/${id}`, { id }).catch(
+        (e: unknown) => e
+      );
+      expect((res as Response).status).toBe(404);
+      expect((res as Response).headers.get("location")).toBeNull();
+    }
+  });
+
+  it("301 an unpublished org's program to its id url, naming no slug", async () => {
+    const db = test_db.current!.db;
+    const npo = await seed_npo(db, {
+      registration_number: "EIN-PROG-HIDDEN",
+      published: false,
+      slug: "hidden-wells",
+    });
+    const res = await call(
+      program_loader,
+      `/marketplace/${npo!.id}/program/p1`,
+      { id: String(npo!.id), program_id: "p1" }
+    );
+    expect(location(res)).toEqual([301, `/org/${npo!.id}/program/p1`, MOVED]);
+  });
+
   it("301 a program to /org/<slug|id>/program/<id>", async () => {
     const db = test_db.current!.db;
     const npo = await seed_npo(db, {
       registration_number: "EIN-PROG",
+      published: true,
       slug: "wells-org",
     });
     const res = await call(

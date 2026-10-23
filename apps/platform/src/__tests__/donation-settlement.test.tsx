@@ -16,6 +16,9 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
+// .env.test carries a gateway key, so an unmocked layout pick would call the real gateway
+vi.mock("$/jev", () => ({ jev_choice: async () => null }));
+
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
     {},
@@ -81,6 +84,7 @@ vi.mock("#/.server/auth/middleware", async () =>
 );
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock({
+    session: { user: undefined },
     user_ctx: true,
     middleware: true,
   })
@@ -544,7 +548,7 @@ describe("payment_intent.succeeded → settlement → UI", () => {
       .element(screen.getByText("$100", { exact: true }))
       .toBeInTheDocument();
     await expect
-      .element(screen.getByText("50% of $200 goal", { exact: true }))
+      .element(screen.getByText("$100 of $200 goal", { exact: true }))
       .toBeInTheDocument();
   });
 

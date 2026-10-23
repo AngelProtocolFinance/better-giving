@@ -24,6 +24,9 @@ const programs_failure = vi.hoisted(() => ({ current: null as Error | null }));
 const media_failure = vi.hoisted(() => ({ current: null as Error | null }));
 const report_error_mock = vi.hoisted(() => vi.fn());
 
+// .env.test carries a gateway key, so an unmocked layout pick would call the real gateway
+vi.mock("$/jev", () => ({ jev_choice: async () => null }));
+
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
     {},
@@ -64,6 +67,11 @@ vi.mock("#/errors/report", async (orig) => ({
   report_error: report_error_mock,
 }));
 
+vi.mock("#/.server/auth", async () =>
+  (await import("$/auth/test-utils")).make_auth_mock({
+    session: { user: undefined },
+  })
+);
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: any) => Component,
   createClientLoaderCache: () => undefined,
@@ -71,7 +79,7 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports after mocks ---
 
-import { seed_npo } from "#/__tests__/fixtures/funds";
+import { seed_npo as seed_any_npo } from "#/__tests__/fixtures/funds";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import ProfilePage, { loader } from "../route";
 
@@ -86,6 +94,12 @@ const db = () => test_db.current!.db;
 
 const unreachable = () =>
   new Error("Error connecting to database: TypeError: fetch failed");
+
+/** a profile anyone can see; an unpublished one is the loader suite's */
+const seed_npo = (
+  db: Parameters<typeof seed_any_npo>[0],
+  o: Parameters<typeof seed_any_npo>[1] = {}
+) => seed_any_npo(db, { published: true, ...o });
 
 beforeAll(async () => {
   test_db.current = await create_test_db();

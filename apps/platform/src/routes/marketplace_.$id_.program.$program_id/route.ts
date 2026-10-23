@@ -11,5 +11,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const org =
     typeof id === "number" ? await npo_get(id) : { id, slug: id as string };
   if (!org) throw new Response(null, { status: 404 });
-  return moved(`${program_href(org, params.program_id)}${search}`);
+  // an unpublished org's slug stays out of this public, cached redirect
+  const to = "published" in org && !org.published ? { id: org.id } : org;
+  return moved(`${program_href(to, params.program_id)}${search}`);
 };
