@@ -398,6 +398,7 @@ describe("public npo profile loader", () => {
     await seed_gift("don-cmp-1", "ana@example.com", npo.id, "cmp-backed");
     await seed_gift("don-cmp-2", "ANA@example.com", npo.id, "cmp-backed");
     await seed_gift("don-cmp-3", "ben@example.com", npo.id, "cmp-backed");
+    const counts = vi.spyOn(campaign_queries, "campaign_donor_counts");
 
     const d = await load(npo.slug!);
     await Promise.all([d.funds, d.media, d.programs]);
@@ -407,25 +408,29 @@ describe("public npo profile loader", () => {
       ["cmp-backed", 3],
       ["cmp-quiet", 0],
     ]);
+    // one grouped read for every card, not one per campaign
+    expect(counts).toHaveBeenCalledOnce();
   });
 
-  it("still serves a campaign whose supporter count fails, without a count", async () => {
+  it("still serves its campaigns when their supporter counts fail, without counts, reporting once", async () => {
     const npo = await seed_npo();
-    await seed_campaign(npo.id, "cmp-count-down");
+    await seed_campaign(npo.id, "cmp-down-a", [], { created_at: hours_ago(1) });
+    await seed_campaign(npo.id, "cmp-down-b", [], { created_at: hours_ago(2) });
     report_error.mockClear();
-    vi.spyOn(campaign_queries, "campaign_donor_count").mockRejectedValueOnce(
-      new Error("campaign count down")
+    const down = new Error("campaign counts down");
+    vi.spyOn(campaign_queries, "campaign_donor_counts").mockRejectedValueOnce(
+      down
     );
 
     const d = await load(npo.slug!);
     await Promise.all([d.funds, d.media, d.programs]);
 
-    expect(d.campaigns).toEqual([
-      expect.objectContaining({ id: "cmp-count-down", supporters: null }),
+    expect(d.campaigns.map((c) => [c.id, c.supporters])).toEqual([
+      ["cmp-down-a", null],
+      ["cmp-down-b", null],
     ]);
-    expect(report_error).toHaveBeenCalledWith(expect.any(Error), {
-      endow_id: npo.id,
-    });
+    expect(report_error).toHaveBeenCalledOnce();
+    expect(report_error).toHaveBeenCalledWith(down, { endow_id: npo.id });
   });
 
   it("answers 404 for an unknown org, by slug or by id", async () => {

@@ -6,7 +6,7 @@ import { moved } from "#/helpers/moved";
 import { org_href } from "#/helpers/org-href";
 import { npo_id } from "#/pages/marketplace/npo-id";
 import {
-  campaign_donor_count,
+  campaign_donor_counts,
   campaign_live_for_npo,
 } from "$/pg/queries/campaign";
 import { donation_message_list } from "$/pg/queries/donation-message";
@@ -44,40 +44,40 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     });
 
   // a count is garnish: the profile serves without it
-  const count_or_null = (count: Promise<number>) =>
+  const count_or_null = <T>(count: Promise<T>) =>
     count.catch((err) => {
       report_error(err, { endow_id: npo.id });
       return null;
     });
 
   const [campaigns, donors, messages] = await Promise.all([
-    campaign_live_for_npo(npo.id).then((rows) =>
-      Promise.all(
-        // a campaign page lives under its org's slug
-        rows
-          .flatMap((c) => (c.owner_slug ? [c] : []))
-          .map(async (c) => {
-            const to = href("/org/:org/:campaign", {
-              org: c.owner_slug as string,
-              campaign: c.slug,
-            });
-            return {
-              id: c.id,
-              name: c.name,
-              to,
-              image: c.hero ?? null,
-              raised: c.raised,
-              target: c.target,
-              official: true as const,
-              mark: c.mark,
-              excerpt: to_excerpt(c.description_pt),
-              supporters: await count_or_null(campaign_donor_count(c.id)),
-              // the campaign page carries the donation form
-              donate_to: to,
-            };
-          })
-      )
-    ),
+    campaign_live_for_npo(npo.id).then(async (rows) => {
+      // a campaign page lives under its org's slug
+      const listed = rows.flatMap((c) => (c.owner_slug ? [c] : []));
+      const supporters = await count_or_null(
+        campaign_donor_counts(listed.map((c) => c.id))
+      );
+      return listed.map((c) => {
+        const to = href("/org/:org/:campaign", {
+          org: c.owner_slug as string,
+          campaign: c.slug,
+        });
+        return {
+          id: c.id,
+          name: c.name,
+          to,
+          image: c.hero ?? null,
+          raised: c.raised,
+          target: c.target,
+          official: true as const,
+          mark: c.mark,
+          excerpt: to_excerpt(c.description_pt),
+          supporters: supporters?.get(c.id) ?? null,
+          // the campaign page carries the donation form
+          donate_to: to,
+        };
+      });
+    }),
     count_or_null(npo_donor_count(npo.id)),
     donation_message_list(String(npo.id), { limit: 10 })
       .then((page) =>
