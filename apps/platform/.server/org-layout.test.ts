@@ -41,10 +41,21 @@ describe("pick_layout", () => {
     });
   });
 
-  it("takes card from Jev too", async () => {
+  it("takes card from Jev for an org with no story", async () => {
     jev_choice.mockResolvedValueOnce("card");
+    const storyless = { ...shape, story_chars: 0 };
 
-    expect(await pick_layout(shape)).toEqual({ layout: "card", by: "jev" });
+    expect(await pick_layout(storyless)).toEqual({ layout: "card", by: "jev" });
+  });
+
+  it("refuses card for an org with a story, which card has no room for, and keeps nothing", async () => {
+    jev_choice.mockResolvedValueOnce("card").mockResolvedValueOnce("letter");
+
+    expect(await pick_layout(shape)).toEqual({
+      layout: "poster",
+      by: "threshold",
+    });
+    expect(await pick_layout(shape)).toEqual({ layout: "letter", by: "jev" });
   });
 
   it("sends Jev the measures alone, asking for one of the five layouts", async () => {
@@ -80,6 +91,22 @@ describe("pick_layout memo", () => {
       layout: "feature",
       by: "jev",
     });
+    expect(jev_choice).toHaveBeenCalledOnce();
+  });
+
+  it("gives overlapping renders of one shape a single question and answer", async () => {
+    const pick_layout = make_layout_picker();
+    let answer!: (v: string) => void;
+    jev_choice
+      .mockReturnValueOnce(new Promise((r) => (answer = r)))
+      .mockResolvedValueOnce("letter");
+
+    const first = pick_layout(shape);
+    const second = pick_layout(shape);
+    answer("hub");
+
+    expect(await first).toEqual({ layout: "hub", by: "jev" });
+    expect(await second).toEqual({ layout: "hub", by: "jev" });
     expect(jev_choice).toHaveBeenCalledOnce();
   });
 

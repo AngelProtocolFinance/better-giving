@@ -2,6 +2,7 @@ import { parseArgs } from "node:util";
 import { and, asc, eq } from "drizzle-orm";
 import { to_text } from "#/components/rich-text/helpers";
 import { org_href } from "#/helpers/org-href";
+import { extract_youtube_id } from "#/components/youtube-player";
 import { fund_item_is_open } from "@/fundraiser/is-open";
 import {
   type IOrgShape,
@@ -118,7 +119,8 @@ async function org_shape(
     campaigns: campaigns.length,
     fundraisers: funds.filter((f) => fund_item_is_open(f, now)).length,
     programs: programs.length,
-    videos: media.items.length,
+    // the page plays YouTube links only, so it counts only those
+    videos: media.items.filter((m) => extract_youtube_id(m.url)).length,
   };
 }
 

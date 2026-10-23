@@ -176,14 +176,13 @@ describe("layout review rows", () => {
     await db()
       .insert(npo_media)
       .values(
-        ["review-v1", "review-v2", "review-v3"].map((id, i) => ({
-          id,
-          npo_id: npo.id,
-          url: `https://youtu.be/${id}`,
-          type: "video" as const,
-          // the page lists featured videos only
-          featured: i < 2,
-        }))
+        [
+          // the page lists featured videos only, and plays YouTube links only
+          { id: "review-v1", url: "https://youtu.be/review-v1xx", featured: true },
+          { id: "review-v2", url: "https://youtu.be/review-v2xx", featured: true },
+          { id: "review-v3", url: "https://youtu.be/review-v3xx", featured: false },
+          { id: "review-v4", url: "https://vimeo.com/123456789", featured: true },
+        ].map((v) => ({ ...v, npo_id: npo.id, type: "video" as const }))
       );
 
     const rows = await review_rows({ origin: ORIGIN, jev: true });

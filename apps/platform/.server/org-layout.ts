@@ -46,6 +46,23 @@ export function make_layout_picker({
   now = Date.now,
 }: IPickerOpts = {}) {
   const answers = new Map<string, { layout: TOrgLayout; at: number }>();
+  // renders of one shape that overlap share one question, so they can't get
+  // two answers or pay for two calls
+  const asking = new Map<string, Promise<TOrgLayout | null>>();
+
+  const ask = async (key: string, shape: IOrgShape) => {
+    // spread: an interface has no index signature, so isn't a Record
+    const answer = await jev_choice({ ...shape }, LAYOUT_QUESTION);
+    // card has no story slot: taking it for an org with a story would hide the story
+    const layout = answer === "card" && shape.story_chars > 0 ? null : answer;
+    if (!layout) return null;
+    if (answers.size >= max) {
+      // a Map iterates in insertion order, so the first key is the oldest
+      answers.delete(answers.keys().next().value as string);
+    }
+    answers.set(key, { layout, at: now() });
+    return layout;
+  };
 
   return async function pick_layout(shape: IOrgShape): Promise<TPick> {
     const key = shape_key(shape);
@@ -55,15 +72,13 @@ export function make_layout_picker({
     }
     answers.delete(key);
 
-    // spread: an interface has no index signature, so isn't a Record
-    const layout = await jev_choice({ ...shape }, LAYOUT_QUESTION);
-    if (!layout) return { layout: threshold_layout(shape), by: "threshold" };
-
-    if (answers.size >= max) {
-      // a Map iterates in insertion order, so the first key is the oldest
-      answers.delete(answers.keys().next().value as string);
+    let pending = asking.get(key);
+    if (!pending) {
+      pending = ask(key, shape).finally(() => asking.delete(key));
+      asking.set(key, pending);
     }
-    answers.set(key, { layout, at: now() });
+    const layout = await pending;
+    if (!layout) return { layout: threshold_layout(shape), by: "threshold" };
     return { layout, by: "jev" };
   };
 }
