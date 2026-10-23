@@ -694,8 +694,9 @@ describe("organization — text fields", () => {
     const profile = await render_profile(npo.id);
 
     await expect.element(profile.getByText("New tagline")).toBeInTheDocument();
-    await expect.element(profile.getByText("EIN123456")).toBeInTheDocument();
-    await expect.element(profile.getByText("456 New Ave")).toBeInTheDocument();
+    const details = profile.getByLabelText("Organization details");
+    await expect.element(details.getByText("EIN123456")).toBeInTheDocument();
+    await expect.element(details.getByText("456 New Ave")).toBeInTheDocument();
   });
 });
 
