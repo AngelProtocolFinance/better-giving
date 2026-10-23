@@ -375,11 +375,6 @@ function live_funds(funds: IFundItem[], npo_id: number): ICampaignCard[] {
     });
 }
 
-function supporter_label(n: number): string {
-  if (n === 1) return "1 supporter";
-  return `${n.toLocaleString("en-US")} supporters`;
-}
-
 interface ICampaignCardProps extends ICampaignCard {
   /** absolute, for the networks the card shares to */
   share_url: string;
@@ -469,7 +464,7 @@ function CampaignCard(c: ICampaignCardProps) {
           <div className="ml-auto flex items-center gap-2">
             {c.supporters != null && (
               <span className="text-sm font-semibold text-gray-11">
-                {supporter_label(c.supporters)}
+                {donor_label(c.supporters)}
               </span>
             )}
             <Link to={c.donate_to} className="btn btn-primary relative">

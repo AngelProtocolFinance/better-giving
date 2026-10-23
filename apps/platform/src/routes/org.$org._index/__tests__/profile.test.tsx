@@ -296,7 +296,7 @@ describe("org profile", () => {
     await expect.element(msg.getByText("Keep going")).toBeVisible();
   });
 
-  it("names a campaign card's runner, supporters and Share, and donates to the campaign or the fundraiser", async () => {
+  it("names a campaign card's runner, donors and Share, and donates to the campaign or the fundraiser", async () => {
     const screen = await mount({
       campaigns: [
         campaign,
@@ -335,7 +335,7 @@ describe("org profile", () => {
       .element(card("Winter coats").getByText("Official campaign"))
       .toBeVisible();
     await expect
-      .element(card("Winter coats").getByText("1 supporter", { exact: true }))
+      .element(card("Winter coats").getByText("1 donor", { exact: true }))
       .toBeVisible();
     await expect
       .element(card("Winter coats").getByRole("link", { name: "Donate" }))
@@ -349,14 +349,14 @@ describe("org profile", () => {
       .toBeVisible();
 
     await expect
-      .element(card("Roof repair").getByText("12 supporters", { exact: true }))
+      .element(card("Roof repair").getByText("12 donors", { exact: true }))
       .toBeVisible();
     await expect
       .element(card("Roof repair").getByText("Raised · no goal set"))
       .toBeVisible();
     expect(
       card("Pantry")
-        .getByText(/supporter/)
+        .getByText(/^[\d,]+ donors?$/)
         .query()
     ).toBeNull();
 
@@ -366,7 +366,7 @@ describe("org profile", () => {
       .toBeVisible();
     expect(
       card("Spring Drive")
-        .getByText(/supporter/)
+        .getByText(/^[\d,]+ donors?$/)
         .query()
     ).toBeNull();
     await expect
@@ -669,12 +669,12 @@ describe("org profile header card", () => {
     expect(mast.getByText("Other").query()).toBeNull();
   });
 
-  it("writes a supporter count in the thousands with its separator", async () => {
+  it("writes a donor count in the thousands with its separator", async () => {
     const screen = await mount({
       campaigns: [{ ...campaign, supporters: 1234 }],
     });
     await expect
-      .element(screen.getByText("1,234 supporters", { exact: true }))
+      .element(screen.getByText("1,234 donors", { exact: true }))
       .toBeVisible();
   });
 });
