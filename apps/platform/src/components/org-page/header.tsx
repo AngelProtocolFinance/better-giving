@@ -28,10 +28,11 @@ interface IOrgHeader {
   share?: IShareTarget;
   /** a Donate button to this href, when given */
   donate_to?: string;
-  /** the hero's own Donate. given, the header's Donate waits until it has
-   * scrolled out of view, and leaves phones to the pinned bar; null while it
-   * mounts. omitted, Donate always shows */
-  donate_after?: Element | null;
+  /** the hero's own Donates, one per width where a layout splits them. given,
+   * the header's Donate waits until none is in view (one hidden at this width
+   * never is); an entry is null while it mounts. omitted, Donate always shows.
+   * a new array re-observes, so the caller keeps it stable */
+  donate_after?: readonly (Element | null)[];
   /** in-page links to these sections, from lg; narrower screens get none
    * here, so a page that passes them carries its own strip there */
   sections?: IHeaderSection[];
@@ -50,24 +51,32 @@ export function OrgHeader({
   sections = [],
 }: IOrgHeader) {
   const bar = useRef<HTMLDivElement>(null);
-  // the watched element itself, while it is out of view: a new element starts
-  // in view without a reset
-  const [gone, set_gone] = useState<Element | null>(null);
+  // the watched elements themselves, once reported out of view: a new element
+  // counts as in view until its first report, without a reset
+  const [gone, set_gone] = useState<readonly Element[]>([]);
   useEffect(() => {
-    if (!donate_after) return;
+    const targets = donate_after?.filter((x) => x !== null) ?? [];
+    if (targets.length === 0) return;
     // the header pins over the page's top edge, so under it is out of view
     const under = bar.current?.offsetHeight ?? 0;
+    const out = new Set<Element>();
     const observer = new IntersectionObserver(
-      ([e]) => set_gone(e.isIntersecting ? null : e.target),
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) out.delete(e.target);
+          else out.add(e.target);
+        }
+        set_gone([...out]);
+      },
       { rootMargin: `-${under}px 0px 0px 0px` }
     );
-    observer.observe(donate_after);
+    for (const t of targets) observer.observe(t);
     return () => observer.disconnect();
   }, [donate_after]);
-  const watching = donate_after !== undefined;
   const show_donate =
     donate_to &&
-    (!watching || (donate_after !== null && gone === donate_after));
+    (!donate_after ||
+      donate_after.every((x) => x !== null && gone.includes(x)));
 
   return (
     <header
@@ -111,10 +120,7 @@ export function OrgHeader({
             />
           )}
           {show_donate && (
-            <DonateButton
-              to={donate_to}
-              classes={`ml-1 max-sm:px-4 sm:ml-2 ${watching ? "max-md:hidden" : ""}`}
-            />
+            <DonateButton to={donate_to} classes="ml-1 max-sm:px-4 sm:ml-2" />
           )}
         </div>
       </div>

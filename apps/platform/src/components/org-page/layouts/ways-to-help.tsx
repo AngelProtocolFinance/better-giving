@@ -22,8 +22,14 @@ export function give_label(give: IGiveItem[]): string {
 
 const KINDS = ["give", "programs", "videos"] as const;
 
-interface IWaysToHelp
-  extends Pick<IOrgLayout, "give" | "programs" | "videos" | "failed" | "now"> {
+type TLists = Pick<IOrgLayout, "give" | "programs" | "videos" | "failed">;
+
+/** whether the section renders: something to show, or a list that failed */
+export function has_ways_to_help({ failed, ...lists }: TLists): boolean {
+  return KINDS.some((k) => failed[k] || lists[k].length > 0);
+}
+
+interface IWaysToHelp extends TLists, Pick<IOrgLayout, "now"> {
   /** see `ItemsByCount` */
   rows?: boolean;
   classes?: string;
@@ -40,9 +46,9 @@ export function WaysToHelp({
   ...lists
 }: IWaysToHelp) {
   const heading_id = useId();
+  if (!has_ways_to_help({ failed, ...lists })) return null;
   const items = KINDS.flatMap<TOrgItem>((k) => (failed[k] ? [] : lists[k]));
   const failures = KINDS.filter((k) => failed[k]);
-  if (items.length === 0 && failures.length === 0) return null;
 
   return (
     <section

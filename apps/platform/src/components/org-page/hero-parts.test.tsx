@@ -5,7 +5,7 @@ import { cleanup, render } from "vitest-browser-react";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import { NAME_DISPLAY_MAX } from "@/org-shape";
 import { BrandBand } from "./brand-band";
-import { DonateButton, PinnedDonateBar } from "./donate";
+import { DonateButton } from "./donate";
 import { OrgBanner } from "./org-banner";
 import { OrgMark } from "./org-mark";
 import { OrgMeta } from "./org-meta";
@@ -283,39 +283,5 @@ describe("donate", () => {
     expect(plain).toHaveClass("btn-primary");
     expect(inverse).toHaveClass("bg-primary-fg", "text-primary", "btn-lg");
     expect(inverse).not.toHaveClass("btn-primary");
-  });
-
-  test("the pinned bar rides a phone's bottom edge, comes to rest under the footer, and is gone from md up", async () => {
-    await page.viewport(375, 800);
-    const screen = await render(
-      <MemoryRouter>
-        <div className="flex min-h-[100dvh] flex-col">
-          <main className="h-[200dvh]" />
-          <footer>
-            <p>Registered charity 12-3456789</p>
-          </footer>
-          <PinnedDonateBar to="/donate/7" raised={3322} />
-        </div>
-      </MemoryRouter>
-    );
-    const donate = screen.getByRole("link", { name: "Donate" });
-    await expect.element(donate).toBeVisible();
-    await expect.element(screen.getByText("$3,322 raised")).toBeVisible();
-    const bar = donate.element().closest(".sticky") as HTMLElement;
-    expect(bar).toHaveClass("md:hidden");
-    expect(bar.getBoundingClientRect().bottom).toBeCloseTo(
-      window.innerHeight,
-      0
-    );
-
-    window.scrollTo(0, document.documentElement.scrollHeight);
-    const last = screen.getByText("Registered charity").element();
-    await expect
-      .poll(() => last.getBoundingClientRect().bottom)
-      .toBeLessThanOrEqual(bar.getBoundingClientRect().top);
-
-    // hidden, a role query no longer finds it, so the bar is asked directly
-    await page.viewport(1280, 900);
-    await expect.poll(() => getComputedStyle(bar).display).toBe("none");
   });
 });

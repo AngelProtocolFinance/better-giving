@@ -548,7 +548,7 @@ describe("payment_intent.succeeded → settlement → UI", () => {
       .element(screen.getByText("$100", { exact: true }))
       .toBeInTheDocument();
     await expect
-      .element(screen.getByText("50% of $200 goal", { exact: true }))
+      .element(screen.getByText("$100 of $200 goal", { exact: true }))
       .toBeInTheDocument();
   });
 

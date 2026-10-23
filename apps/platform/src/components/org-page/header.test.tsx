@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
@@ -119,7 +119,7 @@ describe("org header", () => {
             name="Acme Relief"
             to="/org/acme"
             donate_to="/donate/7"
-            donate_after={hero_donate}
+            donate_after={[hero_donate]}
           />
           <main className="h-[300dvh]">
             <DonateButton to="/donate/7" size="lg" ref={set_hero_donate} />
@@ -150,15 +150,51 @@ describe("org header", () => {
       await expect.element(in_header).not.toBeInTheDocument();
     });
 
-    it("leaves Donate to the pinned bar on a phone", async () => {
+    it("follows the same rule on a phone", async () => {
       await page.viewport(375, 800);
       const screen = await render(<Page />);
-      window.scrollTo(0, 2000);
       const in_header = screen
         .getByRole("banner")
-        .getByRole("link", { name: "Donate", includeHidden: true });
-      await expect.element(in_header).toBeInTheDocument();
-      await expect.element(in_header).not.toBeVisible();
+        .getByRole("link", { name: "Donate" });
+      await expect
+        .element(screen.getByRole("main").getByRole("link", { name: "Donate" }))
+        .toBeVisible();
+      await expect.element(in_header).not.toBeInTheDocument();
+      window.scrollTo(0, 2000);
+      await expect.element(in_header).toBeVisible();
+    });
+
+    it("waits on every hero Donate it is given, and one with no box counts as away", async () => {
+      await page.viewport(1280, 900);
+      function Split() {
+        const [wide, set_wide] = useState<HTMLElement | null>(null);
+        const [phone, set_phone] = useState<HTMLElement | null>(null);
+        const after = useMemo(() => [wide, phone], [wide, phone]);
+        return (
+          <MemoryRouter>
+            <OrgHeader
+              name="Acme Relief"
+              to="/org/acme"
+              donate_to="/donate/7"
+              donate_after={after}
+            />
+            <main className="h-[300dvh]">
+              <DonateButton to="/donate/7" ref={set_wide} />
+              <DonateButton to="/donate/7" ref={set_phone} classes="hidden" />
+            </main>
+          </MemoryRouter>
+        );
+      }
+      const screen = await render(<Split />);
+      const in_header = screen
+        .getByRole("banner")
+        .getByRole("link", { name: "Donate" });
+      await expect
+        .element(screen.getByRole("main").getByRole("link", { name: "Donate" }))
+        .toBeVisible();
+      await expect.element(in_header).not.toBeInTheDocument();
+      window.scrollTo(0, 2000);
+      await expect.element(in_header).toBeVisible();
     });
   });
 });

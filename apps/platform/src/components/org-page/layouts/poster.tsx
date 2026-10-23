@@ -10,7 +10,7 @@ import { QuoteStrip } from "../quote-strip";
 import { RaisedStats } from "../raised-stats";
 import { OrgPageFrame } from "./org-page-frame";
 import type { IOrgLayout } from "./types";
-import { WaysToHelp } from "./ways-to-help";
+import { has_ways_to_help, WaysToHelp } from "./ways-to-help";
 
 /** a short story or none, and 0-3 items: the hero on the deep band is the
  * whole pitch, under the banner when there is one and leading the page when
@@ -22,11 +22,17 @@ export function Poster(props: IOrgLayout) {
   const [hero_donate, set_hero_donate] = useState<HTMLElement | null>(null);
   const has_story = !!to_text(npo.overview_pt).trim();
   const tagline = npo.tagline?.trim();
+  const has_more = has_ways_to_help(props) || props.messages.length > 0;
 
   return (
     <OrgPageFrame page={props} hero_donate={hero_donate}>
       <OrgBanner src={npo.image} />
-      <BrandBand tone="deep" classes="py-8 md:py-12">
+      {/* with nothing after it, the band fills main down to the footer and
+          centres the hero in it, leaving no bare page between them */}
+      <BrandBand
+        tone="deep"
+        classes={`py-8 md:py-12 ${has_more ? "" : "flex flex-1 flex-col justify-center"}`}
+      >
         <div className="page">
           <div className="flex max-w-3xl flex-col gap-4 md:gap-5">
             <div className="flex items-center gap-3 md:gap-4">

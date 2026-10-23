@@ -2,7 +2,13 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
-import { BANNER } from "#/__tests__/fixtures/layout-dom";
+import {
+  BANNER,
+  donates,
+  header_donate,
+  pinned_to_bottom,
+  scroll_past_hero_donate,
+} from "#/__tests__/fixtures/layout-dom";
 import {
   EIN,
   fundraiser,
@@ -282,5 +288,31 @@ describe("Hub", () => {
         )
       )
       .toBeVisible();
+  });
+
+  test("on a phone the header's Donate waits until the hero's has scrolled away", async () => {
+    await page.viewport(375, 812);
+    const screen = await mount(org_layout({ give: many(give, 4) }));
+    const root = screen.container;
+    const main = root.querySelector("main") as HTMLElement;
+    await expect
+      .poll(() => donates(main).some((d) => d.checkVisibility() && in_view(d)))
+      .toBe(true);
+    expect(header_donate(root)).toBeUndefined();
+    scroll_past_hero_donate(root);
+    await expect.poll(() => header_donate(root)).toBeDefined();
+    await expect.poll(() => in_view(header_donate(root))).toBe(true);
+  });
+
+  test.each([
+    [375, 812],
+    [1440, 900],
+  ])("nothing is pinned to the screen's bottom edge at %i", async (w, h) => {
+    await page.viewport(w, h);
+    const screen = await mount(org_layout({ give: many(give, 4) }));
+    await expect
+      .element(screen.getByRole("heading", { level: 1 }))
+      .toBeVisible();
+    expect(pinned_to_bottom(screen.container)).toEqual([]);
   });
 });

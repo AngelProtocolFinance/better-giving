@@ -5,7 +5,9 @@ import { cleanup, render } from "vitest-browser-react";
 import {
   BANNER,
   donates,
-  pinned_at_end,
+  header_donate,
+  pinned_to_bottom,
+  scroll_past_hero_donate,
 } from "#/__tests__/fixtures/layout-dom";
 import {
   EIN,
@@ -87,24 +89,21 @@ describe("Letter", () => {
     }
   );
 
-  test("a phone has Donate under the figures; wider, the header's stands in for it", async () => {
-    await page.viewport(375, 812);
-    const phone = await mount();
-    const [hero] = donates(
-      phone.container.querySelector("article") as HTMLElement
-    );
-    await expect.poll(() => in_view(hero)).toBe(true);
-    await cleanup();
-
-    await page.viewport(1440, 900);
-    const wide = await mount();
-    const [hidden] = donates(
-      wide.container.querySelector("article") as HTMLElement
-    );
-    expect(hidden.checkVisibility()).toBe(false);
-    const header = wide.container.querySelector("header") as HTMLElement;
-    await expect.poll(() => donates(header).some(in_view)).toBe(true);
-  });
+  test.each([
+    [375, 812],
+    [1440, 900],
+  ])(
+    "Donate is under the figures at %i, and the header's waits for it to leave",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount();
+      const [hero] = donates(
+        screen.container.querySelector("article") as HTMLElement
+      );
+      await expect.poll(() => in_view(hero)).toBe(true);
+      expect(header_donate(screen.container)).toBeUndefined();
+    }
+  );
 
   test("no registration, no line", async () => {
     const screen = await mount({ credential: null });
@@ -232,43 +231,29 @@ describe("Letter", () => {
     ).toBeNull();
   });
 
-  test("the deep bar is pinned on a phone, and from md leads with the org's name", async () => {
+  test("on a phone the header's Donate waits until the hero's has scrolled away", async () => {
     await page.viewport(375, 812);
     const screen = await mount();
-    const bar = root_of(screen.container).lastElementChild as HTMLElement;
-    expect(bar).toHaveClass("bg-primary-deep");
-    const [bar_donate] = donates(bar);
-    await expect.poll(() => in_view(bar_donate)).toBe(true);
-    expect(bar.getBoundingClientRect().bottom).toBeCloseTo(
-      window.innerHeight,
-      0
-    );
-    const name = bar.querySelector("strong") as HTMLElement;
-    expect(name.checkVisibility()).toBe(false);
-
-    await page.viewport(1440, 900);
-    await expect.poll(() => in_view(bar_donate)).toBe(true);
-    await expect.poll(() => name.checkVisibility()).toBe(true);
-    expect(name).toHaveTextContent("Riverside Literacy");
+    const root = screen.container;
+    const main = root.querySelector("main") as HTMLElement;
+    await expect
+      .poll(() => donates(main).some((d) => d.checkVisibility() && in_view(d)))
+      .toBe(true);
+    expect(header_donate(root)).toBeUndefined();
+    scroll_past_hero_donate(root);
+    await expect.poll(() => header_donate(root)).toBeDefined();
+    await expect.poll(() => in_view(header_donate(root))).toBe(true);
   });
 
   test.each([
     [375, 812],
     [1440, 900],
-  ])(
-    "at %i the deep bar rests under the footer's details at the page's end, with nothing after it",
-    async (w, h) => {
-      await page.viewport(w, h);
-      const screen = await mount({
-        footer: { registration_number: EIN, active_in: "Uganda" },
-      });
-      await expect.element(screen.getByText("Active in")).toBeInTheDocument();
-      expect(document.documentElement.scrollHeight).toBeGreaterThan(
-        window.innerHeight
-      );
-      const end = pinned_at_end(root_of(screen.container));
-      expect(end.footer_bottom).toBeLessThanOrEqual(end.bar_top);
-      expect(Math.abs(end.bar_bottom - end.doc_bottom)).toBeLessThanOrEqual(1);
-    }
-  );
+  ])("nothing is pinned to the screen's bottom edge at %i", async (w, h) => {
+    await page.viewport(w, h);
+    const screen = await mount();
+    await expect
+      .element(screen.getByRole("heading", { level: 1 }))
+      .toBeVisible();
+    expect(pinned_to_bottom(screen.container)).toEqual([]);
+  });
 });

@@ -5,12 +5,15 @@ import { cleanup, render } from "vitest-browser-react";
 import {
   BANNER,
   donates,
-  pinned_at_end,
+  header_donate,
+  pinned_to_bottom,
+  scroll_past_hero_donate,
 } from "#/__tests__/fixtures/layout-dom";
 import {
   EIN,
   give,
   in_view,
+  many,
   message,
   npo,
   org_layout,
@@ -19,7 +22,6 @@ import {
 } from "#/__tests__/fixtures/org-layout";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import type { INpoPublic } from "$/pg/queries/npo";
-import { OrgPageFrame } from "./org-page-frame";
 import { Poster } from "./poster";
 import type { IOrgLayout } from "./types";
 
@@ -33,12 +35,6 @@ afterEach(async () => {
   await reset_viewport();
   window.scrollTo(0, 0);
 });
-
-const DETAILS = {
-  registration_number: EIN,
-  address: "3131 Olympic Blvd, Santa Monica CA 90404",
-  active_in: "United States",
-};
 
 const STORY_AT_MAX =
   "Riverside Literacy puts a trained reading tutor beside every adult learner who asks for one, twice a week, in libraries and church halls across three counties. Last year 212 adults read their first full book with us, and most of them came back the next year to tutor the newcomers who followed them in.";
@@ -190,64 +186,85 @@ describe("Poster", () => {
     ).toBeNull();
   });
 
-  test("a phone gets the pinned bar on its bottom edge, and the page root ends with it", async () => {
+  test.each([
+    [1440, 900],
+    [375, 812],
+  ])(
+    "an org with nothing past the hero: the band meets the footer and centres the hero at %i",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount(
+        {},
+        { image: null, tagline: null, overview_pt: undefined }
+      );
+      await expect
+        .element(screen.getByRole("heading", { level: 1 }))
+        .toBeVisible();
+      const main = screen.container.querySelector("main") as HTMLElement;
+      const band = main.querySelector(".bg-primary-deep") as HTMLElement;
+      const footer = screen.container.querySelector("footer") as HTMLElement;
+      const b = band.getBoundingClientRect();
+      expect(
+        Math.abs(footer.getBoundingClientRect().top - b.bottom)
+      ).toBeLessThanOrEqual(1);
+      const c = (band.firstElementChild as HTMLElement).getBoundingClientRect();
+      expect(
+        Math.abs((c.top + c.bottom) / 2 - (b.top + b.bottom) / 2)
+      ).toBeLessThanOrEqual(2);
+    }
+  );
+
+  test.each([
+    [1440, 900],
+    [375, 812],
+  ])(
+    "with items past the hero, the band keeps its own height at %i",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount({ give: [give(1)] }, { image: null });
+      await expect
+        .element(screen.getByRole("region", { name: "Ways to help" }))
+        .toBeVisible();
+      const band = screen.container.querySelector(
+        "main .bg-primary-deep"
+      ) as HTMLElement;
+      const style = getComputedStyle(band);
+      const content = (
+        band.firstElementChild as HTMLElement
+      ).getBoundingClientRect().height;
+      const own =
+        content +
+        Number.parseFloat(style.paddingTop) +
+        Number.parseFloat(style.paddingBottom);
+      expect(
+        Math.abs(band.getBoundingClientRect().height - own)
+      ).toBeLessThanOrEqual(1);
+    }
+  );
+
+  test("on a phone the header's Donate waits until the hero's has scrolled away", async () => {
     await page.viewport(375, 812);
-    const screen = await mount();
-    const root = screen.container.querySelector("main")
-      ?.parentElement as HTMLElement;
-    const bar = root.lastElementChild as HTMLElement;
-    const [bar_donate] = donates(bar);
-    await expect.poll(() => in_view(bar_donate)).toBe(true);
-    expect(bar.getBoundingClientRect().bottom).toBeCloseTo(
-      window.innerHeight,
-      0
-    );
-    expect(bar.textContent).toContain("$3,322 raised");
+    const screen = await mount({ give: many(give, 3), messages: [message(1)] });
+    const root = screen.container;
+    const main = root.querySelector("main") as HTMLElement;
+    await expect
+      .poll(() => donates(main).some((d) => d.checkVisibility() && in_view(d)))
+      .toBe(true);
+    expect(header_donate(root)).toBeUndefined();
+    scroll_past_hero_donate(root);
+    await expect.poll(() => header_donate(root)).toBeDefined();
+    await expect.poll(() => in_view(header_donate(root))).toBe(true);
   });
 
-  test("on a phone page taller than the screen, the bar rests under the footer's details at the end, with nothing after it", async () => {
-    await page.viewport(375, 812);
-    const screen = await mount(
-      { footer: DETAILS },
-      { overview_pt: story(STORY_AT_MAX) }
-    );
+  test.each([
+    [375, 812],
+    [1440, 900],
+  ])("nothing is pinned to the screen's bottom edge at %i", async (w, h) => {
+    await page.viewport(w, h);
+    const screen = await mount({ give: many(give, 3), messages: [message(1)] });
     await expect
-      .element(screen.getByText("Organization details"))
+      .element(screen.getByRole("heading", { level: 1 }))
       .toBeVisible();
-    const root = screen.container.querySelector("main")
-      ?.parentElement as HTMLElement;
-    expect(document.documentElement.scrollHeight).toBeGreaterThan(
-      window.innerHeight
-    );
-    const end = pinned_at_end(root);
-    expect(end.footer_bottom).toBeLessThanOrEqual(end.bar_top);
-    expect(Math.abs(end.bar_bottom - end.doc_bottom)).toBeLessThanOrEqual(1);
-  });
-
-  test("on a phone page shorter than the screen, the bar sits on the bottom edge under the footer", async () => {
-    await page.viewport(375, 812);
-    const props = org_layout({ footer: DETAILS });
-    const Stub = createRoutesStub([
-      {
-        path: "/",
-        Component: () => (
-          <OrgPageFrame page={props} hero_donate={null}>
-            <h1>Riverside Literacy</h1>
-          </OrgPageFrame>
-        ),
-      },
-    ]);
-    const screen = await render(<Stub initialEntries={["/"]} />);
-    await expect
-      .element(screen.getByText("Organization details"))
-      .toBeVisible();
-    const root = screen.container.querySelector("main")
-      ?.parentElement as HTMLElement;
-    const end = pinned_at_end(root);
-    expect(Math.abs(end.doc_bottom - window.innerHeight)).toBeLessThanOrEqual(
-      1
-    );
-    expect(end.footer_bottom).toBeLessThanOrEqual(end.bar_top);
-    expect(Math.abs(end.bar_bottom - end.doc_bottom)).toBeLessThanOrEqual(1);
+    expect(pinned_to_bottom(screen.container)).toEqual([]);
   });
 });

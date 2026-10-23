@@ -22,7 +22,7 @@ const FILL: Record<Exclude<TGround, "page">, string> = {
 
 interface IBrandBand {
   /** tint: the light hero ground. primary: the no-banner hero. deep: Poster's
-   * hero and the dark pinned bar */
+   * hero */
   tone: Exclude<TGround, "page">;
   children: ReactNode;
   /** vertical rhythm and placement; the band owns only its fill and ink */

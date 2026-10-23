@@ -11,22 +11,16 @@ import type { IOrgLayout } from "./types";
 import { WaysToHelp } from "./ways-to-help";
 
 /** a long story, and 0-3 items: an editorial reading column on the page's
- * left edge. the name and its deck, the figures, the banner across the page,
- * the story, the donors' words, then whatever there is to give to. Donate is the deep bar
- * pinned to the bottom at every width; a phone also has it under the figures */
+ * left edge. the name and its deck, the figures and Donate under them, the
+ * banner across the page, the story, the donors' words, then whatever there
+ * is to give to */
 export function Letter(props: IOrgLayout) {
   const { npo } = props;
-  // the phone hero's Donate. from md it is not displayed, so the header reads
-  // it as scrolled away and shows its own from the first paint
   const [hero_donate, set_hero_donate] = useState<HTMLElement | null>(null);
   const deck = npo.tagline?.trim() || first_sentence(to_text(npo.overview_pt));
 
   return (
-    <OrgPageFrame
-      page={props}
-      hero_donate={hero_donate}
-      bar={{ tone: "deep", org: npo.name }}
-    >
+    <OrgPageFrame page={props} hero_donate={hero_donate}>
       <div className="page pt-6 pb-10 md:pt-12 md:pb-16">
         {/* each block but the banner keeps the reading measure, one level in
             from the page, starting on its left edge with the header's */}
@@ -50,7 +44,7 @@ export function Letter(props: IOrgLayout) {
               ref={set_hero_donate}
               to={props.donate_to}
               size="lg"
-              classes="mt-1 md:hidden"
+              classes="mt-1 md:self-start"
             />
           </div>
           {npo.image && (

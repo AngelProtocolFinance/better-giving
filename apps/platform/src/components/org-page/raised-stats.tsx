@@ -116,9 +116,3 @@ function Stat({ figure, label, size, muted }: IStat) {
     </p>
   );
 }
-
-/** the pinned bar's one line: the first-gift ask, or the amount raised */
-export function raised_summary(raised: number): string {
-  if (!(raised > 0)) return FIRST_GIFT;
-  return `${to_usd(raised)} raised`;
-}

@@ -46,6 +46,7 @@ const ANCHORED = "scroll-mt-20";
 export function Feature(props: IOrgLayout) {
   const { npo, shape, failed, now } = props;
   const [hero_donate, set_hero_donate] = useState<HTMLElement | null>(null);
+  const [phone_donate, set_phone_donate] = useState<HTMLElement | null>(null);
   const lists = {
     give: props.give,
     programs: props.programs,
@@ -71,8 +72,17 @@ export function Feature(props: IOrgLayout) {
   }
 
   return (
-    <OrgPageFrame page={props} hero_donate={hero_donate} sections={sections}>
-      <FeatureHero page={props} donate_ref={set_hero_donate} />
+    <OrgPageFrame
+      page={props}
+      hero_donate={hero_donate}
+      hero_donate_phone={phone_donate}
+      sections={sections}
+    >
+      <FeatureHero
+        page={props}
+        donate_ref={set_hero_donate}
+        phone_donate_ref={set_phone_donate}
+      />
       <SectionStrip sections={sections} />
       <div className="page flex flex-col gap-10 py-8 md:gap-12 md:py-12">
         <div className="flex flex-col gap-8 md:grid md:grid-cols-[minmax(0,1fr)_20rem] md:items-start md:gap-12">
@@ -119,13 +129,15 @@ export function Feature(props: IOrgLayout) {
 interface IFeatureHero {
   page: IOrgLayout;
   donate_ref: (el: HTMLElement | null) => void;
+  /** the phone panel's Donate, shown below md in place of `donate_ref`'s */
+  phone_donate_ref: (el: HTMLElement | null) => void;
 }
 
 /** the banner over a tint band, the ringed mark overlapping it; no banner,
  * and the band is the brand's. the mark, the meta row, the name, the tagline
  * (or the story's first sentence), then Donate; a phone's Donate comes with
  * the raised figures, in a panel */
-function FeatureHero({ page, donate_ref }: IFeatureHero) {
+function FeatureHero({ page, donate_ref, phone_donate_ref }: IFeatureHero) {
   const { npo } = page;
   const banner = !!npo.image;
   const lead = npo.tagline?.trim() || first_sentence(to_text(npo.overview_pt));
@@ -170,7 +182,11 @@ function FeatureHero({ page, donate_ref }: IFeatureHero) {
               target={npo.target}
               variant="panel"
             />
-            <DonateButton to={page.donate_to} size="lg" />
+            <DonateButton
+              to={page.donate_to}
+              size="lg"
+              ref={phone_donate_ref}
+            />
           </div>
         </div>
       </BrandBand>

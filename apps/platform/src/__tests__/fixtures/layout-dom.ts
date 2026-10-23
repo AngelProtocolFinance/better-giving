@@ -10,20 +10,25 @@ export const donates = (root: Element) =>
     (a) => a.textContent === "Donate"
   );
 
-/** a page root's pinned bar (its last child) and the footer's last content
- * line, measured in document coordinates with the page scrolled to its end */
-export function pinned_at_end(root: Element) {
-  window.scrollTo(0, document.documentElement.scrollHeight);
-  const bar = root.lastElementChild as HTMLElement;
-  const footer = root.querySelector("footer") as HTMLElement;
-  const lines = footer.querySelectorAll("dl, a");
-  const y = window.scrollY;
-  return {
-    footer_bottom: Math.max(
-      ...Array.from(lines, (l) => l.getBoundingClientRect().bottom + y)
-    ),
-    bar_top: bar.getBoundingClientRect().top + y,
-    bar_bottom: bar.getBoundingClientRect().bottom + y,
-    doc_bottom: document.documentElement.scrollHeight,
-  };
+/** elements under `root` pinned to the viewport's bottom edge: fixed or
+ * sticky, with a bottom inset */
+export const pinned_to_bottom = (root: Element) =>
+  Array.from(root.querySelectorAll("*")).filter((el) => {
+    const s = getComputedStyle(el);
+    return (
+      (s.position === "fixed" || s.position === "sticky") && s.bottom !== "auto"
+    );
+  });
+
+/** the header's Donate, when it shows one */
+export const header_donate = (root: Element) =>
+  donates(root.querySelector("header") as HTMLElement)[0];
+
+/** scrolls the hero's shown Donate past the top of the viewport, under the
+ * pinned header */
+export function scroll_past_hero_donate(root: Element) {
+  const hero = donates(root.querySelector("main") as HTMLElement).find((a) =>
+    a.checkVisibility()
+  ) as HTMLElement;
+  window.scrollTo(0, hero.getBoundingClientRect().bottom + window.scrollY);
 }
