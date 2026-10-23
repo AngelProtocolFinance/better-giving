@@ -68,10 +68,12 @@ export function QuoteStrip({
     set_index(0);
   }
 
+  // a phone puts next on the mark's row rather than a row of its own under
+  // the donor, so the box ends where the message does
   return (
     <section
       aria-label="Donor messages"
-      className={`flex flex-col gap-3 rounded p-5 md:flex-row md:items-center md:gap-6 md:p-6 ${t.ground} ${classes}`}
+      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 rounded p-5 md:flex md:gap-6 md:p-6 ${t.ground} ${classes}`}
     >
       <span
         aria-hidden
@@ -79,12 +81,12 @@ export function QuoteStrip({
       >
         “
       </span>
-      <figure className="flex min-w-0 grow flex-col gap-1">
+      <figure className="col-span-full flex min-w-0 grow flex-col gap-1">
         <blockquote className="break-words md:text-lg">{m.message}</blockquote>
         <figcaption className={`text-sm ${t.meta}`}>{m.name}</figcaption>
       </figure>
       {(n > 1 || on_more) && (
-        <div className="flex shrink-0 items-center gap-2 self-end md:self-auto">
+        <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-2">
           {/* the position alone: messages arrive a page at a time, so there
               is no total to give */}
           <p aria-live="polite" className="sr-only">

@@ -59,6 +59,26 @@ describe("Hub", () => {
     }
   );
 
+  test("a lone featured video plays at the reading measure, not the page's width", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      org_layout({ give: many(give, 4), videos: [video(1)] })
+    );
+    const featured = screen.getByRole("region", { name: "Featured" });
+    const frame = featured.getByTitle("Field visit 1");
+    await expect.element(frame).toBeInTheDocument();
+    // max-w-3xl, 48rem
+    const measure =
+      48 *
+      Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const width = frame.element().getBoundingClientRect().width;
+    expect(width).toBeGreaterThan(0);
+    expect(width).toBeLessThanOrEqual(measure);
+    expect(width).toBeLessThan(
+      (featured.element() as HTMLElement).getBoundingClientRect().width
+    );
+  });
+
   test("no registration, no line", async () => {
     const screen = await mount(
       org_layout({ give: many(give, 4), credential: null })

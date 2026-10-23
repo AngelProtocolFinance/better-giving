@@ -8,14 +8,14 @@ export interface IProgramRow {
   classes?: string;
 }
 
-/** a program is a full-width row at any count. the title is the row's one
- * link, stretched over it */
+/** a program is a full-width row at any count, its 4:1 image across the top.
+ * the title is the row's one link, stretched over it */
 export function ProgramRow({ item, classes = "" }: IProgramRow) {
   return (
     <article
-      className={`relative grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2 md:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_auto] ${classes}`}
+      className={`relative grid grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2 ${classes}`}
     >
-      <ImageFrame src={item.image} />
+      <ImageFrame src={item.image} classes="col-span-full" />
       <div className="flex min-w-0 flex-col gap-2 p-4">
         <p className="eyebrow text-primary">Program</p>
         <h3 className="font-bold">

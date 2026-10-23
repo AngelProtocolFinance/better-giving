@@ -37,6 +37,27 @@ const PARA =
 const story_of = (chars: number) =>
   story(...many(() => PARA, Math.ceil(chars / PARA.length)));
 
+/** a paragraph whose words `link` are a link to `href` */
+const linked = (key: string, link: string, href: string) => ({
+  _type: "block",
+  _key: key,
+  style: "normal",
+  markDefs: [{ _type: "link", _key: `${key}-l`, href }],
+  children: [
+    { _type: "span", _key: `${key}-a`, text: "Read ", marks: [] },
+    { _type: "span", _key: `${key}-b`, text: link, marks: [`${key}-l`] },
+    { _type: "span", _key: `${key}-c`, text: `. ${PARA}`, marks: [] },
+  ],
+});
+
+/** a story past the clamp with a link in its first and in its last paragraph */
+const linked_story = () =>
+  JSON.stringify([
+    linked("first", "our first report", "https://example.org/first"),
+    ...JSON.parse(story_of(STORY_CLAMP + 400)),
+    linked("last", "the annual report", "https://example.org/annual"),
+  ]);
+
 function mount(o: Partial<IOrgLayout> = {}) {
   const props = org_layout({
     npo: npo({ overview_pt: story_of(STORY_CLAMP + 400) }),
@@ -76,22 +97,85 @@ describe("Feature", () => {
     expect(screen.getByText(EIN).query()).toBeNull();
   });
 
-  test("a story past the clamp is cut short and opens in place", async () => {
+  test.each([
+    [1440, 900],
+    [375, 812],
+  ])(
+    "a story past the clamp fades out, its hidden links out of reach, and opens in place at %i wide",
+    async (width, height) => {
+      await page.viewport(width, height);
+      const screen = await mount({ npo: npo({ overview_pt: linked_story() }) });
+      const more = screen.getByRole("button", { name: "Read the full story" });
+      await expect.element(more).toHaveAttribute("aria-expanded", "false");
+      const body = document.getElementById(
+        more.element().getAttribute("aria-controls") as string
+      ) as HTMLElement;
+      const box = body.getBoundingClientRect();
+      expect(body.scrollHeight).toBeGreaterThan(box.height);
+
+      // the cut fades into the ground, and the button follows it with no gap
+      const fade = body.querySelector<HTMLElement>(":scope > [aria-hidden]");
+      expect(fade).not.toBeNull();
+      const faded = (fade as HTMLElement).getBoundingClientRect();
+      expect(faded.bottom).toBeCloseTo(box.bottom, 0);
+      expect(faded.height).toBeGreaterThan(0);
+      expect(getComputedStyle(fade as HTMLElement).backgroundImage).toMatch(
+        /gradient/
+      );
+      expect(more.element().getBoundingClientRect().top).toBeCloseTo(
+        box.bottom,
+        0
+      );
+
+      // the link in view takes focus; the one cut off does not until opened
+      const first = screen
+        .getByRole("link", { name: "our first report" })
+        .element() as HTMLElement;
+      const last = body.querySelector<HTMLElement>(
+        'a[href="https://example.org/annual"]'
+      ) as HTMLElement;
+      await vi.waitFor(() => expect(last.inert).toBe(true));
+      first.focus();
+      expect(document.activeElement).toBe(first);
+      last.focus();
+      expect(document.activeElement).not.toBe(last);
+
+      await more.click();
+      await expect
+        .element(screen.getByRole("button", { name: "Show less" }))
+        .toHaveAttribute("aria-expanded", "true");
+      expect(body.getBoundingClientRect().height).toBeGreaterThan(box.height);
+      expect(body.querySelector(":scope > [aria-hidden]")).toBeNull();
+      await expect
+        .element(screen.getByRole("link", { name: "the annual report" }))
+        .toBeVisible();
+      last.focus();
+      expect(document.activeElement).toBe(last);
+    }
+  );
+
+  test("the hero leads with the org's mark, ringed over the banner", async () => {
     await page.viewport(1440, 900);
     const screen = await mount();
-    const more = screen.getByRole("button", { name: "Read the full story" });
-    await expect.element(more).toHaveAttribute("aria-expanded", "false");
-    const body = document.getElementById(
-      more.element().getAttribute("aria-controls") as string
+    const name = screen.getByRole("heading", { level: 1 });
+    await expect.element(name).toBeVisible();
+    const hero = (name.element() as HTMLElement).closest(
+      ".page"
     ) as HTMLElement;
-    const cut = body.getBoundingClientRect().height;
-    expect(body.scrollHeight).toBeGreaterThan(cut);
-
-    await more.click();
-    await expect
-      .element(screen.getByRole("button", { name: "Show less" }))
-      .toHaveAttribute("aria-expanded", "true");
-    expect(body.getBoundingClientRect().height).toBeGreaterThan(cut);
+    const mark = hero.querySelector<HTMLElement>("[data-monogram]");
+    // no logo in the fixture: the name's first letter
+    expect(mark).toHaveTextContent("R");
+    const box = (mark as HTMLElement).getBoundingClientRect();
+    expect(box.width).toBeGreaterThan(0);
+    expect(box.bottom).toBeLessThanOrEqual(
+      name.element().getBoundingClientRect().top
+    );
+    expect(getComputedStyle(mark as HTMLElement).borderTopWidth).not.toBe(
+      "0px"
+    );
+    // it rises out of the band into the banner above
+    const band = (hero.parentElement as HTMLElement).getBoundingClientRect();
+    expect(box.top).toBeLessThan(band.top);
   });
 
   test("a story under the clamp shows whole, with no button", async () => {

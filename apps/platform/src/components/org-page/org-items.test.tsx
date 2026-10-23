@@ -3,6 +3,7 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { BANNER } from "#/__tests__/fixtures/layout-dom";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import { GiveCard } from "./give-card";
 import type { IGiveItem, IProgramItem, IVideoItem } from "./items";
@@ -124,6 +125,53 @@ describe("GiveCard", () => {
     // the title is the card's only link
     expect(card(1).getByRole("link").elements()).toHaveLength(1);
   });
+});
+
+describe("card image", () => {
+  test.each([
+    [1440, 900],
+    [375, 812],
+  ])(
+    "every card's image slot is 4:1 and the image fills it, at %i wide",
+    async (width, height) => {
+      await page.viewport(width, height);
+      const pictured = <T extends { image: string | null }>(x: T) => ({
+        ...x,
+        image: BANNER,
+      });
+      // one is the feature card, two are halves, three are thirds
+      const lists = [1, 2, 3].map((n) => gives(n).map(pictured));
+      const screen = await mount(
+        <div>
+          {lists.map((items) => (
+            <ItemsByCount key={items.length} items={items} now={NOW} />
+          ))}
+          <ItemsByCount items={[pictured(program(1))]} now={NOW} />
+        </div>
+      );
+      await expect
+        .element(screen.getByRole("link", { name: "School meals 1" }))
+        .toBeVisible();
+
+      const cards = Array.from(
+        screen.container.querySelectorAll<HTMLElement>("article")
+      );
+      expect(cards).toHaveLength(7);
+      for (const card of cards) {
+        const slot = (
+          card.firstElementChild as HTMLElement
+        ).getBoundingClientRect();
+        expect(Math.abs(slot.width / slot.height - 4) / 4).toBeLessThan(0.01);
+        // sized from the card, not from a column beside the text
+        expect(slot.width).toBeCloseTo(card.clientWidth, 0);
+        const img = card.querySelector("img") as HTMLImageElement;
+        await expect.poll(() => img.complete).toBe(true);
+        const shown = img.getBoundingClientRect();
+        expect(shown.width).toBeCloseTo(slot.width, 0);
+        expect(shown.height).toBeCloseTo(slot.height, 0);
+      }
+    }
+  );
 });
 
 describe("ItemsByCount", () => {

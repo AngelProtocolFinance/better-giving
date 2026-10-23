@@ -1,5 +1,7 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import type { IDonorMessage } from "./items";
 import { QuoteStrip } from "./quote-strip";
 
@@ -10,6 +12,10 @@ const msg = (n: number): IDonorMessage => ({
 });
 
 const msgs = (n: number) => Array.from({ length: n }, (_, i) => msg(i + 1));
+
+afterEach(async () => {
+  await reset_viewport();
+});
 
 describe("QuoteStrip", () => {
   test("no messages renders nothing", async () => {
@@ -69,4 +75,33 @@ describe("QuoteStrip", () => {
     await expect.element(screen.getByText("Message body 1")).toBeVisible();
     expect(screen.getByRole("button").query()).toBeNull();
   });
+
+  test.each(["light", "dark"] as const)(
+    "on a phone the %s box ends at the donor's name, next riding the mark's row",
+    async (tone) => {
+      await page.viewport(375, 812);
+      const screen = await render(
+        <QuoteStrip messages={msgs(3)} tone={tone} />
+      );
+      const box = screen.getByRole("region", { name: "Donor messages" });
+      await expect.element(box).toBeVisible();
+      const section = box.element() as HTMLElement;
+      const name = screen
+        .getByText("Donor 1")
+        .element()
+        .getBoundingClientRect();
+      const next = screen
+        .getByRole("button", { name: "Next message" })
+        .element()
+        .getBoundingClientRect();
+      const inset = Number.parseFloat(getComputedStyle(section).paddingBottom);
+      expect(section.getBoundingClientRect().bottom - name.bottom).toBeCloseTo(
+        inset,
+        0
+      );
+      expect(next.bottom).toBeLessThan(
+        screen.getByText("Message body 1").element().getBoundingClientRect().top
+      );
+    }
+  );
 });

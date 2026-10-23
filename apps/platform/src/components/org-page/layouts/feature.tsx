@@ -1,4 +1,4 @@
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { RichText, to_text } from "#/components/rich-text";
 import { STORY_CLAMP } from "@/org-shape";
 import { BrandBand } from "../brand-band";
@@ -6,6 +6,7 @@ import { DonateButton } from "../donate";
 import type { IHeaderSection } from "../header";
 import { ItemsByCount } from "../items-by-count";
 import { OrgBanner } from "../org-banner";
+import { OrgMark } from "../org-mark";
 import { OrgMeta } from "../org-meta";
 import { OrgName } from "../org-name";
 import { QuoteStrip } from "../quote-strip";
@@ -121,9 +122,10 @@ interface IFeatureHero {
   donate_ref: (el: HTMLElement | null) => void;
 }
 
-/** the banner over a tint band; no banner, and the band is the brand's. the
- * eyebrow, the name, the tagline (or the story's first sentence), then Donate;
- * a phone's Donate comes with the raised figures, in a panel */
+/** the banner over a tint band, the ringed mark overlapping it; no banner,
+ * and the band is the brand's. the mark, the eyebrow, the name, the tagline
+ * (or the story's first sentence), then Donate; a phone's Donate comes with
+ * the raised figures, in a panel */
 function FeatureHero({ page, donate_ref }: IFeatureHero) {
   const { npo } = page;
   const banner = !!npo.image;
@@ -131,8 +133,18 @@ function FeatureHero({ page, donate_ref }: IFeatureHero) {
   return (
     <>
       <OrgBanner src={npo.image} />
-      <BrandBand tone={banner ? "tint" : "primary"} classes="py-8 md:py-10">
+      <BrandBand
+        tone={banner ? "tint" : "primary"}
+        classes={banner ? "pb-8 md:pb-10" : "py-8 md:py-10"}
+      >
         <div className="page flex flex-col gap-4">
+          <OrgMark
+            name={npo.name}
+            logo={npo.logo}
+            size="lg"
+            ring={banner}
+            classes={banner ? "-mt-10 md:-mt-12" : ""}
+          />
           <OrgMeta npo={npo} variant="eyebrow" />
           <OrgName name={npo.name} scale="md" />
           {lead && (
@@ -212,6 +224,39 @@ function Story({ json, clamp }: IStory) {
   const heading_id = `${id}-heading`;
   const body_id = `${id}-body`;
   const [open, set_open] = useState(false);
+  // past the clamp by characters, yet a wide column can still fit it all: what
+  // the box measures decides the fade and the button. the server assumes a cut
+  const [cut, set_cut] = useState(true);
+  const clamped = clamp && !open;
+  const body = useRef<HTMLDivElement>(null);
+  const fade = useRef<HTMLDivElement>(null);
+
+  // overflow hides the rest from the eye alone: a link under the fade or past
+  // it would still take focus, and scroll the box rather than open it
+  // biome-ignore lint/correctness/useExhaustiveDependencies: json brings new links and cut mounts or drops the fade, and either moves the line links are cut at
+  useEffect(() => {
+    const box = body.current;
+    if (!box) return;
+    const links = Array.from(box.querySelectorAll("a"));
+    if (!clamped) {
+      for (const a of links) a.inert = false;
+      return;
+    }
+    const sync = () => {
+      set_cut(box.scrollHeight > box.clientHeight);
+      const limit = fade.current
+        ? fade.current.getBoundingClientRect().top
+        : box.getBoundingClientRect().bottom;
+      for (const a of links) a.inert = a.getBoundingClientRect().bottom > limit;
+    };
+    sync();
+    // the box's own size, and the text's as it reflows inside it
+    const observer = new ResizeObserver(sync);
+    observer.observe(box);
+    if (box.firstElementChild) observer.observe(box.firstElementChild);
+    return () => observer.disconnect();
+  }, [clamped, cut, json]);
+
   return (
     <section
       id={ANCHOR.story}
@@ -221,30 +266,41 @@ function Story({ json, clamp }: IStory) {
       <h2 id={heading_id} className={H2}>
         Our story
       </h2>
-      <div
-        id={body_id}
-        className={clamp && !open ? "max-h-120 overflow-hidden" : ""}
-      >
-        <RichText
-          readOnly
-          content={{ value: json }}
-          classes={{
-            field:
-              "flex max-w-3xl flex-col gap-4 text-base leading-relaxed md:text-lg",
-          }}
-        />
-      </div>
-      {clamp && (
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={body_id}
-          onClick={() => set_open((x) => !x)}
-          className="link min-h-11 self-start font-bold"
+      {/* no gap over the button: while clamped, the fade is the gap */}
+      <div className="flex flex-col">
+        <div
+          id={body_id}
+          ref={body}
+          className={clamped ? "relative max-h-120 overflow-hidden" : ""}
         >
-          {open ? "Show less" : "Read the full story"}
-        </button>
-      )}
+          <RichText
+            readOnly
+            content={{ value: json }}
+            classes={{
+              field:
+                "flex max-w-3xl flex-col gap-4 text-base leading-relaxed md:text-lg",
+            }}
+          />
+          {clamped && cut && (
+            <div
+              ref={fade}
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-b from-transparent to-background"
+            />
+          )}
+        </div>
+        {clamp && (open || cut) && (
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={body_id}
+            onClick={() => set_open((x) => !x)}
+            className="link min-h-11 self-start font-bold"
+          >
+            {open ? "Show less" : "Read the full story"}
+          </button>
+        )}
+      </div>
     </section>
   );
 }

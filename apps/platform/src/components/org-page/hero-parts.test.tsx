@@ -144,6 +144,35 @@ describe("org hero", () => {
     expect(bare).not.toHaveTextContent("Other");
     expect(bare.querySelectorAll("li")).toHaveLength(1);
   });
+
+  test("a meta line that wraps on a phone starts no line with a dot", async () => {
+    await page.viewport(375, 812);
+    const screen = await render(
+      <OrgMeta
+        variant="eyebrow"
+        npo={{
+          endow_designation: "Charity",
+          hq_country: "Democratic Republic of the Congo",
+          url: "https://www.harborvalleyfood.org",
+        }}
+      />
+    );
+    const list = screen.getByRole("list").element() as HTMLElement;
+    const clip = (list.parentElement as HTMLElement).getBoundingClientRect();
+    const items = Array.from(list.querySelectorAll("li"));
+    const tops = items.map((li) => li.getBoundingClientRect().top);
+    // the long country pushes the website onto a line of its own
+    expect(new Set(tops).size).toBeGreaterThan(1);
+    for (const [i, li] of items.entries()) {
+      const starts_line = i === 0 || tops[i] > tops[i - 1];
+      if (i === 0) continue;
+      const dot = (
+        li.querySelector("[aria-hidden]") as HTMLElement
+      ).getBoundingClientRect();
+      // a dot left of the clip is cut off; any other is drawn
+      expect(dot.right <= clip.left).toBe(starts_line);
+    }
+  });
 });
 
 describe("raised stats", () => {

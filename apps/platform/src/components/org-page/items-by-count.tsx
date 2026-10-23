@@ -15,7 +15,7 @@ export interface IItemsByCount {
  * feature card, 2 halves, 3 thirds, 4+ the first 3 and "See all N". programs
  * are rows and videos follow their own rule whatever the count, so a mixed
  * list renders campaigns and supporter campaigns, then programs, then videos. on a
- * phone every count is a stack of horizontal cards. nothing for no items */
+ * phone every count is a single stack. nothing for no items */
 export function ItemsByCount({ items, now, classes = "" }: IItemsByCount) {
   if (items.length === 0) return null;
   const give = items.filter(

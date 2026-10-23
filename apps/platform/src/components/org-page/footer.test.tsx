@@ -52,6 +52,10 @@ describe("OrgFooter", () => {
     await expect
       .element(bare.getByRole("link", { name: /Powered by Better Giving/ }))
       .toBeVisible();
+    // no logo, and the name still leads with its monogram, as in the header
+    const mark = bare.container.querySelector("footer [data-monogram]");
+    expect(mark).toHaveTextContent("A");
+    expect(mark?.getBoundingClientRect().width).toBeGreaterThan(0);
     expect(bare.getByText("Organization details").query()).toBeNull();
     await cleanup();
 

@@ -45,6 +45,8 @@ export function Hub(props: IOrgLayout) {
   const featured = KINDS.filter(
     (k) => !failed[k] && lists[k].length === 1
   ).flatMap((k): TOrgItem[] => lists[k]);
+  const featured_cards = featured.filter((x) => x.kind !== "video");
+  const featured_video = featured.filter((x) => x.kind === "video");
   // a failed kind keeps its tab so its line is seen; sort is stable, so ties
   // keep campaigns, programs, videos
   const tabs: TTab[] = KINDS.filter(
@@ -84,7 +86,12 @@ export function Hub(props: IOrgLayout) {
       <div className="page flex flex-col gap-8 py-8 md:gap-10 md:py-10">
         {featured.length > 0 && (
           <Section heading="Featured">
-            <ItemsByCount items={featured} now={now} />
+            <div className="flex flex-col gap-4">
+              <ItemsByCount items={featured_cards} now={now} />
+              {/* a lone video at the content's full width outweighs the
+                  tabs under it, so it takes the reading measure */}
+              <VideoSet videos={featured_video} classes="max-w-3xl" />
+            </div>
           </Section>
         )}
         {tabs.length === 1 && (

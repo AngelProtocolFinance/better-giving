@@ -43,7 +43,7 @@ export function OrgFooter({
       <div
         className={`page flex flex-wrap items-center gap-x-3 gap-y-4 pt-6 ${facts.length > 0 ? "pb-4 sm:pb-6" : "pb-2"}`}
       >
-        {logo && <OrgMark name={name} logo={logo} size="sm" />}
+        <OrgMark name={name} logo={logo} size="sm" />
         <span className="text-sm font-semibold">{name}</span>
         {facts.length > 0 && (
           <section

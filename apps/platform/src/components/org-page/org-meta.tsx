@@ -44,16 +44,27 @@ export function OrgMeta({ npo, variant, classes = "" }: IOrgMeta) {
     variant === "eyebrow"
       ? `text-xs font-bold uppercase tracking-badge md:text-sm ${brand ? "" : "text-primary"}`
       : "text-sm font-semibold";
+  // every item leads with a dot's slot, and the list starts a slot and its gap
+  // (-ml-4: w-2 + gap-2) left of the clip, so the dot of whichever item begins
+  // a wrapped line is cut off and no line starts with one. the clip
+  // sits a ring's width (outline-2 + offset-2) outside the root so the
+  // website's focus ring is never cut
   return (
-    <ul
-      className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${look} ${classes}`}
-    >
-      {facts.map((fact, i) => (
-        <li key={fact.key} className="flex items-center gap-2">
-          {i > 0 && <span aria-hidden>·</span>}
-          {fact.node}
-        </li>
-      ))}
-    </ul>
+    <div className={classes}>
+      <div className="-mx-1 overflow-x-clip px-1">
+        <ul
+          className={`-ml-4 flex flex-wrap items-center gap-x-2 gap-y-1 ${look}`}
+        >
+          {facts.map((fact, i) => (
+            <li key={fact.key} className="flex items-center gap-2">
+              <span aria-hidden className="w-2 shrink-0 text-center">
+                {i > 0 && "·"}
+              </span>
+              {fact.node}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
