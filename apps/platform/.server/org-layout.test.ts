@@ -52,7 +52,7 @@ describe("pick_layout", () => {
 
     await pick_layout(shape);
 
-    const [state, question, timeout] = jev_choice.mock.calls[0]!;
+    const [state, question] = jev_choice.mock.calls[0]!;
     expect(state).toEqual({ ...shape });
     expect(Object.keys(question.criteria).sort()).toEqual([
       "card",
@@ -61,8 +61,6 @@ describe("pick_layout", () => {
       "letter",
       "poster",
     ]);
-    // jev_choice's own default timeout
-    expect(timeout).toBeUndefined();
   });
 });
 

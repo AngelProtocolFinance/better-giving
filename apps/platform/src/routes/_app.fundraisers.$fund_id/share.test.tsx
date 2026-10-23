@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { shared_via_facebook } from "#/__tests__/fixtures/share-target";
+import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import { Share } from "./share";
 
 describe("Share", () => {
@@ -99,7 +100,7 @@ describe("Share", () => {
 
   describe("the chooser", () => {
     afterEach(async () => {
-      await page.viewport(1440, 900);
+      await reset_viewport();
     });
 
     const open_chooser = async () => {
@@ -117,6 +118,7 @@ describe("Share", () => {
     };
 
     test("opens with a visible heading and Close on one row, every network, and Close dismisses it", async () => {
+      await page.viewport(1440, 900);
       const { dialog } = await open_chooser();
       const heading = dialog.getByRole("heading", { name: "Share" });
       await expect.element(heading).toBeVisible();

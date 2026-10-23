@@ -259,30 +259,21 @@ describe("Card", () => {
       await page.viewport(w, h);
       const screen = await mount({ messages: [message(1)] });
       const root = screen.container;
+      // the card alone may fit the screen; room below it makes the scroll certain
+      const room = document.createElement("div");
+      room.style.height = `${h * 3}px`;
+      root.append(room);
+
       const [hero] = donates(main_of(root));
       await expect.poll(() => in_view(hero)).toBe(true);
       expect(header_donate(root)).toBeUndefined();
 
-      const can_scroll_away = scroll_room(root, hero) >= 0;
       scroll_past_hero_donate(root);
-      if (can_scroll_away) {
-        await expect.poll(() => header_donate(root)).toBeDefined();
-        await expect.poll(() => in_view(header_donate(root))).toBe(true);
-      } else {
-        // the page cannot scroll the card's Donate away, so it stays the one
-        await new Promise((r) => setTimeout(r, 200));
-        expect(header_donate(root)).toBeUndefined();
-      }
+      await expect.poll(() => header_donate(root)).toBeDefined();
+      await expect.poll(() => in_view(header_donate(root))).toBe(true);
+
+      window.scrollTo(0, 0);
+      await expect.poll(() => header_donate(root)).toBeUndefined();
     }
   );
 });
-
-/** how far the page can scroll beyond what carries `hero` under the header;
- * negative when it cannot scroll that far */
-function scroll_room(root: Element, hero: Element): number {
-  const header = (
-    root.querySelector("header") as HTMLElement
-  ).getBoundingClientRect().bottom;
-  const needed = hero.getBoundingClientRect().bottom - header;
-  return document.documentElement.scrollHeight - window.innerHeight - needed;
-}

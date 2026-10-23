@@ -66,6 +66,17 @@ describe("jev_choice", () => {
     expect(await jev_choice({}, question)).toBeNull();
   });
 
+  it("returns null on a body that is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () => new Response("<html>bad gateway</html>", { status: 200 })
+      )
+    );
+    expect(await jev_choice({}, question)).toBeNull();
+    expect(report_degraded).toHaveBeenCalledOnce();
+  });
+
   it("returns null on a network failure", async () => {
     vi.stubGlobal(
       "fetch",
@@ -93,4 +104,31 @@ describe("jev_choice", () => {
     expect(Date.now() - started).toBeLessThan(1000);
     expect(report_degraded).toHaveBeenCalledOnce();
   });
+
+  it("gives up after 800 ms when the caller sets no timeout", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_: string, init: RequestInit) =>
+          new Promise((_, reject) =>
+            init.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason)
+            )
+          )
+      )
+    );
+    const started = performance.now();
+    expect(await jev_choice({}, question)).toBeNull();
+    const waited = performance.now() - started;
+    // the abort signal's timer is the runtime's own, out of fake timers' reach
+    expect(waited).toBeGreaterThanOrEqual(780);
+    expect(waited).toBeLessThan(1500);
+    expect(report_degraded).toHaveBeenCalledOnce();
+  });
+});
+
+// the projects load .env.test; a key there lets any unmocked org loader call
+// the real Jev endpoint
+it("runs with no AI gateway key, so no test reaches the real Jev endpoint", () => {
+  expect(process.env.AI_GATEWAY_API_KEY).toBeUndefined();
 });

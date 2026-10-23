@@ -623,7 +623,10 @@ describe.skipIf(!has_bun)("layout review as a bun process", () => {
   }, 30_000);
 
   it("exits 1 when a key is set and Jev answered no org", async () => {
-    const r = await run_job(faked, { FAKE_ORGS: "2" });
+    const r = await run_job(faked, {
+      FAKE_ORGS: "2",
+      AI_GATEWAY_API_KEY: "a-key-that-is-set",
+    });
 
     expect(r.code).toBe(1);
     expect(r.stderr).toContain("Jev answered none of 2 orgs with a key set");

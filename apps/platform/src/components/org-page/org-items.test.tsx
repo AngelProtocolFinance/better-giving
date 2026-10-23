@@ -10,6 +10,11 @@ import type { IGiveItem, IProgramItem, IVideoItem } from "./items";
 import { ItemsByCount, ShowMoreGrid } from "./items-by-count";
 import { SwipeRow } from "./swipe-row";
 
+/** a square picture, so a slot that isn't 4:1 would show it uncropped */
+const SQUARE = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="teal"/></svg>'
+)}`;
+
 const NOW = Date.parse("2026-10-01T12:00:00Z");
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -137,7 +142,7 @@ describe("card image", () => {
       await page.viewport(width, height);
       const pictured = <T extends { image: string | null }>(x: T) => ({
         ...x,
-        image: BANNER,
+        image: SQUARE,
       });
       // one is the feature card, two are halves, three are thirds
       const lists = [1, 2, 3].map((n) => gives(n).map(pictured));
@@ -191,6 +196,8 @@ describe("card image", () => {
         const shown = img.getBoundingClientRect();
         expect(shown.width).toBeCloseTo(slot.width, 0);
         expect(shown.height).toBeCloseTo(slot.height, 0);
+        // a square picture in a 4:1 slot fills it by cropping, not squeezing
+        expect(getComputedStyle(img).objectFit).toBe("cover");
       }
     }
   );

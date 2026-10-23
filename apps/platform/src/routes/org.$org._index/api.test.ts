@@ -32,7 +32,7 @@ vi.mock("$/pg/db", () => ({
 
 vi.mock("#/errors/report", () => ({ report_error }));
 
-// .env.test carries a gateway key, so an unmocked pick would call the real gateway
+// the layout pick asks Jev; stubbed so a run is deterministic (an unset key is what keeps the suite off the gateway)
 const jev_choice = vi.hoisted(() => vi.fn(async () => null as string | null));
 vi.mock("$/jev", () => ({ jev_choice }));
 

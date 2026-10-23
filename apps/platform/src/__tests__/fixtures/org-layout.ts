@@ -7,6 +7,7 @@ import type {
 import type { IOrgLayout } from "#/components/org-page/layouts/types";
 import { to_text } from "#/components/rich-text/helpers";
 import type { INpoPublic } from "$/pg/queries/npo";
+import { BANNER } from "./layout-dom";
 
 /** the clock the cards count end dates from */
 export const NOW = Date.parse("2026-10-01T12:00:00Z");
@@ -126,7 +127,7 @@ export const npo = (o: Partial<INpoPublic> = {}): INpoPublic => ({
   overview_v2: null,
   overview_pt: story("We teach adults to read."),
   tagline: "Every adult a reader.",
-  image: "https://example.com/banner.webp",
+  image: BANNER,
   logo: null,
   card_img: null,
   hq_country: "United States",

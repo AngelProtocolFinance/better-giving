@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
-import { userEvent } from "vitest/browser";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { TabPanel, Tabs } from "./tabs";
 
@@ -74,5 +74,64 @@ describe("Tabs", () => {
     );
     await screen.getByRole("tab", { name: "Fundraiser" }).click();
     expect(seen).toEqual(["fundraiser"]);
+  });
+
+  describe("a row wider than the screen", () => {
+    // restore what the file found, not a size nothing configures
+    let before = { width: 0, height: 0 };
+    beforeEach(() => {
+      before = { width: window.innerWidth, height: window.innerHeight };
+    });
+    afterEach(() => page.viewport(before.width, before.height));
+
+    const many = [
+      "Profile",
+      "Donation Page",
+      "Fundraisers and campaigns",
+      "Supporters",
+      "Receipts and tax documents",
+      "Integrations",
+      "Team members",
+      "Settings",
+    ].map((label) => ({ value: label, label }));
+
+    test("keeps every label on one line and scrolls the row, not the page", async () => {
+      await page.viewport(375, 812);
+      const screen = await render(
+        <Tabs items={many} defaultValue="Profile">
+          <TabPanel value="Profile">Profile panel</TabPanel>
+        </Tabs>
+      );
+      const list = screen.getByRole("tablist").element() as HTMLElement;
+      const tabs = Array.from(list.querySelectorAll<HTMLElement>("[role=tab]"));
+      expect(tabs).toHaveLength(many.length);
+
+      // the row scrolls sideways inside its own box
+      expect(getComputedStyle(list).overflowX).toBe("auto");
+      expect(list.scrollWidth).toBeGreaterThan(list.clientWidth);
+      expect(list.getBoundingClientRect().right).toBeLessThanOrEqual(
+        window.innerWidth
+      );
+      // and the page does not widen to hold it
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+        window.innerWidth
+      );
+
+      for (const tab of tabs) {
+        // no label wraps: one line of text high, and the full label shown
+        const line = Number.parseFloat(getComputedStyle(tab).lineHeight);
+        const pad =
+          Number.parseFloat(getComputedStyle(tab).paddingTop) +
+          Number.parseFloat(getComputedStyle(tab).paddingBottom);
+        expect(tab.clientHeight).toBeLessThan(line * 2 + pad);
+        expect(tab.scrollWidth).toBeLessThanOrEqual(tab.clientWidth);
+      }
+      // none is squeezed to fit: the row holds more than the box does
+      const total = tabs.reduce(
+        (n, t) => n + t.getBoundingClientRect().width,
+        0
+      );
+      expect(total).toBeGreaterThan(list.clientWidth);
+    });
   });
 });

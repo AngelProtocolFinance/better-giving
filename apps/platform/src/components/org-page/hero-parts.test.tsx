@@ -172,7 +172,7 @@ describe("org hero", () => {
       .toHaveAttribute("href", "https://www.riverside.org/about/team");
     await expect.element(site).toHaveAttribute("target", "_blank");
     expect(bare).toHaveTextContent("Peru");
-    expect(bare).not.toHaveTextContent("Other");
+    expect(bare).not.toMatchTextContent("Other");
     expect(bare.querySelectorAll("li")).toHaveLength(1);
   });
 
@@ -234,7 +234,7 @@ describe("raised stats", () => {
     await expect
       .element(screen.getByText("Be the first to give"))
       .toBeVisible();
-    expect(screen.container).not.toHaveTextContent("$0");
+    expect(screen.container).not.toMatchTextContent("$0");
     expect(screen.getByRole("progressbar").query()).toBeNull();
   });
 
@@ -272,13 +272,29 @@ describe("raised stats", () => {
     expect(inline.textContent).not.toContain("·");
     expect(inline.querySelector("[role=progressbar]")).toBeNull();
 
-    expect(panel).not.toHaveTextContent("donor");
+    expect(panel).not.toMatchTextContent("donor");
     expect(panel.querySelector("strong")).toHaveTextContent("$3,322");
     const bar = screen.getByRole("progressbar");
     await expect.element(bar).toHaveAttribute("aria-valuenow", "3322");
     await expect.element(bar).toHaveAttribute("aria-valuemax", "8000");
     expect(panel.textContent).toContain("$3,322 of $8,000 goal");
     expect(panel.textContent).not.toContain("%");
+  });
+
+  test("a supporter count in the thousands is written with its separator", async () => {
+    const screen = await render(
+      <RaisedStats
+        raised={3322}
+        donors={12_345}
+        target={undefined}
+        variant="inline"
+      />
+    );
+    const pairs = Array.from(screen.container.querySelectorAll("p"));
+    expect(pairs.map((p) => p.textContent)).toEqual([
+      "$3,322 raised",
+      "12,345 donors",
+    ]);
   });
 });
 
