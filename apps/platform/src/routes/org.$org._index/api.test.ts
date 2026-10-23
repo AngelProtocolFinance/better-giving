@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { seed_fund } from "#/__tests__/fixtures/funds";
 import { encode_date_cursor } from "$/pg/queries/helpers";
 import { user } from "$/pg/schema/auth";
 import { campaigns } from "$/pg/schema/campaign";
@@ -6,6 +7,7 @@ import { dists } from "$/pg/schema/dist";
 import { donation_donors, donations } from "$/pg/schema/donation";
 import { donation_messages } from "$/pg/schema/donation-message";
 import { npo_media, npos } from "$/pg/schema/npo";
+import { programs } from "$/pg/schema/program";
 import { user_npo_memberships } from "$/pg/schema/user";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -30,12 +32,17 @@ vi.mock("$/pg/db", () => ({
 
 vi.mock("#/errors/report", () => ({ report_error }));
 
+// .env.test carries a gateway key, so an unmocked pick would call the real gateway
+const jev_choice = vi.hoisted(() => vi.fn(async () => null as string | null));
+vi.mock("$/jev", () => ({ jev_choice }));
+
 vi.mock("#/.server/auth", async () => ({
   ...(await import("$/auth/test-utils")).make_auth_mock(),
   get_session,
 }));
 
 const npo_queries = await import("$/pg/queries/npo");
+const program_queries = await import("$/pg/queries/program");
 const campaign_queries = await import("$/pg/queries/campaign");
 const { NPO_PUBLIC_KEYS } = npo_queries;
 const message_queries = await import("$/pg/queries/donation-message");
@@ -124,6 +131,18 @@ async function seed_creator() {
   return row!;
 }
 
+/** portable text with one block per paragraph */
+const pt = (...paras: string[]) =>
+  JSON.stringify(
+    paras.map((text, i) => ({
+      _type: "block",
+      _key: `b${i}`,
+      style: "normal",
+      markDefs: [],
+      children: [{ _type: "span", _key: `s${i}`, text, marks: [] }],
+    }))
+  );
+
 /** a live campaign the org runs; `story` is its paragraphs as portable text */
 async function seed_campaign(
   owner_npo_id: number,
@@ -141,15 +160,7 @@ async function seed_campaign(
       name: `Campaign ${id}`,
       slug: id,
       status: "live",
-      description_pt: JSON.stringify(
-        story.map((text, i) => ({
-          _type: "block",
-          _key: `b${i}`,
-          style: "normal",
-          markDefs: [],
-          children: [{ _type: "span", _key: `s${i}`, text, marks: [] }],
-        }))
-      ),
+      description_pt: pt(...story),
       ...overrides,
     });
 }
@@ -658,6 +669,99 @@ describe("public npo profile loader", () => {
       expect(res).toBeInstanceOf(Response);
       expect((res as Response).status).toBe(404);
     }
+  });
+});
+
+describe("profile shape", () => {
+  it("measures what the page shows: story, hero fields, and each kind of item it lists", async () => {
+    const npo = await seed_npo({
+      name: " Shape Org ",
+      tagline: "  Water first ",
+      // "We dig wells.\n\nAnd schools." as plain text, once trimmed
+      overview_pt: pt("  We dig wells.", "And schools.  "),
+      image: "https://img/banner.png",
+      logo: null,
+    });
+    await seed_campaign(npo.id, "shape-cmp-1", [], {
+      created_at: hours_ago(1),
+    });
+    await seed_campaign(npo.id, "shape-cmp-2", [], {
+      created_at: hours_ago(2),
+    });
+    const creator = await seed_creator();
+    const fund = { npo_owner: npo.id, creator_id: creator.id, published: true };
+    await seed_fund(db(), { ...fund, id: "shape-fund-open" });
+    await seed_fund(db(), { ...fund, id: "shape-fund-off", active: false });
+    await seed_fund(db(), {
+      ...fund,
+      id: "shape-fund-ended",
+      expiration: "2020-01-01T00:00:00.000Z",
+    });
+    await db().insert(programs).values({
+      id: "shape-prog",
+      npo_id: npo.id,
+      title: "Wells",
+      description_pt: "[]",
+    });
+    await db()
+      .insert(npo_media)
+      .values(
+        ["shape-v1", "shape-v2"].map((id) => ({
+          id,
+          npo_id: npo.id,
+          url: `https://youtu.be/${id}`,
+          type: "video" as const,
+          featured: true,
+        }))
+      );
+
+    const d = await load(npo.slug!);
+
+    expect(d.shape).toEqual({
+      story_chars: 27,
+      tagline_chars: 11,
+      name_chars: 9,
+      has_banner: true,
+      has_logo: false,
+      campaigns: 2,
+      fundraisers: 1,
+      programs: 1,
+      videos: 2,
+    });
+    // a short story and six items, with no word from Jev
+    expect([d.layout, d.layout_by]).toEqual(["hub", "threshold"]);
+  });
+
+  it("counts no programs when their read fails, and still serves the page with the failure for its section", async () => {
+    const npo = await seed_npo();
+    await seed_campaign(npo.id, "shape-down-cmp");
+    await db().insert(programs).values({
+      id: "shape-down-prog",
+      npo_id: npo.id,
+      title: "Wells",
+      description_pt: "[]",
+    });
+    const down = new Error("programs down");
+    vi.spyOn(program_queries, "npo_programs").mockRejectedValueOnce(down);
+
+    const d = await load(npo.slug!);
+
+    expect(d.npo.id).toBe(npo.id);
+    expect(d.shape).toMatchObject({ campaigns: 1, programs: 0 });
+    await expect(d.programs).rejects.toBe(down);
+    await Promise.all([d.funds, d.media]);
+  });
+
+  it("takes the layout Jev picks from the measures", async () => {
+    // no story and no items: the thresholds would say poster
+    const npo = await seed_npo();
+    jev_choice.mockClear().mockResolvedValueOnce("letter");
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect([d.layout, d.layout_by]).toEqual(["letter", "jev"]);
+    expect(jev_choice).toHaveBeenCalledWith(d.shape, expect.anything());
   });
 });
 

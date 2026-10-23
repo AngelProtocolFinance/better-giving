@@ -1,11 +1,14 @@
 import { data, href } from "react-router";
 import { get_session } from "#/.server/auth";
 import { get_funds_npo_memberof } from "#/.server/funds";
-import { to_excerpt } from "#/components/rich-text/helpers";
+import { to_excerpt, to_text } from "#/components/rich-text/helpers";
 import { report_error } from "#/errors/report";
 import { moved } from "#/helpers/moved";
 import { org_href } from "#/helpers/org-href";
 import { npo_id } from "#/pages/marketplace/npo-id";
+import { fund_item_is_open } from "@/fundraiser/is-open";
+import type { IOrgShape } from "@/org-shape";
+import { pick_layout } from "$/org-layout";
 import {
   campaign_donor_counts,
   campaign_live_for_npo,
@@ -66,7 +69,22 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
       return null;
     });
 
-  const [campaigns, donors, { messages, messages_next }] = await Promise.all([
+  const funds = reported(get_funds_npo_memberof(npo.id, { published: true }));
+  const media = reported(
+    npo_media_list(npo.id, {
+      type: "video",
+      featured: true,
+      limit: MAX_VIDEOS,
+    }).then((x) => x.items)
+  );
+  const programs = reported(npo_programs(npo.id));
+
+  const [
+    campaigns,
+    donors,
+    { messages, messages_next },
+    [funds_read, media_read, programs_read],
+  ] = await Promise.all([
     campaign_live_for_npo(npo.id).then(async (rows) => {
       const supporters = await count_or_null(
         campaign_donor_counts(rows.map((c) => c.id))
@@ -114,7 +132,28 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
         report_error(err, { endow_id: npo.id });
         return { messages: [], messages_next: null };
       }),
+    // the layout needs the lists' counts; a rejected one still streams to its <Await errorElement>
+    Promise.allSettled([funds, media, programs]),
   ]);
+
+  const now = new Date();
+  const shape: IOrgShape = {
+    story_chars: to_text(npo.overview_pt).trim().length,
+    tagline_chars: npo.tagline?.trim().length ?? 0,
+    name_chars: npo.name.trim().length,
+    has_banner: !!npo.image,
+    has_logo: !!npo.logo,
+    campaigns: campaigns.length,
+    // the fundraisers the page lists: only the open ones
+    fundraisers:
+      funds_read.status === "fulfilled"
+        ? funds_read.value.filter((f) => fund_item_is_open(f, now)).length
+        : 0,
+    programs:
+      programs_read.status === "fulfilled" ? programs_read.value.length : 0,
+    videos: media_read.status === "fulfilled" ? media_read.value.length : 0,
+  };
+  const { layout, by } = await pick_layout(shape);
 
   return data(
     {
@@ -124,17 +163,14 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
       messages,
       messages_next,
       campaigns,
+      layout,
+      layout_by: by,
+      shape,
 
-      //lazy
-      funds: reported(get_funds_npo_memberof(npo.id, { published: true })),
-      media: reported(
-        npo_media_list(npo.id, {
-          type: "video",
-          featured: true,
-          limit: MAX_VIDEOS,
-        }).then((x) => x.items)
-      ),
-      programs: reported(npo_programs(npo.id)),
+      // settled by now, but still promises: the page renders each through <Await>
+      funds,
+      media,
+      programs,
     },
     npo.published ? undefined : { headers: PRIVATE }
   );

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { fund_closes_at, fund_is_open } from "./is-open";
+import { fund_closes_at, fund_is_open, fund_item_is_open } from "./is-open";
 
 const now = new Date("2027-09-23T12:00:00.000Z");
 
@@ -44,4 +44,25 @@ describe("fund_closes_at", () => {
       );
     }
   );
+});
+
+describe("fund_item_is_open", () => {
+  // a list item carries its expiration as unix seconds
+  const oct_1 = Date.parse("2027-10-01T00:00:00.000Z") / 1000;
+
+  test("reads an item's expiration on the same rule as a fund's", () => {
+    const f = { active: true, expiration: oct_1 };
+    expect(fund_item_is_open(f, new Date("2027-10-02T11:59:59.999Z"))).toBe(
+      true
+    );
+    expect(fund_item_is_open(f, new Date("2027-10-02T12:00:00.000Z"))).toBe(
+      false
+    );
+  });
+
+  test("an inactive item is closed", () => {
+    expect(fund_item_is_open({ active: false, expiration: oct_1 }, now)).toBe(
+      false
+    );
+  });
 });
