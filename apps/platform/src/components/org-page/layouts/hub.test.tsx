@@ -76,7 +76,7 @@ describe("Hub", () => {
     }
   );
 
-  test("a lone featured video plays at the reading measure, centred in the content width", async () => {
+  test("a lone featured video plays at the reading measure, on the heading's edge", async () => {
     await page.viewport(1440, 900);
     const screen = await mount(
       org_layout({ give: many(give, 4), videos: [video(1)] })
@@ -94,7 +94,11 @@ describe("Hub", () => {
     const region = (featured.element() as HTMLElement).getBoundingClientRect();
     expect(width).toBeLessThan(region.width);
     const box = frame.element().getBoundingClientRect();
-    expect(box.left - region.left).toBeCloseTo(region.right - box.right, 0);
+    const heading = featured
+      .getByRole("heading", { name: "Featured" })
+      .element()
+      .getBoundingClientRect();
+    expect(box.left).toBeCloseTo(heading.left, 0);
   });
 
   test("the name clears the banner", async () => {

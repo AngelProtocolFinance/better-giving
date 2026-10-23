@@ -68,25 +68,37 @@ export function QuoteStrip({
     set_index(0);
   }
 
-  // a phone puts next on the mark's row rather than a row of its own under
-  // the donor, so the box ends where the message does
+  const has_next = n > 1 || !!on_more;
+
+  // a phone has no room for the mark as a column: it opens the message
+  // inline, and next shares the donor's line, laid over the caption's cell
+  // so the message keeps the full width
   return (
     <section
       aria-label="Donor messages"
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 rounded p-5 md:flex md:gap-6 md:p-6 ${t.ground} ${classes}`}
+      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center rounded p-5 md:flex md:gap-6 md:p-6 ${t.ground} ${classes}`}
     >
       <span
         aria-hidden
-        className={`text-4xl font-bold leading-none md:text-5xl ${t.mark}`}
+        className={`text-5xl font-bold leading-none max-md:hidden ${t.mark}`}
       >
         “
       </span>
-      <figure className="col-span-full flex min-w-0 grow flex-col gap-1">
-        <blockquote className="break-words md:text-lg">{m.message}</blockquote>
-        <figcaption className={`text-sm ${t.meta}`}>{m.name}</figcaption>
+      <figure className="col-span-full row-start-1 flex min-w-0 grow flex-col gap-1">
+        <blockquote className="break-words md:text-lg">
+          <span aria-hidden className={`font-bold md:hidden ${t.mark}`}>
+            “{" "}
+          </span>
+          {m.message}
+        </blockquote>
+        <figcaption
+          className={`text-sm ${t.meta} ${has_next ? "max-md:flex max-md:min-h-11 max-md:items-center max-md:pr-14" : ""}`}
+        >
+          {m.name}
+        </figcaption>
       </figure>
-      {(n > 1 || on_more) && (
-        <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-2">
+      {has_next && (
+        <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-2 self-end">
           {/* the position alone: messages arrive a page at a time, so there
               is no total to give */}
           <p aria-live="polite" className="sr-only">

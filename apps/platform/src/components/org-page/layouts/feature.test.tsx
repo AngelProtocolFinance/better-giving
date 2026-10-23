@@ -140,6 +140,16 @@ describe("Feature", () => {
         box.bottom,
         0
       );
+      // the cut lands on a whole line of the paragraph it falls in
+      const paras = Array.from(body.querySelectorAll("p")).filter((p) => {
+        const r = p.getBoundingClientRect();
+        return r.height > 0 && r.top < box.bottom;
+      });
+      const cut_in = paras[paras.length - 1];
+      const line = Number.parseFloat(getComputedStyle(cut_in).lineHeight);
+      const lines = (box.bottom - cut_in.getBoundingClientRect().top) / line;
+      expect(lines).toBeGreaterThanOrEqual(1);
+      expect(Math.abs(lines - Math.round(lines))).toBeLessThan(0.05);
 
       // the link in view takes focus; the one cut off does not until opened
       const first = screen
@@ -167,6 +177,25 @@ describe("Feature", () => {
       expect(document.activeElement).toBe(last);
     }
   );
+
+  test("the give panel beside the story is at least 19rem wide, its figures past 2rem, and sticks", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount();
+    const panel = screen.getByRole("complementary", {
+      name: `Give to ${npo().name}`,
+    });
+    await expect.element(panel).toBeVisible();
+    const el = panel.element() as HTMLElement;
+    const rem = Number.parseFloat(
+      getComputedStyle(document.documentElement).fontSize
+    );
+    expect(el.getBoundingClientRect().width).toBeGreaterThanOrEqual(19 * rem);
+    expect(getComputedStyle(el).position).toBe("sticky");
+    const figure = el.querySelector("strong") as HTMLElement;
+    expect(
+      Number.parseFloat(getComputedStyle(figure).fontSize)
+    ).toBeGreaterThan(2 * rem);
+  });
 
   test("the hero leads with the org's mark, ringed over the banner", async () => {
     await page.viewport(1440, 900);

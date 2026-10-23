@@ -164,12 +164,19 @@ describe("card image", () => {
         ).getBoundingClientRect();
         const box = card.getBoundingClientRect();
         expect(Math.abs(slot.width / slot.height - 4) / 4).toBeLessThan(0.01);
-        // top-aligned in its card
-        expect(slot.top).toBeCloseTo(box.top + 1, 0);
         const is_program = i === 6;
         // the feature card (0) and the halves (1, 2) sit beside their text
         const beside = wide && i < 3;
-        if (is_program) {
+        if (beside) {
+          // centred down its column: no dead block under it
+          expect(
+            Math.abs(slot.top - box.top - (box.bottom - slot.bottom))
+          ).toBeLessThanOrEqual(2);
+        } else {
+          // on top, or a top-aligned thumbnail
+          expect(slot.top).toBeCloseTo(box.top + 1, 0);
+        }
+        if (is_program && wide) {
           // a thumbnail, not a banner
           expect(slot.width).toBeLessThanOrEqual(15 * 16);
         } else if (beside) {
@@ -207,6 +214,69 @@ describe("card image", () => {
       .parentElement as HTMLElement;
     const inner = column.getBoundingClientRect().width - 32; // p-4 either side
     expect(a.width).toBeCloseTo(inner, 0);
+  });
+
+  test("a card with no goal has no bar and no band where one would be, beside cards that have one", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      <ItemsByCount
+        items={[
+          give(1, { ends_at: new Date(NOW + 5 * DAY).toISOString() }),
+          give(2),
+          give(3, { goal: null }),
+        ]}
+        now={NOW}
+      />
+    );
+    const card = screen
+      .getByRole("article")
+      .filter({ hasText: "Clean water 3" });
+    await expect.element(card).toMatchTextContent("$2,400 raised");
+    expect(card.getByRole("progressbar").query()).toBeNull();
+    // the raised line follows the title at the column's gap
+    const title = card.getByRole("heading").element();
+    const raised = card.getByText("$2,400 raised").element();
+    const gap = Number.parseFloat(
+      getComputedStyle(title.parentElement as HTMLElement).rowGap
+    );
+    expect(
+      raised.getBoundingClientRect().top - title.getBoundingClientRect().bottom
+    ).toBeCloseTo(gap, 0);
+    // the cards in the row still share a bottom edge
+    const boxes = screen
+      .getByRole("article")
+      .elements()
+      .map((a) => a.getBoundingClientRect().bottom);
+    expect(new Set(boxes).size).toBe(1);
+  });
+
+  test("a program row on a phone has its image across the top and the title on at most two lines", async () => {
+    await page.viewport(375, 812);
+    const screen = await mount(
+      <ItemsByCount
+        items={[
+          {
+            ...program(1),
+            image: BANNER,
+            title: "After-school reading clubs for every primary pupil",
+          },
+        ]}
+        now={NOW}
+      />
+    );
+    const link = screen.getByRole("link", { name: /After-school reading/ });
+    await expect.element(link).toBeVisible();
+    const row = link.element().closest("article") as HTMLElement;
+    const slot = (row.firstElementChild as HTMLElement).getBoundingClientRect();
+    const title = row.querySelector("h3") as HTMLElement;
+    const text = (title.parentElement as HTMLElement).getBoundingClientRect();
+    expect(slot.width).toBeCloseTo(row.clientWidth, 0);
+    expect(Math.abs(slot.width / slot.height - 4) / 4).toBeLessThan(0.01);
+    expect(text.top).toBeGreaterThanOrEqual(slot.bottom - 0.5);
+    const lines =
+      title.getBoundingClientRect().height /
+      Number.parseFloat(getComputedStyle(title).lineHeight);
+    expect(Math.round(lines)).toBeLessThanOrEqual(2);
   });
 
   test("the feature card's excerpt shows on a phone too", async () => {

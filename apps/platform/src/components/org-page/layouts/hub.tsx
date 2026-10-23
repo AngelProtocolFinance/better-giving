@@ -88,11 +88,9 @@ export function Hub(props: IOrgLayout) {
             <div className="flex flex-col gap-4">
               <ItemsByCount items={featured_cards} now={now} />
               {/* a lone video at the content's full width outweighs the
-                  tabs under it, so it takes the reading measure, centred */}
-              <VideoSet
-                videos={featured_video}
-                classes="mx-auto w-full max-w-3xl"
-              />
+                  tabs under it, so it takes the reading measure, on the
+                  heading's edge */}
+              <VideoSet videos={featured_video} classes="w-full max-w-3xl" />
             </div>
           </Section>
         )}

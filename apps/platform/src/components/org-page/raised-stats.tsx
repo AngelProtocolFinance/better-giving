@@ -75,7 +75,7 @@ interface IFigures {
 const FIGURE: Record<IRaisedStats["variant"], string> = {
   inline: "text-lg md:text-xl",
   stacked: "text-2xl md:text-3xl",
-  panel: "text-3xl",
+  panel: "text-3xl lg:text-4xl",
 };
 
 /** each stat a large figure over its small label, side by side */

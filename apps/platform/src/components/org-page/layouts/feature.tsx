@@ -75,7 +75,7 @@ export function Feature(props: IOrgLayout) {
       <FeatureHero page={props} donate_ref={set_hero_donate} />
       <SectionStrip sections={sections} />
       <div className="page flex flex-col gap-10 py-8 md:gap-12 md:py-12">
-        <div className="flex flex-col gap-8 md:grid md:grid-cols-[minmax(0,1fr)_17.5rem] md:items-start md:gap-12">
+        <div className="flex flex-col gap-8 md:grid md:grid-cols-[minmax(0,1fr)_20rem] md:items-start md:gap-12">
           {has_story && (
             <Story
               json={npo.overview_pt}
@@ -92,7 +92,7 @@ export function Feature(props: IOrgLayout) {
               target={npo.target}
               variant="panel"
             />
-            <DonateButton to={props.donate_to} />
+            <DonateButton to={props.donate_to} size="lg" />
           </aside>
         </div>
         {kinds.map((k) =>
@@ -237,10 +237,15 @@ function Story({ json, clamp }: IStory) {
     if (!box) return;
     const links = Array.from(box.querySelectorAll("a"));
     if (!clamped) {
+      box.style.maxHeight = "";
       for (const a of links) a.inert = false;
       return;
     }
     const sync = () => {
+      // max-h-120 is the cap; the cut moves up to the last whole line under
+      // it, so the fade never ends through a line's glyphs
+      box.style.maxHeight = "";
+      box.style.maxHeight = `${last_line_bottom(box, box.clientHeight)}px`;
       set_cut(box.scrollHeight > box.clientHeight);
       const limit = fade.current
         ? fade.current.getBoundingClientRect().top
@@ -301,6 +306,40 @@ function Story({ json, clamp }: IStory) {
       </div>
     </section>
   );
+}
+
+/** the bottom of the last whole line that ends within `cap` of `box`'s top,
+ * measured from that top. lines are counted down each block that holds text,
+ * in steps of its line height */
+function last_line_bottom(box: HTMLElement, cap: number): number {
+  const top = box.getBoundingClientRect().top;
+  const texts = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+  const blocks = new Set<HTMLElement>();
+  for (let node = texts.nextNode(); node; node = texts.nextNode()) {
+    if (!node.textContent?.trim()) continue;
+    let el = node.parentElement;
+    while (
+      el &&
+      el !== box &&
+      getComputedStyle(el).display.startsWith("inline")
+    ) {
+      el = el.parentElement;
+    }
+    if (el && el !== box) blocks.add(el);
+  }
+  let end = 0;
+  for (const block of blocks) {
+    const r = block.getBoundingClientRect();
+    if (r.top - top >= cap) break;
+    const line = Number.parseFloat(getComputedStyle(block).lineHeight);
+    if (Number.isNaN(line) || line <= 0) continue;
+    const fit = Math.min(
+      Math.round(r.height / line),
+      Math.floor((cap - (r.top - top) + 0.5) / line)
+    );
+    if (fit > 0) end = r.top - top + fit * line;
+  }
+  return end || cap;
 }
 
 interface ISection {

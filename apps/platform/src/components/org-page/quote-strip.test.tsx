@@ -77,7 +77,7 @@ describe("QuoteStrip", () => {
   });
 
   test.each(["light", "dark"] as const)(
-    "on a phone the %s box ends at the donor's name, next riding the mark's row",
+    "on a phone the %s box ends at the donor's name, next on the name's line and the mark opening the message",
     async (tone) => {
       await page.viewport(375, 812);
       const screen = await render(
@@ -86,22 +86,34 @@ describe("QuoteStrip", () => {
       const box = screen.getByRole("region", { name: "Donor messages" });
       await expect.element(box).toBeVisible();
       const section = box.element() as HTMLElement;
-      const name = screen
-        .getByText("Donor 1")
-        .element()
-        .getBoundingClientRect();
+      const caption = (
+        section.querySelector("figcaption") as HTMLElement
+      ).getBoundingClientRect();
       const next = screen
         .getByRole("button", { name: "Next message" })
         .element()
         .getBoundingClientRect();
+      const message = screen
+        .getByText("Message body 1")
+        .element()
+        .getBoundingClientRect();
       const inset = Number.parseFloat(getComputedStyle(section).paddingBottom);
-      expect(section.getBoundingClientRect().bottom - name.bottom).toBeCloseTo(
-        inset,
-        0
-      );
-      expect(next.bottom).toBeLessThan(
-        screen.getByText("Message body 1").element().getBoundingClientRect().top
-      );
+      expect(
+        section.getBoundingClientRect().bottom - caption.bottom
+      ).toBeCloseTo(inset, 0);
+      // no row holds only the mark and next
+      expect(next.top).toBeGreaterThanOrEqual(caption.top - 0.5);
+      // the name's own text, not its caption box, which runs under next
+      const name = document.createRange();
+      name.selectNodeContents(section.querySelector("figcaption") as Node);
+      expect(next.left).toBeGreaterThan(name.getBoundingClientRect().right);
+      expect(next.top).toBeGreaterThanOrEqual(message.bottom - 0.5);
+      // the only visible mark is the one inside the message
+      const marks = Array.from(
+        section.querySelectorAll<HTMLElement>("[aria-hidden]")
+      ).filter((x) => x.textContent?.includes("“") && x.offsetParent !== null);
+      expect(marks).toHaveLength(1);
+      expect(marks[0].closest("blockquote")).not.toBeNull();
     }
   );
 });
