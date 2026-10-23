@@ -402,8 +402,9 @@ describe("public npo profile loader", () => {
     const d = await load(npo.slug!);
     await Promise.all([d.funds, d.media, d.programs]);
 
+    // email as stored, like the org's donor count: ana and ANA are two
     expect(d.campaigns.map((c) => [c.id, c.supporters])).toEqual([
-      ["cmp-backed", 2],
+      ["cmp-backed", 3],
       ["cmp-quiet", 0],
     ]);
   });
