@@ -8,6 +8,25 @@ export function extract_youtube_id(url: string): string | null {
   return match?.[1] ?? null;
 }
 
+const YOUTUBE_HOSTS = new Set([
+  "youtube.com",
+  "www.youtube.com",
+  "m.youtube.com",
+  "youtu.be",
+  "youtube-nocookie.com",
+  "www.youtube-nocookie.com",
+]);
+
+/** the video id of a link that is itself on YouTube — `extract_youtube_id`
+ * matches anywhere in the string, so another site's path can carry one */
+export function youtube_link_id(url: string): string | null {
+  if (!URL.canParse(url)) return null;
+  const { protocol, hostname } = new URL(url);
+  if (protocol !== "https:" && protocol !== "http:") return null;
+  if (!YOUTUBE_HOSTS.has(hostname)) return null;
+  return extract_youtube_id(url);
+}
+
 interface IYouTubePlayer {
   url: string;
   classes?: string;

@@ -1,6 +1,5 @@
 export const routes = {
   dashboard: "dashboard",
-  edit_profile: "edit-profile",
   programs: "programs",
   program_editor: "program-editor",
   banking: "banking",

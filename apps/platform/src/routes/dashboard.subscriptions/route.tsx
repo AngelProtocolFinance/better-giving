@@ -53,7 +53,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
             to={
               s.to_fund_id
                 ? href("/fundraisers/:fund_id", { fund_id: s.to_fund_id })
-                : href("/marketplace/:id", { id: String(s.to_npo_id) })
+                : href("/org/:org", { org: String(s.to_npo_id) })
             }
             className="link"
           >

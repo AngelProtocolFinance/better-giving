@@ -91,13 +91,13 @@ import { createRoutesStub } from "react-router";
 import { loader as fund_loader } from "#/routes/_app.fundraisers.$fund_id/api";
 // fund page — for fund Target directly
 import FundPage from "#/routes/_app.fundraisers.$fund_id/route";
-import { loader as profile_loader } from "#/routes/_app.marketplace_.$id/api";
-// profile page — for fund Target on npo profile
-import ProfilePage from "#/routes/_app.marketplace_.$id/route";
-import GeneralInfoPage from "#/routes/_app.marketplace_.$id._index/route";
 import { loader as user_forms_loader } from "#/routes/dashboard.forms/api";
 // user-dashboard forms — for form ltd verification
 import UserFormsPage from "#/routes/dashboard.forms/route";
+// org profile page — the fund's goal on its Campaigns card
+import ProfilePage, {
+  loader as profile_loader,
+} from "#/routes/org.$org._index/route";
 // platform-admin refunds pages
 import RefundsListPage from "#/routes/platform.donations/route";
 import {
@@ -484,27 +484,21 @@ describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
     );
   });
 
-  it("profile page Fundraisers section shows fund Target", async () => {
+  it("profile page Campaigns section shows the fund against its goal", async () => {
     await fire_webhook();
 
     const Stub = createRoutesStub([
       {
-        path: "/marketplace/:id",
-        Component: ProfilePage,
+        path: "/org/:org",
+        Component: ProfilePage as any,
         HydrateFallback: () => null,
         loader: profile_loader as any,
-        children: [
-          {
-            index: true,
-            Component: GeneralInfoPage,
-          },
-        ],
       },
     ]);
 
     const screen = await render(
       <Stub
-        initialEntries={[`/marketplace/${npo_a_id}`]}
+        initialEntries={[`/org/${npo_a_id}`]}
         future={{ v8_middleware: true }}
       />
     );
@@ -513,8 +507,11 @@ describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
     await expect
       .element(screen.getByText("Test Fund", { exact: true }))
       .toBeInTheDocument();
-    await expect.element(screen.getByText("$282")).toBeInTheDocument();
-    await expect.element(screen.getByText("$1,000")).toBeInTheDocument();
+    // the fund's own card: raised and goal are separate amounts, each with its label
+    const card = screen.getByRole("article").filter({ hasText: "Test Fund" });
+    await expect
+      .element(card)
+      .toMatchTextContent(/\$282\s*Raised\s*\$1,000\s*Goal/);
   });
 
   it("user-dashboard forms page shows form with updated ltd Target", async () => {

@@ -164,7 +164,7 @@ function render_marketplace(
         },
         { path: "/other", Component: () => <p>other page</p> },
         {
-          path: "/marketplace/:id",
+          path: "/org/:org",
           Component: () => <p>org page</p>,
           loader: async ({ request }) => {
             await wait.org?.(new URL(request.url));

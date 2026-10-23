@@ -1,4 +1,14 @@
-import { and, count, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { to_text } from "#/components/rich-text/helpers";
 import type { DonateMethodId, IIncrement, TFrequency } from "@/schemas";
 import { db } from "../db";
@@ -9,6 +19,7 @@ import {
   type TCampaignStatus,
   type TCampaignType,
 } from "../schema/campaign";
+import { dists } from "../schema/dist";
 import { donation_donors, donations } from "../schema/donation";
 import { npos } from "../schema/npo";
 import { v_campaign_total_usd } from "../schema/views";
@@ -138,25 +149,39 @@ export async function campaign_public(
   return row && present(row);
 }
 
-/** distinct donors with a settled gift. messages are not donors. */
+/** `campaign_donor_counts` for one campaign */
 export async function campaign_donor_count(
   campaign_id: string
 ): Promise<number> {
-  const [row] = await db
+  const counts = await campaign_donor_counts([campaign_id]);
+  return counts.get(campaign_id) ?? 0;
+}
+
+/** distinct donors with a settled gift, per campaign, by `npo_donor_count`'s
+ * rule: settled per dist (a refund flips the dist, not the donation), email as
+ * stored. messages are not donors. a campaign with no such gift maps to 0 */
+export async function campaign_donor_counts(
+  campaign_ids: string[]
+): Promise<Map<string, number>> {
+  const counts = new Map(campaign_ids.map((id) => [id, 0]));
+  if (campaign_ids.length === 0) return counts;
+  const rows = await db
     .select({
-      n: sql<number>`count(distinct lower(${donation_donors.email}))`.mapWith(
-        Number
-      ),
+      campaign_id: donations.campaign_id,
+      n: sql<number>`count(distinct ${donation_donors.email})::int`,
     })
     .from(donations)
-    .innerJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
+    .innerJoin(dists, eq(dists.donation_id, donations.id))
+    .innerJoin(donation_donors, eq(donation_donors.donation_id, donations.id))
     .where(
       and(
-        eq(donations.campaign_id, campaign_id),
-        eq(donations.status, "settled")
+        inArray(donations.campaign_id, campaign_ids),
+        eq(dists.status, "settled")
       )
-    );
-  return row?.n ?? 0;
+    )
+    .groupBy(donations.campaign_id);
+  for (const r of rows) if (r.campaign_id) counts.set(r.campaign_id, r.n);
+  return counts;
 }
 
 /** usd preview for a gift that can still settle: `amount_base / upusd`, and only while status is created, intent, or confirmed. a return can land before the row leaves created. tip and the donor-covered fee are not part of it. a blank id, a missing row, any other status, a rate that is not a positive finite number, or a base that is not positive is unknown. */
@@ -243,33 +268,36 @@ export async function campaign_repeat_donor(
   return row != null;
 }
 
+/** a stored live whose ends_at has passed is not live. */
+const is_live = () =>
+  and(
+    eq(campaigns.status, "live"),
+    or(isNull(campaigns.ends_at), sql`${campaigns.ends_at} > now()`)
+  );
+
 export async function campaign_live_for_npo(
   npo_id: number
 ): Promise<ICampaignRow[]> {
   const rows = await campaign_query()
-    .where(
-      and(
-        eq(campaigns.owner_npo_id, npo_id),
-        eq(campaigns.status, "live"),
-        or(isNull(campaigns.ends_at), sql`${campaigns.ends_at} > now()`)
-      )
-    )
+    .where(and(eq(campaigns.owner_npo_id, npo_id), is_live()))
     .orderBy(desc(campaigns.created_at));
   return rows.map(present);
 }
 
-/** a stored live whose ends_at has passed is not live. */
+export async function campaign_live_for_program(
+  program_id: string
+): Promise<ICampaignRow[]> {
+  const rows = await campaign_query()
+    .where(and(eq(campaigns.program_id, program_id), is_live()))
+    .orderBy(desc(campaigns.created_at));
+  return rows.map(present);
+}
+
 export async function campaign_live_count(npo_id: number): Promise<number> {
   const [row] = await db
     .select({ n: count() })
     .from(campaigns)
-    .where(
-      and(
-        eq(campaigns.owner_npo_id, npo_id),
-        eq(campaigns.status, "live"),
-        or(isNull(campaigns.ends_at), sql`${campaigns.ends_at} > now()`)
-      )
-    );
+    .where(and(eq(campaigns.owner_npo_id, npo_id), is_live()));
   return row?.n ?? 0;
 }
 

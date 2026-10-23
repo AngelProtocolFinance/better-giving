@@ -19,7 +19,7 @@ export function Card({
   return (
     <div className="relative bg-panel border rounded has-[.pending]:grayscale has-[.pending]:pointer-events-none  grid grid-rows-subgrid row-span-4 gap-y-0">
       <NavLink
-        to={href("/marketplace/:id", { id: id.toString() })}
+        to={href("/org/:org", { org: id.toString() })}
         className="grid grid-rows-subgrid row-span-4 h-full overflow-clip"
       >
         <Image
@@ -50,7 +50,7 @@ export function Card({
       <div className="absolute grid grid-cols-[1fr_auto_1fr] items-center mt-2 bottom-4 left-4 right-4">
         <ShareButton
           orgName={name}
-          url={`${base_url}${href("/marketplace/:id", { id: id.toString() })}`}
+          url={`${base_url}${href("/org/:org", { org: id.toString() })}`}
           classes=""
         />
         <NavLink

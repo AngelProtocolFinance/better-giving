@@ -2,7 +2,6 @@ import {
   Blocks,
   BoxIcon,
   CircleDollarSign,
-  CircleUserRound,
   Heart,
   Image,
   LayoutDashboard,
@@ -91,14 +90,6 @@ const group2: LinkGroup = {
 const group3: LinkGroup = {
   title: "Public Profile",
   links: [
-    {
-      title: "Edit Profile",
-      to: sidebar_routes.edit_profile,
-      icon: {
-        fn: CircleUserRound,
-        size: 20.5,
-      },
-    },
     {
       title: "Programs",
       to: sidebar_routes.programs,

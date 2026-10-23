@@ -46,14 +46,17 @@ const fetcher = async ([, id, key, campaign_id]: [
 
 interface IPendingButton {
   resting: string;
+  /** the label while busy */
+  pending?: string;
   busy: boolean;
   onClick: () => void;
   className: string;
   described_by?: string;
 }
 
-function PendingButton({
+export function PendingButton({
   resting,
+  pending = "Loading donors",
   busy,
   onClick,
   className,
@@ -78,7 +81,7 @@ function PendingButton({
       {busy ? (
         <span className="inline-flex items-center gap-2">
           <LoaderCircle className="animate-spin icon-md" />
-          Loading donors
+          {pending}
         </span>
       ) : (
         resting
@@ -89,13 +92,18 @@ function PendingButton({
 
 interface IDonorLoadError {
   on_retry: () => void;
+  message?: string;
+  /** the retry button's label while busy */
+  pending?: string;
   classes?: string;
   message_id?: string;
   busy: boolean;
 }
 
-function DonorLoadError({
+export function DonorLoadError({
   on_retry,
+  message = "Couldn't load donors.",
+  pending,
   classes = "",
   message_id,
   busy,
@@ -105,10 +113,11 @@ function DonorLoadError({
       className={`flex flex-col items-start gap-2${classes ? ` ${classes}` : ""}`}
     >
       <p id={message_id} role="alert" className="text-sm text-destructive">
-        Couldn't load donors.
+        {message}
       </p>
       <PendingButton
         resting="Retry"
+        pending={pending}
         busy={busy}
         onClick={on_retry}
         className="min-h-11 text-left text-base font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"

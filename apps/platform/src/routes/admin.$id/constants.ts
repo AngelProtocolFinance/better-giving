@@ -3,7 +3,6 @@ import {
   BoxIcon,
   Building2,
   CircleDollarSign,
-  CircleUserRound,
   HandshakeIcon,
   Heart,
   Image,
@@ -100,14 +99,14 @@ const group2: LinkGroup = {
 };
 
 const group3: LinkGroup = {
-  title: "Public Profile",
+  title: "Manage",
   links: [
     {
-      title: "Edit Profile",
-      to: sidebar_routes.edit_profile,
+      title: "Organization",
+      to: sidebar_routes.organization,
       icon: {
-        fn: CircleUserRound,
-        size: 20.5,
+        fn: Building2,
+        size: 21,
       },
     },
     {
@@ -124,20 +123,6 @@ const group3: LinkGroup = {
       icon: {
         fn: Image,
         size: 20,
-      },
-    },
-  ],
-};
-
-const group4: LinkGroup = {
-  title: "Manage",
-  links: [
-    {
-      title: "Organization",
-      to: sidebar_routes.organization,
-      icon: {
-        fn: Building2,
-        size: 21,
       },
     },
     {
@@ -183,4 +168,4 @@ const group4: LinkGroup = {
   ],
 };
 
-export const linkGroups: LinkGroup[] = [group1, group2, group3, group4];
+export const linkGroups: LinkGroup[] = [group1, group2, group3];

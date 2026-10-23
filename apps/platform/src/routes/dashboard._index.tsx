@@ -158,7 +158,7 @@ function FavoriteCard({ fav }: { fav: IFavorite }) {
   return (
     <div className="relative">
       <Link
-        to={href("/marketplace/:id", { id: fav.id.toString() })}
+        to={href("/org/:org", { org: fav.id.toString() })}
         className="card pr-11 flex items-center gap-x-3 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
       >
         <Image

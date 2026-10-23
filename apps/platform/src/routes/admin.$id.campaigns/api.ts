@@ -38,6 +38,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
     })),
     org_funds,
     supporter_funds,
-    profile_to: href("/admin/:id/edit-profile", { id: String(id) }),
+    // the list no longer shows a profile row; kept for clients still on the
+    // old bundle, now landing on the folded profile fields
+    profile_to: `${href("/admin/:id/organization", { id: String(id) })}#page`,
   };
 };

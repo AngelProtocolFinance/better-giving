@@ -41,9 +41,10 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports (after mocks hoisted) ---
 
-import { Programs as ProfilePrograms } from "#/routes/_app.marketplace_.$id._index/programs";
+import ProfilePage, {
+  loader as profile_loader,
+} from "#/routes/org.$org._index/route";
 import { admin_ctx } from "$/auth/test-utils";
-import { npo_programs } from "$/pg/queries/program";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { action, loader } from "../api";
 import Page from "../route";
@@ -134,15 +135,7 @@ it("programs: empty → create → delete", async () => {
 
   // 3. verify on marketplace profile — program appears
   await cleanup();
-  const progs = await npo_programs(npo.id);
-  const ProfileStub = createRoutesStub([
-    {
-      path: "/",
-      Component: () => <ProfilePrograms programs={progs} />,
-      HydrateFallback: () => null,
-    },
-  ]);
-  const profile = await render(<ProfileStub />);
+  const profile = await render_profile(npo.id);
   await expect.element(profile.getByText("New Program")).toBeInTheDocument();
 
   // 4. go back to admin programs list — new program visible
@@ -161,18 +154,31 @@ it("programs: empty → create → delete", async () => {
     .element(screen2.getByText("No programs yet"))
     .toBeInTheDocument();
 
-  // 6. verify on marketplace profile — no programs
+  // 6. verify on the public profile — the deleted program is gone. the
+  // programs section streams in, so a program that must still be there goes
+  // first: absence only means something once the section has rendered
+  await test_db.current!.db.insert(programs).values({
+    id: crypto.randomUUID(),
+    npo_id: npo.id,
+    title: "Kept Program",
+    description_pt: "[]",
+  });
   await cleanup();
-  const progs_after = await npo_programs(npo.id);
-  const ProfileStub2 = createRoutesStub([
-    {
-      path: "/",
-      Component: () => <ProfilePrograms programs={progs_after} />,
-      HydrateFallback: () => null,
-    },
-  ]);
-  const profile2 = await render(<ProfileStub2 />);
+  const profile2 = await render_profile(npo.id);
+  await expect.element(profile2.getByText("Kept Program")).toBeVisible();
   await expect
     .element(profile2.getByText("New Program"))
     .not.toBeInTheDocument();
 });
+
+function render_profile(npo_id: number) {
+  const Stub = createRoutesStub([
+    {
+      path: "/org/:org",
+      Component: ProfilePage as any,
+      HydrateFallback: () => null,
+      loader: profile_loader as any,
+    },
+  ]);
+  return render(<Stub initialEntries={[`/org/${npo_id}`]} />);
+}

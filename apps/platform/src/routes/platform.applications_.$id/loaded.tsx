@@ -35,8 +35,8 @@ export default function Loaded(
       {props.status_approved_npo_id && (
         <NavLink
           className="link [.pending]:text-gray-11 block -mt-4 text-sm"
-          to={href("/marketplace/:id", {
-            id: props.status_approved_npo_id.toString(),
+          to={href("/org/:org", {
+            org: props.status_approved_npo_id.toString(),
           })}
         >
           Endowment ID: {props.status_approved_npo_id}

@@ -1,6 +1,41 @@
+import type { ImageMIMEType } from "@better-giving/ui";
 import * as v from "valibot";
-import { img_output } from "#/components/img-editor";
-import { $req, org_designation, org_slug, reg_number } from "@/npo/schema";
+import { type ImgSpec, img_output } from "#/components/img-editor";
+import { richtext_content } from "#/types/components";
+import {
+  $,
+  $req,
+  https_url,
+  org_designation,
+  org_slug,
+  reg_number,
+  social_media_urls,
+} from "@/npo/schema";
+
+export const VALID_MIME_TYPES: ImageMIMEType[] = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/svg+xml",
+];
+
+export const MAX_CHARS = 4000;
+
+export const logoSpec: ImgSpec = {
+  type: VALID_MIME_TYPES,
+  aspect: [1, 1],
+  max_size: 4e6,
+};
+export const cardImgSpec: ImgSpec = {
+  type: VALID_MIME_TYPES,
+  aspect: [2, 1],
+  max_size: 4e6,
+};
+export const bannerSpec: ImgSpec = {
+  type: VALID_MIME_TYPES,
+  aspect: [4, 1],
+  max_size: 4e6,
+};
 
 /** letters and digits from the legal name, for the empty slug's placeholder */
 export function suggest_slug(name: string): string {
@@ -15,10 +50,15 @@ export const schema = v.object({
   endow_designation: org_designation,
   hq_country: $req,
   slug: org_slug,
+  url: v.optional(https_url()),
+  street_address: v.optional($),
+  active_in_countries: v.array($),
 });
 
 export type FV = v.InferInput<typeof schema>;
 
+/** in the order the form renders them — `trigger`'s focus-on-error walks
+ * this order, not the order they register in */
 export const fields = [
   "logo",
   "name",
@@ -26,4 +66,19 @@ export const fields = [
   "endow_designation",
   "hq_country",
   "slug",
+  "url",
+  "street_address",
+  "active_in_countries",
 ] as const satisfies (keyof FV)[];
+
+/** the Better Giving Page section, the socials and the publish bar */
+export const profile_schema = v.object({
+  overview: richtext_content({ maxChars: MAX_CHARS, required: true }),
+  tagline: v.pipe($req, v.maxLength(140, "max length is 140 chars")),
+  image: img_output({ required: true }),
+  card_img: img_output({ required: true }),
+  social_media_urls: social_media_urls,
+  published: v.boolean(),
+});
+
+export type ProfileFV = v.InferInput<typeof profile_schema>;

@@ -55,8 +55,9 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports (after mocks hoisted) ---
 
-import { loader as profile_program_loader } from "#/routes/_app.marketplace_.$id.program.$program_id/api";
-import ProfileProgramPage from "#/routes/_app.marketplace_.$id.program.$program_id/route";
+import ProfileProgramPage, {
+  loader as profile_program_loader,
+} from "#/routes/org.$org.program.$program_id/route";
 import { admin_ctx } from "$/auth/test-utils";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { action, loader } from "../api";
@@ -182,15 +183,15 @@ function render_editor(npo_id: number, programId: string) {
 function render_program_profile(npo_id: number, programId: string) {
   const Stub = createRoutesStub([
     {
-      path: "/marketplace/:id/program/:program_id",
-      Component: ProfileProgramPage,
+      path: "/org/:org/program/:program_id",
+      Component: ProfileProgramPage as any,
       HydrateFallback: () => null,
       loader: profile_program_loader as any,
     },
   ]);
 
   return render(
-    <Stub initialEntries={[`/marketplace/${npo_id}/program/${programId}`]} />
+    <Stub initialEntries={[`/org/${npo_id}/program/${programId}`]} />
   );
 }
 
@@ -286,13 +287,18 @@ describe("program editor -- edit program info", () => {
     await expect.element(save_btns.nth(0)).toBeDisabled();
   });
 
-  it("clears target_raise -> profile hides target section", async () => {
+  it("clears target_raise -> program page hides its goal bar", async () => {
     const npo = await seed_npo();
     const prog = await seed_program(npo.id, { target_raise: 50000 });
 
     // verify target shows on profile before clearing
     let screen = await render_program_profile(npo.id, prog.id);
-    await expect.element(screen.getByText(/target raise/i)).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("0% of $50,000 goal", { exact: true }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("progressbar", { name: "Amount raised" }))
+      .toBeInTheDocument();
 
     // clear target in editor
     await screen.unmount();
@@ -313,8 +319,9 @@ describe("program editor -- edit program info", () => {
     await screen.unmount();
     screen = await render_program_profile(npo.id, prog.id);
     await expect.element(screen.getByText(prog.title)).toBeVisible();
+    await expect.element(screen.getByText(/ goal$/)).not.toBeInTheDocument();
     await expect
-      .element(screen.getByText(/target raise/i))
+      .element(screen.getByRole("progressbar", { name: "Amount raised" }))
       .not.toBeInTheDocument();
   });
 });
@@ -713,9 +720,10 @@ describe("program editor -- rich text description", () => {
 
     const screen = await render_program_profile(npo.id, prog.id);
 
+    // the raised card has a <strong> of its own, so find the bold run by text
     await vi.waitFor(() => {
-      const strong = screen.container.querySelector("strong");
-      expect(strong?.textContent).toBe("bold text");
+      const bold = screen.getByText("bold text", { exact: true }).element();
+      expect(bold.tagName).toBe("STRONG");
     });
   });
 });

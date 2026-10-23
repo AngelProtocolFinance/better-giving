@@ -129,7 +129,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
       ? time_left(campaign.ends_at, now)
       : null
     : ended_label(closed_at);
-  const org = `/marketplace/${params.org}`;
+  const org = `/org/${params.org}`;
   const legal = legal_line(npo.ein);
   const website = website_link(npo.url);
   const [pay_busy, set_pay_busy] = useState(false);

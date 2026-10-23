@@ -22,6 +22,8 @@ import { v_contributions } from "../schema/views";
 import { to_target } from "./fmt";
 import type { DbOrTx } from "./helpers";
 
+export { npo_donor_count } from "./donor";
+
 type NpoRow = typeof npos.$inferSelect;
 type NpoInsert = typeof npos.$inferInsert;
 

@@ -20,7 +20,7 @@ export function Stocks(props: StocksDonationDetails) {
   const id = don.recipient.id;
   const path = is_fund(id)
     ? href("/fundraisers/:fund_id", { fund_id: id })
-    : href("/marketplace/:id", { id: id });
+    : href("/org/:org", { org: id });
 
   const tipv = tip_val(props.tip_format, props.tip, +props.ticker.amount);
   const shares = ru_vdec(tipv + +props.ticker.amount, props.ticker.usdpu);

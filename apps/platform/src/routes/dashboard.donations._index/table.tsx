@@ -89,8 +89,8 @@ export function Table({
                   <td>
                     {row.recipient_type === "npo" ? (
                       <Link
-                        to={href("/marketplace/:id", {
-                          id: row.recipient_id,
+                        to={href("/org/:org", {
+                          org: row.recipient_id,
                         })}
                         className="flex items-center justify-between gap-1 link"
                       >
@@ -113,8 +113,8 @@ export function Table({
                     {row.program_id && row.recipient_type === "npo" && (
                       <Link
                         className="link"
-                        to={href("/marketplace/:id/program/:program_id", {
-                          id: row.recipient_id,
+                        to={href("/org/:org/program/:program_id", {
+                          org: row.recipient_id,
                           program_id: row.program_id,
                         })}
                       >

@@ -192,7 +192,7 @@ describe("about-us donate mount config", () => {
     // "Reference" row — the recipient name
     await expect.element(screen.getByText(/^Better Giving$/)).toBeVisible();
     // "Project URL" row — the recipient id
-    await expect.element(screen.getByText(/\/marketplace\/1$/)).toBeVisible();
+    await expect.element(screen.getByText(/\/org\/1$/)).toBeVisible();
   });
 });
 

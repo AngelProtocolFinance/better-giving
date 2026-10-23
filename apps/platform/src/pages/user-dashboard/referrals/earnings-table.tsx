@@ -42,8 +42,8 @@ export function EarningsHistory({
                   <td>{format(p.date_created, "PP")}</td>
                   <td>
                     <Link
-                      to={href("/marketplace/:id", {
-                        id: String(p.to_id ?? 0),
+                      to={href("/org/:org", {
+                        org: String(p.to_id ?? 0),
                       })}
                       className="link"
                     >

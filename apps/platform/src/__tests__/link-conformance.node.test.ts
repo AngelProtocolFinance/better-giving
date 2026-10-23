@@ -123,13 +123,10 @@ const paints_surface = (text: string) =>
 const exempt: Record<string, string[]> = {
   // the contrast-ink ladder on a --primary fill, measured in
   // packages/brand/design-system.md → "`--primary-fg` alpha steps". the ramp
-  // carries no second rung for ink on a brand ground, so these three keep the
+  // carries no second rung for ink on a brand ground, so these two keep the
   // treatments they have.
   "apps/platform/src/components/footer/footer.tsx": ["text-primary-fg"],
   "apps/platform/src/components/chrome/announcement-banner.tsx": ["underline"],
-  "apps/platform/src/routes/_app.marketplace_.$id/page-error.tsx": [
-    "underline",
-  ],
   // the one pillar tile filled with --primary, in a row of tinted ones: its
   // link inherits that band's contrast ink, while the tile beside it takes
   // `link` on the ordinary ground.

@@ -105,7 +105,7 @@ describe("api.donation-notifications recipient identity", () => {
     expect(template_mock).toHaveBeenCalledOnce();
     const d = template_mock.mock.calls[0]![0] as any;
     expect(d.recipient_name).toBe("Freegan Food Foundation");
-    expect(d.recipient_url).toBe(`https://bg.test/marketplace/${NPO_ID}`);
+    expect(d.recipient_url).toBe(`https://bg.test/org/${NPO_ID}`);
   });
 
   it("links a fund recipient to its own page", async () => {

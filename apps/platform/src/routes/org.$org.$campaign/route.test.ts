@@ -239,11 +239,16 @@ describe("public campaign page", () => {
     expect(data.npo.id).toBe(npo.id);
   });
 
-  it("counts distinct settled donors and skips an unfinished gift", async () => {
+  it("counts distinct settled donors and skips an unfinished or refunded gift", async () => {
     const npo = await org();
     await campaign(npo.id);
     const db = test_db.current!.db;
-    async function gift(id: string, email: string, status: string) {
+    async function gift(
+      id: string,
+      email: string,
+      status: string,
+      dist_status?: "settled" | "refunded"
+    ) {
       await db.insert(donations).values({
         id,
         upusd: 10,
@@ -258,13 +263,26 @@ describe("public campaign page", () => {
         campaign_id: "camp-public",
       });
       await db.insert(donation_donors).values({ donation_id: id, email });
+      if (dist_status) {
+        await db.insert(dists).values({
+          id: `${id}-dist`,
+          donation_id: id,
+          status: dist_status,
+          date_created: "2026-02-01T00:00:00.000Z",
+          to_id: npo.id,
+          amount_denom: "USD",
+        });
+      }
     }
-    await gift("g1", "Ada@test.com", "settled");
-    await gift("g2", "ada@test.com", "settled");
-    await gift("g3", "Bea@test.com", "settled");
+    await gift("g1", "Ada@test.com", "settled", "settled");
+    await gift("g2", "ada@test.com", "settled", "settled");
+    await gift("g3", "Bea@test.com", "settled", "settled");
     await gift("g4", "Cara@test.com", "intent");
+    // a refund flips the dist, not the donation
+    await gift("g5", "Dee@test.com", "settled", "refunded");
     const data = await load("https://x/org/acme/winter");
-    expect(data.donor_count).toBe(2);
+    // email as stored, like the org's donor count: Ada and ada are two
+    expect(data.donor_count).toBe(3);
   });
 
   it("returns no ein and no website when the nonprofit has no registration", async () => {
