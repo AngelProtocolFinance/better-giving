@@ -29,6 +29,8 @@ const RED = 13041721;
 const BLUE = 2856675;
 
 const POST_MESSAGE = "https://slack.com/api/chat.postMessage";
+// https://docs.slack.dev/reference/block-kit/blocks/section-block
+const SECTION_TEXT_MAX = 3000;
 
 export class Slack {
   private channel_id: string;
@@ -49,10 +51,13 @@ export class Slack {
       },
     ];
     if (alert.body) {
-      blocks.push({
-        type: "section",
-        text: { type: "mrkdwn", text: alert.body },
-      });
+      // one post. a second message that fails is retried, duplicating the first chunk
+      for (const text of chunk_section_text(alert.body)) {
+        blocks.push({
+          type: "section",
+          text: { type: "mrkdwn", text },
+        });
+      }
     }
     if (alert.fields?.length) {
       blocks.push({
@@ -85,6 +90,21 @@ export class Slack {
     if (failure) throw failure;
     return res;
   }
+}
+
+function chunk_section_text(text: string): string[] {
+  const chunks: string[] = [];
+  let rest = text;
+  while (rest.length > SECTION_TEXT_MAX) {
+    const head = rest.slice(0, SECTION_TEXT_MAX);
+    const newline = head.lastIndexOf("\n");
+    // keep the newline in this chunk so the next section starts on the next line
+    const cut = newline === -1 ? SECTION_TEXT_MAX : newline + 1;
+    chunks.push(rest.slice(0, cut));
+    rest = rest.slice(cut);
+  }
+  if (rest) chunks.push(rest);
+  return chunks;
 }
 
 type Text = { type: "mrkdwn"; text: string };

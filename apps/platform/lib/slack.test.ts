@@ -3,6 +3,13 @@ import { Slack } from "./slack";
 
 const TOKEN = "xoxb-test-token";
 const CHANNEL = "C0CBGUJ20KC";
+// https://docs.slack.dev/reference/block-kit/blocks/section-block
+const section_text_max = 3000;
+
+type AlertBlock =
+  | { type: "section"; text: { type: "mrkdwn"; text: string } }
+  | { type: "section"; fields: { type: "mrkdwn"; text: string }[] }
+  | { type: "context"; elements: { type: "mrkdwn"; text: string }[] };
 
 function posted() {
   const [url, init] = vi.mocked(globalThis.fetch).mock.calls[0]!;
@@ -17,6 +24,17 @@ function posted() {
       attachments: { color: string; blocks: unknown[] }[];
     },
   };
+}
+
+function alert_blocks() {
+  return posted().body.attachments[0]!.blocks as AlertBlock[];
+}
+
+/** mrkdwn section texts after the title block */
+function body_sections(blocks: AlertBlock[]) {
+  return blocks
+    .flatMap((block) => ("text" in block ? [block.text.text] : []))
+    .slice(1);
 }
 
 function mock_fetch(response: () => Response) {
@@ -167,5 +185,94 @@ describe("Slack.send_alert", () => {
         title: "No grants to process",
       })
     ).resolves.toBeInstanceOf(Response);
+  });
+
+  test("posts a body of the section maximum as one section", async () => {
+    mock_fetch(() => Response.json({ ok: true }));
+    const body = "a".repeat(section_text_max);
+    await new Slack(CHANNEL, TOKEN).send_alert({
+      from: "grants-processor",
+      title: "payouts claimed but not settled",
+      body,
+    });
+
+    const blocks = alert_blocks();
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
+    expect(blocks[0]).toEqual({
+      type: "section",
+      text: { type: "mrkdwn", text: "*payouts claimed but not settled*" },
+    });
+    expect(body_sections(blocks)).toEqual([body]);
+    expect(blocks.at(-1)).toEqual({
+      type: "context",
+      elements: [{ type: "mrkdwn", text: "grants-processor" }],
+    });
+  });
+
+  test("splits a body one character over the section maximum into two sections", async () => {
+    mock_fetch(() => Response.json({ ok: true }));
+    const body = "b".repeat(section_text_max + 1);
+    await new Slack(CHANNEL, TOKEN).send_alert({
+      from: "grants-processor",
+      title: "payouts claimed but not settled",
+      body,
+      fields: [{ name: "count", value: "2" }],
+    });
+
+    const blocks = alert_blocks();
+    const texts = body_sections(blocks);
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
+    expect(texts).toHaveLength(2);
+    expect(texts.every((text) => text.length <= section_text_max)).toBe(true);
+    expect(texts.join("")).toBe(body);
+    expect(blocks[0]).toEqual({
+      type: "section",
+      text: { type: "mrkdwn", text: "*payouts claimed but not settled*" },
+    });
+    expect(blocks.at(-2)).toEqual({
+      type: "section",
+      fields: [{ type: "mrkdwn", text: "*count*\n2" }],
+    });
+    expect(blocks.at(-1)).toEqual({
+      type: "context",
+      elements: [{ type: "mrkdwn", text: "grants-processor" }],
+    });
+  });
+
+  test("splits one line longer than the section maximum at the maximum", async () => {
+    mock_fetch(() => Response.json({ ok: true }));
+    const body = "z".repeat(section_text_max * 2 + 1);
+    await new Slack(CHANNEL, TOKEN).send_alert({
+      from: "grants-processor",
+      title: "payouts claimed but not settled",
+      body,
+    });
+
+    const texts = body_sections(alert_blocks());
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
+    expect(texts).toEqual([
+      body.slice(0, section_text_max),
+      body.slice(section_text_max, section_text_max * 2),
+      body.slice(section_text_max * 2),
+    ]);
+  });
+
+  test("splits a multiline body on the last newline that fits", async () => {
+    mock_fetch(() => Response.json({ ok: true }));
+    const line_a = "npo:1 ref r1: 101";
+    // both newlines sit in the first window, and line_b puts the body over it
+    const filler = "m".repeat(2970);
+    const line_b = "npo:2 ref r2: 202";
+    const body = `${line_a}\n${filler}\n${line_b}`;
+
+    await new Slack(CHANNEL, TOKEN).send_alert({
+      from: "grants-processor",
+      title: "payouts claimed but not settled",
+      body,
+    });
+
+    const texts = body_sections(alert_blocks());
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
+    expect(texts).toEqual([`${line_a}\n${filler}\n`, line_b]);
   });
 });
