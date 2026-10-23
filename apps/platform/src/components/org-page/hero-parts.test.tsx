@@ -16,6 +16,11 @@ import { RaisedStats } from "./raised-stats";
 const PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
+// a legacy 3:1 logo, as an older upload could be
+const WIDE_LOGO = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="10"><rect width="30" height="10" fill="teal"/></svg>'
+)}`;
+
 afterEach(async () => {
   await cleanup();
   await reset_viewport();
@@ -53,9 +58,41 @@ describe("org hero", () => {
     expect(marks[1]).toHaveAttribute("aria-hidden", "true");
   });
 
-  test("a name past the display length steps down a size and clamps at two lines", async () => {
+  test("a 3:1 logo is fitted whole in the same square frame the monogram takes", async () => {
+    const screen = await render(
+      <>
+        <OrgMark name="Curtin Child" logo={WIDE_LOGO} size="md" />
+        <OrgMark name="Curtin Child" logo={null} size="md" />
+      </>
+    );
+    const [logo, monogram] = Array.from(screen.container.children);
+    const img = logo as HTMLImageElement;
+    await expect.poll(() => img.complete && img.naturalWidth > 0).toBe(true);
+    expect(img.naturalWidth / img.naturalHeight).toBeCloseTo(3, 1);
+
+    const frame = img.getBoundingClientRect();
+    expect(frame.width).toBe(frame.height);
+    expect(monogram.getBoundingClientRect().toJSON()).toMatchObject({
+      width: frame.width,
+      height: frame.height,
+    });
+    // the system's corner, not a circle that would cut the wide logo's ends
+    for (const el of [img, monogram]) {
+      expect(getComputedStyle(el).borderRadius).toBe("4px");
+    }
+
+    // contain draws the 3:1 picture at the frame's full width and a third of
+    // its height, so all of it sits inside the square; cover would cut its ends
+    expect(getComputedStyle(img).objectFit).toBe("contain");
+  });
+
+  test("a name past the display length steps down a size and wraps in full", async () => {
+    await page.viewport(375, 812);
     const fits = "x".repeat(NAME_DISPLAY_MAX);
-    const long = "Curtin Child Learning Centre (CLICCS)";
+    // 70 characters: three lines and more on a phone
+    const long =
+      "The Curtin Child Learning Centre for Literacy and Numeracy (CLICCS) WA";
+    expect(long).toHaveLength(70);
     const screen = await render(
       <>
         <OrgName name={fits} scale="lg" />
@@ -66,12 +103,18 @@ describe("org hero", () => {
       .getByRole("heading", { level: 1 })
       .elements();
     expect(short_h1).toHaveClass("text-4xl", "md:text-6xl");
-    expect(short_h1).not.toHaveClass("line-clamp-2");
-    expect(long_h1).toHaveClass("text-3xl", "md:text-5xl", "line-clamp-2");
+    expect(long_h1).toHaveClass("text-3xl", "md:text-5xl");
     expect(long_h1).not.toHaveClass("md:text-6xl");
+
+    const s = getComputedStyle(long_h1);
+    expect(s.webkitLineClamp).toBe("none");
+    // nothing hidden past its box; scrollHeight rounds a fractional line up
+    expect(long_h1.scrollHeight - long_h1.clientHeight).toBeLessThanOrEqual(1);
+    const lines = long_h1.clientHeight / Number.parseFloat(s.lineHeight);
+    expect(Math.round(lines)).toBeGreaterThan(2);
   });
 
-  test("the meta line drops the 'Other' designation and a missing website, and strips the protocol", async () => {
+  test("the meta line drops the 'Other' designation and a missing website, and names the website by its host", async () => {
     const screen = await render(
       <>
         <OrgMeta
@@ -79,7 +122,7 @@ describe("org hero", () => {
           npo={{
             endow_designation: "Charity",
             hq_country: "Kenya",
-            url: "https://riverside.org/",
+            url: "https://www.riverside.org/about/team",
           }}
         />
         <OrgMeta
@@ -89,11 +132,14 @@ describe("org hero", () => {
       </>
     );
     const [full, bare] = screen.getByRole("list").elements();
-    expect(full).toHaveTextContent("Charity·Kenya·riverside.org");
-    const site = screen.getByRole("link", { name: "riverside.org" });
+    expect(full).toHaveTextContent("Charity·Kenya·www.riverside.org");
+    const site = screen.getByRole("link", {
+      name: "www.riverside.org",
+      exact: true,
+    });
     await expect
       .element(site)
-      .toHaveAttribute("href", "https://riverside.org/");
+      .toHaveAttribute("href", "https://www.riverside.org/about/team");
     expect(bare).toHaveTextContent("Peru");
     expect(bare).not.toHaveTextContent("Other");
     expect(bare.querySelectorAll("li")).toHaveLength(1);

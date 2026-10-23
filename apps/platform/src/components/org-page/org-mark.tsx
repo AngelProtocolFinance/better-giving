@@ -35,8 +35,8 @@ interface IOrgMark {
   classes?: string;
 }
 
-/** the org's logo in a circle, or the first letter of its name when it has
- * none. decorative: the name always sits beside it */
+/** the org's logo in a square frame, or the first letter of its name in the
+ * same square when it has none. decorative: the name always sits beside it */
 export function OrgMark({
   name,
   logo,
@@ -47,16 +47,18 @@ export function OrgMark({
   const ground = use_ground();
   const { box, px, letter } = BOX[size];
   const edge = ring ? `${RING_WIDTH[size]} ${RING_INK[ground]}` : "";
-  const shape = `${box} shrink-0 rounded-full ${classes}`;
+  const shape = `${box} shrink-0 rounded ${classes}`;
 
   if (logo) {
+    // fitted whole on the light fill: a legacy upload need not be square, and
+    // no stored logo is re-cropped
     return (
       <Image
         src={logo}
         alt=""
         width={px}
         height={px}
-        className={`${shape} bg-surface object-cover ${edge || "border"}`}
+        className={`${shape} bg-surface object-contain ${edge || "border"}`}
       />
     );
   }

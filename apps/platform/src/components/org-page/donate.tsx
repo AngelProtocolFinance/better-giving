@@ -36,15 +36,19 @@ export function DonateButton({
   );
 }
 
-interface IPinnedDonateBar {
+export interface IPinnedDonateBar {
   to: string;
   raised: number;
   target: INpoPublic["target"];
   /** deep: Letter's dark bar */
   tone?: "page" | "deep";
+  /** given, the bar stays pinned from md up too, its line led there by the
+   * org's name and its Donate a size down: Letter's desktop bar */
+  org?: string;
 }
 
-/** Donate pinned to the bottom of a phone screen, with a one-line summary.
+/** Donate pinned to the bottom of a phone screen (of every screen, given
+ * `org`), with a one-line summary.
  * sticky, not fixed: render it as the last child of the page's full-height
  * root, after the footer, so it rides the viewport's bottom edge and comes to
  * rest under the footer rather than over its last line */
@@ -53,20 +57,25 @@ export function PinnedDonateBar({
   raised,
   target,
   tone = "page",
+  org,
 }: IPinnedDonateBar) {
   const content = (
     <div className="page flex items-center gap-3">
       <p
-        className={`min-w-0 flex-1 truncate text-sm ${tone === "page" ? "text-gray-11" : ""}`}
+        className={`min-w-0 flex-1 truncate text-sm md:text-base ${tone === "page" ? "text-gray-11" : ""}`}
       >
+        {org && (
+          <span className="max-md:hidden">
+            <strong>{org}</strong> ·{" "}
+          </span>
+        )}
         {raised_summary(raised, target)}
       </p>
-      <DonateButton to={to} size="lg" />
+      <DonateButton to={to} size="lg" classes={org ? "md:btn-md" : ""} />
     </div>
   );
   // the band's fill and the safe-area inset; the gutter is the page's
-  const bar =
-    "sticky bottom-0 z-sticky pt-3 pb-(--pin-safe) [--pin-safe:max(calc(var(--spacing)*3),env(safe-area-inset-bottom))] md:hidden";
+  const bar = `sticky bottom-0 z-sticky pt-3 pb-(--pin-safe) [--pin-safe:max(calc(var(--spacing)*3),env(safe-area-inset-bottom))] ${org ? "" : "md:hidden"}`;
   if (tone === "deep") {
     return (
       <BrandBand tone="deep" classes={bar}>

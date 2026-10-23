@@ -18,14 +18,14 @@ interface IOrgName {
 }
 
 /** the page's h1. a name that fits display size gets it on one line; a longer
- * one steps down a size and stops at two lines. ink is the ground's */
+ * one steps down a size and wraps in full, never cut off. ink is the ground's */
 export function OrgName({ name, scale, classes = "" }: IOrgName) {
   // measured as the shape module measures it, so the layout and the size agree
   const long = name.trim().length > NAME_DISPLAY_MAX;
   const [display, stepped] = SIZE[scale];
   return (
     <h1
-      className={`font-bold break-words ${long ? `${stepped} line-clamp-2` : display} ${classes}`}
+      className={`font-bold break-words ${long ? stepped : display} ${classes}`}
     >
       {name}
     </h1>

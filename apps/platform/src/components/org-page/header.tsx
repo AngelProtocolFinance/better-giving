@@ -11,6 +11,13 @@ interface IShareTarget {
   url: string;
 }
 
+/** a section of the page the header links to */
+export interface IHeaderSection {
+  /** the section's element id */
+  id: string;
+  label: string;
+}
+
 interface IOrgHeader {
   name: string;
   logo?: string | null;
@@ -25,6 +32,9 @@ interface IOrgHeader {
    * scrolled out of view, and leaves phones to the pinned bar; null while it
    * mounts. omitted, Donate always shows */
   donate_after?: Element | null;
+  /** in-page links to these sections, from lg; narrower screens get none
+   * here, so a page that passes them carries its own strip there */
+  sections?: IHeaderSection[];
 }
 
 /** the nonprofit's own masthead — its mark, not Better Giving's. it pins to
@@ -37,6 +47,7 @@ export function OrgHeader({
   share,
   donate_to,
   donate_after,
+  sections = [],
 }: IOrgHeader) {
   const bar = useRef<HTMLDivElement>(null);
   // the watched element itself, while it is out of view: a new element starts
@@ -71,9 +82,25 @@ export function OrgHeader({
           to={to}
           className="flex min-h-11 min-w-0 flex-1 items-center gap-2 font-bold text-gray-12 sm:gap-3"
         >
-          {logo && <OrgMark name={name} logo={logo} size="sm" />}
+          <OrgMark name={name} logo={logo} size="sm" />
           <span className="truncate">{name}</span>
         </Link>
+        {sections.length > 0 && (
+          <nav aria-label="Sections" className="shrink-0 max-lg:hidden">
+            <ul className="flex items-center">
+              {sections.map((s) => (
+                <li key={s.id}>
+                  <a
+                    href={`#${s.id}`}
+                    className="link inline-flex min-h-11 items-center px-3 font-semibold"
+                  >
+                    {s.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
         <div className="flex shrink-0 items-center">
           {share && <Share trigger="icon" {...share} />}
           {bookmark && (

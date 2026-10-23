@@ -58,6 +58,15 @@ describe("org header", () => {
     }
   });
 
+  it("leads with the monogram when the org has no logo", async () => {
+    const screen = await render(header());
+    const home = screen.getByRole("link", { name: "Acme Relief" });
+    await expect.element(home).toBeVisible();
+    const mark = home.element().querySelector("[data-monogram]");
+    expect(mark).toHaveTextContent("A");
+    expect(mark).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("narrows Donate's side padding on a phone", async () => {
     const inset = async (width: number) => {
       await page.viewport(width, 800);

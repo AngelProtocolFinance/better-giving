@@ -24,6 +24,9 @@ const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const funds_failure = vi.hoisted(() => ({ current: null as Error | null }));
 const report_error_mock = vi.hoisted(() => vi.fn());
 
+// .env.test carries a gateway key, so an unmocked layout pick would call the real gateway
+vi.mock("$/jev", () => ({ jev_choice: async () => null }));
+
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
     {},
@@ -70,13 +73,15 @@ import {
   seed_fund,
   seed_user,
 } from "#/__tests__/fixtures/funds";
+import { FAILED_LINE } from "#/components/org-page/layouts/ways-to-help";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import ProfilePage, { loader } from "../route";
 
 // --- setup ---
 
-const COULDNT_LOAD =
-  "We couldn't load this nonprofit's campaigns right now. Please try again later.";
+const COULDNT_LOAD = FAILED_LINE.give;
+/** a short story and at most a row of items: the poster layout's give section */
+const WAYS_TO_HELP = { name: "Ways to help" };
 
 const db = () => test_db.current!.db;
 
@@ -153,14 +158,14 @@ describe("npo profile — fundraisers section", () => {
       .toBeVisible();
     // the section says so under its own heading
     await expect
-      .element(screen.getByRole("heading", { name: "Campaigns" }))
+      .element(screen.getByRole("region", WAYS_TO_HELP).getByText(COULDNT_LOAD))
       .toBeVisible();
     // a rejected deferred never reaches handleError, so the loader reports it
     expect(report_error_mock).toHaveBeenCalledOnce();
     expect(report_error_mock).toHaveBeenCalledWith(err, { endow_id: npo.id });
   });
 
-  it("lists a live fundraiser under Campaigns, by its creator, donating on its own page", async () => {
+  it("lists a live fundraiser among the ways to help, by its creator, linking to its own page", async () => {
     const npo = await seed_npo(db(), {
       registration_number: "EIN-PROFILE-LIVEFUND",
       name: "Live Fund Org",
@@ -183,22 +188,16 @@ describe("npo profile — fundraisers section", () => {
 
     const screen = await render_profile(npo.id);
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Campaigns" }))
-      .toBeVisible();
     const card = screen
+      .getByRole("region", WAYS_TO_HELP)
       .getByRole("article")
       .filter({ hasText: "Spring Drive" });
+    await expect.element(card.getByText("Fundraiser")).toBeVisible();
+    await expect.element(card.getByText("by Maya Lin")).toBeVisible();
+    // the card's one link: the fundraiser's page carries its donation form
     await expect
-      .element(card.getByRole("link", { name: /Spring Drive/ }))
+      .element(card.getByRole("link", { name: "Spring Drive" }))
       .toHaveAttribute("href", "/fundraisers/fund-live");
-    await expect.element(card.getByText("By Maya Lin")).toBeVisible();
-    await expect
-      .element(card.getByRole("link", { name: "Donate", exact: true }))
-      .toHaveAttribute("href", "/fundraisers/fund-live/donate");
-    await expect
-      .element(card.getByRole("button", { name: "Share Spring Drive" }))
-      .toBeVisible();
   });
 
   it("shows nothing for a nonprofit with no fundraisers", async () => {
@@ -227,7 +226,7 @@ describe("npo profile — fundraisers section", () => {
       .element(screen.getByText(COULDNT_LOAD))
       .not.toBeInTheDocument();
     await expect
-      .element(screen.getByRole("heading", { name: "Campaigns" }))
+      .element(screen.getByRole("region", WAYS_TO_HELP))
       .not.toBeInTheDocument();
     expect(report_error_mock).not.toHaveBeenCalled();
   });

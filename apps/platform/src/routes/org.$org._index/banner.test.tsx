@@ -1,20 +1,12 @@
-import type { ComponentType } from "react";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, useLoaderData } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import "#/index.css";
+import { type IProfile, Profile } from "./profile";
 
-vi.mock("remix-client-cache", () => ({
-  CacheRoute: (Component: ComponentType) => Component,
-  createClientLoaderCache: () => () => null,
-}));
-
-vi.mock("./api", () => ({
-  loader: () => null,
-  headers: () => ({}),
-}));
-
-import Profile from "./route";
+function Page() {
+  return <Profile {...useLoaderData<IProfile>()} />;
+}
 
 // a real 2x1 pixel, so the banner img stays mounted rather than falling back
 const BANNER =
@@ -25,7 +17,7 @@ describe("public profile banner", () => {
     const Stub = createRoutesStub([
       {
         path: "/org/:org",
-        Component: Profile,
+        Component: Page,
         loader: () => ({
           npo: {
             id: 7,

@@ -38,11 +38,21 @@ type DonationMessageRow = typeof donation_messages.$inferSelect & {
   avatar_url: string | null;
 };
 
+/** a non-whitespace char: `trim()` strips spaces only, so a message of
+ * newlines or tabs would pass `trim(x) <> ''` and render blank */
+const HAS_TEXT = "\\S";
+
 export async function donation_message_list(
   npo_id: string,
-  opts?: { limit?: number; next?: string; campaign_id?: string }
+  opts?: {
+    limit?: number;
+    next?: string;
+    campaign_id?: string;
+    /** only rows with a message, so `limit` counts messages and not every public gift */
+    with_message?: boolean;
+  }
 ): Promise<IPage<DonationMessageRow>> {
-  const { limit = 10, next, campaign_id } = opts || {};
+  const { limit = 10, next, campaign_id, with_message = false } = opts || {};
   const rows = await db
     .select({
       ...getTableColumns(donation_messages),
@@ -61,6 +71,9 @@ export async function donation_message_list(
       and(
         eq(donation_messages.npo_id, npo_id),
         campaign_id ? eq(donations.campaign_id, campaign_id) : undefined,
+        with_message
+          ? sql`${donation_messages.donor_message} ~ ${HAS_TEXT}`
+          : undefined,
         message_keyset(next)
       )
     )

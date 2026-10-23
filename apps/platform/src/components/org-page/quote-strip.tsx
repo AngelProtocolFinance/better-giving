@@ -85,13 +85,10 @@ export function QuoteStrip({
       </figure>
       {(n > 1 || on_more) && (
         <div className="flex shrink-0 items-center gap-2 self-end md:self-auto">
-          <p aria-live="polite" className={`text-sm ${t.meta}`}>
-            <span aria-hidden>
-              {at + 1} / {n}
-            </span>
-            <span className="sr-only">
-              Message {at + 1} of {n}
-            </span>
+          {/* the position alone: messages arrive a page at a time, so there
+              is no total to give */}
+          <p aria-live="polite" className="sr-only">
+            Message {at + 1}
           </p>
           <button
             type="button"

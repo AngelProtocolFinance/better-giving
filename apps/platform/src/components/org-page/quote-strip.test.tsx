@@ -17,24 +17,26 @@ describe("QuoteStrip", () => {
     expect(screen.container.querySelector("section")).toBeNull();
   });
 
-  test("steps through the messages, announcing the count, and wraps at the end", async () => {
+  test("steps through the messages, announcing the position with no total, and wraps at the end", async () => {
     const screen = await render(<QuoteStrip messages={msgs(3)} tone="dark" />);
     const next = screen.getByRole("button", { name: "Next message" });
-    const count = screen.getByText(/^Message \d of 3$/);
+    const position = screen.getByText(/^Message \d$/);
 
     await expect.element(screen.getByText("Message body 1")).toBeVisible();
     await expect.element(screen.getByText("Donor 1")).toBeVisible();
-    await expect.element(count).toHaveTextContent("Message 1 of 3");
-    expect(count.element().closest("[aria-live='polite']")).not.toBeNull();
+    await expect.element(position).toHaveTextContent("Message 1");
+    expect(position.element()).toHaveAttribute("aria-live", "polite");
+    // messages load a page at a time, so no total is shown or announced
+    expect(screen.container.textContent).not.toMatch(/\bof\b|\d\s*\/\s*\d/);
 
     await next.click();
     await expect.element(screen.getByText("Message body 2")).toBeVisible();
-    await expect.element(count).toHaveTextContent("Message 2 of 3");
+    await expect.element(position).toHaveTextContent("Message 2");
 
     await next.click();
     await next.click();
     await expect.element(screen.getByText("Message body 1")).toBeVisible();
-    await expect.element(count).toHaveTextContent("Message 1 of 3");
+    await expect.element(position).toHaveTextContent("Message 1");
   });
 
   test("asks for more on reaching the last loaded message, and moves on when it lands", async () => {
@@ -58,7 +60,7 @@ describe("QuoteStrip", () => {
     );
     await expect.element(screen.getByText("Message body 3")).toBeVisible();
     await expect
-      .element(screen.getByText("Message 3 of 4"))
+      .element(screen.getByText("Message 3", { exact: true }))
       .toBeInTheDocument();
   });
 

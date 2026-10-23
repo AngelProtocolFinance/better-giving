@@ -15,6 +15,9 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
+// .env.test carries a gateway key, so an unmocked layout pick would call the real gateway
+vi.mock("$/jev", () => ({ jev_choice: async () => null }));
+
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
     {},
@@ -508,11 +511,9 @@ describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
     await expect
       .element(screen.getByText("Test Fund", { exact: true }))
       .toBeInTheDocument();
-    // the fund's own card: raised and goal are separate amounts, each with its label
+    // the fund's own card: what it raised against its goal
     const card = screen.getByRole("article").filter({ hasText: "Test Fund" });
-    await expect
-      .element(card)
-      .toMatchTextContent(/\$282\s*Raised\s*\$1,000\s*Goal/);
+    await expect.element(card).toMatchTextContent(/\$282 of \$1,000/);
   });
 
   it("user-dashboard forms page shows form with updated ltd Target", async () => {

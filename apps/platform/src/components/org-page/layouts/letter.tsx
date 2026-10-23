@@ -1,0 +1,99 @@
+import { useState } from "react";
+import { RichText, to_text } from "#/components/rich-text";
+import { DonateButton } from "../donate";
+import { OrgBanner } from "../org-banner";
+import { OrgMeta } from "../org-meta";
+import { OrgName } from "../org-name";
+import { QuoteStrip } from "../quote-strip";
+import { RaisedStats } from "../raised-stats";
+import { Credential } from "./credential";
+import { OrgPageFrame } from "./org-page-frame";
+import type { IOrgLayout } from "./types";
+import { WaysToHelp } from "./ways-to-help";
+
+/** a long story, and 0-3 items: an editorial reading column on the page's
+ * left edge. the name and its deck, the figures, the banner across the page,
+ * the story, the donors' words, then whatever there is to give to. Donate is the deep bar
+ * pinned to the bottom at every width; a phone also has it under the figures */
+export function Letter(props: IOrgLayout) {
+  const { npo } = props;
+  // the phone hero's Donate. from md it is not displayed, so the header reads
+  // it as scrolled away and shows its own from the first paint
+  const [hero_donate, set_hero_donate] = useState<HTMLElement | null>(null);
+  const deck = npo.tagline?.trim() || first_sentence(to_text(npo.overview_pt));
+
+  return (
+    <OrgPageFrame
+      page={props}
+      hero_donate={hero_donate}
+      bar={{ tone: "deep", org: npo.name }}
+    >
+      <div className="page pt-6 pb-10 md:pt-12 md:pb-16">
+        {/* each block but the banner keeps the reading measure, one level in
+            from the page, starting on its left edge with the header's */}
+        <article className="flex flex-col gap-5 md:gap-7">
+          <div className="flex max-w-3xl flex-col gap-4">
+            <OrgMeta npo={npo} variant="eyebrow" />
+            <OrgName name={npo.name} scale="lg" />
+            {deck && (
+              <p className="text-lg leading-snug text-gray-11 md:text-2xl">
+                {deck}
+              </p>
+            )}
+            <RaisedStats
+              raised={npo.contributions_total}
+              donors={props.donors}
+              target={npo.target}
+              variant="stacked"
+              classes="mt-1"
+            />
+            <Credential credential={props.credential} />
+            <DonateButton
+              ref={set_hero_donate}
+              to={props.donate_to}
+              size="lg"
+              classes="mt-1 md:hidden"
+            />
+          </div>
+          {npo.image && (
+            // the page's full width, edge on edge with the header's
+            <figure>
+              <OrgBanner src={npo.image} classes="rounded" />
+            </figure>
+          )}
+          <RichText
+            readOnly
+            content={{ value: npo.overview_pt }}
+            // the first block is the lead, set a size up, when it is a
+            // paragraph: a heading or a list keeps its own setting
+            classes={{
+              field:
+                "flex max-w-3xl flex-col gap-5 leading-relaxed md:gap-6 md:text-lg [&>p:first-child]:text-lg [&>p:first-child]:font-bold md:[&>p:first-child]:text-xl",
+            }}
+          />
+          <QuoteStrip
+            messages={props.messages}
+            tone="light"
+            on_more={props.on_more_messages}
+            classes="max-w-3xl"
+          />
+          <WaysToHelp
+            give={props.give}
+            programs={props.programs}
+            videos={props.videos}
+            failed={props.failed}
+            now={props.now}
+            classes="max-w-3xl pt-3"
+          />
+        </article>
+      </div>
+    </OrgPageFrame>
+  );
+}
+
+/** up to the first sentence's closing mark, or the whole text when it has
+ * none */
+function first_sentence(text: string): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? flat;
+}

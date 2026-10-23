@@ -24,6 +24,7 @@ import { npo_media_list } from "$/pg/queries/npo-media";
 import { npo_programs } from "$/pg/queries/program";
 import { npo_admin_member } from "$/pg/queries/user";
 import type { Route } from "./+types/route";
+import { layout_lists } from "./layout-data";
 
 /** the cdn keys on the url alone, so a response that depends on who asked
  * stays out of shared caches */
@@ -101,6 +102,8 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
           name: c.name,
           to,
           image: c.hero ?? null,
+          // its own, without the org's in its place
+          banner: c.banner ?? null,
           raised: c.raised,
           target: c.target,
           official,
@@ -116,7 +119,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
       });
     }),
     count_or_null(npo_donor_count(npo.id)),
-    donation_message_list(String(npo.id), { limit: 10 })
+    donation_message_list(String(npo.id), { limit: 10, with_message: true })
       .then((page) => ({
         messages: page.items
           .filter((m) => m.donor_message?.trim())
@@ -125,7 +128,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
             name: m.donor_name || "Donor",
             message: m.donor_message as string,
           })),
-        // from the raw page, so /api/npo/:id/donors?next= resumes after the last row read, blank ones included
+        // a cursor into the messages-only feed: resume it with /api/npo/:id/donors?with_message=1&next=
         messages_next: page.next ?? null,
       }))
       .catch((err) => {
@@ -154,6 +157,14 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     videos: media_read.status === "fulfilled" ? media_read.value.length : 0,
   };
   const { layout, by } = await pick_layout(shape);
+  const lists = layout_lists({
+    npo,
+    campaigns,
+    funds: funds_read,
+    programs: programs_read,
+    media: media_read,
+    now,
+  });
 
   return data(
     {
@@ -166,6 +177,9 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
       layout,
       layout_by: by,
       shape,
+      lists,
+      // epoch ms, so the server render and hydration count from one instant
+      now: now.getTime(),
 
       // settled by now, but still promises: the page renders each through <Await>
       funds,
