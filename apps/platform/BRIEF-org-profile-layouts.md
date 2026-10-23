@@ -20,7 +20,7 @@ Design: claude.ai canvas "Org profile layouts" (https://claude.ai/artifact/4E9dz
 ## Landing plan
 - [ ] PR 1: `org-profile-polish` → main (one environment, no migration)
   - [x] Polish: About-led 3:1, two-stat raised, 4:1 banner, share chooser, header icons (pushed)
-  - [ ] Spike: one Jev call through AI Gateway (SDK or direct HTTP), with timeout and fallback, behind a unit test
+  - [x] Spike: one Jev call through AI Gateway (SDK or direct HTTP), with timeout and fallback, behind a unit test
   - [ ] Bug fixes: 4:1 campaign/fundraiser card images; donor-message cursor tie-break; heart works logged out and announces its saved state; slug URLs canonicalise case, and an unknown `/marketplace/<slug>` resolves before redirecting; designation tag text token on the campaign page; WordPress plugin page copy
   - [ ] Data: member campaigns ("with [owner org]"); stop dropping campaigns of slugless owners; unpublished orgs 404 for visitors and render for their own admins; campaign `ends_at`; program goal and raised
   - [ ] Shape: measures (story length, item count per kind, banner and logo present, name length), threshold rules, Jev decides the layout with the thresholds as fallback
