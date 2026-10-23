@@ -2,7 +2,7 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
-import { type IOrgDetails, OrgFooter } from "./footer";
+import { type IOrgDetails, OrgFooter, OrgFooterMinimal } from "./footer";
 
 afterEach(async () => {
   await cleanup();
@@ -98,5 +98,19 @@ describe("OrgFooter", () => {
     expect(top(wide_fb.element())).toBeLessThan(
       top(wide.getByText("12-3456789").element())
     );
+  });
+
+  test("the minimal variant is the platform credit alone", async () => {
+    const Stub = createRoutesStub([
+      { path: "/", Component: () => <OrgFooterMinimal /> },
+    ]);
+    const screen = await render(<Stub initialEntries={["/"]} />);
+    const footer = screen.getByRole("contentinfo");
+    await expect
+      .element(footer.getByRole("link", { name: "Powered by Better Giving" }))
+      .toHaveAttribute("href", "/");
+    expect(footer.getByRole("link").elements()).toHaveLength(1);
+    expect(footer.getByRole("heading").query()).toBeNull();
+    expect(footer.getByRole("img").query()).toBeNull();
   });
 });

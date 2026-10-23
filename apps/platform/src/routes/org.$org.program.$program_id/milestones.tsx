@@ -19,8 +19,8 @@ export function Milestones({ milestones, classes = "" }: IMilestones) {
   if (milestones.length === 0) return null;
   const now = Date.now();
   return (
-    <section className={`flex flex-col gap-5 ${classes}`}>
-      <h2 className="text-2xl font-bold">Milestones</h2>
+    <section className={`flex flex-col gap-4 ${classes}`}>
+      <h2 className="text-xl font-bold">Milestones</h2>
       <ol className="flex flex-col">
         {milestones.map((m, idx) => {
           const reached = new Date(m.date).getTime() <= now;

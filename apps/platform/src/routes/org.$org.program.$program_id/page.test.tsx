@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { cleanup, render } from "vitest-browser-react";
 
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: ComponentType) => Component,
@@ -12,8 +12,20 @@ vi.mock("./api", () => ({ loader: () => null, headers: () => ({}) }));
 
 import ProgramPage, { meta } from "./route";
 
-const data = (prog: object) => ({
-  npo: { id: 7, slug: "acme", name: "Acme Relief", logo: null },
+interface IData {
+  prog?: object;
+  donors?: number | null;
+  campaigns?: object[];
+}
+
+const data = ({ prog = {}, donors = null, campaigns = [] }: IData = {}) => ({
+  npo: {
+    id: 7,
+    slug: "acme",
+    name: "Acme Relief",
+    logo: null,
+    social_media_urls: { facebook: "https://facebook.com/acme" },
+  },
   url: "https://x/org/acme/program/p1",
   prog: {
     id: "p1",
@@ -22,61 +34,141 @@ const data = (prog: object) => ({
     milestones: [],
     ...prog,
   },
+  donors,
+  campaigns,
 });
 
-function mount(prog: object) {
+function mount(d: IData = {}) {
   const Stub = createRoutesStub([
     {
       path: "/org/:org/program/:program_id",
       Component: ProgramPage as never,
-      loader: () => data(prog),
+      loader: () => data(d),
     },
   ]);
   return render(<Stub initialEntries={["/org/acme/program/p1"]} />);
 }
 
+const DONATE_TO = "/donate/7?programId=p1";
+
 describe("program page", () => {
   afterEach(async () => {
+    await cleanup();
     await page.viewport(1280, 900);
   });
 
-  it("has no milestones or target card when it has neither", async () => {
-    // the labelled link sits in the side column, hidden below lg
-    await page.viewport(1280, 900);
-    const screen = await mount({});
+  it("donates to the program from the header and the aside, and leads back to the org", async () => {
+    const screen = await mount();
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Wells" }))
       .toBeVisible();
-    expect(screen.getByRole("heading", { name: "Milestones" }).query()).toBe(
-      null
-    );
-    expect(screen.getByRole("progressbar").query()).toBeNull();
+
+    const header = screen.getByRole("banner");
+    await expect
+      .element(header.getByRole("link", { name: "Donate", exact: true }))
+      .toHaveAttribute("href", DONATE_TO);
+    // no Share, no Favorite: the header's only controls are links
+    expect(header.getByRole("button").query()).toBeNull();
     await expect
       .element(screen.getByRole("link", { name: "Donate to this program" }))
-      .toHaveAttribute("href", "/donate/7?programId=p1");
+      .toHaveAttribute("href", DONATE_TO);
+
     await expect
-      .element(screen.getByRole("banner").getByRole("link"))
+      .element(screen.getByRole("link", { name: "Back to Acme Relief" }))
       .toHaveAttribute("href", "/org/acme");
   });
 
-  it("shows the target card and a milestone timeline", async () => {
+  it("counts donors and draws the goal when it has them, and neither when it doesn't", async () => {
+    const counted = await mount({
+      prog: { target_raise: 500, total_donations: 100 },
+      donors: 12,
+    });
+    await expect
+      .element(counted.getByText("raised from 12 donors"))
+      .toBeVisible();
+    await expect
+      .element(counted.getByRole("progressbar", { name: "Amount raised" }))
+      .toBeVisible();
+    await expect
+      .element(counted.getByText("20% of $500 goal", { exact: true }))
+      .toBeVisible();
+    await cleanup();
+
+    const bare = await mount({ prog: { total_donations: 100 }, donors: null });
+    const aside = bare.getByRole("complementary");
+    await expect
+      .element(aside.getByText("$100 raised", { exact: true }))
+      .toBeVisible();
+    expect(aside.getByText("donor").query()).toBeNull();
+    expect(bare.getByRole("progressbar").query()).toBeNull();
+    expect(bare.getByText("goal").query()).toBeNull();
+  });
+
+  it("lists the program's campaigns, each opening its page, and hides the section without any", async () => {
     const screen = await mount({
-      target_raise: 500,
-      total_donations: 100,
-      milestones: [
+      campaigns: [
         {
-          title: "Drill first well",
-          description_pt: "[]",
-          date: "2020-01-02T00:00:00.000Z",
+          id: "c1",
+          name: "Spring well drive",
+          to: "/org/acme/spring-well-drive",
+          image: null,
+          raised: 400,
+          target: "1000",
+        },
+        {
+          id: "c2",
+          name: "Pump repairs",
+          to: "/org/acme/pump-repairs",
+          image: null,
+          raised: 40,
+          target: undefined,
         },
       ],
     });
     await expect
-      .element(screen.getByText("of $500 target", { exact: true }))
+      .element(
+        screen.getByRole("heading", { name: "Campaigns in this program" })
+      )
       .toBeVisible();
+    // the page's one list, with no milestones
+    const section = screen.getByRole("list");
     await expect
-      .element(screen.getByRole("progressbar", { name: "Amount received" }))
+      .element(section.getByRole("link", { name: "Spring well drive" }))
+      .toHaveAttribute("href", "/org/acme/spring-well-drive");
+    await expect
+      .element(section.getByRole("link", { name: "Pump repairs" }))
+      .toHaveAttribute("href", "/org/acme/pump-repairs");
+    await expect
+      .element(section.getByText("of $1,000", { exact: true }))
       .toBeVisible();
+    // only the campaign with a goal draws a bar
+    expect(section.getByRole("progressbar").elements()).toHaveLength(1);
+    await expect
+      .element(section.getByText("$40 raised", { exact: true }))
+      .toBeVisible();
+    await cleanup();
+
+    const none = await mount({ campaigns: [] });
+    await expect
+      .element(none.getByRole("heading", { level: 1, name: "Wells" }))
+      .toBeVisible();
+    expect(
+      none.getByRole("heading", { name: "Campaigns in this program" }).query()
+    ).toBeNull();
+  });
+
+  it("shows a milestone timeline, and none without milestones", async () => {
+    const screen = await mount({
+      prog: {
+        milestones: [
+          {
+            title: "Drill first well",
+            description_pt: "[]",
+            date: "2020-01-02T00:00:00.000Z",
+          },
+        ],
+      },
+    });
     await expect
       .element(screen.getByRole("heading", { name: "Milestones" }))
       .toBeVisible();
@@ -84,50 +176,40 @@ describe("program page", () => {
       .element(screen.getByRole("heading", { name: "Drill first well" }))
       .toBeVisible();
     await expect.element(screen.getByText("Jan 2, 2020")).toBeVisible();
+    await cleanup();
+
+    const none = await mount();
+    await expect
+      .element(none.getByRole("heading", { level: 1, name: "Wells" }))
+      .toBeVisible();
+    expect(
+      none.getByRole("heading", { name: "Milestones" }).query()
+    ).toBeNull();
   });
 
-  it("on a phone, pins Share beside the donate link", async () => {
+  it("on a phone, pins nothing to the bottom and ends on the platform credit alone", async () => {
     await page.viewport(375, 667);
-    const screen = await mount({});
-    // the side column's pair is display:none here, so each name resolves to
-    // the pinned bar's control alone
+    const screen = await mount();
     await expect
-      .element(screen.getByRole("button", { name: "Share", exact: true }))
+      .element(screen.getByRole("link", { name: "Donate to this program" }))
       .toBeVisible();
-    const donate = screen.getByRole("link", { name: "Donate", exact: true });
-    await expect.element(donate).toBeVisible();
-    await document.fonts.ready;
-    const link = donate.element();
-    const label = document.createRange();
-    label.selectNodeContents(link);
-    expect(label.getClientRects()).toHaveLength(1);
-    expect(link.getBoundingClientRect().height).toBeGreaterThanOrEqual(
-      screen
-        .getByRole("button", { name: "Share", exact: true })
-        .element()
-        .getBoundingClientRect().height
+
+    const fixed = [...document.body.querySelectorAll("*")].filter(
+      (el) => getComputedStyle(el).position === "fixed"
     );
-    await expect
-      .element(donate)
-      .toHaveAttribute("href", "/donate/7?programId=p1");
+    expect(fixed).toEqual([]);
 
-    // the shared header stays plain here: the bar carries the page's actions
-    const header = screen.getByRole("banner");
-    expect(header.getByRole("link", { name: "Donate" }).query()).toBeNull();
-    expect(header.getByRole("button", { name: "Share" }).query()).toBeNull();
-    expect(
-      screen.getByRole("contentinfo").getByText("Organization details").query()
-    ).toBeNull();
-
-    await screen.getByRole("button", { name: "Share", exact: true }).click();
+    const footer = screen.getByRole("contentinfo");
     await expect
-      .element(screen.getByRole("dialog", { name: "Share" }))
-      .toBeVisible();
+      .element(footer.getByRole("link", { name: "Powered by Better Giving" }))
+      .toHaveAttribute("href", "/");
+    expect(footer.getByRole("link").elements()).toHaveLength(1);
+    expect(footer.getByText("Acme Relief").query()).toBeNull();
   });
 
   it("shares its banner, or the default image without one", () => {
     const og_image = (prog: object) =>
-      (meta as any)({ loaderData: data(prog) }).find(
+      (meta as any)({ loaderData: data({ prog }) }).find(
         (m: { property?: string }) => m.property === "og:image"
       )?.content;
 

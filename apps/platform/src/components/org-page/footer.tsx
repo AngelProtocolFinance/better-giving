@@ -96,3 +96,19 @@ export function OrgFooter({
     </footer>
   );
 }
+
+/** the platform credit alone, for a page whose header already names the org */
+export function OrgFooterMinimal() {
+  return (
+    <footer className="border-t bg-panel">
+      <div className="page flex justify-center py-3">
+        <Link
+          to="/"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-gray-11"
+        >
+          Powered by Better Giving
+        </Link>
+      </div>
+    </footer>
+  );
+}
