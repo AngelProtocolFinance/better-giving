@@ -1,10 +1,11 @@
 import { ExtLink, Image } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import { ChevronRight, Globe, MapPin } from "lucide-react";
-import { type ReactNode, Suspense } from "react";
+import { type ReactNode, Suspense, useRef, useState } from "react";
 import { Await, href, Link } from "react-router";
 import fallback_banner from "#/assets/images/bg-banner.webp";
 import flying_character from "#/assets/images/flying-character.webp";
+import { DonorLoadError, PendingButton } from "#/components/donor-msgs";
 import { type IOrgDetails, OrgFooter } from "#/components/org-page/footer";
 import { GoalBar } from "#/components/org-page/goal-bar";
 import { OrgHeader } from "#/components/org-page/header";
@@ -53,6 +54,8 @@ export interface IProfile {
   url: string;
   donors: number | null;
   messages: IMessage[];
+  /** cursor for the page after `messages`; null when there is none */
+  messages_next: string | null;
   campaigns: ICampaignCard[];
   funds: Promise<IFundItem[]>;
   media: Promise<IMedia[]>;
@@ -102,7 +105,10 @@ export function Profile(props: IProfile) {
             <Media media={props.media} name={npo.name} />
           </div>
           <Messages
+            key={npo.id}
+            npo_id={npo.id}
             messages={props.messages}
+            next={props.messages_next}
             classes="xl:col-start-1 xl:row-start-2"
           />
         </div>
@@ -600,16 +606,76 @@ function Medium({ item, title }: IMedium) {
 }
 
 interface IMessages {
+  npo_id: number;
   messages: IMessage[];
+  next: string | null;
   classes?: string;
 }
 
-function Messages({ messages, classes = "" }: IMessages) {
-  if (messages.length === 0) return null;
+interface IDonorsPage {
+  items: {
+    id: string;
+    donor_name?: string | null;
+    donor_message?: string | null;
+  }[];
+  next?: string;
+}
+
+/** a page of `/api/npo/:id/donors` as messages: blank ones dropped, the amount
+ * never read — the same rule the loader applies to the first page */
+async function messages_page(npo_id: number, cursor: string) {
+  const q = new URLSearchParams({ next: cursor });
+  const res = await fetch(`/api/npo/${npo_id}/donors?${q}`);
+  if (!res.ok) throw new Error(String(res.status));
+  const page: IDonorsPage = await res.json();
+  const messages: IMessage[] = page.items
+    .filter((m) => m.donor_message?.trim())
+    .map((m) => ({
+      id: m.id,
+      name: m.donor_name || "Donor",
+      message: m.donor_message as string,
+    }));
+  return { messages, next: page.next ?? null };
+}
+
+function Messages({ npo_id, messages, next, classes = "" }: IMessages) {
+  const [more, set_more] = useState<IMessage[]>([]);
+  const [cursor, set_cursor] = useState(next);
+  const [pending, set_pending] = useState<null | "more" | "retry">(null);
+  const [failed, set_failed] = useState(false);
+  const inflight = useRef(false);
+  const shown = [...messages, ...more];
+  if (shown.length === 0 && !cursor) return null;
+
+  /** one press shows at least one more message, or reaches the last page */
+  async function load(from: "more" | "retry") {
+    if (inflight.current || !cursor) return;
+    inflight.current = true;
+    set_pending(from);
+    try {
+      let at: string | null = cursor;
+      let got = 0;
+      while (at && got === 0) {
+        const page = await messages_page(npo_id, at);
+        got = page.messages.length;
+        set_more((prev) => [...prev, ...page.messages]);
+        at = page.next;
+        set_cursor(at);
+      }
+      set_failed(false);
+    } catch {
+      set_failed(true);
+    } finally {
+      inflight.current = false;
+      set_pending(null);
+    }
+  }
+
+  const error_id = `messages-error-${npo_id}`;
   return (
     <section className={`flex flex-col gap-3 ${classes}`}>
       <h2 className={h2}>Donor messages</h2>
-      {messages.map((m) => (
+      {shown.map((m) => (
         <figure key={m.id} className="card flex flex-col gap-2">
           <figcaption className="text-sm font-bold">{m.name}</figcaption>
           <blockquote className="break-words leading-relaxed">
@@ -617,6 +683,25 @@ function Messages({ messages, classes = "" }: IMessages) {
           </blockquote>
         </figure>
       ))}
+      {cursor && (
+        <PendingButton
+          resting="View more"
+          pending="Loading messages"
+          busy={pending === "more"}
+          described_by={failed ? error_id : undefined}
+          onClick={() => load("more")}
+          className="min-h-11 self-start text-left text-base font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        />
+      )}
+      {failed && (
+        <DonorLoadError
+          message="Couldn't load more messages."
+          pending="Loading messages"
+          busy={pending === "retry"}
+          message_id={error_id}
+          on_retry={() => load("retry")}
+        />
+      )}
     </section>
   );
 }

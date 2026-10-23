@@ -1,3 +1,4 @@
+import { HttpResponse, http } from "msw";
 import { act } from "react";
 import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +7,7 @@ import { cleanup, render } from "vitest-browser-react";
 import { shared_via_facebook } from "#/__tests__/fixtures/share-target";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import { unsdgs } from "#/constants/unsdgs";
+import { mswWorker } from "#/setup-tests-browser";
 import type { IFundItem } from "@/fundraiser";
 import type { INpoPublic } from "$/pg/queries/npo";
 import { type IProfile, Profile } from "../profile";
@@ -55,6 +57,7 @@ const empty: IProfile = {
   url: "https://x/org/acme",
   donors: 3,
   messages: [],
+  messages_next: null,
   campaigns: [],
   funds: Promise.resolve([]),
   media: Promise.resolve([]),
@@ -857,6 +860,115 @@ describe("org profile fundraisers", () => {
     expect(await images("Both Drive")).toEqual([LOGO, BANNER]);
     expect(await images("Logo Drive")).toEqual([OTHER, OTHER]);
     expect(await images("Bare Drive")).toEqual([]);
+  });
+});
+
+describe("org profile donor messages", () => {
+  const first = { id: "d1", name: "Ana", message: "Keep going" };
+  const row = (
+    id: string,
+    donor_message: string | null,
+    donor_name: string | null = "Ben"
+  ) => ({ id, donor_name, donor_message, amount: 250, date: "2026-10-01" });
+  /** the cursors asked for, in order */
+  const serve = (pages: Record<string, unknown>) => {
+    const asked: string[] = [];
+    mswWorker.use(
+      http.get("/api/npo/7/donors", ({ request }) => {
+        const next = new URL(request.url).searchParams.get("next") ?? "";
+        asked.push(next);
+        const page = pages[next];
+        return page === undefined
+          ? HttpResponse.json(null, { status: 500 })
+          : HttpResponse.json(page);
+      })
+    );
+    return asked;
+  };
+  type IScreen = Awaited<ReturnType<typeof mount>>;
+  const section_of = (screen: IScreen) =>
+    (
+      screen
+        .getByRole("heading", { name: "Donor messages" })
+        .element() as HTMLElement
+    ).closest("section") as HTMLElement;
+  const messages_in = (screen: IScreen) =>
+    [...section_of(screen).querySelectorAll("blockquote")].map(
+      (q) => q.textContent
+    );
+
+  it("View more appends each older page, leaves out blank messages and amounts, and goes once none is left", async () => {
+    const asked = serve({
+      c2: {
+        items: [
+          row("d2", "Proud to help"),
+          row("d3", null),
+          row("d4", "   "),
+          row("d5", "From all of us", null),
+        ],
+        next: "c3",
+      },
+      c3: { items: [row("d6", "Last one")] },
+    });
+    const screen = await mount({ messages: [first], messages_next: "c2" });
+    const more = screen.getByRole("button", { name: "View more" });
+
+    await more.click();
+    await expect.element(screen.getByText("From all of us")).toBeVisible();
+    expect(messages_in(screen)).toEqual([
+      "Keep going",
+      "Proud to help",
+      "From all of us",
+    ]);
+    // a donor without a name signs as Donor
+    await expect
+      .element(screen.getByText("Donor", { exact: true }))
+      .toBeVisible();
+
+    await more.click();
+    await expect.element(screen.getByText("Last one")).toBeVisible();
+    await expect.element(more).not.toBeInTheDocument();
+    expect(messages_in(screen)).toHaveLength(4);
+    expect(section_of(screen).textContent).not.toMatch(/\$|250/);
+    expect(asked).toEqual(["c2", "c3"]);
+  });
+
+  it("a page of blank messages alone is passed over in the same press", async () => {
+    const asked = serve({
+      c2: { items: [row("d2", null), row("d3", "")], next: "c3" },
+      c3: { items: [row("d4", "Worth the wait")] },
+    });
+    const screen = await mount({ messages: [first], messages_next: "c2" });
+    await screen.getByRole("button", { name: "View more" }).click();
+
+    await expect.element(screen.getByText("Worth the wait")).toBeVisible();
+    expect(asked).toEqual(["c2", "c3"]);
+    await expect
+      .element(screen.getByRole("button", { name: "View more" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("a failed page keeps the messages shown and offers a retry that appends it", async () => {
+    const pages: Record<string, unknown> = {};
+    serve(pages);
+    const screen = await mount({ messages: [first], messages_next: "c2" });
+    const more = screen.getByRole("button", { name: "View more" });
+
+    await more.click();
+    const alert = screen.getByRole("alert");
+    await expect
+      .element(alert)
+      .toHaveTextContent("Couldn't load more messages.");
+    await expect.element(screen.getByText("Keep going")).toBeVisible();
+    await expect
+      .element(more)
+      .toHaveAccessibleDescription("Couldn't load more messages.");
+
+    pages.c2 = { items: [row("d2", "Second try")] };
+    await screen.getByRole("button", { name: "Retry" }).click();
+    await expect.element(screen.getByText("Second try")).toBeVisible();
+    await expect.element(alert).not.toBeInTheDocument();
+    await expect.element(more).not.toBeInTheDocument();
   });
 });
 
