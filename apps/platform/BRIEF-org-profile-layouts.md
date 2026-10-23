@@ -40,6 +40,8 @@ Design: claude.ai canvas "Org profile layouts" (https://claude.ai/artifact/4E9dz
 - Donate → a filled primary button visible on first load in every layout; in the header once the hero scrolls away on desktop; a pinned bottom bar on phones. (PM)
 - Donor messages never change the layout: quote strip in Poster/Letter, a tab in Hub/Feature.
 - Who decides → Jev from day 1 (PM). Our call on mechanics: Jev runs at page render from the measures, under the page's existing CDN cache (`s-maxage=60`), with a short timeout; on timeout or error the threshold rules decide. This keeps time-based changes (a fundraiser closing on its date) correct with no stored layout and no migration.
+- Jev facts → AI Gateway model `typesafe-ai/jev` (pin a version, e.g. `typesafe-ai/jev-1.14.0`). The gateway lists it as type "evaluation", spec "v4", text in only: it takes shared state plus typed questions and returns choices with scores, not chat text; 32k-token context. The repo's `ai` SDK is 6.0.176 and may not speak spec v4, so the spike tries the SDK first and falls back to a direct gateway HTTP call. Auth is the existing `AI_GATEWAY_API_KEY` (same key `_app.fundraisers.new/evaluate.ts` uses).
+- Jev input → the measures only (story character count, item count per kind, banner/logo present, name length), never the org's text; question → which of Poster / Letter / Hub / Feature.
 - When → on each render, not stored. Stored layouts go stale when fundraisers close by date.
 - Unused data in → campaign end date ("Ends in N days"), program goal/raised bars. Later → milestones timeline, SDG chips, fiscal-sponsor note. Never → donor message amounts (privacy).
 - Member campaigns → shown, labelled "with [owner org]".
