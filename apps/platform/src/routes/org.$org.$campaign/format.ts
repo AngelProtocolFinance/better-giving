@@ -66,9 +66,12 @@ export function website_link(
   }
 }
 
+export function donor_noun(n: number): string {
+  return n === 1 ? "donor" : "donors";
+}
+
 export function donor_label(n: number): string {
-  if (n === 1) return "1 donor";
-  return `${n.toLocaleString("en-US")} donors`;
+  return `${n.toLocaleString("en-US")} ${donor_noun(n)}`;
 }
 
 const ended_date = new Intl.DateTimeFormat("en-US", {

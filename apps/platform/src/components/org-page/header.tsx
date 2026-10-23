@@ -52,7 +52,7 @@ export function OrgHeader({
           )}
           <span className="truncate">{name}</span>
         </Link>
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <div className="flex shrink-0 items-center">
           {share && <Share trigger="icon" {...share} />}
           {bookmark && (
             <BookmarkBtn
@@ -64,7 +64,7 @@ export function OrgHeader({
           {donate_to && (
             <Link
               to={donate_to}
-              className="btn btn-primary max-sm:ml-1 max-sm:px-4"
+              className="btn btn-primary ml-1 max-sm:px-4 sm:ml-2"
             >
               Donate
             </Link>

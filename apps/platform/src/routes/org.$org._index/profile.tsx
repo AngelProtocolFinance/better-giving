@@ -15,7 +15,7 @@ import { org_href, program_href } from "#/helpers/org-href";
 import { Share } from "#/routes/_app.fundraisers.$fund_id/share";
 import { Video } from "#/routes/_app.fundraisers.$fund_id/video";
 import {
-  donor_label,
+  donor_noun,
   goal_amount,
   percent_label,
 } from "#/routes/org.$org.$campaign/format";
@@ -85,15 +85,13 @@ export function Profile(props: IProfile) {
       />
       <main className="page flex flex-1 flex-col gap-6 pt-4 pb-6 lg:gap-8 lg:pt-8 lg:pb-20">
         <Mast npo={npo} donors={props.donors} donate_to={donate_to} />
-        {/* the dom is the phone's reading order. from xl the right column
-            spans both rows, so the auto first row is the hero's height and
-            messages start right under it, whatever the right column runs to */}
-        <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[26.25rem_minmax(0,1fr)] xl:grid-rows-[auto_1fr] xl:items-start xl:gap-8">
-          <Hero
-            npo={npo}
-            details={details}
-            classes="xl:col-start-1 xl:row-start-1"
-          />
+        {/* the dom is the phone's reading order. from xl the story takes three
+            parts to the right column's one, which never drops under a campaign
+            card's floor. the right column spans both rows, so the auto first
+            row is the hero's height and messages start right under it,
+            whatever the right column runs to */}
+        <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,3fr)_minmax(18rem,1fr)] xl:grid-rows-[auto_1fr] xl:items-start xl:gap-8">
+          <Hero npo={npo} classes="xl:col-start-1 xl:row-start-1" />
           <div className="flex min-w-0 flex-col gap-6 empty:hidden xl:col-start-2 xl:row-start-1 xl:row-end-3 xl:gap-8">
             <Campaigns
               npo_id={npo.id}
@@ -151,7 +149,7 @@ function Mast({ npo, donors, donate_to }: IMast) {
   const tag = npo.endow_designation !== "Other" ? npo.endow_designation : null;
   const has_meta = !!(tag || npo.hq_country || npo.url);
   return (
-    <section className="card grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 lg:grid-cols-[auto_minmax(0,1fr)_18.75rem] lg:gap-x-7">
+    <section className="card grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 lg:items-start lg:grid-cols-[auto_minmax(0,1fr)_18.75rem] lg:gap-x-7">
       <Image
         src={npo.logo || flying_character}
         alt=""
@@ -176,7 +174,7 @@ function Mast({ npo, donors, donate_to }: IMast) {
               </p>
             )}
             {npo.hq_country && (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-1">
                 <MapPin aria-hidden className="icon-md text-gray-11" />
                 {npo.hq_country}
               </span>
@@ -184,7 +182,7 @@ function Mast({ npo, donors, donate_to }: IMast) {
             {npo.url && (
               <ExtLink
                 href={npo.url}
-                className="link flex items-center gap-2 underline underline-offset-4"
+                className="link flex items-center gap-1 underline underline-offset-4"
               >
                 <Globe aria-hidden className="icon-md" />
                 {npo.url.replace(/^https?:\/\//i, "")}
@@ -213,19 +211,28 @@ interface IRaised extends INpoProps {
   classes?: string;
 }
 
+/** the figures, each over its label. from lg the amount is the h1's size, so
+ * its first line sits level with the name's, and the block hangs off the
+ * card's right edge */
 function Raised({ npo, donors, classes = "" }: IRaised) {
   const raised = npo.contributions_total ?? 0;
   const goal = goal_amount(npo.target, raised);
   return (
     <div className={`flex flex-col gap-2 ${classes}`}>
-      <p className="text-sm">
-        <strong className="text-lg">{to_usd(raised)}</strong>{" "}
-        {donors == null ? "raised" : `raised from ${donor_label(donors)}`}
-      </p>
+      <dl className="flex flex-wrap gap-x-4 gap-y-2 lg:justify-end">
+        <Stat label="raised" value={to_usd(raised)} />
+        {donors != null && (
+          <Stat
+            label={donor_noun(donors)}
+            value={donors.toLocaleString("en-US")}
+            classes="border-l pl-4"
+          />
+        )}
+      </dl>
       {goal != null && (
         <>
           <GoalBar raised={raised} goal={goal} />
-          <p className="text-xs text-gray-11">
+          <p className="text-xs text-gray-11 lg:text-right">
             {percent_label(raised, goal)} of {to_usd(goal)} goal
           </p>
         </>
@@ -234,21 +241,30 @@ function Raised({ npo, donors, classes = "" }: IRaised) {
   );
 }
 
-interface IHero extends INpoProps {
-  details: IOrgDetails;
+interface IStat {
+  label: string;
+  value: string;
   classes?: string;
 }
 
-/** the banner on top, then the org's story; from xl, where the card sits in
- * the narrow column, its details under that. below xl they are in the footer
- * only */
-function Hero({ npo, details, classes = "" }: IHero) {
+/** term before definition for a screen reader, figure over label on screen */
+function Stat({ label, value, classes = "" }: IStat) {
+  return (
+    <div className={`flex flex-col-reverse ${classes}`}>
+      <dt className="text-sm text-gray-11">{label}</dt>
+      <dd className="text-2xl font-bold lg:text-4xl">{value}</dd>
+    </div>
+  );
+}
+
+interface IHero extends INpoProps {
+  classes?: string;
+}
+
+/** the banner on top, then the org's story. the org's details are the
+ * footer's */
+function Hero({ npo, classes = "" }: IHero) {
   const has_about = !!to_text(npo.overview_pt).trim();
-  const facts = [
-    { term: "EIN / Registration", value: details.registration_number },
-    { term: "Active in", value: details.active_in },
-    { term: "Address", value: details.address },
-  ].filter((f) => f.value);
   return (
     <section
       className={`flex flex-col overflow-hidden rounded border bg-panel ${classes}`}
@@ -256,40 +272,19 @@ function Hero({ npo, details, classes = "" }: IHero) {
       <Image
         src={npo.image || fallback_banner}
         alt=""
-        className="aspect-video w-full object-cover"
+        className="aspect-4/1 w-full object-cover"
       />
-      {(has_about || facts.length > 0) && (
-        <div
-          className={`flex flex-col gap-6 p-6 ${has_about ? "" : "max-xl:hidden"}`}
-        >
-          {has_about && (
-            // the reading measure; from xl the column is narrower than it
-            <div className="flex flex-col gap-3 lg:max-w-3xl">
-              <h2 className={h2}>About</h2>
-              <RichText
-                readOnly
-                content={{ value: npo.overview_pt }}
-                classes={{
-                  field: "flex w-full flex-col gap-3 text-base leading-relaxed",
-                }}
-              />
-            </div>
-          )}
-          {facts.length > 0 && (
-            <div className="flex flex-col gap-6 max-xl:hidden">
-              {has_about && <hr />}
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-                {facts.map((f) => (
-                  <div key={f.term} className="flex flex-col gap-1">
-                    <dt className="text-xs font-bold uppercase tracking-badge text-gray-11">
-                      {f.term}
-                    </dt>
-                    <dd>{f.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          )}
+      {has_about && (
+        // the reading measure, which the card outruns from lg
+        <div className="flex flex-col gap-3 p-6 lg:max-w-3xl">
+          <h2 className={h2}>About</h2>
+          <RichText
+            readOnly
+            content={{ value: npo.overview_pt }}
+            classes={{
+              field: "flex w-full flex-col gap-3 text-base leading-relaxed",
+            }}
+          />
         </div>
       )}
     </section>
@@ -309,12 +304,16 @@ interface ICampaignsProps {
 function Campaigns({ npo_id, origin, campaigns, funds }: ICampaignsProps) {
   const section = (cards: ICampaignCard[], note?: ReactNode) =>
     cards.length === 0 && !note ? null : (
-      <section className="flex flex-col gap-3">
+      // sized off the section, not the viewport: from xl it is the narrow
+      // right column, where the cards stack one per row
+      <section className="@container flex flex-col gap-3">
         <h2 className={h2}>Campaigns</h2>
         {cards.length > 0 && (
-          <ul className="grid gap-4 sm:grid-cols-2">
+          <ul className="grid gap-4 @xl:grid-cols-2">
             {cards.map((c) => (
-              <li key={c.id}>
+              // a lone card takes the whole row, where its container query
+              // sets the photo beside the details instead of over them
+              <li key={c.id} className="@container @xl:only:col-span-2">
                 <CampaignCard {...c} share_url={new URL(c.to, origin).href} />
               </li>
             ))}
@@ -392,8 +391,8 @@ interface ICampaignCardProps extends ICampaignCard {
 function CampaignCard(c: ICampaignCardProps) {
   const goal = goal_amount(c.target, c.raised);
   return (
-    <article className="relative flex h-full flex-col overflow-hidden rounded border bg-panel has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2">
-      <p className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-11">
+    <article className="relative flex h-full flex-col overflow-hidden @2xl:grid @2xl:grid-cols-2 @2xl:grid-rows-[auto_1fr] rounded border bg-panel has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2">
+      <p className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-11 @2xl:col-start-2 @2xl:row-start-1 @2xl:px-6 @2xl:pt-6">
         {c.mark ? (
           <Image
             src={c.mark}
@@ -415,7 +414,7 @@ function CampaignCard(c: ICampaignCardProps) {
       {/* stacked in one grid cell, not positioned, so the card stays the box
           the link's ::after covers; grid-rows-1 holds the row to the 16:9
           box rather than the photo's own height */}
-      <div className="grid aspect-video grid-rows-1 overflow-hidden bg-gray-3">
+      <div className="grid aspect-video grid-rows-1 overflow-hidden bg-gray-3 @2xl:col-start-1 @2xl:row-span-2 @2xl:row-start-1">
         {c.image && (
           <Image
             src={c.image}
@@ -436,7 +435,7 @@ function CampaignCard(c: ICampaignCardProps) {
           {c.excerpt && <p className="line-clamp-2 text-sm">{c.excerpt}</p>}
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex flex-1 flex-col gap-3 p-4 @2xl:col-start-2 @2xl:px-6 @2xl:pb-6">
         {goal != null ? (
           <>
             <GoalBar raised={c.raised} goal={goal} />
@@ -500,33 +499,36 @@ function Programs({ npo, programs }: IProgramsProps) {
       >
         {(p) =>
           p.length === 0 ? null : (
-            <section className="flex flex-col gap-3">
+            <section className="@container flex flex-col gap-3">
               <h2 className={h2}>Programs</h2>
               <ul className="divide-y overflow-hidden rounded border bg-panel">
                 {p.map((prog) => (
                   <li key={prog.id}>
                     <Link
                       to={program_href(npo, prog.id)}
-                      className="flex min-h-11 items-center gap-4 p-4 text-gray-12"
+                      className="flex min-h-11 gap-4 pr-4 text-gray-12"
                     >
-                      {prog.banner ? (
-                        <Image
-                          src={prog.banner}
-                          alt=""
-                          className="h-11 w-16 shrink-0 rounded object-cover sm:h-16 sm:w-24"
-                        />
-                      ) : (
-                        <span className="h-11 w-16 shrink-0 rounded bg-gray-3 sm:h-16 sm:w-24" />
-                      )}
-                      <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      {/* bleeds to the row's left, top and bottom, the list's
+                          frame rounding it; the photo is positioned so its own
+                          ratio never sets the row's height */}
+                      <span className="relative w-16 shrink-0 bg-gray-3 @xl:w-24">
+                        {prog.banner && (
+                          <Image
+                            src={prog.banner}
+                            alt=""
+                            className="absolute inset-0 size-full object-cover"
+                          />
+                        )}
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col justify-center gap-1 py-4">
                         <span className="font-bold">{prog.title}</span>
-                        <span className="truncate text-sm text-gray-11 max-sm:hidden">
+                        <span className="truncate text-sm text-gray-11 @max-xl:hidden">
                           {to_text(prog.description_pt)}
                         </span>
                       </span>
                       <ChevronRight
                         aria-hidden
-                        className="icon-md shrink-0 text-gray-11"
+                        className="icon-md shrink-0 self-center text-gray-11"
                       />
                     </Link>
                   </li>
@@ -570,11 +572,11 @@ function Media({ media, name }: IMediaProps) {
               : null,
           }));
           return (
-            <section className="flex flex-col gap-3">
+            <section className="@container flex flex-col gap-3">
               <h2 className={h2}>Media</h2>
               <Medium {...first} />
               {rest.length > 0 && (
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 @xl:grid-cols-3">
                   {rest.map((v) => (
                     <Medium key={v.item.id} {...v} />
                   ))}

@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
-import { userEvent } from "vitest/browser";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { shared_via_facebook } from "#/__tests__/fixtures/share-target";
 import { Share } from "./share";
@@ -94,6 +94,61 @@ describe("Share", () => {
     expect(await shared_via_facebook(screen)).toEqual({
       recipient: "Spring Drive",
       url: "https://better.giving/f",
+    });
+  });
+
+  describe("the chooser", () => {
+    afterEach(async () => {
+      await page.viewport(1440, 900);
+    });
+
+    const open_chooser = async () => {
+      const screen = await render(
+        <Share
+          trigger="icon"
+          recipientName="Harbor Clinic"
+          url="https://better.giving/c"
+        />
+      );
+      await screen.getByRole("button", { name: "Share", exact: true }).click();
+      const dialog = screen.getByRole("dialog", { name: "Share" });
+      await expect.element(dialog).toBeVisible();
+      return { screen, dialog };
+    };
+
+    test("opens with a visible heading and Close on one row, every network, and Close dismisses it", async () => {
+      const { dialog } = await open_chooser();
+      const heading = dialog.getByRole("heading", { name: "Share" });
+      await expect.element(heading).toBeVisible();
+      const close = dialog.getByRole("button", { name: "Close" });
+      const h = heading.element().getBoundingClientRect();
+      const c = close.element().getBoundingClientRect();
+      expect(h.top).toBeLessThan(c.bottom);
+      expect(c.top).toBeLessThan(h.bottom);
+      expect(h.right).toBeLessThanOrEqual(c.left);
+
+      for (const name of ["LinkedIn", "Facebook", "X", "Telegram"]) {
+        const btn = dialog.getByRole("button", { name: `Share on ${name}` });
+        await expect.element(btn).toBeVisible();
+        // offset sizes: the open animation scales the box, layout does not
+        const el = btn.element() as HTMLElement;
+        expect(el.offsetWidth).toBeGreaterThanOrEqual(44);
+        expect(el.offsetHeight).toBeGreaterThanOrEqual(44);
+        expect(el.getBoundingClientRect().top).toBeGreaterThanOrEqual(h.bottom);
+      }
+
+      (close.element() as HTMLElement).click();
+      await expect.element(dialog).not.toBeInTheDocument();
+    });
+
+    test("fits inside a 375px viewport", async () => {
+      await page.viewport(375, 812);
+      const { dialog } = await open_chooser();
+      await vi.waitFor(() => {
+        const r = dialog.element().getBoundingClientRect();
+        expect(r.left).toBeGreaterThan(0);
+        expect(r.right).toBeLessThan(375);
+      });
     });
   });
 });

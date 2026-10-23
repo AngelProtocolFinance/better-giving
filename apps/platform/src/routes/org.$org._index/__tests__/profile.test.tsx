@@ -2,7 +2,7 @@ import { HttpResponse, http } from "msw";
 import { act } from "react";
 import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { type Locator, page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { shared_via_facebook } from "#/__tests__/fixtures/share-target";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
@@ -186,23 +186,32 @@ describe("org profile", () => {
     ).toHaveLength(2);
   });
 
-  it("shows raised and donors, with no form, no FAQ and no goal bar without a target", async () => {
+  it("pairs raised and donors each with its figure, with no form, no FAQ and no goal bar without a target", async () => {
     const screen = await mount();
     await expect
-      .element(screen.getByText("$90 raised from 3 donors", { exact: true }))
+      .element(screen.getByRole("definition").filter({ hasText: "$90" }))
       .toBeVisible();
+    expect(mast_stats()).toEqual({ raised: "$90", donors: "3" });
     expect(screen.getByRole("progressbar").query()).toBeNull();
     expect(document.querySelector("form")).toBeNull();
     expect(screen.getByText(/frequently asked/i).query()).toBeNull();
     expect(screen.getByText(/tax-deductible/i).query()).toBeNull();
   });
 
-  it("reads just raised when the donor count is unavailable", async () => {
+  it("names a single donor in the singular", async () => {
+    const screen = await mount({ donors: 1 });
+    await expect
+      .element(screen.getByRole("definition").filter({ hasText: "$90" }))
+      .toBeVisible();
+    expect(mast_stats()).toEqual({ raised: "$90", donor: "1" });
+  });
+
+  it("shows only the raised figure when the donor count is unavailable", async () => {
     const screen = await mount({ donors: null });
     await expect
-      .element(screen.getByText("$90 raised", { exact: true }))
+      .element(screen.getByRole("definition").filter({ hasText: "$90" }))
       .toBeVisible();
-    expect(screen.getByText("raised from").query()).toBeNull();
+    expect(mast_stats()).toEqual({ raised: "$90" });
   });
 
   it("shows a goal bar with a target", async () => {
@@ -236,19 +245,6 @@ describe("org profile", () => {
     for (const n of [1, 4] as const) {
       expect(screen.getByText(unsdgs[n].title).query()).toBeNull();
     }
-  });
-
-  it("lists the org's details in the hero card on desktop, not on a phone", async () => {
-    await page.viewport(1440, 900);
-    const screen = await mount();
-    const main = screen.getByRole("main");
-    await expect.element(main.getByText("EIN / Registration")).toBeVisible();
-    await expect.element(main.getByText("EIN123")).toBeVisible();
-    await expect.element(main.getByText("Active in")).toBeVisible();
-    expect(main.getByText("Address").query()).toBeNull();
-
-    await page.viewport(375, 667);
-    await expect.element(main.getByText("EIN123")).not.toBeVisible();
   });
 
   it("lists campaigns, programs, videos and messages, a message by name", async () => {
@@ -414,15 +410,9 @@ describe("org profile", () => {
     });
   });
 
-  it("plays the first video large, the rest in a row under it", async () => {
-    await page.viewport(1280, 900);
-    const screen = await mount({
-      media: Promise.resolve([
-        { id: "m1", url: "https://youtu.be/dQw4w9WgXcQ", featured: true },
-        { id: "m2", url: "https://youtu.be/9bZkp7q19f0", featured: true },
-        { id: "m3", url: "https://youtu.be/kJQP7kiw5Fk", featured: true },
-      ] as never),
-    });
+  it("plays the first video large, the rest in a row under it, below xl", async () => {
+    await page.viewport(1024, 900);
+    const screen = await mount_videos();
     const frame = (n: number) => screen.getByTitle(`Acme Relief video ${n}`);
     await expect.element(frame(3)).toBeVisible();
     const box = (n: number) => frame(n).element().getBoundingClientRect();
@@ -430,6 +420,37 @@ describe("org profile", () => {
     expect(box(3).width).toBeCloseTo(box(2).width, 0);
     expect(box(2).top).toBeGreaterThanOrEqual(box(1).bottom);
     expect(box(3).top).toBe(box(2).top);
+  });
+
+  it("stacks every video one per row in the xl sidebar", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount_videos();
+    const frame = (n: number) => screen.getByTitle(`Acme Relief video ${n}`);
+    await expect.element(frame(3)).toBeVisible();
+    const box = (n: number) => frame(n).element().getBoundingClientRect();
+    for (const n of [2, 3]) {
+      expect(box(n).left).toBeCloseTo(box(1).left, 0);
+      expect(box(n).width).toBeCloseTo(box(1).width, 0);
+      expect(box(n).top).toBeGreaterThanOrEqual(box(n - 1).bottom);
+    }
+  });
+
+  it("bleeds a program's thumbnail to its row's left, top and bottom", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount({
+      programs: Promise.resolve([
+        { id: "p1", title: "Wells", description_pt: "[]", banner: BANNER },
+      ] as never),
+    });
+    const row = screen.getByRole("link", { name: /Wells/ });
+    await expect.element(row).toBeVisible();
+    const thumb = row.element().querySelector("img")!;
+    const r = row.element().getBoundingClientRect();
+    const t = thumb.getBoundingClientRect();
+    expect(t.left).toBeCloseTo(r.left, 0);
+    expect(t.top).toBeCloseTo(r.top, 0);
+    expect(t.bottom).toBeCloseTo(r.bottom, 0);
+    expect(t.width).toBeGreaterThan(0);
   });
 
   it("carries the org's mark, name, socials and details in the footer", async () => {
@@ -463,16 +484,28 @@ describe("org profile", () => {
       .element(details.getByText("United States", { exact: true }))
       .toBeVisible();
     expect(details.getByText("Address").query()).toBeNull();
-    // on a phone, in the footer alone
-    await page.viewport(375, 667);
-    await expect
-      .element(screen.getByRole("main").getByText("EIN123"))
-      .not.toBeVisible();
-    expect(
-      screen.getByRole("main").getByText("Organization details").query()
-    ).toBeNull();
+    // in the footer alone, at every width
+    const main = screen.getByRole("main");
+    await expect.element(main.getByRole("heading", { level: 1 })).toBeVisible();
+    for (const term of [
+      "Organization details",
+      "EIN / Registration",
+      "EIN123",
+    ]) {
+      expect(main.getByText(term).query()).toBeNull();
+    }
   });
 });
+
+function mount_videos() {
+  return mount({
+    media: Promise.resolve([
+      { id: "m1", url: "https://youtu.be/dQw4w9WgXcQ", featured: true },
+      { id: "m2", url: "https://youtu.be/9bZkp7q19f0", featured: true },
+      { id: "m3", url: "https://youtu.be/kJQP7kiw5Fk", featured: true },
+    ] as never),
+  });
+}
 
 const pt = (...texts: string[]) =>
   JSON.stringify(
@@ -542,6 +575,28 @@ function expect_reading_order(els: HTMLElement[]) {
 }
 
 describe("org profile layout", () => {
+  it("at 1440, hangs the raised figures off the card's right inset, level with the name", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount();
+    const h1 = screen.getByRole("heading", { level: 1 });
+    await expect.element(h1).toBeVisible();
+    const card = h1.element().closest("section")!;
+    const inset_right =
+      card.getBoundingClientRect().right -
+      Number.parseFloat(getComputedStyle(card).paddingRight);
+    const stats = [...card.querySelectorAll("dl > div")];
+    const amount = stats[0].querySelector("dd")!;
+    expect(
+      Math.abs(stats.at(-1)!.getBoundingClientRect().right - inset_right)
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(
+        amount.getBoundingClientRect().top -
+          h1.element().getBoundingClientRect().top
+      )
+    ).toBeLessThanOrEqual(2);
+  });
+
   it("reads in the order it shows, on a phone and in two columns", async () => {
     await page.viewport(375, 667);
     const phone = await mount_full();
@@ -566,6 +621,29 @@ describe("org profile layout", () => {
     expect(c.left).toBeGreaterThan(h.right);
     expect(m.left).toBe(h.left);
     expect(m.top - h.bottom).toBeCloseTo(c.left - h.right, 0);
+  });
+
+  it("gives the story three parts of the width to the right column's one at 1440", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount_full();
+    const [hero, campaigns] = await sections(screen);
+    const ratio =
+      hero.getBoundingClientRect().width /
+      campaigns.getBoundingClientRect().width;
+    expect(ratio).toBeGreaterThan(2.6);
+    expect(ratio).toBeLessThan(3.4);
+  });
+
+  it("holds About to the reading measure inside the wide xl column", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount_full();
+    const first = screen.getByText(ABOUT[0]);
+    await expect.element(first).toBeVisible();
+    expect(first.element().getBoundingClientRect().width).toBeLessThanOrEqual(
+      768
+    );
+    const card = first.element().closest("section") as HTMLElement;
+    expect(card.getBoundingClientRect().width).toBeGreaterThan(768);
   });
 
   it("sets the About paragraphs apart, and holds them to the reading measure on a one-column desktop", async () => {
@@ -610,12 +688,6 @@ describe("org profile layout", () => {
     const excerpt = card.getByText(campaign.excerpt).element();
     expect(link.element().contains(excerpt)).toBe(false);
 
-    const hit = (el: Element) => {
-      const r = el.getBoundingClientRect();
-      return document
-        .elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
-        ?.closest("a, button");
-    };
     // the stretch covers the card, the byline above the photo included
     expect(hit(card.getByText("Official campaign").element())).toBe(
       link.element()
@@ -627,6 +699,115 @@ describe("org profile layout", () => {
     await expect
       .element(screen.getByRole("dialog", { name: "Share" }))
       .toBeVisible();
+  });
+});
+
+/** a campaign card's byline, its photo and the card's stretched link */
+function card_parts(card: Locator) {
+  const byline = card.getByText("Official campaign").element();
+  const link = card
+    .getByRole("heading", { level: 3 })
+    .getByRole("link")
+    .element();
+  const photo = link.closest("h3")!.parentElement!.parentElement!;
+  return { byline, photo, link };
+}
+
+/** the mast's figures by label, from its definition list */
+function mast_stats() {
+  const card = document.querySelector("main section")!;
+  return Object.fromEntries(
+    [...card.querySelectorAll("dl > div")].map((g) => [
+      g.querySelector("dt")!.textContent,
+      g.querySelector("dd")!.textContent,
+    ])
+  );
+}
+
+/** the link a press at the middle of `el` lands on; below xl the cards sit
+ * under the full-width hero, past the fold, where `elementFromPoint` finds
+ * nothing */
+function hit(el: Element) {
+  el.scrollIntoView({ block: "center" });
+  const r = el.getBoundingClientRect();
+  return document
+    .elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    ?.closest("a, button");
+}
+
+describe("org profile campaign cards", () => {
+  it("below xl, a lone campaign card spans the row, its photo beside the byline, and still opens on a press anywhere", async () => {
+    await page.viewport(1024, 900);
+    const screen = await mount({ campaigns: [campaign] });
+    const card = screen.getByRole("article");
+    await expect.element(card).toBeVisible();
+    const li = card.element().closest("li")!;
+    const ul = li.parentElement!;
+    expect(li.getBoundingClientRect().width).toBeCloseTo(
+      ul.getBoundingClientRect().width,
+      0
+    );
+
+    const { byline, photo, link } = card_parts(card);
+    expect(photo.getBoundingClientRect().right).toBeLessThanOrEqual(
+      byline.getBoundingClientRect().left
+    );
+    expect(photo.getBoundingClientRect().top).toBe(
+      byline.closest("p")!.getBoundingClientRect().top
+    );
+    expect(hit(byline)).toBe(link);
+  });
+
+  it("below xl, two cards stay in two columns, each byline over its photo, the stretch over each", async () => {
+    await page.viewport(1024, 900);
+    const screen = await mount({
+      campaigns: [
+        campaign,
+        { ...campaign, id: "c2", name: "Roof repair", to: "/org/acme/roof" },
+      ],
+    });
+    const cards = screen.getByRole("article");
+    await expect.element(cards.nth(1)).toBeVisible();
+    const [a, b] = cards.elements().map((c) => c.getBoundingClientRect());
+    expect(b.top).toBe(a.top);
+    expect(b.left).toBeGreaterThanOrEqual(a.right);
+    expect(b.width).toBeCloseTo(a.width, 0);
+
+    for (const card of cards.all()) {
+      const { byline, photo, link } = card_parts(card);
+      expect(byline.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        photo.getBoundingClientRect().top
+      );
+      expect(hit(byline)).toBe(link);
+    }
+  });
+
+  it("in the xl sidebar, a lone card stays vertical, its photo under its byline", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount({ campaigns: [campaign] });
+    const card = screen.getByRole("article");
+    await expect.element(card).toBeVisible();
+    const { byline, photo, link } = card_parts(card);
+    expect(byline.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      photo.getBoundingClientRect().top
+    );
+    expect(hit(byline)).toBe(link);
+  });
+
+  it("in the xl sidebar, cards stack one per row", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount({
+      campaigns: [
+        campaign,
+        { ...campaign, id: "c2", name: "Roof repair", to: "/org/acme/roof" },
+      ],
+    });
+    const cards = screen.getByRole("article");
+    await expect.element(cards.nth(1)).toBeVisible();
+    const [a, b] = cards.elements().map((c) => c.getBoundingClientRect());
+    expect(b.left).toBeCloseTo(a.left, 0);
+    expect(b.width).toBeCloseTo(a.width, 0);
+    expect(b.top).toBeGreaterThanOrEqual(a.bottom);
   });
 });
 
@@ -700,8 +881,8 @@ const hero_npo = (o: Record<string, unknown> = {}) =>
     ...o,
   }) as INpoPublic;
 
-describe("org profile hero details", () => {
-  it("lists the address with the other facts on desktop, set off from About by a divider", async () => {
+describe("org profile hero", () => {
+  it("sets About under the banner, with no facts or divider", async () => {
     await page.viewport(1440, 900);
     const screen = await mount({ npo: hero_npo() });
     const { hero } = hero_of(screen);
@@ -709,48 +890,17 @@ describe("org profile hero details", () => {
     await expect
       .element(hero.getByRole("heading", { name: "About" }))
       .toBeVisible();
-    await expect.element(hero.getByText("Address")).toBeVisible();
-    await expect.element(hero.getByText("1 Main St")).toBeVisible();
-    await expect.element(hero.getByText("EIN123")).toBeVisible();
-    const rule = hero.element().querySelector("hr");
-    expect(rule).not.toBeNull();
-    // under the story, above the facts
-    const about = hero.getByText("We run two shelters.").element();
-    const address = hero.getByText("Address").element();
-    expect(rule!.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-      about.getBoundingClientRect().bottom
-    );
-    expect(rule!.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-      address.getBoundingClientRect().top
-    );
+    expect(hero.getByText("1 Main St").query()).toBeNull();
+    expect(hero.element().querySelector("hr")).toBeNull();
+    expect(hero.element().querySelector("dl")).toBeNull();
   });
 
-  it("draws no divider when there is no About to set the facts off from", async () => {
+  it("is the banner alone when the org has no About", async () => {
     await page.viewport(1440, 900);
     const screen = await mount({ npo: hero_npo({ overview_pt: "[]" }) });
-    const { hero } = hero_of(screen);
-
-    await expect.element(hero.getByText("1 Main St")).toBeVisible();
-    expect(hero.getByRole("heading", { name: "About" }).query()).toBeNull();
-    expect(hero.element().querySelector("hr")).toBeNull();
-  });
-
-  it("is the banner alone when the org has no About and no facts", async () => {
-    await page.viewport(1440, 900);
-    const screen = await mount({
-      npo: hero_npo({
-        overview_pt: "[]",
-        street_address: null,
-        registration_number: null,
-        active_in_countries: [],
-        hq_country: null,
-      }),
-    });
     const { banner, hero } = hero_of(screen);
 
     await expect.element(page.elementLocator(banner)).toBeVisible();
-    expect(hero.element().querySelector("dl")).toBeNull();
-    expect(hero.getByText("EIN / Registration").query()).toBeNull();
     expect(hero.element().children).toHaveLength(1);
     expect(banner.parentElement).toBe(hero.element());
   });
@@ -760,9 +910,6 @@ describe("org profile hero details", () => {
     const bare = await mount({ npo: hero_npo({ overview_pt: "[]" }) });
     const bare_hero = hero_of(bare);
     await expect.element(page.elementLocator(bare_hero.banner)).toBeVisible();
-    await expect
-      .element(bare.getByRole("main").getByText("EIN123"))
-      .not.toBeVisible();
     // the card's two borders around the banner, and no padded block under it
     const slack =
       bare_hero.hero.element().getBoundingClientRect().height -
