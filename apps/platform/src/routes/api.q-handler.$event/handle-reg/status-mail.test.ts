@@ -9,11 +9,12 @@ const send_email = vi.hoisted(() =>
   }))
 );
 const report_error = vi.hoisted(() => vi.fn());
+const send_alert = vi.hoisted(() => vi.fn());
 
 vi.mock("$/email", () => ({ send_email, send_email_or_throw: vi.fn() }));
 vi.mock("#/errors/report", () => ({ report_error }));
 vi.mock("$/env", () => ({ base_url: "http://x", hubspot: { owner_id: "1" } }));
-vi.mock("$/kit/slack", () => ({ bg_sales: { send_alert: vi.fn() } }));
+vi.mock("$/kit/slack", () => ({ bg_sales: { send_alert } }));
 vi.mock("$/kit/wise", () => ({ wise: { v2_account: vi.fn() } }));
 vi.mock("#/.server/auth/auth", () => ({ auth: {} }));
 vi.mock("#/.server/auth/resume-link", () => ({ mint_resume_link: vi.fn() }));
@@ -25,6 +26,7 @@ vi.mock("./hubspot", () => ({
 }));
 
 const { handle_reg_updated } = await import(".");
+const { create_deal, update_or_create_contact } = await import("./hubspot");
 
 const reg = (o: Partial<IReg>) =>
   ({
@@ -110,5 +112,32 @@ describe("registration status mails", () => {
     // a text-only client auto-links a url up to the next whitespace
     const words = text.split(/\s+/);
     for (const url of Object.values(socials)) expect(words).toContain(url);
+  });
+});
+
+describe("submitted registration", () => {
+  test("a refused sales alert still files the deal and updates the contact", async () => {
+    const refusal = new Error("slack invalid_auth");
+    send_alert.mockRejectedValueOnce(refusal);
+
+    await expect(
+      handle_reg_updated(
+        reg({
+          status: "02",
+          r_first_name: "Ada",
+          r_last_name: "Lovelace",
+          o_name: "Analytical Engines",
+          r_org_role: "ceo",
+          rm: "other",
+        })
+      )
+    ).resolves.toBeUndefined();
+
+    expect(report_error).toHaveBeenCalledWith(refusal, { reg_id: "reg-1" });
+    expect(create_deal).toHaveBeenCalledWith("Analytical Engines");
+    expect(update_or_create_contact).toHaveBeenCalledWith(
+      "ada@test.com",
+      expect.objectContaining({ email: "ada@test.com" })
+    );
   });
 });

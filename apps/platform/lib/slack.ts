@@ -81,6 +81,8 @@ export class Slack {
       },
       body: JSON.stringify({
         channel: this.channel_id,
+        // notification fallback. attachment blocks are not the message text
+        text: visible,
         attachments: [
           { color: `#${color.toString(16).padStart(6, "0")}`, blocks },
         ],

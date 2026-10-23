@@ -21,6 +21,7 @@ function posted() {
     content_type: headers.get("content-type"),
     body: JSON.parse(String(init?.body)) as {
       channel: string;
+      text: string;
       attachments: { color: string; blocks: unknown[] }[];
     },
   };
@@ -67,6 +68,7 @@ describe("Slack.send_alert", () => {
     expect(req.content_type).toBe("application/json");
     expect(req.body).toEqual({
       channel: CHANNEL,
+      text: "No grants to process",
       attachments: [
         {
           // hex of BLUE 2856675
@@ -110,6 +112,7 @@ describe("Slack.send_alert", () => {
     });
 
     const req = posted();
+    expect(req.body.text).toBe("ERROR:Chariot Grant Without A Donation");
     const attachment = req.body.attachments[0]!;
     expect(attachment.color).toBe("#c70039");
     expect(attachment.blocks[0]).toEqual({

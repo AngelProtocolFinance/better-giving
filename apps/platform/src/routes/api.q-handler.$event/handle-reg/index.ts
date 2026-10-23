@@ -137,15 +137,21 @@ export async function handle_reg_updated(reg: IReg) {
   }
 
   if (reg.status === "02") {
-    const res = await bg_sales.send_alert({
-      from: `registration lambda:${reg.env}`,
-      title: "New application submitted for review",
-      fields: [
-        { name: "Registration id", value: reg.id },
-        { name: "NPO name", value: reg.o_name || "missing" },
-      ],
-    });
-    console.info(res.status, res.statusText);
+    // at-most-once, so a refused post is reported and left: the deal and the
+    // contact sync below still run.
+    try {
+      const res = await bg_sales.send_alert({
+        from: `registration lambda:${reg.env}`,
+        title: "New application submitted for review",
+        fields: [
+          { name: "Registration id", value: reg.id },
+          { name: "NPO name", value: reg.o_name || "missing" },
+        ],
+      });
+      console.info(res.status, res.statusText);
+    } catch (err) {
+      report_error(err, { reg_id: reg.id });
+    }
     const deal = await create_deal(reg.o_name || "missing");
     console.info(deal);
   }
