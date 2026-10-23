@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
+import { DonateButton } from "./donate";
 import { OrgHeader } from "./header";
 
 const user_mock = vi.hoisted(() => ({ current: null as unknown }));
@@ -14,6 +16,7 @@ afterEach(async () => {
   await cleanup();
   vi.unstubAllGlobals();
   user_mock.current = null;
+  window.scrollTo(0, 0);
   await reset_viewport();
 });
 
@@ -95,5 +98,58 @@ describe("org header", () => {
     expect(counts).toEqual({ made: 1, disconnected: 0 });
     await screen.unmount();
     expect(counts).toEqual({ made: 1, disconnected: 1 });
+  });
+
+  describe("Donate once the hero's has scrolled away", () => {
+    /** a hero Donate the header watches, with page enough to scroll it off */
+    function Page() {
+      const [hero_donate, set_hero_donate] = useState<HTMLElement | null>(null);
+      return (
+        <MemoryRouter>
+          <OrgHeader
+            name="Acme Relief"
+            to="/org/acme"
+            donate_to="/donate/7"
+            donate_after={hero_donate}
+          />
+          <main className="h-[300dvh]">
+            <DonateButton to="/donate/7" size="lg" ref={set_hero_donate} />
+          </main>
+        </MemoryRouter>
+      );
+    }
+
+    it("stays out of the header while the hero's Donate is in view, and comes in after", async () => {
+      await page.viewport(1280, 900);
+      const screen = await render(<Page />);
+      const in_header = screen
+        .getByRole("banner")
+        .getByRole("link", { name: "Donate" });
+      const hero = screen.getByRole("main").getByRole("link", {
+        name: "Donate",
+      });
+      await expect.element(hero).toBeVisible();
+      await expect.element(in_header).not.toBeInTheDocument();
+
+      // just under the pinned header is out of view too
+      const top = hero.element().getBoundingClientRect().top;
+      window.scrollTo(0, top);
+      await expect.element(in_header).toBeVisible();
+      await expect.element(in_header).toHaveAttribute("href", "/donate/7");
+
+      window.scrollTo(0, 0);
+      await expect.element(in_header).not.toBeInTheDocument();
+    });
+
+    it("leaves Donate to the pinned bar on a phone", async () => {
+      await page.viewport(375, 800);
+      const screen = await render(<Page />);
+      window.scrollTo(0, 2000);
+      const in_header = screen
+        .getByRole("banner")
+        .getByRole("link", { name: "Donate", includeHidden: true });
+      await expect.element(in_header).toBeInTheDocument();
+      await expect.element(in_header).not.toBeVisible();
+    });
   });
 });

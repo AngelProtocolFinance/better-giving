@@ -24,7 +24,7 @@ Design: claude.ai canvas "Org profile layouts" (https://claude.ai/artifact/4E9dz
   - [x] Bug fixes: 4:1 campaign/fundraiser card images; donor-message cursor tie-break; heart works logged out and announces its saved state; slug URLs canonicalise case, and an unknown `/marketplace/<slug>` resolves before redirecting; designation tag text token on the campaign page; WordPress plugin page copy
   - [x] Data (member campaigns blocked: a DB trigger allows only the owner as a campaign member, so none exist; label wired, dormant): member campaigns ("with [owner org]"); stop dropping campaigns of slugless owners; unpublished orgs 404 for visitors and render for their own admins; campaign `ends_at`; program goal and raised
   - [x] Shape: measures (story length, item count per kind, banner and logo present, name length), threshold rules, Jev decides the layout with the thresholds as fallback
-  - [ ] Shared parts: hero (4:1 strip / brand band, logo / monogram, name sizing), list-by-count renderer, Donate (header on scroll, pinned bar on phones), raised stats with "Be the first to give"
+  - [x] Shared parts: hero (4:1 strip / brand band, logo / monogram, name sizing), list-by-count renderer, Donate (header on scroll, pinned bar on phones), raised stats with "Be the first to give"
   - [ ] Layouts: Poster, Letter, Hub, Feature, each with phone
   - [ ] Remove the old layout code and its tests; delete this brief's in-repo copy
 - [ ] Job: re-crop legacy non-square logos (run on staging; production run is the PM's)
