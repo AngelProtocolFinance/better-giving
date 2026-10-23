@@ -588,12 +588,15 @@ describe("payment_intent.succeeded → settlement → UI", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Test Program" }))
       .toBeInTheDocument();
-    // target_raise=500; total_donations ≈ NET is the received figure
+    // target_raise=500; total_donations ≈ NET (86.495) is the raised figure
     await expect
-      .element(screen.getByText("of $500 target", { exact: true }))
+      .element(screen.getByText("$86", { exact: true }))
       .toBeInTheDocument();
     await expect
-      .element(screen.getByRole("progressbar", { name: "Amount received" }))
+      .element(screen.getByText("17% of $500 goal", { exact: true }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("progressbar", { name: "Amount raised" }))
       .toBeInTheDocument();
   });
 

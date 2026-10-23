@@ -507,9 +507,11 @@ describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
     await expect
       .element(screen.getByText("Test Fund", { exact: true }))
       .toBeInTheDocument();
+    // the fund's own card: raised and goal are separate amounts, each with its label
+    const card = screen.getByRole("article").filter({ hasText: "Test Fund" });
     await expect
-      .element(screen.getByText("$282 of $1,000", { exact: true }))
-      .toBeInTheDocument();
+      .element(card)
+      .toMatchTextContent(/\$282\s*Raised\s*\$1,000\s*Goal/);
   });
 
   it("user-dashboard forms page shows form with updated ltd Target", async () => {
