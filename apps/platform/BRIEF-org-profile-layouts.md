@@ -28,6 +28,7 @@ Design: claude.ai canvas "Org profile layouts" (https://claude.ai/artifact/4E9dz
   - [ ] Layouts: Poster, Letter, Hub, Feature, each with phone
   - [ ] Remove the old layout code and its tests; delete this brief's in-repo copy
 - [ ] Job: re-crop legacy non-square logos (run on staging; production run is the PM's)
+- [ ] Job: layout review list — each published org with its measures, the threshold layout, Jev's layout and its page link; Jev/threshold disagreements first (run on staging; production run is the PM's)
 
 ## Decisions resolved
 - Scope → all four layouts plus phone versions, one effort. They share the hero, list cards and Donate bar.
@@ -43,6 +44,8 @@ Design: claude.ai canvas "Org profile layouts" (https://claude.ai/artifact/4E9dz
 - Unused data in → campaign end date ("Ends in N days"), program goal/raised bars. Later → milestones timeline, SDG chips, fiscal-sponsor note. Never → donor message amounts (privacy).
 - Member campaigns → shown, labelled "with [owner org]".
 - Unpublished orgs → 404 for visitors, visible to their own admins.
+- Existing orgs → no prefill; the layout is computed on render. A one-off review list (measures, threshold pick, Jev pick, link; disagreements first) lets the PM check orgs individually before launch. (PM)
+- Manual per-org layout override → not now: needs a stored column, and a pinned layout can strand an org whose content changes. (PM)
 - Legacy non-square logos → auto-crop to the centre square once; orgs can replace.
 - Live profile issues pulled in → donor-message pagination skip, logged-out heart, slug case + marketplace redirect, campaign designation tag color, WordPress plugin copy.
 - Delivery → the build runs in Claude on the web, so a copy of this brief rides in the branch at `apps/platform/BRIEF-org-profile-layouts.md` and is deleted by the last commit. (PM)
@@ -50,6 +53,7 @@ Design: claude.ai canvas "Org profile layouts" (https://claude.ai/artifact/4E9dz
 ## Non-goals
 - Milestones, SDGs, fiscal-sponsor note, donor message amounts.
 - The admin media page and the "featured" video flag.
+- A manual per-org layout override.
 - The other 23 filed issues.
 - Marketplace cards, campaign and program pages beyond the named fixes.
 
@@ -64,6 +68,7 @@ Design: claude.ai canvas "Org profile layouts" (https://claude.ai/artifact/4E9dz
 - [ ] Campaign cards show "Ends in N days" when an end date is set; programs show goal progress when set.
 - [ ] The five pulled-in issues are fixed and their files closed.
 - [ ] Legacy logos re-cropped on staging.
+- [ ] Layout review list produced on staging, disagreements first.
 - [ ] CI green; old layout code removed.
 
 ## Open questions
