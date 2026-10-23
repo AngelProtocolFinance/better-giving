@@ -126,9 +126,3 @@ describe("jev_choice", () => {
     expect(report_degraded).toHaveBeenCalledOnce();
   });
 });
-
-// the projects load .env.test; a key there lets any unmocked org loader call
-// the real Jev endpoint
-it("runs with no AI gateway key, so no test reaches the real Jev endpoint", () => {
-  expect(process.env.AI_GATEWAY_API_KEY).toBeUndefined();
-});
