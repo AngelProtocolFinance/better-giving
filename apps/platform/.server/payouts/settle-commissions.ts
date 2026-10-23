@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { report_error } from "#/errors/report";
-import type { Alert } from "@/discord";
 import type { IPayout } from "@/referrals";
+import type { Alert } from "@/slack";
 import { stage } from "../env";
-import { aws_monitor } from "../kit/discord";
+import { aws_monitor } from "../kit/slack";
 import { db } from "../pg/db";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { outstanding_for_party, unrecover_owed } from "../pg/queries/owed";

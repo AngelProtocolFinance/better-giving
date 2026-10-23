@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { report_error } from "#/errors/report";
 import { TERMS_RECOVERY_FROM, terms_effective_at } from "@/terms";
 import { owed_deductions, stage } from "../env";
-import { aws_monitor } from "../kit/discord";
+import { aws_monitor } from "../kit/slack";
 import type { DbOrTx } from "../pg/queries/helpers";
 import {
   type IOwedRecovery,

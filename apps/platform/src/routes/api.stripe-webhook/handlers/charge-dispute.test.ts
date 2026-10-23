@@ -33,7 +33,7 @@ vi.mock("$/refund/dispute", () => ({}));
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/dispute", () => ({ dispute_close: dispute_close_mock }));
 vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));

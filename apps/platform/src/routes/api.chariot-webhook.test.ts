@@ -22,7 +22,7 @@ vi.mock("$/env", () => ({
 }));
 vi.mock("$/kit/chariot", () => ({ chariot: { get_grant: get_grant_mock } }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   aws_monitor: { send_alert: send_alert_mock },
 }));
 vi.mock("$/pg/db", () => ({
@@ -437,7 +437,7 @@ describe("chariot webhook canceled grant", () => {
     expect(send_alert_mock).toHaveBeenCalledOnce();
   });
 
-  it("still acks a settled donation when the discord alert fails", async () => {
+  it("still acks a settled donation when the slack alert fails", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(canceled_grant("don-10"));
     donation_mocks.get.mockResolvedValue({
@@ -446,15 +446,15 @@ describe("chariot webhook canceled grant", () => {
       status: "settled",
     });
     donation_mocks.locked.mockResolvedValue({ status: "settled" });
-    const discord_down = new Error("discord 429");
-    send_alert_mock.mockRejectedValue(discord_down);
+    const slack_down = new Error("slack 429");
+    send_alert_mock.mockRejectedValue(slack_down);
 
     const res = await deliver(cancel_event);
 
     expect(res.status).toBe(200);
     expect(donation_mocks.update).not.toHaveBeenCalled();
     expect(report_error_mock).toHaveBeenCalledWith(
-      discord_down,
+      slack_down,
       expect.anything()
     );
   });

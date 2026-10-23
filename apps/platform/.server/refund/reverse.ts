@@ -143,7 +143,7 @@ export interface ChargeReversal {
   /** stripe's payment intent behind the charge: whose recurring gift a full
    * refund ends. absent, the gift's settlement names it */
   intent_id?: string;
-  /** discord sender identity, e.g. `charge-refunded`; the stage is appended */
+  /** slack sender identity, e.g. `charge-refunded`; the stage is appended */
   alert_from: string;
   /** the event's own lines for an ops notice, and its dedupe id: a redelivery
    * of the same event reuses it */

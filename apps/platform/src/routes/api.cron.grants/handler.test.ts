@@ -39,7 +39,7 @@ vi.mock("@/terms", async (io) => ({
   },
   TERMS_POSTED: "",
 }));
-vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert } }));
+vi.mock("$/kit/slack", () => ({ aws_monitor: { send_alert } }));
 // wise at its http boundary; `wise_pay` runs for real over it unless a test
 // replaces `wise_pay_mock`'s implementation
 const wise = vi.hoisted(() => ({
@@ -370,15 +370,15 @@ describe("grants cron execute", () => {
     const npo_id = await seed_npo({ cash: 500 });
     await seed_claimed(npo_id, "stuck-1", 70, "ref-a");
     await seed_payout(npo_id, "p-1", 60);
-    const discord_down = new Error("discord 502");
+    const slack_down = new Error("slack 502");
     send_alert.mockImplementation(async (a) => {
-      if (a.type === "ERROR") throw discord_down;
+      if (a.type === "ERROR") throw slack_down;
     });
 
     const res = await index();
 
     expect(res.statusCode).toBe(200);
-    expect(report_error_mock).toHaveBeenCalledWith(discord_down);
+    expect(report_error_mock).toHaveBeenCalledWith(slack_down);
     expect(await payout_types()).toMatchObject({ "p-1": "settled" });
   });
 

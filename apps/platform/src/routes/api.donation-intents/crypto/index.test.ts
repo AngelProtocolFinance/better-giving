@@ -37,7 +37,7 @@ vi.mock("#/errors/report", () => ({
   report_error: vi.fn(),
   report_null: () => null,
 }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   aws_monitor: { send_alert: vi.fn(async () => new Response()) },
 }));
 vi.mock("$/kit/coingecko", () => ({ coingecko: vi.fn() }));

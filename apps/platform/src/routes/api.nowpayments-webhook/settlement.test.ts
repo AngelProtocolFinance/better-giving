@@ -29,7 +29,7 @@ vi.mock("$/env", () => ({
   nowpayments: { ipn_secret: "ipn-secret", is_sandbox: false },
   stage: "production",
 }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   aws_monitor: { send_alert: send_alert_mock },
   fiat_monitor: { send_alert: vi.fn() },
 }));
@@ -451,9 +451,9 @@ describe("nowpayments ipn settlement", () => {
     expect(send_email_mock).not.toHaveBeenCalled();
   });
 
-  it("settles while discord is down", async () => {
+  it("settles while slack is down", async () => {
     await seed_donation();
-    send_alert_mock.mockRejectedValue(new Error("discord down"));
+    send_alert_mock.mockRejectedValue(new Error("slack down"));
 
     const res = await deliver(
       payment({

@@ -12,7 +12,7 @@ import { Progress } from "@/reg/progress";
 import type { IReg } from "@/reg/schema";
 import { send_email, send_email_or_throw } from "$/email";
 import { base_url, hubspot } from "$/env";
-import { bg_sales } from "$/kit/discord";
+import { bg_sales } from "$/kit/slack";
 import { wise } from "$/kit/wise";
 import { reg_get } from "$/pg/queries/registration";
 import { REFERRALS, ROLES } from "./constants";
@@ -137,15 +137,21 @@ export async function handle_reg_updated(reg: IReg) {
   }
 
   if (reg.status === "02") {
-    const res = await bg_sales.send_alert({
-      from: `registration lambda:${reg.env}`,
-      title: "New application submitted for review",
-      fields: [
-        { name: "Registration id", value: reg.id },
-        { name: "NPO name", value: reg.o_name || "missing" },
-      ],
-    });
-    console.info(res.status, res.statusText);
+    // at-most-once, so a refused post is reported and left: the deal and the
+    // contact sync below still run.
+    try {
+      const res = await bg_sales.send_alert({
+        from: `registration lambda:${reg.env}`,
+        title: "New application submitted for review",
+        fields: [
+          { name: "Registration id", value: reg.id },
+          { name: "NPO name", value: reg.o_name || "missing" },
+        ],
+      });
+      console.info(res.status, res.statusText);
+    } catch (err) {
+      report_error(err, { reg_id: reg.id });
+    }
     const deal = await create_deal(reg.o_name || "missing");
     console.info(deal);
   }

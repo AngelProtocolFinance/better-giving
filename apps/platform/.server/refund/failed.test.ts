@@ -38,7 +38,7 @@ vi.mock("../pg/db", () => ({
   ),
 }));
 
-vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
+vi.mock("../kit/slack", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
 vi.mock("../kit/queue", () => ({ enqueue: vi.fn(async () => undefined) }));
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 // the full refund's subscription lookup: no gift here is recurring

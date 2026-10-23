@@ -16,7 +16,7 @@ vi.mock("@/terms", async (io) => ({
   },
   TERMS_POSTED: "",
 }));
-vi.mock("../kit/discord", () => ({ aws_monitor: { send_alert } }));
+vi.mock("../kit/slack", () => ({ aws_monitor: { send_alert } }));
 
 // the once-only report is module state: each test takes a fresh module
 const netting_on = async () => {

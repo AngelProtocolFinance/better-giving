@@ -49,7 +49,7 @@ vi.mock("../pg/db", () => ({
 }));
 
 const fiat_alert = vi.hoisted(() => vi.fn());
-vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: fiat_alert } }));
+vi.mock("../kit/slack", () => ({ fiat_monitor: { send_alert: fiat_alert } }));
 
 const enqueue = vi.hoisted(() => vi.fn());
 vi.mock("../kit/queue", () => ({ enqueue }));

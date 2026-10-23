@@ -66,7 +66,7 @@ vi.mock("$/email", () => ({
   send_email_or_throw: vi.fn(),
   sender: "test <test@test.com>",
 }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   bg_sales: { send_alert: vi.fn(async () => ({ status: 200 })) },
 }));
 vi.mock("#/routes/api.q-handler.$event/handle-reg/hubspot", () => ({

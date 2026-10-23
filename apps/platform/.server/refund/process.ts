@@ -6,7 +6,7 @@ import { to_amount } from "@/helpers/email";
 import { nav_log_date } from "@/nav";
 import { recovery_covers } from "@/terms";
 import { base_url, stage } from "../env";
-import { fiat_monitor } from "../kit/discord";
+import { fiat_monitor } from "../kit/slack";
 import { db } from "../pg/db";
 import { dispute_mark_loss_reversed } from "../pg/queries/dispute";
 import {
@@ -46,7 +46,7 @@ import { open_credit, taken_from_npo } from "./share";
 export interface ProcessRefundCtx extends OwedSource {
   form_id: string | null;
   program_id: string | null;
-  /** discord alert sender identity, e.g. `refund-action-${stage}` */
+  /** slack alert sender identity, e.g. `refund-action-${stage}` */
   alert_from: string;
 }
 
@@ -389,7 +389,7 @@ export async function process_refund(
     for (const g of await dists_for_refund(donation_id)) await reverse(g);
   }
 
-  // owed amounts are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
+  // owed amounts are finance-ops notices (not bugs) — keep slack. failures go to sentry inline at the throw site.
   if (owed_msgs.length > 0) {
     await fiat_monitor.send_alert({
       type: "NOTICE",

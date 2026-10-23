@@ -2,7 +2,7 @@ import { report_error } from "#/errors/report";
 import { group_by } from "@/helpers/array";
 import type { ICommission } from "@/referrals";
 import { stage } from "$/env";
-import { aws_monitor } from "$/kit/discord";
+import { aws_monitor } from "$/kit/slack";
 import { owed_netting_on, undo_deductions } from "$/payouts/owed-run";
 import { settle_referrer_commissions } from "$/payouts/settle-commissions";
 import { payout_total } from "$/payouts/transfer";

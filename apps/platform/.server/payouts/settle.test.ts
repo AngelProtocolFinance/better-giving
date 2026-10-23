@@ -69,7 +69,7 @@ vi.mock("@/terms", async (io) => ({
   TERMS_RECOVERY_FROM: "2026-01-01",
   TERMS_POSTED: "",
 }));
-vi.mock("../kit/discord", () => ({
+vi.mock("../kit/slack", () => ({
   aws_monitor: { send_alert },
   fiat_monitor: { send_alert: vi.fn() },
 }));

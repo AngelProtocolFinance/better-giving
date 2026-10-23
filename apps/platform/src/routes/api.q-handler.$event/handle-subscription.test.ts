@@ -32,7 +32,7 @@ vi.mock("$/kit/stripe", () => ({
 }));
 
 const send_alert_mock = vi.hoisted(() => vi.fn());
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));

@@ -34,7 +34,7 @@ vi.mock("$/email", () => ({ send_email_or_throw }));
 const report_error = vi.hoisted(() => vi.fn());
 vi.mock("#/errors/report", () => ({ report_error }));
 const send_alert = vi.hoisted(() => vi.fn(async (_: any) => {}));
-vi.mock("$/kit/discord", () => ({ fiat_monitor: { send_alert } }));
+vi.mock("$/kit/slack", () => ({ fiat_monitor: { send_alert } }));
 
 import { eq, sql } from "drizzle-orm";
 import type { ReactElement } from "react";

@@ -12,8 +12,8 @@ import {
 } from "@/donations";
 import { chariot as chariot_env, stage } from "$/env";
 import { chariot } from "$/kit/chariot";
-import { aws_monitor } from "$/kit/discord";
 import { enqueue } from "$/kit/queue";
+import { aws_monitor } from "$/kit/slack";
 import { db } from "$/pg/db";
 import { donation_has_dists } from "$/pg/queries/dist";
 import {
@@ -136,7 +136,7 @@ async function alert_ops({
   ctx,
 }: IOpsAlert) {
   report_error(new Error(message), ctx);
-  // the report above already holds the event; a discord outage must not
+  // the report above already holds the event; a slack outage must not
   // 500 the ack into redeliveries that re-report it
   await aws_monitor
     .send_alert({

@@ -10,7 +10,7 @@ vi.mock("$/kit/paypal", () => ({
   paypal: { get_order: get_order_mock, capture_order: capture_order_mock },
 }));
 vi.mock("#/errors/report", () => ({ report_degraded: report_degraded_mock }));
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
 
@@ -138,7 +138,7 @@ describe("a capture that keeps failing", () => {
 
   it("asks for the retry even when the alert can't be sent", async () => {
     at(6 * 60 * 60);
-    send_alert_mock.mockRejectedValue(new Error("discord 503"));
+    send_alert_mock.mockRejectedValue(new Error("slack 503"));
 
     await expect(
       handle_paypal_order_capture({ ...job, scheduled_at })

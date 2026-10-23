@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 import { report_resp } from "#/errors/report";
-import type { Alert } from "@/discord";
 import { type IDonation, reversed_statuses } from "@/donations";
 import type { NP } from "@/nowpayments/types";
 import { msg } from "@/queue";
+import type { Alert } from "@/slack";
 import { nowpayments, stage } from "$/env";
 import { enqueue } from "$/kit/queue";
 import {
@@ -159,7 +159,7 @@ const closed_notice = (
   },
 });
 
-/** queued, not posted: the queue retries a refused discord post */
+/** queued, not posted: the queue retries a refused slack post */
 const notify = ({ key, alert }: INotice) =>
   enqueue(
     msg("fiat-notice", {

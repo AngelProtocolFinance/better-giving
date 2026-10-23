@@ -56,7 +56,7 @@ vi.mock("$/kit/queue", () => ({
   ),
 }));
 
-vi.mock("$/kit/discord", () => ({
+vi.mock("$/kit/slack", () => ({
   fiat_monitor: { send_alert: vi.fn() },
 }));
 

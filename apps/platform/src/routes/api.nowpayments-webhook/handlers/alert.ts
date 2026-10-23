@@ -1,9 +1,9 @@
 import { report_error } from "#/errors/report";
-import type { Alert } from "@/discord";
+import type { Alert } from "@/slack";
 import { stage } from "$/env";
-import { aws_monitor } from "$/kit/discord";
+import { aws_monitor } from "$/kit/slack";
 
-/** never rejects: a discord outage must not 500 an ipn that already wrote */
+/** never rejects: a slack outage must not 500 an ipn that already wrote */
 export const alert = (a: Omit<Alert, "from">): Promise<void> =>
   Promise.resolve()
     .then(() =>
