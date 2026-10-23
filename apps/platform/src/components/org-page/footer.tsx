@@ -37,7 +37,12 @@ export function OrgFooter({
     : [];
   return (
     <footer className={`border-t bg-panel ${classes}`}>
-      <div className="page flex flex-wrap items-center gap-3 pt-6 pb-2">
+      {/* a phone reads name, details, then the accounts, each its own row;
+          wider screens put the accounts right of the name and the details,
+          their heading kept for assistive tech only, on the row under */}
+      <div
+        className={`page flex flex-wrap items-center gap-x-3 gap-y-4 pt-6 ${facts.length > 0 ? "pb-4 sm:pb-6" : "pb-2"}`}
+      >
         {logo && (
           <Image
             src={logo}
@@ -48,36 +53,35 @@ export function OrgFooter({
           />
         )}
         <span className="text-sm font-semibold">{name}</span>
-        {/* a phone stacks them under the name, the glyphs (not their 44px
-            targets) on the name's edge; wider screens push them right */}
+        {facts.length > 0 && (
+          <section
+            aria-labelledby={details_id}
+            className="flex basis-full flex-col gap-2 sm:order-last"
+          >
+            <h2
+              id={details_id}
+              className="text-xs font-bold uppercase tracking-badge text-gray-11 sm:sr-only"
+            >
+              Organization details
+            </h2>
+            <dl className="flex flex-wrap gap-x-7 gap-y-3 text-sm lg:gap-x-12">
+              {facts.map((f) => (
+                <div key={f.term} className="flex flex-col gap-1">
+                  <dt className="text-xs font-bold uppercase tracking-badge text-gray-11">
+                    {f.term}
+                  </dt>
+                  <dd>{f.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+        {/* the glyphs (not their 44px targets) on the name's edge */}
         <Socials
           social_media_urls={social_media_urls}
           classes="empty:hidden max-sm:-ml-2.5 max-sm:basis-full sm:ml-auto"
         />
       </div>
-      {facts.length > 0 && (
-        <section
-          aria-labelledby={details_id}
-          className="page flex flex-col gap-2 pt-2 pb-6"
-        >
-          <h2
-            id={details_id}
-            className="text-xs font-bold uppercase tracking-badge text-gray-11"
-          >
-            Organization details
-          </h2>
-          <dl className="flex flex-wrap gap-x-7 gap-y-3 text-sm lg:gap-x-12">
-            {facts.map((f) => (
-              <div key={f.term} className="flex flex-col gap-1">
-                <dt className="text-xs font-bold uppercase tracking-badge text-gray-11">
-                  {f.term}
-                </dt>
-                <dd>{f.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      )}
       <div className="page">
         <div className="flex border-t py-1">
           <Link

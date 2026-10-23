@@ -2,6 +2,7 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { unsdgs } from "#/constants/unsdgs";
 import type { IFundItem } from "@/fundraiser";
 import type { INpoPublic } from "$/pg/queries/npo";
 import { type IProfile, Profile } from "../profile";
@@ -101,7 +102,6 @@ describe("org profile", () => {
     ]) {
       expect(screen.getByRole("heading", { name }).query()).toBeNull();
     }
-    expect(screen.getByRole("list", { name: "Goals" }).query()).toBeNull();
     expect(screen.getByText("Address").query()).toBeNull();
     expect(
       screen.getByRole("link", { name: "Facebook", exact: true }).query()
@@ -196,7 +196,7 @@ describe("org profile", () => {
     await expect.element(screen.getByRole("progressbar")).toBeVisible();
   });
 
-  it("puts the org's goals in the hero card, above About", async () => {
+  it("shows none of the org's goals, and still its About", async () => {
     const screen = await mount({
       npo: {
         ...npo,
@@ -210,15 +210,25 @@ describe("org profile", () => {
         ]),
       } as INpoPublic,
     });
-    const goals = screen.getByRole("list", { name: "Goals" });
-    await expect.element(goals.getByText("No Poverty")).toBeVisible();
-    await expect.element(goals.getByText("Quality Education")).toBeVisible();
-    const about = screen.getByRole("heading", { name: "About" });
-    await expect.element(about).toBeVisible();
-    expect(
-      goals.element().compareDocumentPosition(about.element()) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    await expect
+      .element(screen.getByRole("heading", { name: "About" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("We feed people")).toBeVisible();
+    for (const n of [1, 4] as const) {
+      expect(screen.getByText(unsdgs[n].title).query()).toBeNull();
+    }
+  });
+
+  it("lists the org's details in the hero card on desktop, not on a phone", async () => {
+    const screen = await mount();
+    const main = screen.getByRole("main");
+    await expect.element(main.getByText("EIN / Registration")).toBeVisible();
+    await expect.element(main.getByText("EIN123")).toBeVisible();
+    await expect.element(main.getByText("Active in")).toBeVisible();
+    expect(main.getByText("Address").query()).toBeNull();
+
+    await page.viewport(375, 667);
+    await expect.element(main.getByText("EIN123")).not.toBeVisible();
   });
 
   it("lists campaigns, programs, videos and messages, a message by name", async () => {
@@ -417,8 +427,8 @@ describe("org profile", () => {
     await expect
       .element(footer.getByRole("link", { name: /Powered by Better Giving/ }))
       .toHaveAttribute("href", "/");
-    // details live in the footer alone: the registration and, with no
-    // countries listed, the hq; no address, which this org has none of
+    // the registration and, with no countries listed, the hq; no address,
+    // which this org has none of
     const details = footer.getByRole("region", {
       name: "Organization details",
     });
@@ -428,6 +438,11 @@ describe("org profile", () => {
       .element(details.getByText("United States", { exact: true }))
       .toBeVisible();
     expect(details.getByText("Address").query()).toBeNull();
+    // on a phone, in the footer alone
+    await page.viewport(375, 667);
+    await expect
+      .element(screen.getByRole("main").getByText("EIN123"))
+      .not.toBeVisible();
     expect(
       screen.getByRole("main").getByText("Organization details").query()
     ).toBeNull();

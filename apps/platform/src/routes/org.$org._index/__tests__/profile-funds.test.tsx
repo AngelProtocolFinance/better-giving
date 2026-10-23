@@ -130,7 +130,9 @@ describe("npo profile — fundraisers section", () => {
     const screen = await render_profile(npo.id);
 
     await expect.element(screen.getByText(COULDNT_LOAD)).toBeVisible();
-    await expect.element(screen.getByText("87 Outage Ave")).toBeVisible();
+    await expect
+      .element(screen.getByRole("contentinfo").getByText("87 Outage Ave"))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("heading", { level: 1 }))
       .toBeVisible();
@@ -193,7 +195,9 @@ describe("npo profile — fundraisers section", () => {
 
     const screen = await render_profile(npo.id);
 
-    await expect.element(screen.getByText("1 Quiet St")).toBeVisible();
+    await expect
+      .element(screen.getByRole("contentinfo").getByText("1 Quiet St"))
+      .toBeVisible();
     // the section renders nothing both while the fundraisers load and after
     // they come back empty, so wait for the deferred read and the render it
     // triggers before asserting absence

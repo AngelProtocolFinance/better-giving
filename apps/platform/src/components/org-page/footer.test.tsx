@@ -1,13 +1,18 @@
 import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
+import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { type IOrgDetails, OrgFooter } from "./footer";
 
 afterEach(async () => {
   await cleanup();
+  await page.viewport(1280, 900);
 });
 
-function mount(details?: IOrgDetails) {
+function mount(
+  details?: IOrgDetails,
+  social_media_urls: { facebook?: string } | null = null
+) {
   const Stub = createRoutesStub([
     {
       path: "/",
@@ -15,7 +20,7 @@ function mount(details?: IOrgDetails) {
         <OrgFooter
           name="Acme Relief"
           logo={null}
-          social_media_urls={null}
+          social_media_urls={social_media_urls}
           details={details}
         />
       ),
@@ -58,5 +63,40 @@ describe("OrgFooter", () => {
       .element(blank.getByRole("link", { name: /Powered by Better Giving/ }))
       .toBeVisible();
     expect(blank.getByText("Organization details").query()).toBeNull();
+  });
+
+  test("a phone puts the details, heading shown, above the accounts; wider screens put them under", async () => {
+    const top = (el: Element) => el.getBoundingClientRect().top;
+    const details = { registration_number: "12-3456789" };
+    const socials = { facebook: "https://facebook.com/acme" };
+
+    await page.viewport(375, 667);
+    const phone = await mount(details, socials);
+    const heading = phone.getByRole("heading", {
+      name: "Organization details",
+    });
+    await expect.element(heading).toBeVisible();
+    expect(heading.element().getBoundingClientRect().height).toBeGreaterThan(1);
+    const fb = phone.getByRole("link", { name: "Facebook", exact: true });
+    expect(top(phone.getByText("12-3456789").element())).toBeLessThan(
+      top(fb.element())
+    );
+    await cleanup();
+
+    await page.viewport(1280, 900);
+    const wide = await mount(details, socials);
+    // still the region's name, drawn for assistive tech only
+    const region = wide.getByRole("region", { name: "Organization details" });
+    await expect.element(region.getByText("12-3456789")).toBeVisible();
+    expect(
+      wide
+        .getByRole("heading", { name: "Organization details" })
+        .element()
+        .getBoundingClientRect().height
+    ).toBeLessThanOrEqual(1);
+    const wide_fb = wide.getByRole("link", { name: "Facebook", exact: true });
+    expect(top(wide_fb.element())).toBeLessThan(
+      top(wide.getByText("12-3456789").element())
+    );
   });
 });

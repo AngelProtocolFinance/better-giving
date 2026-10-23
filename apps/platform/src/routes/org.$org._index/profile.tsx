@@ -5,18 +5,17 @@ import { type ReactNode, Suspense } from "react";
 import { Await, href, Link } from "react-router";
 import fallback_banner from "#/assets/images/bg-banner.webp";
 import flying_character from "#/assets/images/flying-character.webp";
-import { OrgFooter } from "#/components/org-page/footer";
+import { type IOrgDetails, OrgFooter } from "#/components/org-page/footer";
 import { GoalBar } from "#/components/org-page/goal-bar";
 import { OrgHeader } from "#/components/org-page/header";
 import { RichText, to_excerpt, to_text } from "#/components/rich-text";
 import { extract_youtube_id } from "#/components/youtube-player";
-import { unsdgs } from "#/constants/unsdgs";
 import { org_href, program_href } from "#/helpers/org-href";
 import { Share } from "#/routes/_app.fundraisers.$fund_id/share";
 import { Video } from "#/routes/_app.fundraisers.$fund_id/video";
 import { donor_label, goal_amount } from "#/routes/org.$org.$campaign/format";
 import type { IFundItem } from "@/fundraiser";
-import type { IMedia, IProgramDb, UnSdgNum } from "@/npo";
+import type { IMedia, IProgramDb } from "@/npo";
 import type { INpoPublic } from "$/pg/queries/npo";
 
 interface ICampaignCard {
@@ -60,6 +59,7 @@ const h2 = "text-xl font-bold lg:text-2xl";
 export function Profile(props: IProfile) {
   const { npo } = props;
   const donate_to = href("/donate/:id", { id: String(npo.id) });
+  const details = org_details(npo);
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background text-gray-12">
@@ -80,7 +80,7 @@ export function Profile(props: IProfile) {
         {/* one column below xl, in the phone's reading order; two from xl */}
         <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[26.25rem_minmax(0,1fr)] xl:items-start xl:gap-8">
           <div className="contents xl:flex xl:flex-col xl:gap-8">
-            <Hero npo={npo} />
+            <Hero npo={npo} details={details} />
             <Messages messages={props.messages} />
           </div>
           <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-8">
@@ -99,14 +99,7 @@ export function Profile(props: IProfile) {
         name={npo.name}
         logo={npo.logo}
         social_media_urls={npo.social_media_urls}
-        details={{
-          registration_number: npo.registration_number,
-          address: npo.street_address,
-          active_in:
-            npo.active_in_countries.length > 0
-              ? npo.active_in_countries.join(", ")
-              : npo.hq_country,
-        }}
+        details={details}
       />
     </div>
   );
@@ -114,6 +107,17 @@ export function Profile(props: IProfile) {
 
 interface INpoProps {
   npo: INpoPublic;
+}
+
+function org_details(npo: INpoPublic): IOrgDetails {
+  return {
+    registration_number: npo.registration_number,
+    address: npo.street_address,
+    active_in:
+      npo.active_in_countries.length > 0
+        ? npo.active_in_countries.join(", ")
+        : npo.hq_country,
+  };
 }
 
 interface IMast extends INpoProps {
@@ -212,10 +216,20 @@ function Raised({ npo, donors, classes = "" }: IRaised) {
   );
 }
 
-/** the banner on top, then the org's goals and its story */
-function Hero({ npo }: INpoProps) {
-  const sdgs = (npo.sdgs ?? []) as UnSdgNum[];
+interface IHero extends INpoProps {
+  details: IOrgDetails;
+}
+
+/** the banner on top, then the org's story; from xl, where the card sits in
+ * the narrow column, its details under that. a phone has them in the footer
+ * only */
+function Hero({ npo, details }: IHero) {
   const has_about = !!to_text(npo.overview_pt).trim();
+  const facts = [
+    { term: "EIN / Registration", value: details.registration_number },
+    { term: "Active in", value: details.active_in },
+    { term: "Address", value: details.address },
+  ].filter((f) => f.value);
   return (
     <section className="order-1 flex flex-col overflow-hidden rounded border bg-panel xl:order-none">
       <Image
@@ -223,35 +237,10 @@ function Hero({ npo }: INpoProps) {
         alt=""
         className="aspect-video w-full object-cover"
       />
-      {(sdgs.length > 0 || has_about) && (
-        <div className="flex flex-col gap-4 p-6 lg:gap-6">
-          {sdgs.length > 0 && (
-            <ul
-              aria-label="Goals"
-              className="flex flex-wrap gap-x-4 gap-y-2 lg:gap-x-5 lg:gap-y-3"
-            >
-              {sdgs.map((n) => (
-                <li
-                  key={n}
-                  className="flex items-center gap-2 text-sm font-semibold lg:text-base"
-                >
-                  {/* the goal icons are white glyphs, drawn for a filled ground */}
-                  <span
-                    aria-hidden
-                    className="surface-primary grid size-7 shrink-0 place-items-center rounded-full lg:size-8"
-                  >
-                    <img
-                      src={unsdgs[n].icon}
-                      alt=""
-                      className="size-4 object-contain lg:size-5"
-                    />
-                  </span>
-                  {unsdgs[n].title}
-                </li>
-              ))}
-            </ul>
-          )}
-          {sdgs.length > 0 && has_about && <hr />}
+      {(has_about || facts.length > 0) && (
+        <div
+          className={`flex flex-col gap-6 p-6 ${has_about ? "" : "max-xl:hidden"}`}
+        >
           {has_about && (
             <div className="flex flex-col gap-3">
               <h2 className={h2}>About</h2>
@@ -260,6 +249,21 @@ function Hero({ npo }: INpoProps) {
                 content={{ value: npo.overview_pt }}
                 classes={{ field: "w-full text-base leading-relaxed" }}
               />
+            </div>
+          )}
+          {facts.length > 0 && (
+            <div className="flex flex-col gap-6 max-xl:hidden">
+              {has_about && <hr />}
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                {facts.map((f) => (
+                  <div key={f.term} className="flex flex-col gap-1">
+                    <dt className="text-xs font-bold uppercase tracking-badge text-gray-11">
+                      {f.term}
+                    </dt>
+                    <dd>{f.value}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           )}
         </div>

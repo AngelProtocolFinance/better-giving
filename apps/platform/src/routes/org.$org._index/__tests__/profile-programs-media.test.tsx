@@ -139,7 +139,9 @@ describe("npo profile — programs section", () => {
     const screen = await render_profile(npo.id);
 
     await expect.element(screen.getByText(PROGRAMS_COULDNT_LOAD)).toBeVisible();
-    await expect.element(screen.getByText("12 Outage Ave")).toBeVisible();
+    await expect
+      .element(screen.getByRole("contentinfo").getByText("12 Outage Ave"))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("heading", { level: 1 }))
       .toBeVisible();
@@ -162,7 +164,9 @@ describe("npo profile — media section", () => {
     const screen = await render_profile(npo.id);
 
     await expect.element(screen.getByText(MEDIA_COULDNT_LOAD)).toBeVisible();
-    await expect.element(screen.getByText("34 Outage Ave")).toBeVisible();
+    await expect
+      .element(screen.getByRole("contentinfo").getByText("34 Outage Ave"))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("heading", { level: 1 }))
       .toBeVisible();
@@ -188,7 +192,9 @@ describe("npo profile — programs and media together", () => {
 
     await expect.element(screen.getByText(PROGRAMS_COULDNT_LOAD)).toBeVisible();
     await expect.element(screen.getByText(MEDIA_COULDNT_LOAD)).toBeVisible();
-    await expect.element(screen.getByText("56 Outage Ave")).toBeVisible();
+    await expect
+      .element(screen.getByRole("contentinfo").getByText("56 Outage Ave"))
+      .toBeVisible();
     await vi.waitFor(() => expect(report_error_mock).toHaveBeenCalledTimes(2));
     expect(report_error_mock).toHaveBeenCalledWith(programs_err, {
       endow_id: npo.id,
@@ -216,7 +222,9 @@ describe("npo profile — programs and media together", () => {
 
     const screen = await render_profile(npo.id);
 
-    await expect.element(screen.getByText("78 Quiet Ave")).toBeVisible();
+    await expect
+      .element(screen.getByRole("contentinfo").getByText("78 Quiet Ave"))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("heading", { level: 1 }))
       .toBeVisible();
