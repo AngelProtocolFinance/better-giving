@@ -6,7 +6,6 @@ import { report_error } from "#/errors/report";
 import { moved } from "#/helpers/moved";
 import { org_href } from "#/helpers/org-href";
 import { npo_id } from "#/pages/marketplace/npo-id";
-import { fund_item_is_open } from "@/fundraiser/is-open";
 import type { IOrgShape } from "@/org-shape";
 import { pick_layout } from "$/org-layout";
 import {
@@ -56,7 +55,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     throw new Response(null, { status: 404, headers: PRIVATE });
   }
 
-  // a rejected deferred streams to <Await errorElement> and never reaches handleError
+  // each read fails soft (settled below, flagged in `lists.failed`), so nothing else reports it
   const reported = <T>(deferred: Promise<T>) =>
     deferred.catch((err) => {
       report_error(err, { endow_id: npo.id });
@@ -135,28 +134,11 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
         report_error(err, { endow_id: npo.id });
         return { messages: [], messages_next: null };
       }),
-    // the layout needs the lists' counts; a rejected one still streams to its <Await errorElement>
+    // the layout needs the lists' counts; a rejected read flags its section as failed
     Promise.allSettled([funds, media, programs]),
   ]);
 
   const now = new Date();
-  const shape: IOrgShape = {
-    story_chars: to_text(npo.overview_pt).trim().length,
-    tagline_chars: npo.tagline?.trim().length ?? 0,
-    name_chars: npo.name.trim().length,
-    has_banner: !!npo.image,
-    has_logo: !!npo.logo,
-    campaigns: campaigns.length,
-    // the fundraisers the page lists: only the open ones
-    fundraisers:
-      funds_read.status === "fulfilled"
-        ? funds_read.value.filter((f) => fund_item_is_open(f, now)).length
-        : 0,
-    programs:
-      programs_read.status === "fulfilled" ? programs_read.value.length : 0,
-    videos: media_read.status === "fulfilled" ? media_read.value.length : 0,
-  };
-  const { layout, by } = await pick_layout(shape);
   const lists = layout_lists({
     npo,
     campaigns,
@@ -165,6 +147,19 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     media: media_read,
     now,
   });
+  const shape: IOrgShape = {
+    story_chars: to_text(npo.overview_pt).trim().length,
+    tagline_chars: npo.tagline?.trim().length ?? 0,
+    name_chars: npo.name.trim().length,
+    has_banner: !!npo.image,
+    has_logo: !!npo.logo,
+    campaigns: campaigns.length,
+    fundraisers: lists.give.filter((g) => g.kind !== "campaign").length,
+    programs:
+      programs_read.status === "fulfilled" ? programs_read.value.length : 0,
+    videos: media_read.status === "fulfilled" ? media_read.value.length : 0,
+  };
+  const { layout, by } = await pick_layout(shape);
 
   return data(
     {
@@ -181,7 +176,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
       // epoch ms, so the server render and hydration count from one instant
       now: now.getTime(),
 
-      // settled by now, but still promises: the page renders each through <Await>
+      // settled by now; still sent as promises for a client built before `lists`, whose page awaits them
       funds,
       media,
       programs,
