@@ -1,12 +1,16 @@
 import { HttpResponse, http } from "msw";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
 import type { IDonorMessage } from "#/components/org-page/items";
 import { mswWorker } from "#/setup-tests-browser";
 import { use_donor_messages } from "./donor-messages";
 
+const report_error = vi.hoisted(() => vi.fn());
+vi.mock("#/errors/report", () => ({ report_error }));
+
 afterEach(async () => {
   await cleanup();
+  report_error.mockClear();
 });
 
 interface IHarness {
@@ -113,12 +117,16 @@ describe("donor messages paging", () => {
     await expect.element(screen.getByText("No more")).toBeInTheDocument();
   });
 
-  test("keeps the cursor after a failed page, so the next press asks again", async () => {
+  test("reports a failed page and keeps its cursor, so the next press asks again", async () => {
     const asked = serve({});
     const screen = await render(<Harness messages={[]} next="c2" />);
 
     await screen.getByRole("button", { name: "More" }).click();
     await expect.poll(() => asked.length).toBe(1);
+    await expect.poll(() => report_error.mock.calls.length).toBe(1);
+    expect(report_error).toHaveBeenCalledWith(new Error("500"), {
+      npo_id: 7,
+    });
     // a press while the failing page is still out is dropped, so press until
     // one lands after it settles
     await expect

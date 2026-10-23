@@ -40,9 +40,13 @@ describe("old marketplace urls", () => {
     const db = test_db.current!.db;
     const slugged = await seed_npo(db, {
       registration_number: "EIN-SLUG",
+      published: true,
       slug: "acme",
     });
-    const bare = await seed_npo(db, { registration_number: "EIN-BARE" });
+    const bare = await seed_npo(db, {
+      registration_number: "EIN-BARE",
+      published: true,
+    });
 
     expect(
       location(
@@ -65,6 +69,7 @@ describe("old marketplace urls", () => {
     const db = test_db.current!.db;
     await seed_npo(db, {
       registration_number: "EIN-CASE",
+      published: true,
       slug: "mixed-case",
     });
 
@@ -96,10 +101,27 @@ describe("old marketplace urls", () => {
     }
   });
 
+  it("404 an unpublished org in place, naming no slug", async () => {
+    const db = test_db.current!.db;
+    const hidden = await seed_npo(db, {
+      registration_number: "EIN-HIDDEN",
+      slug: "hidden-org",
+      published: false,
+    });
+    for (const id of ["Hidden-Org", String(hidden!.id)]) {
+      const res = await call(loader, `/marketplace/${id}`, { id }).catch(
+        (e: unknown) => e
+      );
+      expect((res as Response).status).toBe(404);
+      expect((res as Response).headers.get("location")).toBeNull();
+    }
+  });
+
   it("301 a program to /org/<slug|id>/program/<id>", async () => {
     const db = test_db.current!.db;
     const npo = await seed_npo(db, {
       registration_number: "EIN-PROG",
+      published: true,
       slug: "wells-org",
     });
     const res = await call(

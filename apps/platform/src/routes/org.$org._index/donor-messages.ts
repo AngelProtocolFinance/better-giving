@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { IDonorMessage } from "#/components/org-page/items";
+import { report_error } from "#/errors/report";
 
 interface IDonorsPage {
   items: {
@@ -28,8 +29,8 @@ async function messages_page(npo_id: number, cursor: string) {
 }
 
 /** the loader's first page of messages, then each older page on `on_more`,
- * which is undefined once there is none. a failed page keeps the cursor, so
- * the next call asks again */
+ * which is undefined once there is none. a failed page is reported and keeps
+ * the cursor, so the next call asks again */
 export function use_donor_messages(
   npo_id: number,
   seed: IDonorMessage[],
@@ -52,7 +53,8 @@ export function use_donor_messages(
         at = page.next;
         set_cursor(at);
       }
-    } catch {
+    } catch (err) {
+      report_error(err, { npo_id });
     } finally {
       inflight.current = false;
     }

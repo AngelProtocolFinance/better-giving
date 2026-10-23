@@ -5,14 +5,14 @@ import { GoalBar } from "./goal-bar";
 import { ends_label, type IGiveItem } from "./items";
 
 /** how the card sits in its list.
- * - `vertical`: a third of a row; the 4:1 image across the top.
+ * - `vertical`: a third of a row, or a swipe row's card; the 4:1 image
+ *   across the top.
  * - `horizontal`: a half, or a row in a reading column; from md the image is
  *   the left 2/5, centred down it, and the text beside it.
  * - `feature`: a lone item across the whole row, laid out as `horizontal`,
  *   with room for its excerpt.
- * - `tile`: a swipe row's fixed-width cards, image on top.
  * a phone always has the image on top. */
-export type TCardOrientation = "vertical" | "horizontal" | "feature" | "tile";
+export type TCardOrientation = "vertical" | "horizontal" | "feature";
 
 export interface IGiveCard {
   item: IGiveItem;
@@ -20,7 +20,6 @@ export interface IGiveCard {
   /** epoch ms the end date counts down from: the loader's clock, so the
    * server render and hydration agree */
   now: number;
-  classes?: string;
 }
 
 const KIND: Record<IGiveItem["kind"], string> = {
@@ -33,13 +32,13 @@ const KIND: Record<IGiveItem["kind"], string> = {
  * card's bottom edge, so neighbours in a row align with or without an end
  * date; without a goal the raised line follows the text, so no band is left
  * where a bar would be */
-export function GiveCard({ item, orientation, now, classes = "" }: IGiveCard) {
+export function GiveCard({ item, orientation, now }: IGiveCard) {
   const feature = orientation === "feature";
   const beside = feature || orientation === "horizontal";
   const ends = ends_label(item.ends_at, now);
   return (
     <article
-      className={`relative grid h-full grid-rows-[auto_1fr] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2 ${beside ? "md:grid-cols-[2fr_3fr] md:grid-rows-1" : ""} ${classes}`}
+      className={`relative grid h-full grid-rows-[auto_1fr] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2 ${beside ? "md:grid-cols-[2fr_3fr] md:grid-rows-1" : ""}`}
     >
       <ImageFrame src={item.image} classes={beside ? "md:self-center" : ""} />
       <div className="flex min-w-0 flex-col gap-2 p-4">

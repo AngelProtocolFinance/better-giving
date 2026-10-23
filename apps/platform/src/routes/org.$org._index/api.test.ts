@@ -44,6 +44,7 @@ vi.mock("#/.server/auth", async () => ({
 const npo_queries = await import("$/pg/queries/npo");
 const program_queries = await import("$/pg/queries/program");
 const campaign_queries = await import("$/pg/queries/campaign");
+const funds_queries = await import("#/.server/funds");
 const { NPO_PUBLIC_KEYS } = npo_queries;
 const message_queries = await import("$/pg/queries/donation-message");
 const { donation_message_list } = message_queries;
@@ -630,6 +631,34 @@ describe("public npo profile loader", () => {
     }
   });
 
+  it("answers an unpublished org's id and case aliases with a private 404, not a 301 that names its slug", async () => {
+    const npo = await seed_npo({ published: false, slug: "hidden-org" });
+
+    for (const param of [String(npo.id), "HIDDEN-ORG"]) {
+      get_session.mockResolvedValueOnce({ user: undefined });
+      const res = await respond(param).catch((e: unknown) => e);
+
+      expect(res).toBeInstanceOf(Response);
+      expect((res as Response).status).toBe(404);
+      expect(cache_control(res)).toBe("private, no-store");
+    }
+  });
+
+  it("shows an unpublished org to its admin at its id url, kept out of shared caches", async () => {
+    const npo = await seed_npo({ published: false });
+    const member = await seed_creator();
+    await db()
+      .insert(user_npo_memberships)
+      .values({ user_id: member.id, npo_id: npo.id });
+    get_session.mockResolvedValueOnce({ user: member });
+
+    const res = await respond(String(npo.id));
+    await Promise.all([res.data.funds, res.data.media, res.data.programs]);
+
+    expect(res.data.npo.id).toBe(npo.id);
+    expect(cache_control(res)).toBe("private, no-store");
+  });
+
   it("serves a published org to the shared cache without reading the session", async () => {
     const npo = await seed_npo();
     get_session.mockClear();
@@ -678,7 +707,7 @@ describe("public npo profile loader", () => {
 });
 
 describe("profile shape", () => {
-  it("measures what the page shows: story, hero fields, and each kind of item it lists", async () => {
+  it("measures what the page shows: story, hero fields, and each kind of item it renders", async () => {
     const npo = await seed_npo({
       name: " Shape Org ",
       tagline: "  Water first ",
@@ -711,10 +740,14 @@ describe("profile shape", () => {
     await db()
       .insert(npo_media)
       .values(
-        ["shape-v1", "shape-v2"].map((id) => ({
+        ["shape-v1", "shape-v2", "shape-v3"].map((id) => ({
           id,
           npo_id: npo.id,
-          url: `https://youtu.be/${id}`,
+          // the third isn't on YouTube, so the page shows no player for it
+          url:
+            id === "shape-v3"
+              ? "https://vimeo.com/123"
+              : `https://youtu.be/${id}-abcd`,
           type: "video" as const,
           featured: true,
         }))
@@ -755,6 +788,21 @@ describe("profile shape", () => {
     expect(d.shape).toMatchObject({ campaigns: 1, programs: 0 });
     await expect(d.programs).rejects.toBe(down);
     await Promise.all([d.funds, d.media]);
+  });
+
+  it("keeps and counts the campaigns when the fundraisers' read fails, flagging the give list", async () => {
+    const npo = await seed_npo();
+    await seed_campaign(npo.id, "shape-funds-down-cmp");
+    vi.spyOn(funds_queries, "get_funds_npo_memberof").mockRejectedValueOnce(
+      new Error("funds down")
+    );
+
+    const d = await load(npo.slug!);
+    await Promise.allSettled([d.funds, d.media, d.programs]);
+
+    expect(d.lists.give.map((g) => g.id)).toEqual(["shape-funds-down-cmp"]);
+    expect(d.lists.failed.give).toBe(true);
+    expect(d.shape).toMatchObject({ campaigns: 1, fundraisers: 0 });
   });
 
   it("sends the layout's lists resolved, a campaign without the org's banner, and a failed read flagged", async () => {
@@ -1058,6 +1106,51 @@ describe("donors api", () => {
       ]);
     return org;
   }
+
+  it("serves an unpublished org's campaign feed, which its public campaign page reads, and 404s an inactive org's", async () => {
+    for (const [o, status] of [
+      [{ published: false }, 200],
+      [{ active: false }, 404],
+    ] as const) {
+      const npo = await seed_npo(o);
+      const cmp = `api-cmp-feed-${npo.id}`;
+      await seed_campaign(npo.id, cmp);
+
+      const res = await (
+        donors_api.loader({
+          params: { id: String(npo.id) },
+          request: new Request(
+            `http://localhost/api/npo/${npo.id}/donors?campaign_id=${cmp}`
+          ),
+        } as any) as Promise<Response>
+      ).catch((e: unknown) => e);
+
+      expect((res as Response).status).toBe(status);
+    }
+  });
+
+  it("answers 404 for an unpublished or inactive org's whole feed", async () => {
+    for (const o of [{ published: false }, { active: false }]) {
+      const org = String((await seed_npo(o)).id);
+      await db()
+        .insert(donation_messages)
+        .values({
+          id: `api-hidden-${org}`,
+          npo_id: org,
+          donor_message: "hi",
+          date: hours_ago(1),
+        });
+
+      const res = await (
+        donors_api.loader({
+          params: { id: org },
+          request: new Request(`http://localhost/api/npo/${org}/donors`),
+        } as any) as Promise<Response>
+      ).catch((e: unknown) => e);
+
+      expect((res as Response).status).toBe(404);
+    }
+  });
 
   it("serves only messages, paged by them, given with_message=1", async () => {
     const org = await seed_gap("api-only");

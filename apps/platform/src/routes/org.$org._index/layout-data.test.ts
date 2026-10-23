@@ -6,6 +6,7 @@ import {
   fund_give,
   layout_lists,
   org_credential,
+  shape_counts,
 } from "./layout-data";
 
 const NPO_ID = 7;
@@ -169,6 +170,16 @@ describe("layout lists", () => {
     date_created: "2026-10-01",
   });
   const NOW = new Date("2026-10-23T09:00:00Z");
+  const campaign = {
+    id: "c1",
+    name: "Winter coats",
+    to: "/org/acme/winter",
+    banner: null,
+    raised: 0,
+    with_org: null,
+    ends_at: null,
+    excerpt: "",
+  };
 
   it("empties a list whose read failed and flags it, leaving the others", () => {
     const lists = layout_lists({
@@ -201,6 +212,19 @@ describe("layout lists", () => {
       videos: true,
     });
     expect([no_funds.give, no_funds.videos]).toEqual([[], []]);
+  });
+
+  it("keeps the campaigns when the fundraisers' read fails, flagging the give list", () => {
+    const lists = layout_lists({
+      npo,
+      campaigns: [campaign],
+      funds: down,
+      programs: ok([]),
+      media: ok([]),
+      now: NOW,
+    });
+    expect(lists.give.map((g) => [g.kind, g.id])).toEqual([["campaign", "c1"]]);
+    expect(lists.failed.give).toBe(true);
   });
 
   it("gives the campaigns first, then only the open fundraisers", () => {
@@ -275,5 +299,25 @@ describe("layout lists", () => {
         title: null,
       },
     ]);
+  });
+
+  it("counts for the shape only what the lists render", () => {
+    const lists = layout_lists({
+      npo,
+      campaigns: [campaign],
+      funds: down,
+      programs: ok([program]),
+      media: ok([
+        video("v1", "https://youtu.be/dQw4w9WgXcQ"),
+        video("v2", "https://vimeo.com/123"),
+      ]),
+      now: NOW,
+    });
+    expect(shape_counts(lists)).toEqual({
+      campaigns: 1,
+      fundraisers: 0,
+      programs: 1,
+      videos: 1,
+    });
   });
 });

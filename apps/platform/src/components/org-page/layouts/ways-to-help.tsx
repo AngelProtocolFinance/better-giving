@@ -3,7 +3,8 @@ import type { IGiveItem, TOrgItem } from "../items";
 import { ItemsByCount } from "../items-by-count";
 import type { IOrgLayout } from "./types";
 
-/** what shows in place of a list that failed to load */
+/** what shows for a list that failed to load, in place of it or under the
+ * part of it that did */
 export const FAILED_LINE: Record<keyof IOrgLayout["failed"], string> = {
   give: "We couldn't load this nonprofit's campaigns right now. Please try again later.",
   programs:
@@ -12,12 +13,21 @@ export const FAILED_LINE: Record<keyof IOrgLayout["failed"], string> = {
     "We couldn't load this nonprofit's videos right now. Please try again later.",
 };
 
-/** the give list's name by what it holds; a list that failed to load holds
- * nothing and keeps the name its failure line uses */
+/** the give list's name by what it holds; an empty one, as a list that failed
+ * before loading anything is, keeps the name its failure line uses */
 export function give_label(give: IGiveItem[]): string {
   const only_supporter =
     give.length > 0 && give.every((x) => x.kind === "supporter");
   return only_supporter ? "Supporter campaigns" : "Campaigns";
+}
+
+interface IFailedLine {
+  kind: keyof IOrgLayout["failed"];
+}
+
+/** a list's failure line, under whatever of it did load */
+export function FailedLine({ kind }: IFailedLine) {
+  return <p className="text-sm text-gray-11">{FAILED_LINE[kind]}</p>;
 }
 
 const KINDS = ["give", "programs", "videos"] as const;
@@ -36,7 +46,7 @@ interface IWaysToHelp extends TLists, Pick<IOrgLayout, "now"> {
 }
 
 /** every way to give past the hero, laid out by count, with a failed list's
- * line in its place. nothing to show and nothing failed leaves the section
+ * line under the rest. nothing to show and nothing failed leaves the section
  * out, and the hero carries the page */
 export function WaysToHelp({
   classes = "",
@@ -47,7 +57,7 @@ export function WaysToHelp({
 }: IWaysToHelp) {
   const heading_id = useId();
   if (!has_ways_to_help({ failed, ...lists })) return null;
-  const items = KINDS.flatMap<TOrgItem>((k) => (failed[k] ? [] : lists[k]));
+  const items = KINDS.flatMap<TOrgItem>((k) => lists[k]);
   const failures = KINDS.filter((k) => failed[k]);
 
   return (
@@ -60,9 +70,7 @@ export function WaysToHelp({
       </h2>
       <ItemsByCount items={items} now={now} rows={rows} />
       {failures.map((k) => (
-        <p key={k} className="text-sm text-gray-11">
-          {FAILED_LINE[k]}
-        </p>
+        <FailedLine key={k} kind={k} />
       ))}
     </section>
   );

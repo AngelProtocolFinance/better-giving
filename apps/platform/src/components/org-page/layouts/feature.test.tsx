@@ -379,6 +379,32 @@ describe("Feature", () => {
       .toBeInTheDocument();
   });
 
+  test.each([
+    [4, "the swipe row"],
+    [2, "the grid"],
+  ])(
+    "a failed give list that loaded %i keeps them in %s, with its line under them",
+    async (n) => {
+      await page.viewport(1440, 900);
+      const screen = await mount({
+        give: many(give, n),
+        failed: { give: true, programs: false, videos: false },
+      });
+      const line = screen.getByText(
+        "We couldn't load this nonprofit's campaigns right now. Please try again later."
+      );
+      await expect.element(line).toBeVisible();
+      const card = screen.getByRole("link", { name: "Clean water 1" });
+      await expect.element(card).toBeVisible();
+      expect(
+        card.element().compareDocumentPosition(line.element()) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      // the line sits in the campaigns' anchored section
+      expect(line.element().closest("#campaigns")).not.toBeNull();
+    }
+  );
+
   test("on a phone the header's Donate waits until the hero's has scrolled away", async () => {
     await page.viewport(375, 812);
     const screen = await mount();

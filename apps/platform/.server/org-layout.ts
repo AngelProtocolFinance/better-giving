@@ -25,13 +25,51 @@ const LAYOUT_QUESTION: IJevChoice<TOrgLayout> = {
   },
 };
 
-/** Jev picks the layout from the measures; with no answer from Jev (no key,
- * timeout, error), the size rules do */
-export async function pick_layout(
-  shape: IOrgShape
-): Promise<{ layout: TOrgLayout; by: "jev" | "threshold" }> {
-  // spread: an interface has no index signature, so isn't a Record
-  const layout = await jev_choice({ ...shape }, LAYOUT_QUESTION);
-  if (layout) return { layout, by: "jev" };
-  return { layout: threshold_layout(shape), by: "threshold" };
+type TPick = { layout: TOrgLayout; by: "jev" | "threshold" };
+
+interface IPickerOpts {
+  /** shapes remembered; past this the oldest answer goes first */
+  max?: number;
+  ttl_ms?: number;
+  now?: () => number;
 }
+
+/**
+ * Jev picks the layout from the measures; with no answer from Jev (no key,
+ * timeout, error), the size rules do for that render. Jev's answer is kept per
+ * shape so the same shape renders the same layout on every render this server
+ * instance serves; a fallback is never kept, so the next render asks Jev again.
+ */
+export function make_layout_picker({
+  max = 500,
+  ttl_ms = 24 * 60 * 60 * 1000,
+  now = Date.now,
+}: IPickerOpts = {}) {
+  const answers = new Map<string, { layout: TOrgLayout; at: number }>();
+
+  return async function pick_layout(shape: IOrgShape): Promise<TPick> {
+    const key = shape_key(shape);
+    const kept = answers.get(key);
+    if (kept && now() - kept.at < ttl_ms) {
+      return { layout: kept.layout, by: "jev" };
+    }
+    answers.delete(key);
+
+    // spread: an interface has no index signature, so isn't a Record
+    const layout = await jev_choice({ ...shape }, LAYOUT_QUESTION);
+    if (!layout) return { layout: threshold_layout(shape), by: "threshold" };
+
+    if (answers.size >= max) {
+      // a Map iterates in insertion order, so the first key is the oldest
+      answers.delete(answers.keys().next().value as string);
+    }
+    answers.set(key, { layout, at: now() });
+    return { layout, by: "jev" };
+  };
+}
+
+/** the shape as a string, its keys sorted so key order can't split one shape */
+const shape_key = (shape: IOrgShape) =>
+  JSON.stringify(shape, Object.keys(shape).sort());
+
+export const pick_layout = make_layout_picker();

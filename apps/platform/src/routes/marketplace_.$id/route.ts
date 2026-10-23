@@ -10,6 +10,9 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const { search } = new URL(request.url);
   // looked up, not forwarded: a 301 to a 404 is cached as permanent
   const npo = await (typeof id === "number" ? npo_get(id) : npo_by_slug(id));
-  if (!npo || npo.active === false) throw new Response(null, { status: 404 });
+  // public and cached a day: an unpublished org's slug stays unnamed (its admins use /org/<id>)
+  if (!npo || npo.active === false || !npo.published) {
+    throw new Response(null, { status: 404 });
+  }
   return moved(`${org_href(npo)}${search}`);
 };

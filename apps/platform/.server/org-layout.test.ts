@@ -4,7 +4,7 @@ import type { IOrgShape } from "@/org-shape";
 const jev_choice = vi.hoisted(() => vi.fn());
 vi.mock("./jev", () => ({ jev_choice }));
 
-const { pick_layout } = await import("./org-layout");
+const { make_layout_picker } = await import("./org-layout");
 
 /** short story, one row: the thresholds say poster */
 const shape: IOrgShape = {
@@ -20,7 +20,11 @@ const shape: IOrgShape = {
 };
 
 describe("pick_layout", () => {
-  beforeEach(() => jev_choice.mockReset());
+  let pick_layout: ReturnType<typeof make_layout_picker>;
+  beforeEach(() => {
+    jev_choice.mockReset();
+    pick_layout = make_layout_picker();
+  });
 
   it("takes Jev's layout over the thresholds", async () => {
     jev_choice.mockResolvedValueOnce("feature");
@@ -59,5 +63,69 @@ describe("pick_layout", () => {
     ]);
     // jev_choice's own default timeout
     expect(timeout).toBeUndefined();
+  });
+});
+
+describe("pick_layout memo", () => {
+  beforeEach(() => jev_choice.mockReset());
+
+  it("asks Jev once per shape, whatever its key order, and keeps the answer", async () => {
+    const pick_layout = make_layout_picker();
+    jev_choice.mockResolvedValueOnce("feature");
+
+    const reordered = Object.fromEntries(
+      Object.entries(shape).reverse()
+    ) as unknown as IOrgShape;
+
+    expect(await pick_layout(shape)).toEqual({ layout: "feature", by: "jev" });
+    expect(await pick_layout(reordered)).toEqual({
+      layout: "feature",
+      by: "jev",
+    });
+    expect(jev_choice).toHaveBeenCalledOnce();
+  });
+
+  it("keeps no fallback, so the next render asks Jev again", async () => {
+    const pick_layout = make_layout_picker();
+    jev_choice.mockResolvedValueOnce(null).mockResolvedValueOnce("hub");
+
+    expect(await pick_layout(shape)).toEqual({
+      layout: "poster",
+      by: "threshold",
+    });
+    expect(await pick_layout(shape)).toEqual({ layout: "hub", by: "jev" });
+    expect(await pick_layout(shape)).toEqual({ layout: "hub", by: "jev" });
+    expect(jev_choice).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks Jev again once a kept answer is past its ttl", async () => {
+    let t = 0;
+    const pick_layout = make_layout_picker({ ttl_ms: 1000, now: () => t });
+    jev_choice.mockResolvedValueOnce("hub").mockResolvedValueOnce("letter");
+
+    await pick_layout(shape);
+    t = 999;
+    expect((await pick_layout(shape)).layout).toBe("hub");
+    t = 1000;
+    expect((await pick_layout(shape)).layout).toBe("letter");
+    expect(jev_choice).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps at most `max` shapes, dropping the oldest first", async () => {
+    const pick_layout = make_layout_picker({ max: 2 });
+    jev_choice.mockResolvedValue("hub");
+    const sized = (programs: number) => ({ ...shape, programs });
+
+    await pick_layout(sized(1));
+    await pick_layout(sized(2));
+    await pick_layout(sized(3));
+    expect(jev_choice).toHaveBeenCalledTimes(3);
+
+    // 2 and 3 are kept; 1 was dropped for 3
+    await pick_layout(sized(2));
+    await pick_layout(sized(3));
+    expect(jev_choice).toHaveBeenCalledTimes(3);
+    await pick_layout(sized(1));
+    expect(jev_choice).toHaveBeenCalledTimes(4);
   });
 });

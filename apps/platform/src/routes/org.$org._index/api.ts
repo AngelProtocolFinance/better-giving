@@ -23,7 +23,7 @@ import { npo_media_list } from "$/pg/queries/npo-media";
 import { npo_programs } from "$/pg/queries/program";
 import { npo_admin_member } from "$/pg/queries/user";
 import type { Route } from "./+types/route";
-import { layout_lists } from "./layout-data";
+import { layout_lists, shape_counts } from "./layout-data";
 
 /** the cdn keys on the url alone, so a response that depends on who asked
  * stays out of shared caches */
@@ -45,14 +45,19 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const id = npo_id(params.org);
   const npo = await (typeof id === "number" ? npo_get(id) : npo_by_slug(id));
   if (!npo || npo.active === false) throw new Response(null, { status: 404 });
-  // an org with a slug lives at it; its id url, and its slug in any other
-  // case (npo_by_slug matches case-insensitively), are aliases
-  if (npo.slug && (typeof id === "number" || id !== npo.slug)) {
-    throw moved(`${org_href(npo)}${new URL(request.url).search}`);
-  }
   // the session is read only here, so a published profile stays anonymous
   if (!npo.published && !(await can_preview(request, npo.id))) {
     throw new Response(null, { status: 404, headers: PRIVATE });
+  }
+  // an org with a slug lives at it; its id url, and its slug in any other
+  // case (npo_by_slug matches case-insensitively), are aliases. an unpublished
+  // org renders in place: the 301 is publicly cached, and would name its slug
+  if (
+    npo.published &&
+    npo.slug &&
+    (typeof id === "number" || id !== npo.slug)
+  ) {
+    throw moved(`${org_href(npo)}${new URL(request.url).search}`);
   }
 
   // each read fails soft (settled below, flagged in `lists.failed`), so nothing else reports it
@@ -153,11 +158,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     name_chars: npo.name.trim().length,
     has_banner: !!npo.image,
     has_logo: !!npo.logo,
-    campaigns: campaigns.length,
-    fundraisers: lists.give.filter((g) => g.kind !== "campaign").length,
-    programs:
-      programs_read.status === "fulfilled" ? programs_read.value.length : 0,
-    videos: media_read.status === "fulfilled" ? media_read.value.length : 0,
+    ...shape_counts(lists),
   };
   const { layout, by } = await pick_layout(shape);
 

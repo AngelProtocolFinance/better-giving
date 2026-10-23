@@ -50,7 +50,7 @@ export function Tabs<T extends string>({
       className={className}
     >
       <Ark.List
-        className={`flex overflow-x-auto border-b ${size === "md" ? "gap-2" : ""}`}
+        className={`scrollbars flex overflow-x-auto border-b ${size === "md" ? "gap-2" : ""}`}
       >
         {items.map((it) => (
           <Ark.Trigger

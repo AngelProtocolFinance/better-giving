@@ -49,6 +49,31 @@ function mount(props: IOrgLayout) {
   return render(<Stub initialEntries={["/"]} />);
 }
 
+/** a one-paragraph story whose words "how we teach" link out */
+const linked_story = () =>
+  JSON.stringify([
+    {
+      _type: "block",
+      _key: "b0",
+      style: "normal",
+      markDefs: [
+        {
+          _type: "link",
+          _key: "l0",
+          href: "https://riverside.example.org/method",
+        },
+      ],
+      children: [
+        { _type: "span", _key: "s0", text: "Read ", marks: [] },
+        { _type: "span", _key: "s1", text: "how we teach", marks: ["l0"] },
+        { _type: "span", _key: "s2", text: ".", marks: [] },
+      ],
+    },
+  ]);
+
+const follows = (a: Element, b: Element) =>
+  !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
 const tab_names = () =>
   [...document.querySelectorAll('[role="tab"]')].map((t) => t.textContent);
 
@@ -263,9 +288,6 @@ describe("Hub", () => {
           npo: npo({ tagline, overview_pt: story_pt }),
         })
       );
-    const follows = (a: Element, b: Element) =>
-      !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-
     const tagged = await with_story("Every adult a reader.");
     const h1 = tagged.getByRole("heading", { level: 1 }).element();
     const tagline = tagged
@@ -293,6 +315,72 @@ describe("Hub", () => {
       2
     );
     expect(para.scrollHeight - para.clientHeight).toBeLessThanOrEqual(1);
+  });
+
+  test.each([
+    [375, 812],
+    [1440, 900],
+  ])(
+    "the figures and Donate come before the story in reading order as on screen at %i",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount(
+        org_layout({
+          give: many(give, 4),
+          npo: npo({ overview_pt: linked_story() }),
+        })
+      );
+      const link = screen.getByRole("link", { name: "how we teach" });
+      await expect.element(link).toBeVisible();
+      const main = screen.container.querySelector("main") as HTMLElement;
+      const [donate] = donates(main);
+      expect(follows(donate, link.element())).toBe(true);
+      expect(donate.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        link.element().getBoundingClientRect().top
+      );
+      // the website link is in the meta row, read before Donate too
+      const site = screen
+        .getByText(EIN, { exact: true })
+        .element()
+        .closest("ul") as HTMLElement;
+      expect(follows(site, donate)).toBe(true);
+    }
+  );
+
+  test("with no banner a story link on the brand band takes the band's ink", async () => {
+    const screen = await mount(
+      org_layout({
+        give: many(give, 4),
+        npo: npo({ image: null, overview_pt: linked_story() }),
+      })
+    );
+    const link = screen.getByRole("link", { name: "how we teach" });
+    await expect.element(link).toBeVisible();
+    const h1 = screen.getByRole("heading", { level: 1 }).element();
+    expect(getComputedStyle(link.element()).color).toBe(
+      getComputedStyle(h1).color
+    );
+  });
+
+  test("a failed list that loaded some keeps them, with its line under them", async () => {
+    const screen = await mount(
+      org_layout({
+        give: many(give, 5),
+        programs: many(program, 2),
+        failed: { give: true, programs: false, videos: false },
+      })
+    );
+    await expect
+      .element(screen.getByRole("tab", { name: "Campaigns" }))
+      .toBeVisible();
+    await screen.getByRole("tab", { name: "Campaigns" }).click();
+    const line = screen.getByText(
+      "We couldn't load this nonprofit's campaigns right now. Please try again later."
+    );
+    await expect.element(line).toBeVisible();
+    const card = screen.getByRole("link", { name: "Clean water 1" });
+    await expect.element(card).toBeVisible();
+    expect(follows(card.element(), line.element())).toBe(true);
   });
 
   test("one kind left has no tablist, just its grid under its heading", async () => {

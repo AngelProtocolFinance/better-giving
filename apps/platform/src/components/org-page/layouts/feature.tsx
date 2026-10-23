@@ -3,6 +3,7 @@ import { RichText, to_text } from "#/components/rich-text";
 import { STORY_CLAMP } from "@/org-shape";
 import { BrandBand } from "../brand-band";
 import { DonateButton } from "../donate";
+import { first_sentence } from "../first-sentence";
 import type { IHeaderSection } from "../header";
 import { ItemsByCount } from "../items-by-count";
 import { OrgBanner } from "../org-banner";
@@ -15,7 +16,7 @@ import { SwipeRow } from "../swipe-row";
 import { VideoSet } from "../video-set";
 import { OrgPageFrame } from "./org-page-frame";
 import type { IOrgLayout } from "./types";
-import { FAILED_LINE, give_label } from "./ways-to-help";
+import { FailedLine, give_label } from "./ways-to-help";
 
 type TKind = keyof IOrgLayout["failed"];
 
@@ -62,13 +63,19 @@ export function Feature(props: IOrgLayout) {
     ...kinds.map((k) => ({ id: ANCHOR[k], label: label(k) })),
   ];
 
+  /** what loaded, then the line for what didn't */
   function content(k: TKind): ReactNode {
-    if (failed[k]) {
-      return <p className="text-sm text-gray-11">{FAILED_LINE[k]}</p>;
-    }
-    if (k === "videos") return <VideoSet videos={lists.videos} />;
-    // programs are rows at any count
-    return <ItemsByCount items={lists[k]} now={now} />;
+    return (
+      <>
+        {k === "videos" ? (
+          <VideoSet videos={lists.videos} />
+        ) : (
+          // programs are rows at any count
+          <ItemsByCount items={lists[k]} now={now} />
+        )}
+        {failed[k] && <FailedLine kind={k} />}
+      </>
+    );
   }
 
   return (
@@ -106,9 +113,14 @@ export function Feature(props: IOrgLayout) {
           </aside>
         </div>
         {kinds.map((k) =>
-          k === "give" && !failed.give && lists.give.length > 3 ? (
-            <div key={k} id={ANCHOR.give} className={ANCHORED}>
+          k === "give" && lists.give.length > 3 ? (
+            <div
+              key={k}
+              id={ANCHOR.give}
+              className={`flex flex-col gap-3 ${ANCHORED}`}
+            >
               <SwipeRow heading={label(k)} items={lists.give} now={now} />
+              {failed.give && <FailedLine kind="give" />}
             </div>
           ) : (
             <Section key={k} id={ANCHOR[k]} heading={label(k)}>
@@ -194,12 +206,6 @@ function FeatureHero({ page, donate_ref, phone_donate_ref }: IFeatureHero) {
   );
 }
 
-/** the story's opening sentence, or its first line when that has no stop */
-function first_sentence(text: string): string {
-  const t = text.trim();
-  return t.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? t.split("\n")[0];
-}
-
 interface ISectionStrip {
   sections: IHeaderSection[];
 }
@@ -209,7 +215,7 @@ function SectionStrip({ sections }: ISectionStrip) {
   if (sections.length === 0) return null;
   return (
     <nav aria-label="Sections" className="border-b lg:hidden">
-      <ul className="page flex gap-1 overflow-x-auto">
+      <ul className="page scrollbars flex gap-1 overflow-x-auto">
         {sections.map((s) => (
           // the first label's text, not its target, on the page's edge
           <li key={s.id} className="shrink-0 first:-ml-2.5">

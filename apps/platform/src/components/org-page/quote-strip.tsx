@@ -84,7 +84,16 @@ export function QuoteStrip({
       >
         “
       </span>
-      <figure className="col-span-full row-start-1 flex min-w-0 grow flex-col gap-1">
+      {/* next changes the whole figure, so it is what's announced: the
+          position, the message and its donor */}
+      <figure
+        aria-live={has_next ? "polite" : undefined}
+        aria-atomic={has_next || undefined}
+        className="col-span-full row-start-1 flex min-w-0 grow flex-col gap-1"
+      >
+        {/* the position alone: messages arrive a page at a time, so there is
+            no total to give */}
+        {has_next && <span className="sr-only">Message {at + 1}</span>}
         <blockquote className="break-words md:text-lg">
           <span aria-hidden className={`font-bold md:hidden ${t.mark}`}>
             “{" "}
@@ -98,21 +107,14 @@ export function QuoteStrip({
         </figcaption>
       </figure>
       {has_next && (
-        <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-2 self-end">
-          {/* the position alone: messages arrive a page at a time, so there
-              is no total to give */}
-          <p aria-live="polite" className="sr-only">
-            Message {at + 1}
-          </p>
-          <button
-            type="button"
-            aria-label="Next message"
-            onClick={next}
-            className={`glyph-btn size-11 ${t.next}`}
-          >
-            <ArrowRight aria-hidden className="icon-lg" />
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-label="Next message"
+          onClick={next}
+          className={`glyph-btn col-start-2 row-start-1 size-11 shrink-0 self-end ${t.next}`}
+        >
+          <ArrowRight aria-hidden className="icon-lg" />
+        </button>
       )}
     </section>
   );

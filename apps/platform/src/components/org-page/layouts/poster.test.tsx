@@ -128,6 +128,31 @@ describe("Poster", () => {
     expect(follows(deck.element(), lead.element())).toBe(true);
   });
 
+  test.each([
+    [375, 812],
+    [1440, 900],
+  ])(
+    "the figures come before Donate in reading order; a phone shows them so, wider Donate leads the row, at %i",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount();
+      const [donate] = donates(
+        screen.container.querySelector("main") as HTMLElement
+      );
+      await expect.poll(() => in_view(donate)).toBe(true);
+      const figures = donate.parentElement?.firstElementChild as HTMLElement;
+      expect(figures).not.toBe(donate);
+      expect(
+        figures.compareDocumentPosition(donate) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      const f = figures.getBoundingClientRect();
+      const d = donate.getBoundingClientRect();
+      if (w < 768) expect(f.bottom).toBeLessThanOrEqual(d.top);
+      else expect(d.right).toBeLessThanOrEqual(f.left);
+    }
+  );
+
   test("no registration, no line", async () => {
     const screen = await mount({ credential: null });
     await expect
@@ -181,7 +206,7 @@ describe("Poster", () => {
     ).toBeTruthy();
   });
 
-  test("a failed list shows its line in place of its items, and the others still render", async () => {
+  test("a failed list shows what did load with its line under it, and the others still render", async () => {
     const screen = await mount({
       give: [give(1)],
       programs: [program(1)],
@@ -195,7 +220,7 @@ describe("Poster", () => {
       )
       .toBeVisible();
     await expect.element(screen.getByText("Clean water 1")).toBeVisible();
-    expect(screen.getByText("School meals 1").query()).toBeNull();
+    await expect.element(screen.getByText("School meals 1")).toBeVisible();
   });
 
   test("messages bring the quote strip, and none leave it out", async () => {

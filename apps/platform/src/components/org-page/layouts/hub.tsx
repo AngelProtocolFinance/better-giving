@@ -14,7 +14,7 @@ import { RaisedStats } from "../raised-stats";
 import { VideoSet } from "../video-set";
 import { OrgPageFrame } from "./org-page-frame";
 import type { IOrgLayout } from "./types";
-import { FAILED_LINE, give_label } from "./ways-to-help";
+import { FailedLine, give_label } from "./ways-to-help";
 
 type TKind = keyof IOrgLayout["failed"];
 type TTab = TKind | "messages";
@@ -72,11 +72,17 @@ export function Hub(props: IOrgLayout) {
         />
       );
     }
-    if (failed[t]) {
-      return <p className="text-sm text-gray-11">{FAILED_LINE[t]}</p>;
-    }
-    if (t === "videos") return <VideoSet videos={lists.videos} />;
-    return <ShowMoreGrid items={lists[t]} now={now} />;
+    // what loaded, then the line for what didn't
+    return (
+      <div className="flex flex-col gap-4">
+        {t === "videos" ? (
+          <VideoSet videos={lists.videos} />
+        ) : (
+          lists[t].length > 0 && <ShowMoreGrid items={lists[t]} now={now} />
+        )}
+        {failed[t] && <FailedLine kind={t} />}
+      </div>
+    );
   }
 
   return (
@@ -121,8 +127,9 @@ interface IHubHero {
 }
 
 /** the banner over a tint band, the ringed mark overlapping it; no banner,
- * and the band is the brand's. on a phone everything stacks, with the figures
- * and Donate ahead of the story so they land in the first screen */
+ * and the band is the brand's. the figures and Donate come ahead of the story,
+ * in the dom as on screen, so they land in a phone's first screen; from md they
+ * sit at the identity row's end, the story under that row */
 function HubHero({ page, donate_ref }: IHubHero) {
   const { npo } = page;
   const banner = !!npo.image;
@@ -135,7 +142,7 @@ function HubHero({ page, donate_ref }: IHubHero) {
         tone={banner ? "tint" : "primary"}
         classes={`border-b pb-6 md:pb-8 ${banner ? "pt-4" : "pt-6 md:pt-8"}`}
       >
-        <div className="page grid gap-3 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-end md:gap-6">
+        <div className="page grid gap-3 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-end md:gap-x-6">
           <OrgMark
             name={npo.name}
             logo={npo.logo}
@@ -145,23 +152,10 @@ function HubHero({ page, donate_ref }: IHubHero) {
             // clear of the banner
             classes={banner ? "-mt-14 md:-mt-16 md:self-start" : ""}
           />
-          {/* on a phone this column's parts join the hero's grid, so the
-              story can follow Donate (its container's order-last) */}
-          <div className="flex min-w-0 flex-col gap-2 max-md:contents">
+          <div className="flex min-w-0 flex-col gap-3 md:gap-2">
             <OrgName name={npo.name} scale="sm" />
-            {/* the tagline in the band's ink, then the short story, muted on
-                the tint */}
+            {/* the tagline in the band's ink */}
             {tagline && <p className="max-w-2xl">{tagline}</p>}
-            {has_story && (
-              <RichText
-                readOnly
-                content={{ value: npo.overview_pt }}
-                classes={{
-                  container: "max-md:order-last",
-                  field: `flex max-w-2xl flex-col gap-2 ${banner ? "text-gray-11" : ""}`,
-                }}
-              />
-            )}
             <OrgMeta npo={npo} credential={page.credential} />
           </div>
           <div className="flex flex-col gap-3 pt-1 md:items-end md:pt-0">
@@ -174,6 +168,18 @@ function HubHero({ page, donate_ref }: IHubHero) {
             />
             <DonateButton to={page.donate_to} size="lg" ref={donate_ref} />
           </div>
+          {has_story && (
+            <RichText
+              readOnly
+              content={{ value: npo.overview_pt }}
+              // muted on the tint; on the brand fill a story link takes the
+              // band's ink, as the editor's primary link ink vanishes on it
+              classes={{
+                container: "md:col-start-2",
+                field: `flex max-w-2xl flex-col gap-2 ${banner ? "text-gray-11" : "[&_a]:text-primary-fg"}`,
+              }}
+            />
+          )}
         </div>
       </BrandBand>
     </>

@@ -5,18 +5,15 @@ import type { IProgramItem } from "./items";
 
 export interface IProgramRow {
   item: IProgramItem;
-  classes?: string;
 }
 
 /** a program is a full-width row at any count: from sm its 4:1 thumbnail on
  * the left, top-aligned, the text beside it; a phone has no room for both, so
  * the image runs across the top. the title is the row's one link, stretched
  * over it */
-export function ProgramRow({ item, classes = "" }: IProgramRow) {
+export function ProgramRow({ item }: IProgramRow) {
   return (
-    <article
-      className={`relative grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[auto_minmax(0,1fr)_auto] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2 ${classes}`}
-    >
+    <article className="relative grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[auto_minmax(0,1fr)_auto] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2">
       <ImageFrame
         src={item.image}
         classes="col-span-full sm:col-span-1 sm:w-40 sm:self-start md:w-56"

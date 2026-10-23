@@ -14,6 +14,7 @@ import type { IFundItem } from "@/fundraiser";
 import { fund_closes_at, fund_item_is_open } from "@/fundraiser/is-open";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 import type { IMedia, IProgramDb } from "@/npo";
+import type { IOrgShape } from "@/org-shape";
 
 /** the list read's `expiration` for a fund that never closes */
 const NO_EXPIRY_UNIX = Math.floor(Date.parse(MAX_EXPIRATION_ISO) / 1000);
@@ -94,7 +95,7 @@ interface ILayoutListsIn {
 }
 
 /** the layout's lists from the loader's settled reads; a read that failed
- * leaves its list empty and flagged, for its section's failure line */
+ * leaves its items out and its list flagged, for its section's failure line */
 export function layout_lists({
   npo,
   campaigns,
@@ -109,15 +110,13 @@ export function layout_lists({
   const read = <T>(r: PromiseSettledResult<T[]>) =>
     r.status === "fulfilled" ? r.value : [];
   return {
-    give:
-      funds.status === "fulfilled"
-        ? [
-            ...campaigns.map(campaign_give),
-            ...funds.value
-              .filter((f) => fund_item_is_open(f, now))
-              .map((f) => fund_give(f, npo.id)),
-          ]
-        : [],
+    // campaigns are their own read: a failed fundraiser read flags the list but keeps them
+    give: [
+      ...campaigns.map(campaign_give),
+      ...read(funds)
+        .filter((f) => fund_item_is_open(f, now))
+        .map((f) => fund_give(f, npo.id)),
+    ],
     programs: read(programs).map(
       (p): IProgramItem => ({
         kind: "program",
@@ -147,6 +146,24 @@ export function layout_lists({
     },
   };
 }
+
+type TLists = Pick<IOrgLayout, "give" | "programs" | "videos">;
+
+/** the shape's item counts, read off the lists so a layout is never picked for
+ * an item that doesn't render */
+export const shape_counts = ({
+  give,
+  programs,
+  videos,
+}: TLists): Pick<
+  IOrgShape,
+  "campaigns" | "fundraisers" | "programs" | "videos"
+> => ({
+  campaigns: give.filter((g) => g.kind === "campaign").length,
+  fundraisers: give.filter((g) => g.kind !== "campaign").length,
+  programs: programs.length,
+  videos: videos.length,
+});
 
 interface IFooterIn {
   registration_number: string | null;

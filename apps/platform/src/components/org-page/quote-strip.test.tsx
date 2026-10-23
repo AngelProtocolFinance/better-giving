@@ -23,7 +23,7 @@ describe("QuoteStrip", () => {
     expect(screen.container.querySelector("section")).toBeNull();
   });
 
-  test("steps through the messages, announcing the position with no total, and wraps at the end", async () => {
+  test("steps through the messages, announcing each with its position and no total, and wraps at the end", async () => {
     const screen = await render(<QuoteStrip messages={msgs(3)} tone="dark" />);
     const next = screen.getByRole("button", { name: "Next message" });
     const position = screen.getByText(/^Message \d$/);
@@ -31,13 +31,18 @@ describe("QuoteStrip", () => {
     await expect.element(screen.getByText("Message body 1")).toBeVisible();
     await expect.element(screen.getByText("Donor 1")).toBeVisible();
     await expect.element(position).toHaveTextContent("Message 1");
-    expect(position.element()).toHaveAttribute("aria-live", "polite");
+    // the live region is the whole message, so next reads out what it brought
+    const live = position.element().closest('[aria-live="polite"]');
+    expect(live).not.toBeNull();
+    expect(live).toHaveAttribute("aria-atomic", "true");
     // messages load a page at a time, so no total is shown or announced
     expect(screen.container.textContent).not.toMatch(/\bof\b|\d\s*\/\s*\d/);
 
     await next.click();
     await expect.element(screen.getByText("Message body 2")).toBeVisible();
     await expect.element(position).toHaveTextContent("Message 2");
+    expect(live?.textContent).toContain("Message body 2");
+    expect(live?.textContent).toContain("Donor 2");
 
     await next.click();
     await next.click();

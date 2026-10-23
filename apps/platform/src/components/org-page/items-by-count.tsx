@@ -11,7 +11,6 @@ export interface IItemsByCount {
   /** every campaign a `horizontal` row, one per line, whatever the count, so
    * it lines up with the program rows: a reading column's list */
   rows?: boolean;
-  classes?: string;
 }
 
 /** a list laid out by its own count, never leaving an empty slot: 1 is a
@@ -19,12 +18,7 @@ export interface IItemsByCount {
  * are rows and videos follow their own rule whatever the count, so a mixed
  * list renders campaigns and supporter campaigns, then programs, then videos. on a
  * phone every count is a single stack. nothing for no items */
-export function ItemsByCount({
-  items,
-  now,
-  rows = false,
-  classes = "",
-}: IItemsByCount) {
+export function ItemsByCount({ items, now, rows = false }: IItemsByCount) {
   if (items.length === 0) return null;
   const give = items.filter(
     (x): x is IGiveItem => x.kind === "campaign" || x.kind === "supporter"
@@ -32,7 +26,7 @@ export function ItemsByCount({
   const programs = items.filter((x): x is IProgramItem => x.kind === "program");
   const videos = items.filter((x): x is IVideoItem => x.kind === "video");
   return (
-    <div className={`flex flex-col gap-4 ${classes}`}>
+    <div className="flex flex-col gap-4">
       {give.length > 0 &&
         (rows ? (
           <ul data-count={give.length} className="grid gap-4">
@@ -98,19 +92,17 @@ export interface IShowMoreGrid {
   items: (IGiveItem | IProgramItem)[];
   /** epoch ms, see `GiveCard` */
   now: number;
-  classes?: string;
 }
 
 /** a tab's content: the first 6 in three columns (3 on a phone), and "Show N
  * more" for the rest. programs stay full-width rows */
-export function ShowMoreGrid({ items, now, classes }: IShowMoreGrid) {
+export function ShowMoreGrid({ items, now }: IShowMoreGrid) {
   return (
     <RevealGrid
       items={items}
       now={now}
       first={{ phone: 3, wide: 6 }}
       label={(hidden) => `Show ${hidden} more`}
-      classes={classes}
     />
   );
 }
@@ -124,13 +116,12 @@ interface IRevealGrid {
   /** how many show before the reveal, under and from `md` */
   first: { phone: number; wide: number };
   label: (hidden: number, total: number) => string;
-  classes?: string;
 }
 
 /** the rest are in the dom from the start, hidden by css alone, so the server
  * render needs no viewport. the reveal is one way: its button goes, and focus
  * moves to the first item it brought in */
-function RevealGrid({ items, now, first, label, classes = "" }: IRevealGrid) {
+function RevealGrid({ items, now, first, label }: IRevealGrid) {
   const [revealed_from, set_revealed_from] = useState<number | null>(null);
   const list = useRef<HTMLUListElement>(null);
 
@@ -152,7 +143,7 @@ function RevealGrid({ items, now, first, label, classes = "" }: IRevealGrid) {
   }
 
   return (
-    <div className={`flex flex-col gap-4 ${classes}`}>
+    <div className="flex flex-col gap-4">
       <ul ref={list} data-count={n} className="grid gap-4 md:grid-cols-3">
         {items.map((x, i) =>
           x.kind === "program" ? (

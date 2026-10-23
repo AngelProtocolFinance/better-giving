@@ -46,20 +46,21 @@ export function Poster(props: IOrgLayout) {
             {tagline && (
               <p className="text-lg leading-snug md:text-2xl">{tagline}</p>
             )}
-            {/* a phone reads the figures, then
-                Donate, full width; wider, Donate leads its row */}
-            <div className="flex flex-col gap-4 pt-2 md:flex-row md:flex-wrap md:items-center md:gap-6">
-              <DonateButton
-                ref={set_hero_donate}
-                to={props.donate_to}
-                size="lg"
-                classes="max-md:order-last"
-              />
+            {/* a phone reads the figures, then Donate, full width; wider,
+                Donate leads the row, placed in the first column */}
+            <div className="flex flex-col gap-4 pt-2 md:grid md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-6">
               <RaisedStats
                 raised={npo.contributions_total}
                 donors={props.donors}
                 target={npo.target}
                 variant="inline"
+                classes="md:col-start-2 md:row-start-1"
+              />
+              <DonateButton
+                ref={set_hero_donate}
+                to={props.donate_to}
+                size="lg"
+                classes="md:col-start-1 md:row-start-1"
               />
             </div>
             {has_story && (

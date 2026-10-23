@@ -147,6 +147,44 @@ describe("Letter", () => {
       .toBeVisible();
   });
 
+  test("a long opening sentence and no tagline: the deck stops at three lines and Donate stays in the first screen at 375", async () => {
+    await page.viewport(375, 812);
+    const opening =
+      "When Grace Atuhaire started tutoring adults at the Kasese public library in the spring of 2014, nine of the thirty grown men and women who came to her evening room twice a week could read a full sentence aloud, and fewer still could write one, so she began with the bus timetable and the medicine label.";
+    const screen = await mount(
+      {},
+      {
+        name: LONG_NAME,
+        tagline: null,
+        overview_pt: story(`${opening} By June, twenty-six could.`, ...BODY),
+      }
+    );
+    const deck = screen.getByText(opening, { exact: true });
+    await expect.element(deck).toBeInTheDocument();
+    const el = deck.element() as HTMLElement;
+    const s = getComputedStyle(el);
+    expect(s.webkitLineClamp).toBe("3");
+    expect(el.clientHeight / Number.parseFloat(s.lineHeight)).toBeLessThan(3.5);
+    const root = root_of(screen.container);
+    await expect.poll(() => donates(root).some(above_fold)).toBe(true);
+  });
+
+  test("a deck from the story is not read twice, and the story opens without a lead", async () => {
+    const screen = await mount({}, { tagline: null });
+    const first =
+      "When Grace Atuhaire started tutoring at the Kasese library in 2014, nine of the thirty adults in her room could read a full sentence.";
+    const deck = screen.getByText(first, { exact: true });
+    await expect.element(deck).toBeVisible();
+    expect(deck.element()).toHaveAttribute("aria-hidden", "true");
+    const lead = screen.getByText(LEAD, { exact: true }).element();
+    const next = screen.getByText(BODY[0], { exact: true }).element();
+    const look = (el: Element) => {
+      const s = getComputedStyle(el);
+      return { size: s.fontSize, weight: s.fontWeight };
+    };
+    expect(look(lead)).toEqual(look(next));
+  });
+
   test("the story's first paragraph is the lead, set larger than the rest", async () => {
     const screen = await mount();
     const lead = screen.getByText(LEAD, { exact: true }).element();
@@ -215,21 +253,26 @@ describe("Letter", () => {
     expect(bare.container.querySelector("figure")).toBeNull();
   });
 
-  test("a failed list shows its line in place of its items, and the others still render", async () => {
-    const screen = await mount({
+  test("a failed list shows what did load with its line under it, or the line alone, and the others still render", async () => {
+    const line =
+      "We couldn't load this nonprofit's campaigns right now. Please try again later.";
+    const partial = await mount({
       give: [give(1)],
       programs: [program(1)],
       failed: { give: true, programs: false, videos: false },
     });
-    await expect
-      .element(
-        screen.getByText(
-          "We couldn't load this nonprofit's campaigns right now. Please try again later."
-        )
-      )
-      .toBeVisible();
-    await expect.element(screen.getByText("School meals 1")).toBeVisible();
-    expect(screen.getByText("Clean water 1").query()).toBeNull();
+    await expect.element(partial.getByText(line)).toBeVisible();
+    await expect.element(partial.getByText("Clean water 1")).toBeVisible();
+    await expect.element(partial.getByText("School meals 1")).toBeVisible();
+    await cleanup();
+
+    const empty = await mount({
+      programs: [program(1)],
+      failed: { give: true, programs: false, videos: false },
+    });
+    await expect.element(empty.getByText(line)).toBeVisible();
+    await expect.element(empty.getByText("School meals 1")).toBeVisible();
+    expect(empty.getByText("Clean water 1").query()).toBeNull();
   });
 
   test("messages bring the quote strip after the story, and none leave it out", async () => {

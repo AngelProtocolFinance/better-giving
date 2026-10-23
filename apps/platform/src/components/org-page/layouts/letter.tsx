@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RichText, to_text } from "#/components/rich-text";
 import { DonateButton } from "../donate";
+import { first_sentence } from "../first-sentence";
 import { OrgBanner } from "../org-banner";
 import { OrgMeta } from "../org-meta";
 import { OrgName } from "../org-name";
@@ -10,6 +11,9 @@ import { OrgPageFrame } from "./org-page-frame";
 import type { IOrgLayout } from "./types";
 import { WaysToHelp } from "./ways-to-help";
 
+const LEAD =
+  "[&>p:first-child]:text-lg [&>p:first-child]:font-bold md:[&>p:first-child]:text-xl";
+
 /** a long story, and 0-3 items: an editorial reading column on the page's
  * left edge. the name and its deck, the figures and Donate under them, the
  * banner across the page, the story, the donors' words, then whatever there
@@ -17,7 +21,8 @@ import { WaysToHelp } from "./ways-to-help";
 export function Letter(props: IOrgLayout) {
   const { npo } = props;
   const [hero_donate, set_hero_donate] = useState<HTMLElement | null>(null);
-  const deck = npo.tagline?.trim() || first_sentence(to_text(npo.overview_pt));
+  const tagline = npo.tagline?.trim();
+  const deck = tagline || first_sentence(to_text(npo.overview_pt));
 
   return (
     <OrgPageFrame page={props} hero_donate={hero_donate}>
@@ -28,8 +33,13 @@ export function Letter(props: IOrgLayout) {
           <div className="flex max-w-3xl flex-col gap-4">
             <OrgMeta npo={npo} credential={props.credential} />
             <OrgName name={npo.name} scale="lg" />
+            {/* a deck taken from the story is its opening words again, which
+                the story itself reads out a moment later */}
             {deck && (
-              <p className="text-lg leading-snug text-gray-11 md:text-2xl">
+              <p
+                aria-hidden={!tagline || undefined}
+                className="line-clamp-3 text-lg leading-snug text-gray-11 md:text-2xl"
+              >
                 {deck}
               </p>
             )}
@@ -57,10 +67,11 @@ export function Letter(props: IOrgLayout) {
             readOnly
             content={{ value: npo.overview_pt }}
             // the first block is the lead, set a size up, when it is a
-            // paragraph: a heading or a list keeps its own setting
+            // paragraph: a heading or a list keeps its own setting. a deck
+            // from the story already set its opening, so the lead would
+            // repeat it
             classes={{
-              field:
-                "flex max-w-3xl flex-col gap-5 leading-relaxed md:gap-6 md:text-lg [&>p:first-child]:text-lg [&>p:first-child]:font-bold md:[&>p:first-child]:text-xl",
+              field: `flex max-w-3xl flex-col gap-5 leading-relaxed md:gap-6 md:text-lg ${tagline ? LEAD : ""}`,
             }}
           />
           <QuoteStrip
@@ -82,11 +93,4 @@ export function Letter(props: IOrgLayout) {
       </div>
     </OrgPageFrame>
   );
-}
-
-/** up to the first sentence's closing mark, or the whole text when it has
- * none */
-function first_sentence(text: string): string {
-  const flat = text.replace(/\s+/g, " ").trim();
-  return flat.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? flat;
 }
