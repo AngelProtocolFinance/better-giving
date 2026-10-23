@@ -14,7 +14,8 @@ import { has_ways_to_help, WaysToHelp } from "./ways-to-help";
 
 /** a short story or none, and 0-3 items: the hero on the deep band is the
  * whole pitch, under the banner when there is one and leading the page when
- * not: the name, the tagline as its deck, the short story as the lead. whatever
+ * not: the name, the tagline as its deck, Donate, then the short story, which
+ * would otherwise push Donate past a phone's first screen. whatever
  * there is to give to follows it in one row, then the donors' words */
 export function Poster(props: IOrgLayout) {
   const { npo } = props;
@@ -34,7 +35,9 @@ export function Poster(props: IOrgLayout) {
         classes={`py-8 md:py-12 ${has_more ? "" : "flex flex-1 flex-col justify-center"}`}
       >
         <div className="page">
-          <div className="flex max-w-3xl flex-col gap-4 md:gap-5">
+          {/* the name and its deck take a wider measure than the story's, so
+              a long name and a full tagline wrap a line less above Donate */}
+          <div className="flex max-w-3xl flex-col gap-4 md:gap-5 lg:max-w-5xl">
             <div className="flex items-center gap-3 md:gap-4">
               <OrgMark name={npo.name} logo={npo.logo} size="md" ring />
               <OrgMeta npo={npo} credential={props.credential} />
@@ -42,18 +45,6 @@ export function Poster(props: IOrgLayout) {
             <OrgName name={npo.name} scale="lg" />
             {tagline && (
               <p className="text-lg leading-snug md:text-2xl">{tagline}</p>
-            )}
-            {has_story && (
-              <RichText
-                readOnly
-                content={{ value: npo.overview_pt }}
-                // a story link keeps the band's ink: the editor's primary
-                // link ink vanishes on the deep fill
-                classes={{
-                  field:
-                    "flex flex-col gap-3 leading-relaxed md:text-xl [&_a]:text-primary-fg",
-                }}
-              />
             )}
             {/* a phone reads the figures, then
                 Donate, full width; wider, Donate leads its row */}
@@ -71,6 +62,18 @@ export function Poster(props: IOrgLayout) {
                 variant="inline"
               />
             </div>
+            {has_story && (
+              <RichText
+                readOnly
+                content={{ value: npo.overview_pt }}
+                // a story link keeps the band's ink: the editor's primary
+                // link ink vanishes on the deep fill
+                classes={{
+                  field:
+                    "flex max-w-3xl flex-col gap-3 leading-relaxed md:text-xl [&_a]:text-primary-fg",
+                }}
+              />
+            )}
           </div>
         </div>
       </BrandBand>

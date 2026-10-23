@@ -12,7 +12,7 @@ import { WaysToHelp } from "./ways-to-help";
 
 /** no story and nothing to list: one centred identity card on the page
  * ground, the banner as its top strip, then the mark, the name, the tagline,
- * the facts, the figures and Donate, with the donors' words under it. a list
+ * the facts, Donate and the figures, with the donors' words under it. a list
  * that failed to load (so counted as nothing to list) keeps its line between
  * the card and the donors' words. all of it sits in the middle of main when
  * the page is shorter than the screen */
@@ -45,18 +45,18 @@ export function Card(props: IOrgLayout) {
                 credential={props.credential}
                 classes="justify-center"
               />
+              <DonateButton
+                ref={set_hero_donate}
+                to={props.donate_to}
+                size="lg"
+                classes="max-md:self-stretch"
+              />
               <RaisedStats
                 raised={npo.contributions_total}
                 donors={props.donors}
                 target={npo.target}
                 variant="inline"
                 classes="w-full items-center"
-              />
-              <DonateButton
-                ref={set_hero_donate}
-                to={props.donate_to}
-                size="lg"
-                classes="max-md:self-stretch"
               />
             </div>
           </article>

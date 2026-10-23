@@ -39,6 +39,32 @@ export function in_view(el: Element): boolean {
   );
 }
 
+/** room the first screen keeps under Donate, so a wrap the fixture didn't
+ * foresee (another face, a longer word) still leaves it in view */
+export const FOLD_SLACK = 80;
+
+/** in view, with at least FOLD_SLACK px of the screen left under it */
+export function above_fold(el: Element): boolean {
+  return (
+    in_view(el) &&
+    el.getBoundingClientRect().bottom <= window.innerHeight - FOLD_SLACK
+  );
+}
+
+/** the longest name and tagline the editor takes in practice: ~70 characters,
+ * and the tagline at its 140-character limit (lib/npo/schema.ts) */
+export const LONG_NAME =
+  "The Riverside Community Adult Literacy and Family Learning Partnership";
+export const TAGLINE_MAX =
+  "Free one-to-one reading tutoring for adults across three counties, so every grown-up can read a bus timetable, a medicine label and a story.";
+
+const PROSE =
+  "Riverside Literacy puts a trained reading tutor beside every adult learner who asks for one, twice a week, in libraries and church halls across three counties. ";
+
+/** one paragraph of exactly `chars` characters */
+export const prose = (chars: number) =>
+  PROSE.repeat(Math.ceil(chars / PROSE.length)).slice(0, chars);
+
 export const give = (n: number): IGiveItem => ({
   kind: "campaign",
   id: `give-${n}`,

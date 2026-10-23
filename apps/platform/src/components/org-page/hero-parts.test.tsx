@@ -42,6 +42,22 @@ describe("org hero", () => {
     expect(none.container.textContent).toBe("");
   });
 
+  test("a banner that fails to load keeps the 4:1 strip, so nothing under it moves down", async () => {
+    await page.viewport(1440, 900);
+    // in a flex column, as every layout's main is
+    const screen = await render(
+      <div className="flex flex-col">
+        <OrgBanner src="data:image/png;base64,bm90IGFuIGltYWdl" />
+      </div>
+    );
+    // the placeholder stands in once the load fails
+    await expect.poll(() => screen.container.querySelector("img")).toBeNull();
+    const strip = screen.container.firstElementChild
+      ?.firstElementChild as HTMLElement;
+    const box = strip.getBoundingClientRect();
+    expect(box.width / box.height).toBeCloseTo(4, 1);
+  });
+
   test("the mark is the logo, or the name's first letter when there is none", async () => {
     const screen = await render(
       <>

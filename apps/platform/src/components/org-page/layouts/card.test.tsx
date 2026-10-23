@@ -10,11 +10,14 @@ import {
   scroll_past_hero_donate,
 } from "#/__tests__/fixtures/layout-dom";
 import {
+  above_fold,
   EIN,
   in_view,
+  LONG_NAME,
   message,
   npo,
   org_layout,
+  TAGLINE_MAX,
 } from "#/__tests__/fixtures/org-layout";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import type { INpoPublic } from "$/pg/queries/npo";
@@ -67,12 +70,31 @@ describe("Card", () => {
       await page.viewport(w, h);
       const screen = await mount({ messages: [message(1)] });
       const [hero_donate] = donates(main_of(screen.container));
-      await expect.poll(() => in_view(hero_donate)).toBe(true);
+      await expect.poll(() => above_fold(hero_donate)).toBe(true);
       const credential = screen.getByText(EIN, { exact: true });
       await expect.poll(() => in_view(credential.element())).toBe(true);
       expect(credential.element().closest("li")).toHaveTextContent(
         `EIN ${EIN}`
       );
+    }
+  );
+
+  test.each([
+    [1440, 900],
+    [375, 812],
+  ])(
+    "the tallest hero (a long name, the tagline at its limit, a banner) keeps Donate in the first screen at %i",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount(
+        { messages: [message(1)] },
+        { name: LONG_NAME, tagline: TAGLINE_MAX }
+      );
+      const [hero_donate] = donates(main_of(screen.container));
+      await expect.poll(() => above_fold(hero_donate)).toBe(true);
+      await expect
+        .poll(() => in_view(screen.getByText(EIN, { exact: true }).element()))
+        .toBe(true);
     }
   );
 

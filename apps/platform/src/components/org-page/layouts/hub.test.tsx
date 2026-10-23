@@ -10,18 +10,24 @@ import {
   scroll_past_hero_donate,
 } from "#/__tests__/fixtures/layout-dom";
 import {
+  above_fold,
   EIN,
   fundraiser,
   give,
   in_view,
+  LONG_NAME,
   many,
   message,
   npo,
   org_layout,
   program,
+  prose,
+  story,
+  TAGLINE_MAX,
   video,
 } from "#/__tests__/fixtures/org-layout";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
+import { STORY_SHORT_MAX } from "@/org-shape";
 import { Hub } from "./hub";
 import type { IOrgLayout } from "./types";
 
@@ -73,12 +79,40 @@ describe("Hub", () => {
       );
       const donates = screen.getByRole("link", { name: "Donate", exact: true });
       await expect.element(donates.first()).toBeInTheDocument();
-      await expect.poll(() => donates.elements().some(in_view)).toBe(true);
+      await expect.poll(() => donates.elements().some(above_fold)).toBe(true);
       const credential = screen.getByText(EIN, { exact: true });
       await expect.poll(() => in_view(credential.element())).toBe(true);
       expect(credential.element().closest("li")).toHaveTextContent(
         `EIN ${EIN}`
       );
+    }
+  );
+
+  test.each([
+    [1440, 900],
+    [375, 812],
+  ])(
+    "the tallest hero (a long name, the tagline at its limit, a banner) keeps Donate in the first screen at %i",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount(
+        org_layout({
+          give: many(give, 4),
+          programs: many(program, 2),
+          npo: npo({
+            name: LONG_NAME,
+            tagline: TAGLINE_MAX,
+            image: BANNER,
+            overview_pt: story(prose(STORY_SHORT_MAX)),
+          }),
+        })
+      );
+      const donates = screen.getByRole("link", { name: "Donate", exact: true });
+      await expect.element(donates.first()).toBeInTheDocument();
+      await expect.poll(() => donates.elements().some(above_fold)).toBe(true);
+      await expect
+        .poll(() => in_view(screen.getByText(EIN, { exact: true }).element()))
+        .toBe(true);
     }
   );
 

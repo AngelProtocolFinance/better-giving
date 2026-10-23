@@ -121,7 +121,8 @@ interface IHubHero {
 }
 
 /** the banner over a tint band, the ringed mark overlapping it; no banner,
- * and the band is the brand's. on a phone everything stacks, ending on Donate */
+ * and the band is the brand's. on a phone everything stacks, with the figures
+ * and Donate ahead of the story so they land in the first screen */
 function HubHero({ page, donate_ref }: IHubHero) {
   const { npo } = page;
   const banner = !!npo.image;
@@ -144,7 +145,9 @@ function HubHero({ page, donate_ref }: IHubHero) {
             // clear of the banner
             classes={banner ? "-mt-14 md:-mt-16 md:self-start" : ""}
           />
-          <div className="flex min-w-0 flex-col gap-2">
+          {/* on a phone this column's parts join the hero's grid, so the
+              story can follow Donate (its container's order-last) */}
+          <div className="flex min-w-0 flex-col gap-2 max-md:contents">
             <OrgName name={npo.name} scale="sm" />
             {/* the tagline in the band's ink, then the short story, muted on
                 the tint */}
@@ -154,6 +157,7 @@ function HubHero({ page, donate_ref }: IHubHero) {
                 readOnly
                 content={{ value: npo.overview_pt }}
                 classes={{
+                  container: "max-md:order-last",
                   field: `flex max-w-2xl flex-col gap-2 ${banner ? "text-gray-11" : ""}`,
                 }}
               />

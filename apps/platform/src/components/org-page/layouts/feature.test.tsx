@@ -3,21 +3,25 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import {
+  BANNER,
   donates,
   header_donate,
   pinned_to_bottom,
   scroll_past_hero_donate,
 } from "#/__tests__/fixtures/layout-dom";
 import {
+  above_fold,
   EIN,
   fundraiser,
   give,
   in_view,
+  LONG_NAME,
   many,
   npo,
   org_layout,
   program,
   story,
+  TAGLINE_MAX,
   video,
 } from "#/__tests__/fixtures/org-layout";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
@@ -100,12 +104,36 @@ describe("Feature", () => {
       const screen = await mount();
       const donates = screen.getByRole("link", { name: "Donate", exact: true });
       await expect.element(donates.first()).toBeInTheDocument();
-      await expect.poll(() => donates.elements().some(in_view)).toBe(true);
+      await expect.poll(() => donates.elements().some(above_fold)).toBe(true);
       const credential = screen.getByText(EIN, { exact: true });
       await expect.poll(() => in_view(credential.element())).toBe(true);
       expect(credential.element().closest("li")).toHaveTextContent(
         `EIN ${EIN}`
       );
+    }
+  );
+
+  test.each([
+    [1440, 900],
+    [375, 812],
+  ])(
+    "the tallest hero (a long name, the tagline at its limit, a banner) keeps Donate in the first screen at %i",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount({
+        npo: npo({
+          name: LONG_NAME,
+          tagline: TAGLINE_MAX,
+          image: BANNER,
+          overview_pt: story_of(STORY_CLAMP + 400),
+        }),
+      });
+      const donates = screen.getByRole("link", { name: "Donate", exact: true });
+      await expect.element(donates.first()).toBeInTheDocument();
+      await expect.poll(() => donates.elements().some(above_fold)).toBe(true);
+      await expect
+        .poll(() => in_view(screen.getByText(EIN, { exact: true }).element()))
+        .toBe(true);
     }
   );
 
