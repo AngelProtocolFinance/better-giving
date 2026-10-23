@@ -67,7 +67,6 @@
         "AI_GATEWAY_API_KEY",
         "BETTER_AUTH_API_KEY",
         "COINGECKO_API_KEY",
-        "SLACK_BOT_TOKEN",
         "FINNHUB_API_KEY",
         "OPENEXCHANGE_APP_ID",
         "SMTP_PASSWORD",
