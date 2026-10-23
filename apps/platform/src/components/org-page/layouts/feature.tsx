@@ -13,7 +13,6 @@ import { QuoteStrip } from "../quote-strip";
 import { RaisedStats } from "../raised-stats";
 import { SwipeRow } from "../swipe-row";
 import { VideoSet } from "../video-set";
-import { Credential } from "./credential";
 import { OrgPageFrame } from "./org-page-frame";
 import type { IOrgLayout } from "./types";
 import { FAILED_LINE, give_label } from "./ways-to-help";
@@ -123,7 +122,7 @@ interface IFeatureHero {
 }
 
 /** the banner over a tint band, the ringed mark overlapping it; no banner,
- * and the band is the brand's. the mark, the eyebrow, the name, the tagline
+ * and the band is the brand's. the mark, the meta row, the name, the tagline
  * (or the story's first sentence), then Donate; a phone's Donate comes with
  * the raised figures, in a panel */
 function FeatureHero({ page, donate_ref }: IFeatureHero) {
@@ -145,7 +144,7 @@ function FeatureHero({ page, donate_ref }: IFeatureHero) {
             ring={banner}
             classes={banner ? "-mt-10 md:-mt-12" : ""}
           />
-          <OrgMeta npo={npo} variant="eyebrow" />
+          <OrgMeta npo={npo} credential={page.credential} />
           <OrgName name={npo.name} scale="md" />
           {lead && (
             <p
@@ -154,7 +153,6 @@ function FeatureHero({ page, donate_ref }: IFeatureHero) {
               {lead}
             </p>
           )}
-          <Credential credential={page.credential} />
           <DonateButton
             to={page.donate_to}
             size="lg"

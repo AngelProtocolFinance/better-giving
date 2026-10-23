@@ -24,6 +24,8 @@ const KINDS = ["give", "programs", "videos"] as const;
 
 interface IWaysToHelp
   extends Pick<IOrgLayout, "give" | "programs" | "videos" | "failed" | "now"> {
+  /** see `ItemsByCount` */
+  rows?: boolean;
   classes?: string;
 }
 
@@ -34,6 +36,7 @@ export function WaysToHelp({
   classes = "",
   failed,
   now,
+  rows,
   ...lists
 }: IWaysToHelp) {
   const heading_id = useId();
@@ -49,7 +52,7 @@ export function WaysToHelp({
       <h2 id={heading_id} className="text-xl font-bold md:text-2xl">
         Ways to help
       </h2>
-      <ItemsByCount items={items} now={now} />
+      <ItemsByCount items={items} now={now} rows={rows} />
       {failures.map((k) => (
         <p key={k} className="text-sm text-gray-11">
           {FAILED_LINE[k]}

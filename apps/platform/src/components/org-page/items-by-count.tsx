@@ -8,6 +8,9 @@ export interface IItemsByCount {
   items: TOrgItem[];
   /** epoch ms, see `GiveCard` */
   now: number;
+  /** every campaign a `horizontal` row, one per line, whatever the count, so
+   * it lines up with the program rows: a reading column's list */
+  rows?: boolean;
   classes?: string;
 }
 
@@ -16,7 +19,12 @@ export interface IItemsByCount {
  * are rows and videos follow their own rule whatever the count, so a mixed
  * list renders campaigns and supporter campaigns, then programs, then videos. on a
  * phone every count is a single stack. nothing for no items */
-export function ItemsByCount({ items, now, classes = "" }: IItemsByCount) {
+export function ItemsByCount({
+  items,
+  now,
+  rows = false,
+  classes = "",
+}: IItemsByCount) {
   if (items.length === 0) return null;
   const give = items.filter(
     (x): x is IGiveItem => x.kind === "campaign" || x.kind === "supporter"
@@ -25,7 +33,18 @@ export function ItemsByCount({ items, now, classes = "" }: IItemsByCount) {
   const videos = items.filter((x): x is IVideoItem => x.kind === "video");
   return (
     <div className={`flex flex-col gap-4 ${classes}`}>
-      {give.length > 0 && <GiveByCount items={give} now={now} />}
+      {give.length > 0 &&
+        (rows ? (
+          <ul data-count={give.length} className="grid gap-4">
+            {give.map((x) => (
+              <li key={x.id}>
+                <GiveCard item={x} orientation="horizontal" now={now} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <GiveByCount items={give} now={now} />
+        ))}
       {programs.length > 0 && (
         <ul data-count={programs.length} className="grid gap-4">
           {programs.map((p) => (

@@ -1,70 +1,91 @@
-import { ExtLink } from "@better-giving/ui";
+import { Badge, type BadgeTone, ExtLink } from "@better-giving/ui";
+import { BadgeCheck, Globe, type LucideIcon, MapPin } from "lucide-react";
+import type { ReactNode } from "react";
 import { website_link } from "#/routes/org.$org.$campaign/format";
 import type { INpoPublic } from "$/pg/queries/npo";
-import { is_brand_ground, use_ground } from "./brand-band";
+import { is_brand_ground, type TGround, use_ground } from "./brand-band";
+import type { IOrgLayout } from "./layouts/types";
 
 type TMetaNpo = Pick<INpoPublic, "endow_designation" | "hq_country" | "url">;
 
 interface IOrgMeta {
   npo: TMetaNpo;
-  /** eyebrow: Poster, Letter, Feature — small caps over the name, in brand
-   * ink on a light ground. plain: Hub's line under the name */
-  variant: "eyebrow" | "plain";
+  /** the org's registration; null when unknown, and then left out */
+  credential: IOrgLayout["credential"];
   classes?: string;
 }
 
-/** designation · country · website, the website named by its host alone.
- * "Other" is no designation and is left out, as is a missing website. each
- * fact is its own list item; the dots are drawn between them and never read */
-export function OrgMeta({ npo, variant, classes = "" }: IOrgMeta) {
-  const brand = is_brand_ground(use_ground());
-  const website = website_link(npo.url);
-  const facts = [
-    npo.endow_designation !== "Other" && {
-      key: "designation",
-      node: npo.endow_designation,
-    },
-    npo.hq_country && { key: "country", node: npo.hq_country },
-    website && {
-      key: "website",
-      node: (
-        <ExtLink
-          href={website.href}
-          // on a brand fill the ink is the band's and there is no hover rung
-          className={`underline underline-offset-4 ${brand ? "" : "link"}`}
-        >
-          {website.label}
-        </ExtLink>
-      ),
-    },
-  ].filter((f) => !!f);
-  if (facts.length === 0) return null;
+/** `on-primary` is scoped to `surface-primary` by Badge itself; the deep fill
+ * has no tone of its own, so it takes secondary, an opaque surface + ink pair
+ * whose legibility does not depend on the ground under it */
+const BADGE_TONE: Record<TGround, BadgeTone> = {
+  page: "secondary",
+  tint: "secondary",
+  primary: "on-primary",
+  deep: "secondary",
+};
 
-  const look =
-    variant === "eyebrow"
-      ? `text-xs font-bold uppercase tracking-badge md:text-sm ${brand ? "" : "text-primary"}`
-      : "text-sm font-semibold";
-  // every item leads with a dot's slot, and the list starts a slot and its gap
-  // (-ml-4: w-2 + gap-2) left of the clip, so the dot of whichever item begins
-  // a wrapped line is cut off and no line starts with one. the clip
-  // sits a ring's width (outline-2 + offset-2) outside the root so the
-  // website's focus ring is never cut
+/** the org's facts, each in its own place: the designation as a badge, then
+ * the country, the website named by its host, and the registration, each
+ * behind its glyph. "Other" is no designation and is left out, as is any
+ * fact that is missing */
+export function OrgMeta({ npo, credential, classes = "" }: IOrgMeta) {
+  const ground = use_ground();
+  const brand = is_brand_ground(ground);
+  const website = website_link(npo.url);
+  if (
+    npo.endow_designation === "Other" &&
+    !npo.hq_country &&
+    !website &&
+    !credential
+  ) {
+    return null;
+  }
+
   return (
-    <div className={classes}>
-      <div className="-mx-1 overflow-x-clip px-1">
-        <ul
-          className={`-ml-4 flex flex-wrap items-center gap-x-2 gap-y-1 ${look}`}
-        >
-          {facts.map((fact, i) => (
-            <li key={fact.key} className="flex items-center gap-2">
-              <span aria-hidden className="w-2 shrink-0 text-center">
-                {i > 0 && "·"}
-              </span>
-              {fact.node}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <ul
+      className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm ${brand ? "" : "text-gray-11"} ${classes}`}
+    >
+      {npo.endow_designation !== "Other" && (
+        <li className="flex">
+          <Badge tone={BADGE_TONE[ground]}>{npo.endow_designation}</Badge>
+        </li>
+      )}
+      {npo.hq_country && <Fact icon={MapPin}>{npo.hq_country}</Fact>}
+      {website && (
+        <Fact icon={Globe}>
+          <ExtLink
+            href={website.href}
+            // on a brand fill the ink is the band's and there is no hover rung
+            className={`underline underline-offset-4 ${brand ? "" : "link"}`}
+          >
+            {website.label}
+          </ExtLink>
+        </Fact>
+      )}
+      {credential && (
+        <Fact icon={BadgeCheck}>
+          {credential.label} <span className="figures">{credential.value}</span>
+        </Fact>
+      )}
+    </ul>
+  );
+}
+
+interface IFact {
+  icon: LucideIcon;
+  children: ReactNode;
+}
+
+/** a long country can wrap inside its item; the glyph's box is one line tall
+ * so it stays on the first */
+function Fact({ icon: Icon, children }: IFact) {
+  return (
+    <li className="flex min-w-0 items-start gap-1.5">
+      <span className="flex h-lh items-center">
+        <Icon aria-hidden className="icon-sm" />
+      </span>
+      <span className="min-w-0">{children}</span>
+    </li>
   );
 }

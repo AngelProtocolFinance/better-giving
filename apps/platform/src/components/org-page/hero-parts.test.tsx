@@ -114,25 +114,39 @@ describe("org hero", () => {
     expect(Math.round(lines)).toBeGreaterThan(2);
   });
 
-  test("the meta line drops the 'Other' designation and a missing website, and names the website by its host", async () => {
+  test("the meta row: the designation as a badge, the country, the website by its host, and the registration; 'Other' and missing facts left out", async () => {
     const screen = await render(
       <>
         <OrgMeta
-          variant="eyebrow"
           npo={{
             endow_designation: "Charity",
             hq_country: "Kenya",
             url: "https://www.riverside.org/about/team",
           }}
+          credential={{ label: "EIN", value: "12-3456789" }}
         />
         <OrgMeta
-          variant="plain"
           npo={{ endow_designation: "Other", hq_country: "Peru", url: null }}
+          credential={null}
         />
       </>
     );
     const [full, bare] = screen.getByRole("list").elements();
-    expect(full).toHaveTextContent("Charity·Kenya·www.riverside.org");
+    const items = Array.from(full.querySelectorAll("li"));
+    expect(items.map((li) => li.textContent)).toEqual([
+      "Charity",
+      "Kenya",
+      "www.riverside.org",
+      "EIN 12-3456789",
+    ]);
+    expect(items[0].firstElementChild).toHaveAttribute(
+      "data-tone",
+      "secondary"
+    );
+    for (const li of items.slice(1)) {
+      expect(li.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    }
+    expect(full.textContent).not.toContain("·");
     const site = screen.getByRole("link", {
       name: "www.riverside.org",
       exact: true,
@@ -140,38 +154,59 @@ describe("org hero", () => {
     await expect
       .element(site)
       .toHaveAttribute("href", "https://www.riverside.org/about/team");
+    await expect.element(site).toHaveAttribute("target", "_blank");
     expect(bare).toHaveTextContent("Peru");
     expect(bare).not.toHaveTextContent("Other");
     expect(bare.querySelectorAll("li")).toHaveLength(1);
   });
 
-  test("a meta line that wraps on a phone starts no line with a dot", async () => {
+  test("on the brand fill the badge takes the on-primary tone and the row the band's ink", async () => {
+    const screen = await render(
+      <BrandBand tone="primary">
+        <OrgMeta
+          npo={{ endow_designation: "Charity", hq_country: "Kenya", url: null }}
+          credential={null}
+        />
+      </BrandBand>
+    );
+    const list = screen.getByRole("list").element();
+    expect(list).not.toHaveClass("text-gray-11");
+    expect(list.querySelector("[data-tone]")).toHaveAttribute(
+      "data-tone",
+      "on-primary"
+    );
+  });
+
+  test("a meta row that wraps on a phone keeps each glyph on its item's first line", async () => {
     await page.viewport(375, 812);
     const screen = await render(
-      <OrgMeta
-        variant="eyebrow"
-        npo={{
-          endow_designation: "Charity",
-          hq_country: "Democratic Republic of the Congo",
-          url: "https://www.harborvalleyfood.org",
-        }}
-      />
+      <div style={{ width: 200 }}>
+        <OrgMeta
+          npo={{
+            endow_designation: "Charity",
+            hq_country: "Democratic Republic of the Congo",
+            url: "https://www.harborvalleyfood.org",
+          }}
+          credential={{ label: "Registration no.", value: "CH-0042" }}
+        />
+      </div>
     );
     const list = screen.getByRole("list").element() as HTMLElement;
-    const clip = (list.parentElement as HTMLElement).getBoundingClientRect();
     const items = Array.from(list.querySelectorAll("li"));
     const tops = items.map((li) => li.getBoundingClientRect().top);
-    // the long country pushes the website onto a line of its own
     expect(new Set(tops).size).toBeGreaterThan(1);
-    for (const [i, li] of items.entries()) {
-      const starts_line = i === 0 || tops[i] > tops[i - 1];
-      if (i === 0) continue;
-      const dot = (
-        li.querySelector("[aria-hidden]") as HTMLElement
-      ).getBoundingClientRect();
-      // a dot left of the clip is cut off; any other is drawn
-      expect(dot.right <= clip.left).toBe(starts_line);
-    }
+    expect(list.scrollWidth).toBeLessThanOrEqual(list.clientWidth);
+    // the country wraps inside its item; its glyph sits on the first line
+    const country = items[1];
+    const text = country.lastElementChild as HTMLElement;
+    const line = Number.parseFloat(getComputedStyle(text).lineHeight);
+    expect(text.getBoundingClientRect().height).toBeGreaterThan(line);
+    const glyph = (
+      country.querySelector("svg") as SVGElement
+    ).getBoundingClientRect();
+    expect(glyph.bottom).toBeLessThanOrEqual(
+      text.getBoundingClientRect().top + line
+    );
   });
 });
 
@@ -187,7 +222,7 @@ describe("raised stats", () => {
     expect(screen.getByRole("progressbar").query()).toBeNull();
   });
 
-  test("figures name the donors only when the count is known, and a goal adds the bar and the percent", async () => {
+  test("figures are pairs, a figure over its label, the donors only when the count is known; a goal adds the bar and the goal in dollars", async () => {
     const screen = await render(
       <>
         <RaisedStats
@@ -205,14 +240,29 @@ describe("raised stats", () => {
       </>
     );
     const [inline, panel] = Array.from(screen.container.children);
-    expect(inline).toHaveTextContent("$3,322 raised · 49 donors");
+    const pairs = Array.from(inline.querySelectorAll("p"));
+    expect(pairs.map((p) => p.textContent)).toEqual([
+      "$3,322 raised",
+      "49 donors",
+    ]);
+    for (const p of pairs) {
+      const [figure, label] = Array.from(p.children);
+      expect(figure.tagName).toBe("STRONG");
+      // the figure over its label
+      expect(figure.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        label.getBoundingClientRect().top
+      );
+    }
+    expect(inline.textContent).not.toContain("·");
     expect(inline.querySelector("[role=progressbar]")).toBeNull();
 
     expect(panel).not.toHaveTextContent("donor");
+    expect(panel.querySelector("strong")).toHaveTextContent("$3,322");
     const bar = screen.getByRole("progressbar");
     await expect.element(bar).toHaveAttribute("aria-valuenow", "3322");
     await expect.element(bar).toHaveAttribute("aria-valuemax", "8000");
-    expect(panel.textContent).toContain("41% of $8,000 goal");
+    expect(panel.textContent).toContain("$3,322 of $8,000 goal");
+    expect(panel.textContent).not.toContain("%");
   });
 });
 
@@ -244,13 +294,13 @@ describe("donate", () => {
           <footer>
             <p>Registered charity 12-3456789</p>
           </footer>
-          <PinnedDonateBar to="/donate/7" raised={3322} target="8000" />
+          <PinnedDonateBar to="/donate/7" raised={3322} />
         </div>
       </MemoryRouter>
     );
     const donate = screen.getByRole("link", { name: "Donate" });
     await expect.element(donate).toBeVisible();
-    await expect.element(screen.getByText("41% of goal")).toBeVisible();
+    await expect.element(screen.getByText("$3,322 raised")).toBeVisible();
     const bar = donate.element().closest(".sticky") as HTMLElement;
     expect(bar).toHaveClass("md:hidden");
     expect(bar.getBoundingClientRect().bottom).toBeCloseTo(

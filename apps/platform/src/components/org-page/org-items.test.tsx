@@ -157,13 +157,28 @@ describe("card image", () => {
         screen.container.querySelectorAll<HTMLElement>("article")
       );
       expect(cards).toHaveLength(7);
-      for (const card of cards) {
+      const wide = width >= 768;
+      for (const [i, card] of cards.entries()) {
         const slot = (
           card.firstElementChild as HTMLElement
         ).getBoundingClientRect();
+        const box = card.getBoundingClientRect();
         expect(Math.abs(slot.width / slot.height - 4) / 4).toBeLessThan(0.01);
-        // sized from the card, not from a column beside the text
-        expect(slot.width).toBeCloseTo(card.clientWidth, 0);
+        // top-aligned in its card
+        expect(slot.top).toBeCloseTo(box.top + 1, 0);
+        const is_program = i === 6;
+        // the feature card (0) and the halves (1, 2) sit beside their text
+        const beside = wide && i < 3;
+        if (is_program) {
+          // a thumbnail, not a banner
+          expect(slot.width).toBeLessThanOrEqual(15 * 16);
+        } else if (beside) {
+          expect(slot.width / card.clientWidth).toBeLessThanOrEqual(0.45);
+          expect(slot.width / card.clientWidth).toBeGreaterThan(0.3);
+        } else {
+          // on top, across the card
+          expect(slot.width).toBeCloseTo(card.clientWidth, 0);
+        }
         const img = card.querySelector("img") as HTMLImageElement;
         await expect.poll(() => img.complete).toBe(true);
         const shown = img.getBoundingClientRect();
@@ -172,6 +187,58 @@ describe("card image", () => {
       }
     }
   );
+
+  test("neighbouring cards end on one line, with or without an end date, and the bar spans the text column", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      <ItemsByCount
+        items={[
+          give(1, { ends_at: new Date(NOW + 5 * DAY).toISOString() }),
+          give(2),
+        ]}
+        now={NOW}
+      />
+    );
+    const bars = screen.getByRole("progressbar").elements();
+    expect(bars).toHaveLength(2);
+    const [a, b] = bars.map((x) => x.getBoundingClientRect());
+    expect(a.top).toBeCloseTo(b.top, 0);
+    const column = (bars[0].parentElement as HTMLElement)
+      .parentElement as HTMLElement;
+    const inner = column.getBoundingClientRect().width - 32; // p-4 either side
+    expect(a.width).toBeCloseTo(inner, 0);
+  });
+
+  test("the feature card's excerpt shows on a phone too", async () => {
+    await page.viewport(375, 812);
+    const screen = await mount(<ItemsByCount items={gives(1)} now={NOW} />);
+    await expect
+      .element(screen.getByText("Wells for three villages"))
+      .toBeVisible();
+  });
+
+  test("rows: every campaign a horizontal row, one per line, lined up with the program rows", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      <div style={{ width: 768 }}>
+        <ItemsByCount
+          items={[...gives(2), { ...program(1), goal: 900 }]}
+          now={NOW}
+          rows
+        />
+      </div>
+    );
+    const lists = screen.container.querySelectorAll("[data-count]");
+    expect(tracks(lists[0])).toBe(1);
+    const titles = Array.from(screen.container.querySelectorAll("h3"));
+    expect(titles).toHaveLength(3);
+    const sizes = titles.map((h) => getComputedStyle(h).fontSize);
+    expect(new Set(sizes).size).toBe(1);
+    const insets = titles.map(
+      (h) => getComputedStyle(h.parentElement as HTMLElement).padding
+    );
+    expect(new Set(insets).size).toBe(1);
+  });
 });
 
 describe("ItemsByCount", () => {

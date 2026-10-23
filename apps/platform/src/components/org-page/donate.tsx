@@ -1,6 +1,5 @@
 import type { Ref } from "react";
 import { Link } from "react-router";
-import type { INpoPublic } from "$/pg/queries/npo";
 import { BrandBand, is_brand_ground, use_ground } from "./brand-band";
 import { raised_summary } from "./raised-stats";
 
@@ -39,7 +38,6 @@ export function DonateButton({
 export interface IPinnedDonateBar {
   to: string;
   raised: number;
-  target: INpoPublic["target"];
   /** deep: Letter's dark bar */
   tone?: "page" | "deep";
   /** given, the bar stays pinned from md up too, its line led there by the
@@ -55,21 +53,19 @@ export interface IPinnedDonateBar {
 export function PinnedDonateBar({
   to,
   raised,
-  target,
   tone = "page",
   org,
 }: IPinnedDonateBar) {
   const content = (
     <div className="page flex items-center gap-3">
+      {/* the name gives way first: the summary is short by construction */}
       <p
-        className={`min-w-0 flex-1 truncate text-sm md:text-base ${tone === "page" ? "text-gray-11" : ""}`}
+        className={`flex min-w-0 flex-1 items-baseline gap-4 text-sm md:text-base ${tone === "page" ? "text-gray-11" : ""}`}
       >
         {org && (
-          <span className="max-md:hidden">
-            <strong>{org}</strong> ·{" "}
-          </span>
-        )}
-        {raised_summary(raised, target)}
+          <strong className="min-w-0 truncate max-md:hidden">{org}</strong>
+        )}{" "}
+        <span className="shrink-0">{raised_summary(raised)}</span>
       </p>
       <DonateButton to={to} size="lg" classes={org ? "md:btn-md" : ""} />
     </div>

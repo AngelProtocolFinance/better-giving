@@ -48,7 +48,6 @@ export function OrgPageFrame({
       <PinnedDonateBar
         to={page.donate_to}
         raised={npo.contributions_total}
-        target={npo.target}
         {...bar}
       />
     </div>

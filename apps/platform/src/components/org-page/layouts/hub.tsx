@@ -12,7 +12,6 @@ import { OrgName } from "../org-name";
 import { QuoteStrip } from "../quote-strip";
 import { RaisedStats } from "../raised-stats";
 import { VideoSet } from "../video-set";
-import { Credential } from "./credential";
 import { OrgPageFrame } from "./org-page-frame";
 import type { IOrgLayout } from "./types";
 import { FAILED_LINE, give_label } from "./ways-to-help";
@@ -89,8 +88,11 @@ export function Hub(props: IOrgLayout) {
             <div className="flex flex-col gap-4">
               <ItemsByCount items={featured_cards} now={now} />
               {/* a lone video at the content's full width outweighs the
-                  tabs under it, so it takes the reading measure */}
-              <VideoSet videos={featured_video} classes="max-w-3xl" />
+                  tabs under it, so it takes the reading measure, centred */}
+              <VideoSet
+                videos={featured_video}
+                classes="mx-auto w-full max-w-3xl"
+              />
             </div>
           </Section>
         )}
@@ -132,7 +134,7 @@ function HubHero({ page, donate_ref }: IHubHero) {
       <OrgBanner src={npo.image} />
       <BrandBand
         tone={banner ? "tint" : "primary"}
-        classes={`border-b pb-6 md:pb-8 ${banner ? "" : "pt-6 md:pt-8"}`}
+        classes={`border-b pb-6 md:pb-8 ${banner ? "pt-4" : "pt-6 md:pt-8"}`}
       >
         <div className="page grid gap-3 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-end md:gap-6">
           <OrgMark
@@ -140,7 +142,9 @@ function HubHero({ page, donate_ref }: IHubHero) {
             logo={npo.logo}
             size="lg"
             ring={banner}
-            classes={banner ? "-mt-10 md:-mt-12 md:self-start" : ""}
+            // the overlap plus the band's pt-4, which is what keeps the name
+            // clear of the banner
+            classes={banner ? "-mt-14 md:-mt-16 md:self-start" : ""}
           />
           <div className="flex min-w-0 flex-col gap-2">
             <OrgName name={npo.name} scale="sm" />
@@ -156,8 +160,7 @@ function HubHero({ page, donate_ref }: IHubHero) {
                 }}
               />
             )}
-            <OrgMeta npo={npo} variant="plain" />
-            <Credential credential={page.credential} />
+            <OrgMeta npo={npo} credential={page.credential} />
           </div>
           <div className="flex flex-col gap-3 pt-1 md:items-end md:pt-0">
             <RaisedStats

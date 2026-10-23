@@ -2,6 +2,7 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { BANNER } from "#/__tests__/fixtures/layout-dom";
 import {
   EIN,
   fundraiser,
@@ -40,6 +41,20 @@ const tab_names = () =>
   [...document.querySelectorAll('[role="tab"]')].map((t) => t.textContent);
 
 describe("Hub", () => {
+  test("no middle dot anywhere in the rendered page", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      org_layout({ give: many(give, 4), messages: [message(1)] })
+    );
+    await expect
+      .element(screen.getByRole("heading", { level: 1 }))
+      .toBeVisible();
+    expect(screen.container.textContent).not.toContain("·");
+    // the registration is the meta row's last item
+    const row = screen.getByText(EIN, { exact: true }).element().closest("ul");
+    expect(row?.lastElementChild).toHaveTextContent(`EIN ${EIN}`);
+  });
+
   test.each([
     [1440, 900],
     [375, 812],
@@ -55,11 +70,13 @@ describe("Hub", () => {
       await expect.poll(() => donates.elements().some(in_view)).toBe(true);
       const credential = screen.getByText(EIN, { exact: true });
       await expect.poll(() => in_view(credential.element())).toBe(true);
-      expect(credential.element().closest("p")).toHaveTextContent(`EIN ${EIN}`);
+      expect(credential.element().closest("li")).toHaveTextContent(
+        `EIN ${EIN}`
+      );
     }
   );
 
-  test("a lone featured video plays at the reading measure, not the page's width", async () => {
+  test("a lone featured video plays at the reading measure, centred in the content width", async () => {
     await page.viewport(1440, 900);
     const screen = await mount(
       org_layout({ give: many(give, 4), videos: [video(1)] })
@@ -74,8 +91,24 @@ describe("Hub", () => {
     const width = frame.element().getBoundingClientRect().width;
     expect(width).toBeGreaterThan(0);
     expect(width).toBeLessThanOrEqual(measure);
-    expect(width).toBeLessThan(
-      (featured.element() as HTMLElement).getBoundingClientRect().width
+    const region = (featured.element() as HTMLElement).getBoundingClientRect();
+    expect(width).toBeLessThan(region.width);
+    const box = frame.element().getBoundingClientRect();
+    expect(box.left - region.left).toBeCloseTo(region.right - box.right, 0);
+  });
+
+  test("the name clears the banner", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      org_layout({ give: many(give, 4), npo: npo({ image: BANNER }) })
+    );
+    const h1 = screen.getByRole("heading", { level: 1 }).element();
+    const banner = screen.container.querySelector("main img") as HTMLElement;
+    await expect
+      .element(screen.getByRole("heading", { level: 1 }))
+      .toBeVisible();
+    expect(h1.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      banner.getBoundingClientRect().bottom + 16
     );
   });
 

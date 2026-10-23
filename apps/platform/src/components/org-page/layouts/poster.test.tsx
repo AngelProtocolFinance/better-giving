@@ -42,6 +42,21 @@ function mount(o: Partial<IOrgLayout> = {}, n: Partial<INpoPublic> = {}) {
 }
 
 describe("Poster", () => {
+  test("no middle dot anywhere in the rendered page", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount({
+      give: [give(1)],
+      messages: [message(1), message(2)],
+    });
+    await expect
+      .element(screen.getByRole("heading", { level: 1 }))
+      .toBeVisible();
+    expect(screen.container.textContent).not.toContain("·");
+    // the registration is the meta row's last item
+    const row = screen.getByText(EIN, { exact: true }).element().closest("ul");
+    expect(row?.lastElementChild).toHaveTextContent(`EIN ${EIN}`);
+  });
+
   test.each([
     [1440, 900],
     [375, 812],
@@ -56,7 +71,9 @@ describe("Poster", () => {
       await expect.poll(() => in_view(hero_donate)).toBe(true);
       const credential = screen.getByText(EIN, { exact: true });
       await expect.poll(() => in_view(credential.element())).toBe(true);
-      expect(credential.element().closest("p")).toHaveTextContent(`EIN ${EIN}`);
+      expect(credential.element().closest("li")).toHaveTextContent(
+        `EIN ${EIN}`
+      );
     }
   );
 

@@ -8,7 +8,6 @@ import { OrgMeta } from "../org-meta";
 import { OrgName } from "../org-name";
 import { QuoteStrip } from "../quote-strip";
 import { RaisedStats } from "../raised-stats";
-import { Credential } from "./credential";
 import { OrgPageFrame } from "./org-page-frame";
 import type { IOrgLayout } from "./types";
 import { WaysToHelp } from "./ways-to-help";
@@ -32,7 +31,7 @@ export function Poster(props: IOrgLayout) {
           <div className="flex max-w-3xl flex-col gap-4 md:gap-5">
             <div className="flex items-center gap-3 md:gap-4">
               <OrgMark name={npo.name} logo={npo.logo} size="md" ring />
-              <OrgMeta npo={npo} variant="eyebrow" />
+              <OrgMeta npo={npo} credential={props.credential} />
             </div>
             <OrgName name={npo.name} scale="lg" />
             {tagline && (
@@ -50,7 +49,7 @@ export function Poster(props: IOrgLayout) {
                 }}
               />
             )}
-            {/* a phone reads the figures and the registration, then
+            {/* a phone reads the figures, then
                 Donate, full width; wider, Donate leads its row */}
             <div className="flex flex-col gap-4 pt-2 md:flex-row md:flex-wrap md:items-center md:gap-6">
               <DonateButton
@@ -65,7 +64,6 @@ export function Poster(props: IOrgLayout) {
                 target={npo.target}
                 variant="inline"
               />
-              <Credential credential={props.credential} />
             </div>
           </div>
         </div>

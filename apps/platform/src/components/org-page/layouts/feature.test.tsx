@@ -72,6 +72,18 @@ function mount(o: Partial<IOrgLayout> = {}) {
 }
 
 describe("Feature", () => {
+  test("no middle dot anywhere in the rendered page", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount();
+    await expect
+      .element(screen.getByRole("heading", { level: 1 }))
+      .toBeVisible();
+    expect(screen.container.textContent).not.toContain("·");
+    // the registration is the meta row's last item
+    const row = screen.getByText(EIN, { exact: true }).element().closest("ul");
+    expect(row?.lastElementChild).toHaveTextContent(`EIN ${EIN}`);
+  });
+
   test.each([
     [1440, 900],
     [375, 812],
@@ -85,7 +97,9 @@ describe("Feature", () => {
       await expect.poll(() => donates.elements().some(in_view)).toBe(true);
       const credential = screen.getByText(EIN, { exact: true });
       await expect.poll(() => in_view(credential.element())).toBe(true);
-      expect(credential.element().closest("p")).toHaveTextContent(`EIN ${EIN}`);
+      expect(credential.element().closest("li")).toHaveTextContent(
+        `EIN ${EIN}`
+      );
     }
   );
 

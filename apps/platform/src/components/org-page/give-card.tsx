@@ -4,13 +4,14 @@ import { Link } from "react-router";
 import { GoalBar } from "./goal-bar";
 import { ends_label, type IGiveItem } from "./items";
 
-/** how the card sits in its list. the 4:1 image is always on top at the
- * card's full width: beside the text, a 4:1 slot is shorter than the text at
- * every width these lists reach.
- * - `vertical`: a third of a row; a stacked card on a phone.
- * - `horizontal`: a half.
- * - `feature`: a lone item across the whole row, with room for its excerpt.
- * - `tile`: a swipe row's fixed-width cards. */
+/** how the card sits in its list.
+ * - `vertical`: a third of a row; the 4:1 image across the top.
+ * - `horizontal`: a half, or a row in a reading column; from md the image is
+ *   the left 2/5 and the text beside it.
+ * - `feature`: a lone item across the whole row, laid out as `horizontal`,
+ *   with room for its excerpt.
+ * - `tile`: a swipe row's fixed-width cards, image on top.
+ * a phone always has the image on top. */
 export type TCardOrientation = "vertical" | "horizontal" | "feature" | "tile";
 
 export interface IGiveCard {
@@ -28,18 +29,19 @@ const KIND: Record<IGiveItem["kind"], string> = {
 };
 
 /** a campaign or supporter campaign. the title is the card's one link, stretched over
- * it, so the link's name stays the title */
+ * it, so the link's name stays the title. the progress line sits on the
+ * card's bottom edge, so neighbours in a row align with or without an end
+ * date */
 export function GiveCard({ item, orientation, now, classes = "" }: IGiveCard) {
   const feature = orientation === "feature";
+  const beside = feature || orientation === "horizontal";
   const ends = ends_label(item.ends_at, now);
   return (
     <article
-      className={`relative grid h-full grid-rows-[auto_1fr] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2 ${classes}`}
+      className={`relative grid h-full grid-rows-[auto_1fr] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2 ${beside ? "md:grid-cols-[2fr_3fr] md:grid-rows-1" : ""} ${classes}`}
     >
-      <ImageFrame src={item.image} />
-      <div
-        className={`flex min-w-0 flex-col gap-2 p-4 ${feature ? "md:gap-3 md:p-6" : ""}`}
-      >
+      <ImageFrame src={item.image} classes={beside ? "md:self-start" : ""} />
+      <div className="flex min-w-0 flex-col gap-2 p-4">
         <p className="eyebrow text-primary">{KIND[item.kind]}</p>
         <h3 className={`font-bold ${feature ? "md:text-xl" : ""}`}>
           <Link
@@ -53,18 +55,11 @@ export function GiveCard({ item, orientation, now, classes = "" }: IGiveCard) {
           <p className="truncate text-sm text-gray-11">{item.byline}</p>
         )}
         {feature && item.excerpt && (
-          <p className="line-clamp-2 text-sm text-gray-11 max-md:hidden">
-            {item.excerpt}
-          </p>
+          <p className="line-clamp-2 text-sm text-gray-11">{item.excerpt}</p>
         )}
+        {ends && <p className="text-sm font-semibold">{ends}</p>}
         <div className="mt-auto flex flex-col gap-2 pt-1">
-          <Progress
-            title={item.title}
-            raised={item.raised}
-            goal={item.goal}
-            classes={feature ? "md:max-w-sm" : ""}
-          />
-          {ends && <p className="text-sm font-semibold">{ends}</p>}
+          <Progress title={item.title} raised={item.raised} goal={item.goal} />
         </div>
       </div>
     </article>
@@ -76,12 +71,12 @@ interface IImageFrame {
   classes?: string;
 }
 
-/** the 4:1 slot across the card's full width, and the image as uploaded
- * filling it exactly, so nothing is re-cropped; with no image the fill is the
- * frame */
+/** the 4:1 slot, the image as uploaded filling it exactly, so nothing is
+ * re-cropped; with no image the fill is the frame. its width is the caller's:
+ * a grid cell stretches it to the column */
 export function ImageFrame({ src, classes = "" }: IImageFrame) {
   return (
-    <div className={`aspect-4/1 w-full bg-gray-3 ${classes}`}>
+    <div className={`aspect-4/1 bg-gray-3 ${classes}`}>
       {src && <Image src={src} alt="" className="size-full object-cover" />}
     </div>
   );
@@ -91,22 +86,16 @@ interface IProgress {
   title: string;
   raised: number;
   goal: number | null;
-  classes?: string;
 }
 
 /** the bar and "$raised of $goal" with a goal; "$raised raised" without one */
-export function Progress({ title, raised, goal, classes = "" }: IProgress) {
+export function Progress({ title, raised, goal }: IProgress) {
   if (goal == null) {
     return <p className="text-sm text-gray-11">{to_usd(raised)} raised</p>;
   }
   return (
     <>
-      <GoalBar
-        raised={raised}
-        goal={goal}
-        label={`${title}: amount raised`}
-        classes={classes}
-      />
+      <GoalBar raised={raised} goal={goal} label={`${title}: amount raised`} />
       <p className="text-sm text-gray-11">
         {to_usd(raised)} of {to_usd(goal)}
       </p>

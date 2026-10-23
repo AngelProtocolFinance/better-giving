@@ -6,7 +6,6 @@ import { OrgMeta } from "../org-meta";
 import { OrgName } from "../org-name";
 import { QuoteStrip } from "../quote-strip";
 import { RaisedStats } from "../raised-stats";
-import { Credential } from "./credential";
 import { OrgPageFrame } from "./org-page-frame";
 import type { IOrgLayout } from "./types";
 import { WaysToHelp } from "./ways-to-help";
@@ -33,7 +32,7 @@ export function Letter(props: IOrgLayout) {
             from the page, starting on its left edge with the header's */}
         <article className="flex flex-col gap-5 md:gap-7">
           <div className="flex max-w-3xl flex-col gap-4">
-            <OrgMeta npo={npo} variant="eyebrow" />
+            <OrgMeta npo={npo} credential={props.credential} />
             <OrgName name={npo.name} scale="lg" />
             {deck && (
               <p className="text-lg leading-snug text-gray-11 md:text-2xl">
@@ -47,7 +46,6 @@ export function Letter(props: IOrgLayout) {
               variant="stacked"
               classes="mt-1"
             />
-            <Credential credential={props.credential} />
             <DonateButton
               ref={set_hero_donate}
               to={props.donate_to}
@@ -83,6 +81,7 @@ export function Letter(props: IOrgLayout) {
             videos={props.videos}
             failed={props.failed}
             now={props.now}
+            rows
             classes="max-w-3xl pt-3"
           />
         </article>
