@@ -10,7 +10,7 @@ import type { IFundItem } from "@/fundraiser";
 import type { INpoPublic } from "$/pg/queries/npo";
 import { type IProfile, Profile } from "../profile";
 
-// a signed-in viewer is what puts the favorite button in the header
+// the viewer the header's favorite button reads; null is signed out
 const user_mock = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("#/hooks/use-user", () => ({
   use_user: () => ({ user: user_mock.current, toggle_bookmark: vi.fn() }),
@@ -150,7 +150,7 @@ describe("org profile", () => {
       .element(screen.getByRole("dialog", { name: "Share" }))
       .toBeVisible();
     // the chooser is a modal; with it closed nothing on the page is pinned
-    // to the viewport, which is what the old phone action bar was
+    // to the viewport, so there is no bottom action bar
     await cleanup();
     await page.viewport(375, 667);
     const phone = await mount();

@@ -11,7 +11,7 @@ vi.mock("remix-client-cache", () => ({
 }));
 vi.mock("./api", () => ({ loader: () => null, headers: () => ({}) }));
 
-// a signed-in viewer is what would put a favorite button in the header
+// the viewer a favorite button would read; null is signed out
 const user_mock = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("#/hooks/use-user", () => ({
   use_user: () => ({ user: user_mock.current, toggle_bookmark: vi.fn() }),
@@ -91,8 +91,8 @@ describe("program page", () => {
     await expect
       .element(header.getByRole("link", { name: "Donate", exact: true }))
       .toHaveAttribute("href", DONATE_TO);
-    // no Share, no Favorite, though a signed-in viewer is who would get one:
-    // the header's only controls are links
+    // no Share, no Favorite, even for a signed-in viewer: the header's only
+    // controls are links
     expect(header.getByRole("button").query()).toBeNull();
     await expect
       .element(screen.getByRole("link", { name: "Donate to this program" }))
@@ -287,7 +287,7 @@ describe("program page", () => {
     const label = name.element().getBoundingClientRect();
     expect(label.top).toBeGreaterThanOrEqual(media.top);
     expect(label.bottom).toBeLessThanOrEqual(media.bottom);
-    // the amounts sit under the photo, not beneath it
+    // the amounts sit below the photo, not over it
     const amount = list.getByText("of $1,000", { exact: true }).element();
     expect(amount.getBoundingClientRect().top).toBeGreaterThanOrEqual(
       media.bottom

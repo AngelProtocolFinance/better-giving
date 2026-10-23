@@ -38,7 +38,7 @@ export function to_text(json: string | undefined): string {
 
 /** PT json as one line of plain text, cut on a word boundary when it runs
  * past `max` characters. a cut that ends a sentence stands as is; any other
- * takes "…" in place of its trailing comma, colon or semicolon */
+ * ends in "…", which replaces a trailing comma, colon or semicolon */
 export function to_excerpt(json: string | undefined, max = 160): string {
   const text = to_text(json).replace(/\s+/g, " ").trim();
   if (text.length <= max) return text;

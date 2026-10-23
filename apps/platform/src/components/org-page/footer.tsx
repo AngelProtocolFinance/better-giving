@@ -76,7 +76,8 @@ export function OrgFooter({
             </dl>
           </section>
         )}
-        {/* the glyphs (not their 44px targets) on the name's edge */}
+        {/* on a phone, the glyphs (not their 44px targets) on the name's
+            edge */}
         <Socials
           social_media_urls={social_media_urls}
           classes="empty:hidden max-sm:-ml-2.5 max-sm:basis-full sm:ml-auto"

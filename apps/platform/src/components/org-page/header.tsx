@@ -78,8 +78,8 @@ export function OrgHeader({
 /** module-level, so its identity holds across renders and react runs it once
  * per mount, with the returned cleanup on unmount */
 function lift_when_stuck(node: HTMLElement) {
-  // -top-px leaves one pixel above the fold, so a stuck header is the one no
-  // longer wholly in view
+  // -top-px sticks it one pixel above the viewport, so a stuck header is the
+  // one no longer wholly in view
   const observer = new IntersectionObserver(
     ([e]) => {
       e.target.classList.toggle("shadow-floating", e.intersectionRatio < 1);

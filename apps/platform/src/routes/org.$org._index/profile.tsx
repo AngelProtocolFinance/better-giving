@@ -233,7 +233,7 @@ interface IHero extends INpoProps {
 }
 
 /** the banner on top, then the org's story; from xl, where the card sits in
- * the narrow column, its details under that. a phone has them in the footer
+ * the narrow column, its details under that. below xl they are in the footer
  * only */
 function Hero({ npo, details, classes = "" }: IHero) {
   const has_about = !!to_text(npo.overview_pt).trim();
