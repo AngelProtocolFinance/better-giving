@@ -34,22 +34,7 @@ export function OrgHeader({
   return (
     <header
       className="sticky -top-px z-sticky border-b bg-background"
-      ref={(node) => {
-        if (!node) return;
-        // -top-px leaves one pixel above the fold, so a stuck header is the
-        // one no longer wholly in view
-        const observer = new IntersectionObserver(
-          ([e]) => {
-            e.target.classList.toggle(
-              "shadow-floating",
-              e.intersectionRatio < 1
-            );
-          },
-          { threshold: [1] }
-        );
-        observer.observe(node);
-        return () => observer.disconnect();
-      }}
+      ref={lift_when_stuck}
     >
       <div className="page flex items-center gap-1 py-1 sm:gap-4 sm:py-2">
         <Link
@@ -70,12 +55,17 @@ export function OrgHeader({
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {share && <Share trigger="icon" {...share} />}
           {bookmark && (
-            <span className="grid size-11 place-items-center text-primary">
-              <BookmarkBtn npo={bookmark} />
-            </span>
+            <BookmarkBtn
+              npo={bookmark}
+              classes="size-11 text-primary hover:bg-secondary"
+              idle_ink="text-primary"
+            />
           )}
           {donate_to && (
-            <Link to={donate_to} className="btn btn-primary max-sm:ml-1">
+            <Link
+              to={donate_to}
+              className="btn btn-primary max-sm:ml-1 max-sm:px-4"
+            >
               Donate
             </Link>
           )}
@@ -83,4 +73,19 @@ export function OrgHeader({
       </div>
     </header>
   );
+}
+
+/** module-level, so its identity holds across renders and react runs it once
+ * per mount, with the returned cleanup on unmount */
+function lift_when_stuck(node: HTMLElement) {
+  // -top-px leaves one pixel above the fold, so a stuck header is the one no
+  // longer wholly in view
+  const observer = new IntersectionObserver(
+    ([e]) => {
+      e.target.classList.toggle("shadow-floating", e.intersectionRatio < 1);
+    },
+    { threshold: [1] }
+  );
+  observer.observe(node);
+  return () => observer.disconnect();
 }

@@ -158,6 +158,7 @@ describe("program page", () => {
   });
 
   it("clips a campaign's photo to the 160px media cell under its name, and keeps a lone card a column wide", async () => {
+    await page.viewport(1280, 900);
     const tall = `data:image/svg+xml,${encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1200"><rect width="400" height="1200"/></svg>'
     )}`;
@@ -193,6 +194,53 @@ describe("program page", () => {
     expect(card.width).toBeLessThan(
       list.element().getBoundingClientRect().width / 2
     );
+  });
+
+  it("sets at most three campaigns across on a wide screen", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount({
+      campaigns: ["One", "Two", "Three", "Four"].map((name, i) => ({
+        id: `c${i}`,
+        name,
+        to: `/org/acme/c${i}`,
+        image: null,
+        raised: 10,
+      })),
+    });
+    const list = screen.getByRole("list");
+    await expect
+      .element(list.getByRole("link", { name: "Four" }))
+      .toBeVisible();
+    const tops = list
+      .getByRole("listitem")
+      .elements()
+      .map((li) => li.getBoundingClientRect().top);
+    expect(tops.filter((t) => t === tops[0])).toHaveLength(3);
+    expect(tops[3]).toBeGreaterThan(tops[0]);
+  });
+
+  it("sets the program's paragraphs apart", async () => {
+    await page.viewport(1280, 900);
+    const block = (key: string, text: string) => ({
+      _type: "block",
+      _key: key,
+      children: [{ _type: "span", _key: `${key}s`, text }],
+    });
+    const screen = await mount({
+      prog: {
+        description_pt: JSON.stringify([
+          block("a", "Wells dug by the village."),
+          block("b", "Pumps kept running by the same crew."),
+        ]),
+      },
+    });
+    const first = screen.getByText("Wells dug by the village.");
+    await expect.element(first).toBeVisible();
+    const second = screen.getByText("Pumps kept running by the same crew.");
+    const gap =
+      second.element().getBoundingClientRect().top -
+      first.element().getBoundingClientRect().bottom;
+    expect(gap).toBeGreaterThanOrEqual(12);
   });
 
   it("shows a milestone timeline, and none without milestones", async () => {

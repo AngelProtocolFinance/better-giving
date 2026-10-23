@@ -13,7 +13,11 @@ import { extract_youtube_id } from "#/components/youtube-player";
 import { org_href, program_href } from "#/helpers/org-href";
 import { Share } from "#/routes/_app.fundraisers.$fund_id/share";
 import { Video } from "#/routes/_app.fundraisers.$fund_id/video";
-import { donor_label, goal_amount } from "#/routes/org.$org.$campaign/format";
+import {
+  donor_label,
+  goal_amount,
+  percent_label,
+} from "#/routes/org.$org.$campaign/format";
 import type { IFundItem } from "@/fundraiser";
 import type { IMedia, IProgramDb } from "@/npo";
 import type { INpoPublic } from "$/pg/queries/npo";
@@ -77,13 +81,16 @@ export function Profile(props: IProfile) {
       />
       <main className="page flex flex-1 flex-col gap-6 pt-4 pb-6 lg:gap-8 lg:pt-8 lg:pb-20">
         <Mast npo={npo} donors={props.donors} donate_to={donate_to} />
-        {/* one column below xl, in the phone's reading order; two from xl */}
-        <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[26.25rem_minmax(0,1fr)] xl:items-start xl:gap-8">
-          <div className="contents xl:flex xl:flex-col xl:gap-8">
-            <Hero npo={npo} details={details} />
-            <Messages messages={props.messages} />
-          </div>
-          <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-8">
+        {/* the dom is the phone's reading order. from xl the right column
+            spans both rows, so the auto first row is the hero's height and
+            messages start right under it, whatever the right column runs to */}
+        <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[26.25rem_minmax(0,1fr)] xl:grid-rows-[auto_1fr] xl:items-start xl:gap-8">
+          <Hero
+            npo={npo}
+            details={details}
+            classes="xl:col-start-1 xl:row-start-1"
+          />
+          <div className="flex min-w-0 flex-col gap-6 empty:hidden xl:col-start-2 xl:row-start-1 xl:row-end-3 xl:gap-8">
             <Campaigns
               npo_id={npo.id}
               origin={new URL(props.url).origin}
@@ -93,6 +100,10 @@ export function Profile(props: IProfile) {
             <Programs npo={npo} programs={props.programs} />
             <Media media={props.media} name={npo.name} />
           </div>
+          <Messages
+            messages={props.messages}
+            classes="xl:col-start-1 xl:row-start-2"
+          />
         </div>
       </main>
       <OrgFooter
@@ -208,7 +219,7 @@ function Raised({ npo, donors, classes = "" }: IRaised) {
         <>
           <GoalBar raised={raised} goal={goal} />
           <p className="text-xs text-gray-11">
-            {Math.floor((raised / goal) * 100)}% of {to_usd(goal)} goal
+            {percent_label(raised, goal)} of {to_usd(goal)} goal
           </p>
         </>
       )}
@@ -218,12 +229,13 @@ function Raised({ npo, donors, classes = "" }: IRaised) {
 
 interface IHero extends INpoProps {
   details: IOrgDetails;
+  classes?: string;
 }
 
 /** the banner on top, then the org's story; from xl, where the card sits in
  * the narrow column, its details under that. a phone has them in the footer
  * only */
-function Hero({ npo, details }: IHero) {
+function Hero({ npo, details, classes = "" }: IHero) {
   const has_about = !!to_text(npo.overview_pt).trim();
   const facts = [
     { term: "EIN / Registration", value: details.registration_number },
@@ -231,7 +243,9 @@ function Hero({ npo, details }: IHero) {
     { term: "Address", value: details.address },
   ].filter((f) => f.value);
   return (
-    <section className="order-1 flex flex-col overflow-hidden rounded border bg-panel xl:order-none">
+    <section
+      className={`flex flex-col overflow-hidden rounded border bg-panel ${classes}`}
+    >
       <Image
         src={npo.image || fallback_banner}
         alt=""
@@ -242,12 +256,15 @@ function Hero({ npo, details }: IHero) {
           className={`flex flex-col gap-6 p-6 ${has_about ? "" : "max-xl:hidden"}`}
         >
           {has_about && (
-            <div className="flex flex-col gap-3">
+            // the reading measure; from xl the column is narrower than it
+            <div className="flex flex-col gap-3 lg:max-w-3xl">
               <h2 className={h2}>About</h2>
               <RichText
                 readOnly
                 content={{ value: npo.overview_pt }}
-                classes={{ field: "w-full text-base leading-relaxed" }}
+                classes={{
+                  field: "flex w-full flex-col gap-3 text-base leading-relaxed",
+                }}
               />
             </div>
           )}
@@ -285,7 +302,7 @@ interface ICampaignsProps {
 function Campaigns({ npo_id, origin, campaigns, funds }: ICampaignsProps) {
   const section = (cards: ICampaignCard[], note?: ReactNode) =>
     cards.length === 0 && !note ? null : (
-      <section className="order-2 flex flex-col gap-3 xl:order-none">
+      <section className="flex flex-col gap-3">
         <h2 className={h2}>Campaigns</h2>
         {cards.length > 0 && (
           <ul className="grid gap-4 sm:grid-cols-2">
@@ -353,12 +370,14 @@ interface ICampaignCardProps extends ICampaignCard {
   share_url: string;
 }
 
-/** the image and name open the campaign; Share and Donate are their own
- * controls under it */
+/** the name is the link, stretched over the card, so the card opens the
+ * campaign while the link's name stays the campaign's. Share and Donate are
+ * positioned, and later in the dom than the stretch, so they paint over it
+ * and take their own clicks */
 function CampaignCard(c: ICampaignCardProps) {
   const goal = goal_amount(c.target, c.raised);
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded border bg-panel">
+    <article className="relative flex h-full flex-col overflow-hidden rounded border bg-panel has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2">
       <p className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-11">
         {c.mark ? (
           <Image
@@ -378,25 +397,30 @@ function CampaignCard(c: ICampaignCardProps) {
           {c.official ? "Official campaign" : `By ${c.byline}`}
         </span>
       </p>
-      <Link
-        to={c.to}
-        className="relative block aspect-video bg-gray-3 text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-      >
+      {/* stacked in one grid cell, not positioned, so the card stays the box
+          the link's ::after covers; grid-rows-1 holds the row to the 16:9
+          box rather than the photo's own height */}
+      <div className="grid aspect-video grid-rows-1 overflow-hidden bg-gray-3">
         {c.image && (
           <Image
             src={c.image}
             alt=""
-            className="absolute inset-0 size-full object-cover"
+            className="col-start-1 row-start-1 size-full object-cover"
           />
         )}
         {/* primary-deep/70 is the measured scrim for white copy over a photo */}
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-primary-deep/70 p-4 text-center lg:p-6">
-          <span className="text-xl font-bold">{c.name}</span>
-          {c.excerpt && (
-            <span className="line-clamp-2 text-sm">{c.excerpt}</span>
-          )}
-        </span>
-      </Link>
+        <div className="col-start-1 row-start-1 flex flex-col items-center justify-center gap-2 bg-primary-deep/70 p-4 text-center text-white lg:p-6">
+          <h3 className="text-xl font-bold">
+            <Link
+              to={c.to}
+              className="outline-0 after:absolute after:inset-0 after:content-['']"
+            >
+              {c.name}
+            </Link>
+          </h3>
+          {c.excerpt && <p className="line-clamp-2 text-sm">{c.excerpt}</p>}
+        </div>
+      </div>
       <div className="flex flex-1 flex-col gap-3 p-4">
         {goal != null ? (
           <>
@@ -425,7 +449,7 @@ function CampaignCard(c: ICampaignCardProps) {
             label={`Share ${c.name}`}
             recipientName={c.name}
             url={c.share_url}
-            classes="-ml-3"
+            classes="relative -ml-3"
           />
           <div className="ml-auto flex items-center gap-2">
             {c.supporters != null && (
@@ -433,7 +457,7 @@ function CampaignCard(c: ICampaignCardProps) {
                 {supporter_label(c.supporters)}
               </span>
             )}
-            <Link to={c.donate_to} className="btn btn-primary">
+            <Link to={c.donate_to} className="btn btn-primary relative">
               Donate
             </Link>
           </div>
@@ -453,7 +477,7 @@ function Programs({ npo, programs }: IProgramsProps) {
       <Await
         resolve={programs}
         errorElement={
-          <p className="order-3 text-sm text-gray-11 xl:order-none">
+          <p className="text-sm text-gray-11">
             We couldn't load this nonprofit's programs right now. Please try
             again later.
           </p>
@@ -461,7 +485,7 @@ function Programs({ npo, programs }: IProgramsProps) {
       >
         {(p) =>
           p.length === 0 ? null : (
-            <section className="order-3 flex flex-col gap-3 xl:order-none">
+            <section className="flex flex-col gap-3">
               <h2 className={h2}>Programs</h2>
               <ul className="divide-y overflow-hidden rounded border bg-panel">
                 {p.map((prog) => (
@@ -515,7 +539,7 @@ function Media({ media, name }: IMediaProps) {
       <Await
         resolve={media}
         errorElement={
-          <p className="order-4 text-sm text-gray-11 xl:order-none">
+          <p className="text-sm text-gray-11">
             We couldn't load this nonprofit's videos right now. Please try again
             later.
           </p>
@@ -531,7 +555,7 @@ function Media({ media, name }: IMediaProps) {
               : null,
           }));
           return (
-            <section className="order-4 flex flex-col gap-3 xl:order-none">
+            <section className="flex flex-col gap-3">
               <h2 className={h2}>Media</h2>
               <Medium {...first} />
               {rest.length > 0 && (
@@ -568,12 +592,13 @@ function Medium({ item, title }: IMedium) {
 
 interface IMessages {
   messages: IMessage[];
+  classes?: string;
 }
 
-function Messages({ messages }: IMessages) {
+function Messages({ messages, classes = "" }: IMessages) {
   if (messages.length === 0) return null;
   return (
-    <section className="order-5 flex flex-col gap-3 xl:order-none">
+    <section className={`flex flex-col gap-3 ${classes}`}>
       <h2 className={h2}>Donor messages</h2>
       {messages.map((m) => (
         <figure key={m.id} className="card flex flex-col gap-2">

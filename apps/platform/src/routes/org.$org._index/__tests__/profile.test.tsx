@@ -448,3 +448,159 @@ describe("org profile", () => {
     ).toBeNull();
   });
 });
+
+const pt = (...texts: string[]) =>
+  JSON.stringify(
+    texts.map((text, i) => ({
+      _type: "block",
+      _key: `b${i}`,
+      children: [{ _type: "span", _key: `s${i}`, text }],
+    }))
+  );
+
+const ABOUT = [
+  "We run two shelters on the east side.",
+  "Since 2014 we have fed anyone who comes to the door.",
+  "Every gift keeps both of them open through the winter.",
+];
+
+const SECTIONS = ["About", "Campaigns", "Programs", "Media", "Donor messages"];
+
+function mount_full() {
+  return mount({
+    npo: { ...npo, overview_pt: pt(...ABOUT) } as INpoPublic,
+    campaigns: ["Winter coats", "Roof repair", "Pantry", "Bus passes"].map(
+      (name, i) => ({ ...campaign, id: `c${i}`, name, to: `/org/acme/c${i}` })
+    ),
+    programs: Promise.resolve([
+      { id: "p1", title: "Wells", description_pt: "[]" },
+    ] as never),
+    media: Promise.resolve([
+      { id: "m1", url: "https://vimeo.com/123", featured: true },
+    ] as never),
+    messages: [{ id: "d1", name: "Ana", message: "Keep going" }],
+  });
+}
+
+type TScreen = Awaited<ReturnType<typeof mount>>;
+
+async function sections(screen: TScreen) {
+  const heading = (name: string) =>
+    screen.getByRole("heading", { level: 2, name, exact: true });
+  for (const name of SECTIONS) {
+    await expect.element(heading(name)).toBeVisible();
+  }
+  return SECTIONS.map(
+    (name) => heading(name).element().closest("section") as HTMLElement
+  );
+}
+
+/** each section follows the one before it in the dom, and nothing a sighted
+ * reader meets first comes later: in one column a later section sits below,
+ * and of two that start on one line the later sits to the right. two in
+ * different columns that start at different heights have no order to keep */
+function expect_reading_order(els: HTMLElement[]) {
+  for (let i = 0; i < els.length; i++) {
+    for (let j = i + 1; j < els.length; j++) {
+      expect(
+        els[i].compareDocumentPosition(els[j]) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      const a = els[i].getBoundingClientRect();
+      const b = els[j].getBoundingClientRect();
+      const same_column = a.left < b.right && b.left < a.right;
+      if (same_column) expect(b.top).toBeGreaterThanOrEqual(a.bottom);
+      else if (Math.abs(a.top - b.top) < 1)
+        expect(b.left).toBeGreaterThanOrEqual(a.right);
+    }
+  }
+}
+
+describe("org profile layout", () => {
+  it("reads in the order it shows, on a phone and in two columns", async () => {
+    await page.viewport(375, 667);
+    const phone = await mount_full();
+    const one_column = await sections(phone);
+    expect_reading_order(one_column);
+    // one column: every section starts on the same edge
+    expect(
+      new Set(one_column.map((s) => s.getBoundingClientRect().left)).size
+    ).toBe(1);
+    await cleanup();
+
+    await page.viewport(1280, 900);
+    const desktop = await mount_full();
+    const two_columns = await sections(desktop);
+    expect_reading_order(two_columns);
+    const [hero, campaigns, , , messages] = two_columns;
+    const h = hero.getBoundingClientRect();
+    const c = campaigns.getBoundingClientRect();
+    const m = messages.getBoundingClientRect();
+    // two columns, messages under the hero by the same gap as between the
+    // columns, though the right column runs longer
+    expect(c.left).toBeGreaterThan(h.right);
+    expect(m.left).toBe(h.left);
+    expect(m.top - h.bottom).toBeCloseTo(c.left - h.right, 0);
+  });
+
+  it("sets the About paragraphs apart, and holds them to the reading measure on a one-column desktop", async () => {
+    await page.viewport(1100, 900);
+    const screen = await mount_full();
+    const [first, second] = ABOUT.map((t) => screen.getByText(t));
+    await expect.element(first).toBeVisible();
+    const a = first.element().getBoundingClientRect();
+    const b = second.element().getBoundingClientRect();
+    expect(b.top - a.bottom).toBeGreaterThanOrEqual(12);
+    // max-w-3xl, 768px, inside a card that runs wider
+    expect(a.width).toBeLessThanOrEqual(768);
+    const card = first.element().closest("section") as HTMLElement;
+    expect(card.getBoundingClientRect().width).toBeGreaterThan(768);
+  });
+
+  it("reads a gift too small to reach 1% of the goal as <1%, not 0%", async () => {
+    await page.viewport(1280, 900);
+    const screen = await mount({
+      npo: { ...npo, target: "100000" } as INpoPublic,
+    });
+    await expect
+      .element(screen.getByText("<1% of $100,000 goal", { exact: true }))
+      .toBeVisible();
+  });
+
+  it("names a campaign card's link by the campaign alone, under an h3, and leaves Share and Donate their own clicks", async () => {
+    await page.viewport(1280, 900);
+    const screen = await mount({ campaigns: [campaign] });
+    const card = screen.getByRole("article");
+    const heading = card.getByRole("heading", {
+      level: 3,
+      name: "Winter coats",
+      exact: true,
+    });
+    await expect.element(heading).toBeVisible();
+    const link = heading.getByRole("link", {
+      name: "Winter coats",
+      exact: true,
+    });
+    await expect.element(link).toHaveAttribute("href", "/org/acme/winter");
+    const excerpt = card.getByText(campaign.excerpt).element();
+    expect(link.element().contains(excerpt)).toBe(false);
+
+    const hit = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return document
+        .elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        ?.closest("a, button");
+    };
+    // the stretch covers the card, the byline above the photo included
+    expect(hit(card.getByText("Official campaign").element())).toBe(
+      link.element()
+    );
+    const donate = card.getByRole("link", { name: "Donate", exact: true });
+    expect(hit(donate.element())).toBe(donate.element());
+
+    await card.getByRole("button", { name: "Share Winter coats" }).click();
+    await expect
+      .element(screen.getByRole("dialog", { name: "Share" }))
+      .toBeVisible();
+  });
+});

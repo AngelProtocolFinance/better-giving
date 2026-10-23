@@ -96,7 +96,9 @@ function Page({ loaderData: d }: Route.ComponentProps) {
               <RichText
                 readOnly
                 content={{ value: prog.description_pt }}
-                classes={{ field: "w-full text-base leading-relaxed" }}
+                classes={{
+                  field: "flex w-full flex-col gap-3 text-base leading-relaxed",
+                }}
               />
             </section>
             <Milestones milestones={prog.milestones} />
@@ -145,7 +147,8 @@ function Campaigns({ campaigns }: ICampaigns) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className={h2}>Campaigns in this program</h2>
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(17.5rem,100%),1fr))] gap-4">
+      {/* fixed tracks, so a lone card keeps one column's width */}
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {campaigns.map((c) => (
           <li key={c.id}>
             <CampaignCard {...c} />
