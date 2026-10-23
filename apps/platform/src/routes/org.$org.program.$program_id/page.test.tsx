@@ -157,6 +157,44 @@ describe("program page", () => {
     ).toBeNull();
   });
 
+  it("clips a campaign's photo to the 160px media cell under its name, and keeps a lone card a column wide", async () => {
+    const tall = `data:image/svg+xml,${encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1200"><rect width="400" height="1200"/></svg>'
+    )}`;
+    const screen = await mount({
+      campaigns: [
+        {
+          id: "c1",
+          name: "Spring well drive",
+          to: "/org/acme/spring-well-drive",
+          image: tall,
+          raised: 400,
+          target: "1000",
+        },
+      ],
+    });
+    const list = screen.getByRole("list");
+    const name = list.getByRole("link", { name: "Spring well drive" });
+    await expect.element(name).toBeVisible();
+    const img = list.element().querySelector("img") as HTMLImageElement;
+    await vi.waitFor(() => expect(img.complete).toBe(true));
+
+    const media = img.getBoundingClientRect();
+    expect(media.height).toBe(160);
+    const label = name.element().getBoundingClientRect();
+    expect(label.top).toBeGreaterThanOrEqual(media.top);
+    expect(label.bottom).toBeLessThanOrEqual(media.bottom);
+    // the amounts sit under the photo, not beneath it
+    const amount = list.getByText("of $1,000", { exact: true }).element();
+    expect(amount.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      media.bottom
+    );
+    const card = list.getByRole("listitem").element().getBoundingClientRect();
+    expect(card.width).toBeLessThan(
+      list.element().getBoundingClientRect().width / 2
+    );
+  });
+
   it("shows a milestone timeline, and none without milestones", async () => {
     const screen = await mount({
       prog: {

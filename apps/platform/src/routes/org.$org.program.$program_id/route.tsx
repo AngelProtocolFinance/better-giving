@@ -145,7 +145,7 @@ function Campaigns({ campaigns }: ICampaigns) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className={h2}>Campaigns in this program</h2>
-      <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(17.5rem,100%),1fr))] gap-4">
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(17.5rem,100%),1fr))] gap-4">
         {campaigns.map((c) => (
           <li key={c.id}>
             <CampaignCard {...c} />
@@ -163,8 +163,10 @@ function CampaignCard(c: TCampaign) {
   return (
     <article className="relative flex h-full flex-col overflow-hidden rounded border bg-panel has-focus-visible:outline-2 has-focus-visible:outline-ring has-focus-visible:-outline-offset-2">
       {/* stacked in one grid cell, not positioned, so the card stays the
-          box the link's ::after covers */}
-      <div className="grid h-40 bg-gray-3">
+          box the link's ::after covers. grid-rows-1 makes the row the
+          definite 160px, which size-full resolves against; an auto row
+          grows to the photo's own height */}
+      <div className="grid h-40 grid-rows-1 overflow-hidden bg-gray-3">
         {c.image && (
           <Image
             src={c.image}
