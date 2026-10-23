@@ -28,8 +28,10 @@ vi.mock("#/errors/report", () => ({ report_error }));
 const npo_queries = await import("$/pg/queries/npo");
 const campaign_queries = await import("$/pg/queries/campaign");
 const { NPO_PUBLIC_KEYS } = npo_queries;
-const { donation_message_list } = await import("$/pg/queries/donation-message");
+const message_queries = await import("$/pg/queries/donation-message");
+const { donation_message_list } = message_queries;
 const { loader } = await import("./api");
+const { npo_donors } = await import("#/.server/npo-donors");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 
 beforeAll(async () => {
@@ -307,6 +309,52 @@ describe("public npo profile loader", () => {
       { id: "msg-1", name: "Ana", message: "Keep going" },
       { id: "msg-anon", name: "Donor", message: "Anonymous hello" },
     ]);
+    // four rows fit one page: nothing further to fetch
+    expect(d.messages_next).toBeNull();
+  });
+
+  it("still serves the profile when the messages fail, with none and no cursor", async () => {
+    const npo = await seed_npo();
+    report_error.mockClear();
+    const down = new Error("messages down");
+    vi.spyOn(message_queries, "donation_message_list").mockRejectedValueOnce(
+      down
+    );
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect(d.messages).toEqual([]);
+    expect(d.messages_next).toBeNull();
+    expect(report_error).toHaveBeenCalledWith(down, { endow_id: npo.id });
+  });
+
+  it("sends the cursor the donors api resumes from, after the last row read rather than shown", async () => {
+    const npo = await seed_npo();
+    const org = String(npo.id);
+    // 12 rows, newest first; the 10th is blank, so the profile shows 9
+    await db()
+      .insert(donation_messages)
+      .values(
+        Array.from({ length: 12 }, (_, i) => ({
+          id: `page-${i + 1}`,
+          npo_id: org,
+          donor_name: `Donor ${i + 1}`,
+          donor_message: i === 9 ? " " : `Message ${i + 1}`,
+          date: hours_ago(i + 1),
+        }))
+      );
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect(d.messages.map((m) => m.id)).toEqual(
+      ["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((n) => `page-${n}`)
+    );
+    expect(d.messages_next).toEqual(expect.any(String));
+    const after = await npo_donors(org, d.messages_next!);
+    expect(after.items.map((m) => m.id)).toEqual(["page-11", "page-12"]);
+    expect(after.next).toBeUndefined();
   });
 
   it("shows only the newest featured videos, up to the limit", async () => {

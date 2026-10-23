@@ -50,7 +50,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
       return null;
     });
 
-  const [campaigns, donors, messages] = await Promise.all([
+  const [campaigns, donors, { messages, messages_next }] = await Promise.all([
     campaign_live_for_npo(npo.id).then(async (rows) => {
       // a campaign page lives under its org's slug
       const listed = rows.flatMap((c) => (c.owner_slug ? [c] : []));
@@ -80,18 +80,20 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     }),
     count_or_null(npo_donor_count(npo.id)),
     donation_message_list(String(npo.id), { limit: 10 })
-      .then((page) =>
-        page.items
+      .then((page) => ({
+        messages: page.items
           .filter((m) => m.donor_message?.trim())
           .map((m) => ({
             id: m.id,
             name: m.donor_name || "Donor",
             message: m.donor_message as string,
-          }))
-      )
+          })),
+        // from the raw page, so /api/npo/:id/donors?next= resumes after the last row read, blank ones included
+        messages_next: page.next ?? null,
+      }))
       .catch((err) => {
         report_error(err, { endow_id: npo.id });
-        return [];
+        return { messages: [], messages_next: null };
       }),
   ]);
 
@@ -100,6 +102,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
     url: new URL(org_href(npo), request.url).toString(),
     donors,
     messages,
+    messages_next,
     campaigns,
 
     //lazy
