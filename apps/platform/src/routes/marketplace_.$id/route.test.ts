@@ -61,6 +61,41 @@ describe("old marketplace urls", () => {
     ).toEqual([301, `/org/${bare!.id}`, MOVED]);
   });
 
+  it("301 a slug in any case to the stored one, and 404 an unknown slug in place", async () => {
+    const db = test_db.current!.db;
+    await seed_npo(db, {
+      registration_number: "EIN-CASE",
+      slug: "mixed-case",
+    });
+
+    expect(
+      location(
+        await call(loader, "/marketplace/Mixed-Case?x=1", { id: "Mixed-Case" })
+      )
+    ).toEqual([301, "/org/mixed-case?x=1", MOVED]);
+
+    const unknown = await call(loader, "/marketplace/no-such-org", {
+      id: "no-such-org",
+    }).catch((e: unknown) => e);
+    expect(unknown).toBeInstanceOf(Response);
+    expect((unknown as Response).status).toBe(404);
+  });
+
+  it("404 an inactive org in place", async () => {
+    const db = test_db.current!.db;
+    const off = await seed_npo(db, {
+      registration_number: "EIN-OFF",
+      slug: "gone-org",
+      active: false,
+    });
+    for (const id of ["gone-org", String(off!.id)]) {
+      const res = await call(loader, `/marketplace/${id}`, { id }).catch(
+        (e: unknown) => e
+      );
+      expect((res as Response).status).toBe(404);
+    }
+  });
+
   it("301 a program to /org/<slug|id>/program/<id>", async () => {
     const db = test_db.current!.db;
     const npo = await seed_npo(db, {

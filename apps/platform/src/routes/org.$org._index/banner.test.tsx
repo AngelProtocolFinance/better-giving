@@ -63,9 +63,9 @@ describe("public profile banner", () => {
     ) as HTMLImageElement | null;
     expect(banner).not.toBeNull();
     expect(getComputedStyle(banner!).objectFit).toBe("cover");
-    // the frame is 16:9 whatever the saved image's own shape
+    // the frame is 4:1 whatever the saved image's own shape
     const { width, height } = banner!.getBoundingClientRect();
-    expect(width / height).toBeCloseTo(16 / 9, 1);
+    expect(width / height).toBeCloseTo(4, 1);
 
     // the logo is object-cover on a light ground. clear pixels in a cropped
     // png have to stay clear, or this ground cannot show through.

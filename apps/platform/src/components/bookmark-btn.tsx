@@ -1,6 +1,8 @@
 import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { Heart } from "lucide-react";
 import { useState } from "react";
+import { Link, useLocation } from "react-router";
+import { login_url } from "#/helpers/login-url";
 import { use_user } from "#/hooks/use-user";
 import type { INpoBookmark } from "#/types/user";
 
@@ -23,6 +25,7 @@ export function BookmarkBtn({
 }: IBookmarkBtn) {
   const { user, toggle_bookmark } = use_user();
   const [pending, set_pending] = useState(false);
+  const { pathname, search } = useLocation();
 
   if (user === "loading") {
     return (
@@ -41,14 +44,15 @@ export function BookmarkBtn({
             <Arrow />
           </Content>
         }
+        trigger="child"
       >
-        <button
-          type="button"
+        <Link
+          to={login_url(pathname + search)}
           aria-label="Add to favorites"
           className={`glyph-btn ${focus_ring} ${classes}`}
         >
           <Heart aria-hidden className={`icon-xl ${idle_ink}`} />
-        </button>
+        </Link>
       </Tooltip>
     );
   }
@@ -70,6 +74,7 @@ export function BookmarkBtn({
         type="button"
         disabled={pending}
         aria-label="Add to favorites"
+        aria-pressed={is_bookmarked}
         className={`glyph-btn disabled:text-gray-11 ${focus_ring} ${classes}`}
         onClick={async () => {
           set_pending(true);

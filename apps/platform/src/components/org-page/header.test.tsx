@@ -30,24 +30,27 @@ const header = (name = "Acme Relief") => (
 );
 
 describe("org header", () => {
-  it("makes Favorite a 44px button in Share's ink, signed in or not", async () => {
+  it("makes Favorite a 44px target in Share's ink, signed in or not", async () => {
     await page.viewport(1280, 900);
-    for (const user of [{ bookmarks: [] }, null]) {
+    // signed out it is a link to log in, signed in a toggle button
+    for (const [user, role] of [
+      [{ bookmarks: [] }, "button"],
+      [null, "link"],
+    ] as const) {
       user_mock.current = user;
       const screen = await render(header());
-      const fav = screen.getByRole("button", { name: "Add to favorites" });
+      const fav = screen.getByRole(role, {
+        name: "Add to favorites",
+        exact: true,
+      });
       await expect.element(fav).toBeVisible();
       const box = fav.element().getBoundingClientRect();
       expect(box.width).toBeGreaterThanOrEqual(44);
       expect(box.height).toBeGreaterThanOrEqual(44);
-      const ink = (name: string) =>
-        getComputedStyle(
-          screen
-            .getByRole("button", { name, exact: true })
-            .element()
-            .querySelector("svg") as SVGElement
-        ).color;
-      expect(ink("Add to favorites")).toBe(ink("Share"));
+      const ink = (el: Element) =>
+        getComputedStyle(el.querySelector("svg") as SVGElement).color;
+      const share = screen.getByRole("button", { name: "Share", exact: true });
+      expect(ink(fav.element())).toBe(ink(share.element()));
       await cleanup();
     }
   });

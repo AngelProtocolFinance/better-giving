@@ -31,8 +31,9 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const id = npo_id(params.org);
   const npo = await (typeof id === "number" ? npo_get(id) : npo_by_slug(id));
   if (!npo || npo.active === false) throw new Response(null, { status: 404 });
-  // an org with a slug lives at it; its id url is an alias
-  if (typeof id === "number" && npo.slug) {
+  // an org with a slug lives at it; its id url, and its slug in any other
+  // case (npo_by_slug matches case-insensitively), are aliases
+  if (npo.slug && (typeof id === "number" || id !== npo.slug)) {
     throw moved(`${org_href(npo)}${new URL(request.url).search}`);
   }
 

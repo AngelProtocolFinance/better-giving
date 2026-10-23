@@ -314,7 +314,7 @@ function Mast(props: ICampaignPage) {
       {(props.tag || props.program_name) && (
         <div className="order-3 flex flex-wrap gap-2">
           {props.tag && (
-            <p className="inline-block rounded bg-secondary px-2 py-1 text-xs font-semibold uppercase tracking-badge text-primary-deep">
+            <p className="inline-block rounded bg-secondary px-2 py-1 text-xs font-semibold uppercase tracking-badge text-gray-12">
               {props.tag}
             </p>
           )}

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { encode_date_cursor } from "$/pg/queries/helpers";
 import { user } from "$/pg/schema/auth";
 import { campaigns } from "$/pg/schema/campaign";
 import { dists } from "$/pg/schema/dist";
@@ -510,6 +511,20 @@ describe("public npo profile loader", () => {
     }
   });
 
+  it("301s a slug in another case to the stored one, keeping the query", async () => {
+    const npo = await seed_npo({ slug: "acme" });
+
+    const res = await thrown(load("ACME", "?referrer=R1"));
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(301);
+    expect((res as Response).headers.get("location")).toBe(
+      `/org/${npo.slug}?referrer=R1`
+    );
+    expect((res as Response).headers.get("cache-control")).toBe(
+      "public, max-age=3600, s-maxage=86400"
+    );
+  });
+
   it("answers 404 for an inactive org, by slug or by id, not the id redirect", async () => {
     const npo = await seed_npo({ active: false });
 
@@ -518,5 +533,120 @@ describe("public npo profile loader", () => {
       expect(res).toBeInstanceOf(Response);
       expect((res as Response).status).toBe(404);
     }
+  });
+});
+
+describe("donor message paging", () => {
+  const message = (org: string, id: string, date: string) => ({
+    id,
+    npo_id: org,
+    donor_name: id,
+    donor_message: `from ${id}`,
+    date,
+  });
+
+  /** every page from the first, following `next` until it runs out */
+  async function all_pages(
+    org: string,
+    opts: { limit: number; campaign_id?: string }
+  ) {
+    const pages: string[][] = [];
+    let next: string | undefined;
+    do {
+      const page = await donation_message_list(org, { ...opts, next });
+      pages.push(page.items.map((m) => m.id));
+      next = page.next;
+    } while (next && pages.length < 10);
+    return pages;
+  }
+
+  it("pages past a row sharing the page's last timestamp, showing each once", async () => {
+    const org = String((await seed_npo()).id);
+    const tied = "2026-03-01T10:00:00.123456Z";
+    await db()
+      .insert(donation_messages)
+      .values([
+        message(org, "tie-newest", "2026-03-01T11:00:00.000Z"),
+        message(org, "tie-a", tied),
+        message(org, "tie-b", tied),
+        message(org, "tie-oldest", "2026-03-01T09:00:00.000Z"),
+      ]);
+
+    const pages = await all_pages(org, { limit: 2 });
+
+    expect(pages).toEqual([
+      ["tie-newest", "tie-b"],
+      ["tie-a", "tie-oldest"],
+    ]);
+  });
+
+  it("pages a date-only cursor from an older client to the rows strictly older than it", async () => {
+    const org = String((await seed_npo()).id);
+    const edge = "2026-04-01T10:00:00.123456Z";
+    await db()
+      .insert(donation_messages)
+      .values([
+        message(org, "legacy-newer", "2026-04-01T11:00:00.000Z"),
+        message(org, "legacy-at-edge", edge),
+        message(org, "legacy-older-1", "2026-04-01T09:00:00.000Z"),
+        message(org, "legacy-older-2", "2026-04-01T08:00:00.000Z"),
+      ]);
+
+    const page = await donation_message_list(org, {
+      limit: 1,
+      next: encode_date_cursor(edge),
+    });
+
+    expect(page.items.map((m) => m.id)).toEqual(["legacy-older-1"]);
+    // and what it hands back resumes in the new form, past the older row
+    const after = await donation_message_list(org, {
+      limit: 1,
+      next: page.next,
+    });
+    expect(after.items.map((m) => m.id)).toEqual(["legacy-older-2"]);
+    expect(after.next).toBeUndefined();
+  });
+
+  it("pages one campaign's messages newest first, a page at a time, leaving the org's others out", async () => {
+    const npo = await seed_npo();
+    const org = String(npo.id);
+    await seed_campaign(npo.id, "msgcmp-paged");
+    await seed_campaign(npo.id, "msgcmp-other");
+    const tied = "2026-05-01T10:00:00.123456Z";
+    const gifts: [string, string | undefined][] = [
+      ["msgcmp-1", "msgcmp-paged"],
+      ["msgcmp-2", "msgcmp-paged"],
+      ["msgcmp-3", "msgcmp-paged"],
+      ["msgcmp-4", "msgcmp-paged"],
+      ["msgcmp-elsewhere", "msgcmp-other"],
+      ["msgcmp-none", undefined],
+    ];
+    for (const [id, campaign] of gifts) {
+      await seed_gift(`don-${id}`, `${id}@example.com`, npo.id, campaign);
+    }
+    const dated = (id: string, date: string) => ({
+      ...message(org, id, date),
+      donation_id: `don-${id}`,
+    });
+    await db()
+      .insert(donation_messages)
+      .values([
+        dated("msgcmp-elsewhere", "2026-05-01T12:30:00.000Z"),
+        dated("msgcmp-1", "2026-05-01T12:00:00.000Z"),
+        dated("msgcmp-none", "2026-05-01T11:30:00.000Z"),
+        dated("msgcmp-2", tied),
+        dated("msgcmp-3", tied),
+        dated("msgcmp-4", "2026-05-01T09:00:00.000Z"),
+      ]);
+
+    const pages = await all_pages(org, {
+      limit: 2,
+      campaign_id: "msgcmp-paged",
+    });
+
+    expect(pages).toEqual([
+      ["msgcmp-1", "msgcmp-3"],
+      ["msgcmp-2", "msgcmp-4"],
+    ]);
   });
 });

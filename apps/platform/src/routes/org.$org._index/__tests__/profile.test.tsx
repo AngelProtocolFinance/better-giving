@@ -782,6 +782,15 @@ describe("org profile campaign cards", () => {
     }
   });
 
+  it("frames a card's photo at the 4:1 its upload was cropped to", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount({ campaigns: [campaign] });
+    const card = screen.getByRole("article");
+    await expect.element(card).toBeVisible();
+    const { width, height } = card_parts(card).photo.getBoundingClientRect();
+    expect(width / height).toBeCloseTo(4, 1);
+  });
+
   it("in the xl sidebar, a lone card stays vertical, its photo under its byline", async () => {
     await page.viewport(1440, 900);
     const screen = await mount({ campaigns: [campaign] });

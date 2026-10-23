@@ -412,9 +412,9 @@ function CampaignCard(c: ICampaignCardProps) {
         </span>
       </p>
       {/* stacked in one grid cell, not positioned, so the card stays the box
-          the link's ::after covers; grid-rows-1 holds the row to the 16:9
+          the link's ::after covers; grid-rows-1 holds the row to the 4:1
           box rather than the photo's own height */}
-      <div className="grid aspect-video grid-rows-1 overflow-hidden bg-gray-3 @2xl:col-start-1 @2xl:row-span-2 @2xl:row-start-1">
+      <div className="grid aspect-4/1 grid-rows-1 overflow-hidden bg-gray-3 @2xl:col-start-1 @2xl:row-span-2 @2xl:row-start-1">
         {c.image && (
           <Image
             src={c.image}
