@@ -780,7 +780,7 @@ describe("profile shape", () => {
 
     expect(d.lists.give.map((g) => [g.kind, g.id, g.image, g.goal])).toEqual([
       ["campaign", "lists-cmp", null, 100],
-      ["fundraiser", "lists-fund", "https://img.co/banner.png", null],
+      ["supporter", "lists-fund", "https://img.co/banner.png", null],
     ]);
     expect(d.lists.failed).toEqual({
       give: false,

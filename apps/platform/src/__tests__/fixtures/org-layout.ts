@@ -54,7 +54,7 @@ export const give = (n: number): IGiveItem => ({
 
 export const fundraiser = (n: number): IGiveItem => ({
   ...give(n),
-  kind: "fundraiser",
+  kind: "supporter",
   id: `fundraiser-${n}`,
   title: `Read-a-thon ${n}`,
   to: `/fundraisers/${n}`,
@@ -167,7 +167,7 @@ export function org_layout(o: Partial<IOrgLayout> = {}): IOrgLayout {
       has_banner: !!p.npo.image,
       has_logo: !!p.npo.logo,
       campaigns: p.give.filter((x) => x.kind === "campaign").length,
-      fundraisers: p.give.filter((x) => x.kind === "fundraiser").length,
+      fundraisers: p.give.filter((x) => x.kind === "supporter").length,
       programs: p.programs.length,
       videos: p.videos.length,
       ...o.shape,

@@ -31,10 +31,10 @@ const SHAPE: Record<TCardOrientation, string> = {
 
 const KIND: Record<IGiveItem["kind"], string> = {
   campaign: "Campaign",
-  fundraiser: "Fundraiser",
+  supporter: "Supporter campaign",
 };
 
-/** a campaign or fundraiser. the title is the card's one link, stretched over
+/** a campaign or supporter campaign. the title is the card's one link, stretched over
  * it, so the link's name stays the title */
 export function GiveCard({ item, orientation, now, classes = "" }: IGiveCard) {
   const feature = orientation === "feature";

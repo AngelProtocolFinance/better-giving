@@ -92,7 +92,7 @@ describe("GiveCard", () => {
             ends_at: new Date(NOW - HOUR).toISOString(),
             goal: null,
             raised: 540,
-            kind: "fundraiser",
+            kind: "supporter",
             byline: "by Jane",
           })}
         />
@@ -118,7 +118,7 @@ describe("GiveCard", () => {
     await expect.element(card(1)).toMatchTextContent("$2,400 of $7,900");
     expect(card(3).getByRole("progressbar").query()).toBeNull();
     await expect.element(card(3)).toMatchTextContent("$540 raised");
-    await expect.element(card(3)).toMatchTextContent("Fundraiser");
+    await expect.element(card(3)).toMatchTextContent("Supporter campaign");
     await expect.element(card(3)).toMatchTextContent("by Jane");
 
     // the title is the card's only link
@@ -255,10 +255,10 @@ describe("SwipeRow", () => {
   test('scrolls by keyboard, cuts off its last card, and "See all N" opens it into a grid', async () => {
     await page.viewport(1440, 900);
     const screen = await mount(
-      <SwipeRow heading="Campaigns & fundraisers" items={gives(5)} now={NOW} />
+      <SwipeRow heading="Campaigns" items={gives(5)} now={NOW} />
     );
     const region = screen.getByRole("region", {
-      name: "Campaigns & fundraisers",
+      name: "Campaigns",
     });
     const toggle = screen.getByRole("button", { name: "See all 5" });
 

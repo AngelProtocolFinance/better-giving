@@ -12,7 +12,7 @@ export interface ISwipeRow {
   classes?: string;
 }
 
-/** 4+ campaigns and fundraisers as one row that scrolls sideways. each card
+/** 4+ campaigns and supporter campaigns as one row that scrolls sideways. each card
  * is a share of the row's width, so the last one in view is always cut off,
  * which is what says there is more. "See all N" opens the row in place into a
  * wrapping grid */

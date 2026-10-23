@@ -115,8 +115,8 @@ describe("Hub", () => {
   test("the give tab is named by what it holds", async () => {
     const cases = [
       [many(give, 3), "Campaigns 3"],
-      [many(fundraiser, 3), "Fundraisers 3"],
-      [[give(1), ...many(fundraiser, 2)], "Campaigns & fundraisers 3"],
+      [many(fundraiser, 3), "Supporter campaigns 3"],
+      [[give(1), ...many(fundraiser, 2)], "Campaigns 3"],
     ] as const;
     for (const [list, name] of cases) {
       const screen = await mount(
@@ -130,7 +130,9 @@ describe("Hub", () => {
     // a lone kind's heading takes the same name
     const lone = await mount(org_layout({ give: many(fundraiser, 4) }));
     await expect
-      .element(lone.getByRole("heading", { name: "Fundraisers", level: 2 }))
+      .element(
+        lone.getByRole("heading", { name: "Supporter campaigns", level: 2 })
+      )
       .toBeVisible();
   });
 

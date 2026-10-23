@@ -1,6 +1,6 @@
-/** a campaign or fundraiser the org page links to */
+/** a campaign or supporter campaign the org page links to */
 export interface IGiveItem {
-  kind: "campaign" | "fundraiser";
+  kind: "campaign" | "supporter";
   id: string;
   title: string;
   to: string;

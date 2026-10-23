@@ -181,8 +181,8 @@ describe("Feature", () => {
   test("the give section and its header link are named by what the list holds", async () => {
     await page.viewport(1440, 900);
     const cases = [
-      [many(fundraiser, 2), "Fundraisers"],
-      [[give(1), fundraiser(1)], "Campaigns & fundraisers"],
+      [many(fundraiser, 2), "Supporter campaigns"],
+      [[give(1), fundraiser(1)], "Campaigns"],
     ] as const;
     for (const [list, name] of cases) {
       const screen = await mount({ give: [...list] });

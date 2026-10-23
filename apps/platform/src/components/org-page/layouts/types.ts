@@ -18,7 +18,7 @@ export interface IOrgLayout {
   share: { recipientName: string; url: string };
   /** epoch ms the page was rendered at; cards count "Ends in N days" from it */
   now: number;
-  /** campaigns, then open fundraisers */
+  /** campaigns, then open supporter campaigns */
   give: IGiveItem[];
   programs: IProgramItem[];
   videos: IVideoItem[];

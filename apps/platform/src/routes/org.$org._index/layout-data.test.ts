@@ -71,7 +71,7 @@ describe("fund as a give item", () => {
         NPO_ID
       )
     ).toEqual({
-      kind: "fundraiser",
+      kind: "supporter",
       id: "f1",
       title: "Coat drive",
       to: "/fundraisers/f1",
@@ -229,7 +229,7 @@ describe("layout lists", () => {
     });
     expect(give.map((g) => [g.kind, g.id])).toEqual([
       ["campaign", "c1"],
-      ["fundraiser", "f-open"],
+      ["supporter", "f-open"],
     ]);
   });
 

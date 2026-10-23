@@ -14,12 +14,12 @@ export interface IItemsByCount {
 /** a list laid out by its own count, never leaving an empty slot: 1 is a
  * feature card, 2 halves, 3 thirds, 4+ the first 3 and "See all N". programs
  * are rows and videos follow their own rule whatever the count, so a mixed
- * list renders campaigns and fundraisers, then programs, then videos. on a
+ * list renders campaigns and supporter campaigns, then programs, then videos. on a
  * phone every count is a stack of horizontal cards. nothing for no items */
 export function ItemsByCount({ items, now, classes = "" }: IItemsByCount) {
   if (items.length === 0) return null;
   const give = items.filter(
-    (x): x is IGiveItem => x.kind === "campaign" || x.kind === "fundraiser"
+    (x): x is IGiveItem => x.kind === "campaign" || x.kind === "supporter"
   );
   const programs = items.filter((x): x is IProgramItem => x.kind === "program");
   const videos = items.filter((x): x is IVideoItem => x.kind === "video");

@@ -51,7 +51,7 @@ export function campaign_give(c: ICampaignIn): IGiveItem {
 /** an open fundraiser; one the org owns is its own, so it carries no byline */
 export function fund_give(f: IFundItem, npo_id: number): IGiveItem {
   return {
-    kind: "fundraiser",
+    kind: "supporter",
     id: f.id,
     title: f.name,
     to: href("/fundraisers/:fund_id", { fund_id: f.id }),

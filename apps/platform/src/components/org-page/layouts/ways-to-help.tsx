@@ -15,10 +15,9 @@ export const FAILED_LINE: Record<keyof IOrgLayout["failed"], string> = {
 /** the give list's name by what it holds; a list that failed to load holds
  * nothing and keeps the name its failure line uses */
 export function give_label(give: IGiveItem[]): string {
-  const campaigns = give.some((x) => x.kind === "campaign");
-  const fundraisers = give.some((x) => x.kind === "fundraiser");
-  if (campaigns && fundraisers) return "Campaigns & fundraisers";
-  return fundraisers ? "Fundraisers" : "Campaigns";
+  const only_supporter =
+    give.length > 0 && give.every((x) => x.kind === "supporter");
+  return only_supporter ? "Supporter campaigns" : "Campaigns";
 }
 
 const KINDS = ["give", "programs", "videos"] as const;
