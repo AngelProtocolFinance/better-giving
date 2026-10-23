@@ -213,9 +213,12 @@ describe("program page", () => {
     });
   });
 
-  it("301s a slugged org's id url to its slug url", async () => {
+  it("301s a published slugged org's id url to its slug url", async () => {
     const db = test_db.current!.db;
-    await db.update(npos).set({ slug: "a-org" }).where(eq(npos.id, npo_a));
+    await db
+      .update(npos)
+      .set({ slug: "a-org", published: true })
+      .where(eq(npos.id, npo_a));
     const thrown = await load(A_PID, String(npo_a), "?utm_source=x").catch(
       (e: unknown) => e
     );
@@ -229,6 +232,18 @@ describe("program page", () => {
       "public, max-age=3600, s-maxage=86400"
     );
     expect((await load(A_PID, "a-org")).prog).toMatchObject({ id: A_PID });
+  });
+
+  it("serves an unpublished slugged org's program at its id url, naming no slug", async () => {
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ slug: "hidden-org", published: false })
+      .where(eq(npos.id, npo_a));
+
+    const d = await load(A_PID, String(npo_a));
+
+    expect(d.prog).toMatchObject({ id: A_PID });
   });
 
   it("404s another nonprofit's program under this nonprofit's url", async () => {

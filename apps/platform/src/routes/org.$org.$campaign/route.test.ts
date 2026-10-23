@@ -198,8 +198,12 @@ describe("public campaign page", () => {
     expect(await status_of(load("https://x/org/acme/missing"))).toBe(404);
   });
 
-  it("301s the owner's id url to its slug url, keeping the query", async () => {
+  it("301s a published owner's id url to its slug url, keeping the query", async () => {
     const npo = await org();
+    await test_db
+      .current!.db.update(npos)
+      .set({ published: true })
+      .where(eq(npos.id, npo.id));
     await campaign(npo.id);
 
     const res = await load(`https://x/org/${npo.id}/WINTER?amount=50`).catch(
@@ -211,6 +215,20 @@ describe("public campaign page", () => {
     expect((res as Response).headers.get("location")).toBe(
       "/org/acme/winter?amount=50"
     );
+  });
+
+  it("serves an unpublished owner's campaign at its id url, naming no slug", async () => {
+    const npo = await org();
+    await test_db
+      .current!.db.update(npos)
+      .set({ published: false })
+      .where(eq(npos.id, npo.id));
+    await campaign(npo.id);
+
+    const data = await load(`https://x/org/${npo.id}/winter`);
+
+    expect(data.campaign.slug).toBe("winter");
+    expect(data.npo.id).toBe(npo.id);
   });
 
   it("serves a slugless owner's campaign at the owner's id url", async () => {

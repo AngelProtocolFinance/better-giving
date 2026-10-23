@@ -117,6 +117,21 @@ describe("old marketplace urls", () => {
     }
   });
 
+  it("301 an unpublished org's program to its id url, naming no slug", async () => {
+    const db = test_db.current!.db;
+    const npo = await seed_npo(db, {
+      registration_number: "EIN-PROG-HIDDEN",
+      published: false,
+      slug: "hidden-wells",
+    });
+    const res = await call(
+      program_loader,
+      `/marketplace/${npo!.id}/program/p1`,
+      { id: String(npo!.id), program_id: "p1" }
+    );
+    expect(location(res)).toEqual([301, `/org/${npo!.id}/program/p1`, MOVED]);
+  });
+
   it("301 a program to /org/<slug|id>/program/<id>", async () => {
     const db = test_db.current!.db;
     const npo = await seed_npo(db, {
