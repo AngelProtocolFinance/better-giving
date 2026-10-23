@@ -243,33 +243,36 @@ export async function campaign_repeat_donor(
   return row != null;
 }
 
+/** a stored live whose ends_at has passed is not live. */
+const is_live = () =>
+  and(
+    eq(campaigns.status, "live"),
+    or(isNull(campaigns.ends_at), sql`${campaigns.ends_at} > now()`)
+  );
+
 export async function campaign_live_for_npo(
   npo_id: number
 ): Promise<ICampaignRow[]> {
   const rows = await campaign_query()
-    .where(
-      and(
-        eq(campaigns.owner_npo_id, npo_id),
-        eq(campaigns.status, "live"),
-        or(isNull(campaigns.ends_at), sql`${campaigns.ends_at} > now()`)
-      )
-    )
+    .where(and(eq(campaigns.owner_npo_id, npo_id), is_live()))
     .orderBy(desc(campaigns.created_at));
   return rows.map(present);
 }
 
-/** a stored live whose ends_at has passed is not live. */
+export async function campaign_live_for_program(
+  program_id: string
+): Promise<ICampaignRow[]> {
+  const rows = await campaign_query()
+    .where(and(eq(campaigns.program_id, program_id), is_live()))
+    .orderBy(desc(campaigns.created_at));
+  return rows.map(present);
+}
+
 export async function campaign_live_count(npo_id: number): Promise<number> {
   const [row] = await db
     .select({ n: count() })
     .from(campaigns)
-    .where(
-      and(
-        eq(campaigns.owner_npo_id, npo_id),
-        eq(campaigns.status, "live"),
-        or(isNull(campaigns.ends_at), sql`${campaigns.ends_at} > now()`)
-      )
-    );
+    .where(and(eq(campaigns.owner_npo_id, npo_id), is_live()));
   return row?.n ?? 0;
 }
 

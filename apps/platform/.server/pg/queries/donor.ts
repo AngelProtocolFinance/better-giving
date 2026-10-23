@@ -2,7 +2,7 @@ import { and, eq, type SQL, sql } from "drizzle-orm";
 import * as v from "valibot";
 import { db } from "../db";
 import { dists } from "../schema/dist";
-import { donation_donors } from "../schema/donation";
+import { donation_donors, donations } from "../schema/donation";
 import { subscriptions } from "../schema/subscription";
 import { decode_cursor, encode_cursor, type IPage } from "./helpers";
 
@@ -20,6 +20,21 @@ export async function npo_donor_count(npo_id: number): Promise<number> {
       eq(donation_donors.donation_id, dists.donation_id)
     )
     .where(and(eq(dists.to_id, npo_id), eq(dists.status, "settled")));
+  return row?.n ?? 0;
+}
+
+/** `npo_donor_count` scoped to gifts designated to one program */
+export async function program_donor_count(program_id: string): Promise<number> {
+  const [row] = await db
+    .select({
+      n: sql<number>`count(distinct ${donation_donors.email})::int`,
+    })
+    .from(donations)
+    .innerJoin(dists, eq(dists.donation_id, donations.id))
+    .innerJoin(donation_donors, eq(donation_donors.donation_id, donations.id))
+    .where(
+      and(eq(donations.program_id, program_id), eq(dists.status, "settled"))
+    );
   return row?.n ?? 0;
 }
 

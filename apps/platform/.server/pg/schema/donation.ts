@@ -90,6 +90,10 @@ export const donations = pgTable(
     index("donations_form_id_idx").on(t.form_id),
     index("donations_subscription_id_idx").on(t.subscription_id),
     index("donations_campaign_id_idx").on(t.campaign_id),
+    // partial: most gifts name no program and never touch the index
+    index("donations_program_id_idx")
+      .on(t.program_id)
+      .where(sql`${t.program_id} IS NOT NULL`),
     index("donations_created_at_id_idx").on(t.created_at, t.id),
   ]
 );
