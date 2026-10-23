@@ -19,6 +19,7 @@ import {
   percent_label,
 } from "#/routes/org.$org.$campaign/format";
 import type { IFundItem } from "@/fundraiser";
+import { fund_is_open } from "@/fundraiser/is-open";
 import type { IMedia, IProgramDb } from "@/npo";
 import type { INpoPublic } from "$/pg/queries/npo";
 
@@ -338,9 +339,17 @@ function Campaigns({ npo_id, origin, campaigns, funds }: ICampaignsProps) {
 /** the open fundraisers among `funds`, as cards. one the org owns is its own
  * campaign; anyone else's carries its creator's name */
 function live_funds(funds: IFundItem[], npo_id: number): ICampaignCard[] {
-  const now = Date.now() / 1000;
+  const now = new Date();
   return funds
-    .filter((f) => f.active && f.expiration > now)
+    .filter((f) =>
+      fund_is_open(
+        {
+          active: f.active,
+          expiration: new Date(f.expiration * 1000).toISOString(),
+        },
+        now
+      )
+    )
     .map((f) => {
       const official = f.npo_owner === npo_id;
       return {

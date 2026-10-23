@@ -782,22 +782,41 @@ describe("org profile hero details", () => {
 describe("org profile fundraisers", () => {
   const story = pt("Water for the village.");
 
-  it("leaves out a fundraiser that is inactive or past its end, and lists the live one", async () => {
-    const past = Date.now() / 1000 - 60;
-    const screen = await mount({
-      funds: Promise.resolve([
-        fund({ id: "f-live", name: "Live Drive" }),
+  it("keeps a fundraiser ending today listed until 12:00 UTC tomorrow, and never an inactive one", async () => {
+    // the last second of oct 1 UTC, as the fund list carries it
+    const ends = Date.parse("2027-10-01T23:59:59Z") / 1000;
+    const funds = () =>
+      Promise.resolve([
+        fund({ id: "f-today", name: "Today Drive", expiration: ends }),
         fund({ id: "f-off", name: "Paused Drive", active: false }),
-        fund({ id: "f-over", name: "Over Drive", expiration: past }),
-      ]),
-    });
+        // no end date: on screen once the list has resolved
+        fund({ id: "f-open", name: "Ongoing Drive", expiration: 253402300799 }),
+      ]);
+    const listed_at = async (iso: string) => {
+      vi.setSystemTime(new Date(iso));
+      const screen = await mount({ funds: funds() });
+      await expect
+        .element(screen.getByRole("article").filter({ hasText: "Ongoing" }))
+        .toBeVisible();
+      const names = screen
+        .getByRole("article")
+        .elements()
+        .map((a) => a.querySelector("h3")?.textContent);
+      await cleanup();
+      return names;
+    };
 
-    await expect
-      .element(screen.getByRole("article").filter({ hasText: "Live Drive" }))
-      .toBeVisible();
-    expect(screen.getByText("Paused Drive").query()).toBeNull();
-    expect(screen.getByText("Over Drive").query()).toBeNull();
-    expect(screen.getByRole("article").elements()).toHaveLength(1);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const both = ["Today Drive", "Ongoing Drive"];
+      expect(await listed_at("2027-10-01T15:00:00Z")).toEqual(both);
+      expect(await listed_at("2027-10-02T11:59:59.999Z")).toEqual(both);
+      expect(await listed_at("2027-10-02T12:00:00Z")).toEqual([
+        "Ongoing Drive",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows a fundraiser's story as the card's excerpt", async () => {

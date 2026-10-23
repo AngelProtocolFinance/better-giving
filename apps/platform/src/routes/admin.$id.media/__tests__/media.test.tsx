@@ -346,8 +346,10 @@ it("video editor: validation errors → fix → submit", async () => {
     .element(screen.getByRole("button", { name: /continue/i }))
     .toBeDisabled();
 
-  // a link that isn't YouTube → refused with a message
-  await screen.getByLabelText(/web address/i).fill("https://vimeo.com/123456");
+  // a link on another site, even one whose path spells a YouTube link → refused
+  await screen
+    .getByLabelText(/web address/i)
+    .fill("https://example.org/youtube.com/watch?v=dQw4w9WgXcQ");
   (
     screen.getByRole("button", { name: /continue/i }).element() as HTMLElement
   ).click();

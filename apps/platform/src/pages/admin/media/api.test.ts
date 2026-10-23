@@ -44,6 +44,8 @@ import { edit_action, new_action } from "./api";
 const db = () => test_db.current!.db;
 const YOUTUBE = "https://youtu.be/dQw4w9WgXcQ";
 const VIMEO = "https://vimeo.com/123456";
+// another site whose path spells out a youtube watch link
+const SPOOF = "https://example.org/youtube.com/watch?v=dQw4w9WgXcQ";
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -134,5 +136,19 @@ describe("video entry is YouTube only, server side", () => {
     const saved = await submit(edit_action, npo.id, other, params);
     expect(saved).toBeInstanceOf(Response);
     expect(await videos_of(npo.id)).toMatchObject([{ url: other }]);
+  });
+
+  it("refuses a link on another site that carries a YouTube path, on add and edit", async () => {
+    const npo = await seed_npo();
+
+    const added = await submit(new_action, npo.id, SPOOF);
+    expect(added.errors.url.message).toBe("only YouTube links are supported");
+    expect(await videos_of(npo.id)).toHaveLength(0);
+
+    const video = await seed_video(npo.id);
+    const params = { media_id: video.id };
+    const edited = await submit(edit_action, npo.id, SPOOF, params);
+    expect(edited.errors.url.message).toBe("only YouTube links are supported");
+    expect(await videos_of(npo.id)).toMatchObject([{ url: YOUTUBE }]);
   });
 });
