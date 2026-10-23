@@ -2,6 +2,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import { OrgHeader } from "./header";
 
 const user_mock = vi.hoisted(() => ({ current: null as unknown }));
@@ -13,6 +14,7 @@ afterEach(async () => {
   await cleanup();
   vi.unstubAllGlobals();
   user_mock.current = null;
+  await reset_viewport();
 });
 
 const header = (name = "Acme Relief") => (

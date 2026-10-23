@@ -1,7 +1,10 @@
+import { act } from "react";
 import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { shared_via_facebook } from "#/__tests__/fixtures/share-target";
+import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import { unsdgs } from "#/constants/unsdgs";
 import type { IFundItem } from "@/fundraiser";
 import type { INpoPublic } from "$/pg/queries/npo";
@@ -16,7 +19,7 @@ vi.mock("#/hooks/use-user", () => ({
 afterEach(async () => {
   await cleanup();
   user_mock.current = null;
-  await page.viewport(1280, 900);
+  await reset_viewport();
 });
 
 const npo = {
@@ -38,6 +41,14 @@ const npo = {
   contributions_total: 90,
   target: undefined,
 } as unknown as INpoPublic;
+
+/** an image that loads with no network, one colour apart from the next */
+const swatch = (fill: string) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="9"><rect width="16" height="9" fill="${fill}"/></svg>`
+  )}`;
+const BANNER = swatch("red");
+const LOGO = swatch("blue");
 
 const empty: IProfile = {
   npo,
@@ -93,6 +104,11 @@ describe("org profile", () => {
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Acme Relief" }))
       .toBeVisible();
+    // Campaigns, Programs and Media each render nothing until their deferred
+    // read lands, so absence means something only once they have
+    await act(async () => {
+      await Promise.all([empty.funds, empty.media, empty.programs]);
+    });
     for (const name of [
       "About",
       "Campaigns",
@@ -220,6 +236,7 @@ describe("org profile", () => {
   });
 
   it("lists the org's details in the hero card on desktop, not on a phone", async () => {
+    await page.viewport(1440, 900);
     const screen = await mount();
     const main = screen.getByRole("main");
     await expect.element(main.getByText("EIN / Registration")).toBeVisible();
@@ -413,14 +430,19 @@ describe("org profile", () => {
   });
 
   it("carries the org's mark, name, socials and details in the footer", async () => {
+    await page.viewport(1280, 900);
     const screen = await mount({
       npo: {
         ...npo,
+        logo: LOGO,
         social_media_urls: { facebook: "https://facebook.com/acme" },
       } as INpoPublic,
     });
     const footer = screen.getByRole("contentinfo");
     await expect.element(footer.getByText("Acme Relief")).toBeVisible();
+    expect(footer.element().querySelector("img")?.getAttribute("src")).toBe(
+      LOGO
+    );
     await expect
       .element(footer.getByRole("link", { name: "Facebook", exact: true }))
       .toHaveAttribute("href", "https://facebook.com/acme");
@@ -602,5 +624,267 @@ describe("org profile layout", () => {
     await expect
       .element(screen.getByRole("dialog", { name: "Share" }))
       .toBeVisible();
+  });
+});
+
+/** the card the page opens on, the one holding the org's name */
+async function mast_of(screen: TScreen) {
+  const h1 = screen.getByRole("heading", { level: 1 });
+  await expect.element(h1).toBeVisible();
+  return page.elementLocator(h1.element().closest("section") as HTMLElement);
+}
+
+describe("org profile header card", () => {
+  it("names the org's tagline, designation, country and website, the link without its protocol", async () => {
+    const screen = await mount();
+    const mast = await mast_of(screen);
+
+    await expect.element(mast.getByText("Food and shelter")).toBeVisible();
+    await expect
+      .element(mast.getByText("Charity", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(mast.getByText("United States", { exact: true }))
+      .toBeVisible();
+    const site = mast.getByRole("link", { name: "acme.example" });
+    await expect.element(site).toHaveAttribute("href", "https://acme.example");
+    expect(site.element().textContent).toBe("acme.example");
+  });
+
+  it("leaves out the designation tag for Other, and keeps the country and website", async () => {
+    const screen = await mount({
+      npo: { ...npo, endow_designation: "Other" } as INpoPublic,
+    });
+    const mast = await mast_of(screen);
+
+    await expect
+      .element(mast.getByText("United States", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(mast.getByRole("link", { name: "acme.example" }))
+      .toBeVisible();
+    expect(mast.getByText("Other").query()).toBeNull();
+  });
+
+  it("writes a supporter count in the thousands with its separator", async () => {
+    const screen = await mount({
+      campaigns: [{ ...campaign, supporters: 1234 }],
+    });
+    await expect
+      .element(screen.getByText("1,234 supporters", { exact: true }))
+      .toBeVisible();
+  });
+});
+
+/** the hero card, found by the banner it opens with */
+function hero_of(screen: TScreen) {
+  const banner = screen
+    .getByRole("main")
+    .element()
+    .querySelector(`img[src="${BANNER}"]`) as HTMLImageElement;
+  return {
+    banner,
+    hero: page.elementLocator(banner.closest("section") as HTMLElement),
+  };
+}
+
+const hero_npo = (o: Record<string, unknown> = {}) =>
+  ({
+    ...npo,
+    image: BANNER,
+    street_address: "1 Main St",
+    overview_pt: pt("We run two shelters."),
+    ...o,
+  }) as INpoPublic;
+
+describe("org profile hero details", () => {
+  it("lists the address with the other facts on desktop, set off from About by a divider", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount({ npo: hero_npo() });
+    const { hero } = hero_of(screen);
+
+    await expect
+      .element(hero.getByRole("heading", { name: "About" }))
+      .toBeVisible();
+    await expect.element(hero.getByText("Address")).toBeVisible();
+    await expect.element(hero.getByText("1 Main St")).toBeVisible();
+    await expect.element(hero.getByText("EIN123")).toBeVisible();
+    const rule = hero.element().querySelector("hr");
+    expect(rule).not.toBeNull();
+    // under the story, above the facts
+    const about = hero.getByText("We run two shelters.").element();
+    const address = hero.getByText("Address").element();
+    expect(rule!.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      about.getBoundingClientRect().bottom
+    );
+    expect(rule!.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      address.getBoundingClientRect().top
+    );
+  });
+
+  it("draws no divider when there is no About to set the facts off from", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount({ npo: hero_npo({ overview_pt: "[]" }) });
+    const { hero } = hero_of(screen);
+
+    await expect.element(hero.getByText("1 Main St")).toBeVisible();
+    expect(hero.getByRole("heading", { name: "About" }).query()).toBeNull();
+    expect(hero.element().querySelector("hr")).toBeNull();
+  });
+
+  it("is the banner alone when the org has no About and no facts", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount({
+      npo: hero_npo({
+        overview_pt: "[]",
+        street_address: null,
+        registration_number: null,
+        active_in_countries: [],
+        hq_country: null,
+      }),
+    });
+    const { banner, hero } = hero_of(screen);
+
+    await expect.element(page.elementLocator(banner)).toBeVisible();
+    expect(hero.element().querySelector("dl")).toBeNull();
+    expect(hero.getByText("EIN / Registration").query()).toBeNull();
+    expect(hero.element().children).toHaveLength(1);
+    expect(banner.parentElement).toBe(hero.element());
+  });
+
+  it("shows a phone the banner alone when About is empty, and the story under it when it is not", async () => {
+    await page.viewport(375, 667);
+    const bare = await mount({ npo: hero_npo({ overview_pt: "[]" }) });
+    const bare_hero = hero_of(bare);
+    await expect.element(page.elementLocator(bare_hero.banner)).toBeVisible();
+    await expect
+      .element(bare.getByRole("main").getByText("EIN123"))
+      .not.toBeVisible();
+    // the card's two borders around the banner, and no padded block under it
+    const slack =
+      bare_hero.hero.element().getBoundingClientRect().height -
+      bare_hero.banner.getBoundingClientRect().height;
+    expect(slack).toBeLessThanOrEqual(2);
+    await cleanup();
+
+    const told = await mount({ npo: hero_npo() });
+    const told_hero = hero_of(told);
+    await expect
+      .element(told_hero.hero.getByRole("heading", { name: "About" }))
+      .toBeVisible();
+    expect(
+      told_hero.hero.element().getBoundingClientRect().height -
+        told_hero.banner.getBoundingClientRect().height
+    ).toBeGreaterThan(40);
+  });
+});
+
+describe("org profile fundraisers", () => {
+  const story = pt("Water for the village.");
+
+  it("leaves out a fundraiser that is inactive or past its end, and lists the live one", async () => {
+    const past = Date.now() / 1000 - 60;
+    const screen = await mount({
+      funds: Promise.resolve([
+        fund({ id: "f-live", name: "Live Drive" }),
+        fund({ id: "f-off", name: "Paused Drive", active: false }),
+        fund({ id: "f-over", name: "Over Drive", expiration: past }),
+      ]),
+    });
+
+    await expect
+      .element(screen.getByRole("article").filter({ hasText: "Live Drive" }))
+      .toBeVisible();
+    expect(screen.getByText("Paused Drive").query()).toBeNull();
+    expect(screen.getByText("Over Drive").query()).toBeNull();
+    expect(screen.getByRole("article").elements()).toHaveLength(1);
+  });
+
+  it("shows a fundraiser's story as the card's excerpt", async () => {
+    const screen = await mount({
+      funds: Promise.resolve([fund({ description_pt: story })]),
+    });
+    const card = screen
+      .getByRole("article")
+      .filter({ hasText: "Spring Drive" });
+    await expect
+      .element(card.getByText("Water for the village."))
+      .toBeVisible();
+  });
+
+  it("puts a fundraiser's banner behind its name and its logo as the mark, the logo behind it without a banner", async () => {
+    const OTHER = swatch("green");
+    const screen = await mount({
+      funds: Promise.resolve([
+        fund({ id: "f1", name: "Both Drive", banner: BANNER, logo: LOGO }),
+        fund({ id: "f2", name: "Logo Drive", banner: undefined, logo: OTHER }),
+        fund({
+          id: "f3",
+          name: "Bare Drive",
+          banner: undefined,
+          logo: undefined,
+        }),
+      ]),
+    });
+    // the mark first, then the photo behind the name
+    const images = async (name: string) => {
+      const card = screen.getByRole("article").filter({ hasText: name });
+      await expect.element(card).toBeVisible();
+      return [...card.element().querySelectorAll("img")].map((i) =>
+        i.getAttribute("src")
+      );
+    };
+
+    expect(await images("Both Drive")).toEqual([LOGO, BANNER]);
+    expect(await images("Logo Drive")).toEqual([OTHER, OTHER]);
+    expect(await images("Bare Drive")).toEqual([]);
+  });
+});
+
+describe("org profile share targets", () => {
+  it("shares the profile's url for the org from the header", async () => {
+    const screen = await mount();
+    await screen
+      .getByRole("banner")
+      .getByRole("button", { name: "Share", exact: true })
+      .click();
+
+    expect(await shared_via_facebook(screen)).toEqual({
+      recipient: "Acme Relief",
+      url: "https://x/org/acme",
+    });
+  });
+
+  it("shares a campaign card's own absolute url for that campaign, not a sibling's", async () => {
+    const screen = await mount({
+      campaigns: [
+        campaign,
+        {
+          ...campaign,
+          id: "c2",
+          name: "Roof repair",
+          to: "/org/acme/roof",
+          donate_to: "/org/acme/roof",
+        },
+      ],
+    });
+    await screen.getByRole("button", { name: "Share Roof repair" }).click();
+
+    expect(await shared_via_facebook(screen)).toEqual({
+      recipient: "Roof repair",
+      url: "https://x/org/acme/roof",
+    });
+  });
+
+  it("shares a fundraiser card's page, named for the fundraiser", async () => {
+    const screen = await mount({
+      funds: Promise.resolve([fund({})]),
+    });
+    await screen.getByRole("button", { name: "Share Spring Drive" }).click();
+
+    expect(await shared_via_facebook(screen)).toEqual({
+      recipient: "Spring Drive",
+      url: "https://x/fundraisers/f1",
+    });
   });
 });

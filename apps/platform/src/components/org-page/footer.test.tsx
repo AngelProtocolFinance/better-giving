@@ -2,11 +2,12 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
+import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import { type IOrgDetails, OrgFooter, OrgFooterMinimal } from "./footer";
 
 afterEach(async () => {
   await cleanup();
-  await page.viewport(1280, 900);
+  await reset_viewport();
 });
 
 function mount(

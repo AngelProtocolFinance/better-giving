@@ -128,14 +128,18 @@ describe("program page", () => {
     expect((await load(A_PID)).donors).toBe(2);
   });
 
-  it("still serves the program without a count when the count fails", async () => {
+  it("still serves the program and its campaigns without a count when the count fails", async () => {
+    const db = test_db.current!.db;
+    await db.update(npos).set({ slug: "a-org" }).where(eq(npos.id, npo_a));
+    await seed_campaign("wells-run", A_PID);
     report_error.mockClear();
     vi.spyOn(donor_queries, "program_donor_count").mockRejectedValueOnce(
       new Error("donor count down")
     );
-    const d = await load(A_PID);
+    const d = await load(A_PID, "a-org");
 
     expect(d.prog).toMatchObject({ id: A_PID });
+    expect(d.campaigns.map((c: { id: string }) => c.id)).toEqual(["wells-run"]);
     expect(d.donors).toBeNull();
     expect(report_error).toHaveBeenCalledWith(expect.any(Error), {
       endow_id: npo_a,
@@ -189,15 +193,20 @@ describe("program page", () => {
     expect(d.campaigns.map((c: { id: string }) => c.id)).toEqual(["a-run"]);
   });
 
-  it("still serves the program without campaigns when the list fails", async () => {
+  it("still serves the program and its donor count without campaigns when the list fails", async () => {
+    const db = test_db.current!.db;
+    await db.update(npos).set({ slug: "a-org" }).where(eq(npos.id, npo_a));
+    await seed_campaign("wells-run", A_PID);
+    await seed_gift("don-1", "jane@x.com", A_PID);
     report_error.mockClear();
     vi.spyOn(
       campaign_queries,
       "campaign_live_for_program"
     ).mockRejectedValueOnce(new Error("campaigns down"));
-    const d = await load(A_PID);
+    const d = await load(A_PID, "a-org");
 
     expect(d.prog).toMatchObject({ id: A_PID });
+    expect(d.donors).toBe(1);
     expect(d.campaigns).toEqual([]);
     expect(report_error).toHaveBeenCalledWith(expect.any(Error), {
       endow_id: npo_a,

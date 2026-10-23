@@ -370,6 +370,27 @@ describe("public npo profile loader", () => {
     ]);
   });
 
+  it("gives a campaign the org's logo as its mark and the org's banner as its image, unless it has its own", async () => {
+    const npo = await seed_npo({
+      logo: "https://img/org-logo.png",
+      image: "https://img/org-banner.png",
+    });
+    await seed_campaign(npo.id, "cmp-bare", [], { created_at: hours_ago(1) });
+    await seed_campaign(npo.id, "cmp-own", [], {
+      created_at: hours_ago(2),
+      logo: "https://img/cmp-logo.png",
+      banner: "https://img/cmp-banner.png",
+    });
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect(d.campaigns.map((c) => [c.id, c.mark, c.image])).toEqual([
+      ["cmp-bare", "https://img/org-logo.png", "https://img/org-banner.png"],
+      ["cmp-own", "https://img/cmp-logo.png", "https://img/cmp-banner.png"],
+    ]);
+  });
+
   it("cuts a long story on a word boundary within 160 characters, and sends none as empty", async () => {
     const npo = await seed_npo();
     const words = Array.from({ length: 40 }, (_, i) => `word${i}`);
