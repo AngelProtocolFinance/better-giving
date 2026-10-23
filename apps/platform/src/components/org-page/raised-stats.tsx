@@ -12,7 +12,7 @@ interface IRaisedStats {
   donors: number | null;
   /** the org's goal setting; no goal, no bar */
   target: INpoPublic["target"];
-  /** the figures' size: inline (Poster, Hub), stacked over a rule (Letter),
+  /** the figures. size: inline (Poster, Hub, Card), stacked over a rule (Letter),
    * panel, largest (Feature's give panel) */
   variant: "inline" | "stacked" | "panel";
   classes?: string;

@@ -37,7 +37,13 @@ describe("pick_layout", () => {
     });
   });
 
-  it("sends Jev the measures alone, asking for one of the four layouts", async () => {
+  it("takes card from Jev too", async () => {
+    jev_choice.mockResolvedValueOnce("card");
+
+    expect(await pick_layout(shape)).toEqual({ layout: "card", by: "jev" });
+  });
+
+  it("sends Jev the measures alone, asking for one of the five layouts", async () => {
     jev_choice.mockResolvedValueOnce(null);
 
     await pick_layout(shape);
@@ -45,6 +51,7 @@ describe("pick_layout", () => {
     const [state, question, timeout] = jev_choice.mock.calls[0]!;
     expect(state).toEqual({ ...shape });
     expect(Object.keys(question.criteria).sort()).toEqual([
+      "card",
       "feature",
       "hub",
       "letter",

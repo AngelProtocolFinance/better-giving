@@ -186,14 +186,14 @@ describe("layout review rows", () => {
   });
 
   it("puts the orgs where Jev and the thresholds disagree first, then the rest by name", async () => {
-    // no story and no items: the thresholds say poster for all three
+    // no story and no items: the thresholds say card for all three
     await seed_npo({ name: "Bravo Org" });
     await seed_npo({ name: "Charlie Group" });
     await seed_npo({ name: "Alpha" });
     // Jev sees measures only, so the name's length tells the orgs apart
     const by_name_chars: Record<number, string | null> = {
       5: null,
-      9: "poster",
+      9: "card",
       13: "letter",
     };
     jev_choice.mockImplementation(
@@ -203,9 +203,9 @@ describe("layout review rows", () => {
     const rows = await review_rows({ origin: ORIGIN });
 
     expect(rows.map((r) => [r.name, r.threshold, r.jev])).toEqual([
-      ["Charlie Group", "poster", "letter"],
-      ["Alpha", "poster", null],
-      ["Bravo Org", "poster", "poster"],
+      ["Charlie Group", "card", "letter"],
+      ["Alpha", "card", null],
+      ["Bravo Org", "card", "card"],
     ]);
   });
 

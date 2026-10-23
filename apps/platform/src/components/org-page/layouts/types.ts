@@ -8,7 +8,7 @@ import type {
   IVideoItem,
 } from "../items";
 
-/** what every layout (Poster, Letter, Hub, Feature) renders from; the route maps loader data into it */
+/** what every layout (Poster, Letter, Hub, Feature, Card) renders from; the route maps loader data into it */
 export interface IOrgLayout {
   npo: INpoPublic;
   shape: IOrgShape;

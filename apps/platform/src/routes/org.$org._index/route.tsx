@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { href } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import flying_character from "#/assets/images/flying-character.webp";
+import { Card } from "#/components/org-page/layouts/card";
 import { Feature } from "#/components/org-page/layouts/feature";
 import { Hub } from "#/components/org-page/layouts/hub";
 import { Letter } from "#/components/org-page/layouts/letter";
@@ -48,6 +49,7 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
 export { ErrorBoundary } from "#/components/error";
 
 const LAYOUTS: Record<TOrgLayout, ComponentType<IOrgLayout>> = {
+  card: Card,
   poster: Poster,
   letter: Letter,
   hub: Hub,

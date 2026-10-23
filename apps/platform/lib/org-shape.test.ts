@@ -45,6 +45,16 @@ describe("threshold_layout", () => {
     expect(threshold_layout(shape({ story_chars: 321 }))).toBe("letter");
   });
 
+  test("no story and no items is a card, a tagline notwithstanding", () => {
+    expect(threshold_layout(shape())).toBe("card");
+    expect(threshold_layout(shape({ tagline_chars: 80 }))).toBe("card");
+  });
+
+  test("one item, or one character of story, is enough for a poster", () => {
+    expect(threshold_layout(shape({ programs: 1 }))).toBe("poster");
+    expect(threshold_layout(shape({ story_chars: 1 }))).toBe("poster");
+  });
+
   test("no story at all is short", () => {
     expect(threshold_layout(shape({ story_chars: 0, campaigns: 4 }))).toBe(
       "hub"

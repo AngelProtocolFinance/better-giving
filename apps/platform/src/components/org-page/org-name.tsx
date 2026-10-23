@@ -1,6 +1,6 @@
 import { NAME_DISPLAY_MAX } from "@/org-shape";
 
-/** lg: Poster and Letter. md: Feature. sm: Hub, whose name shares its row
+/** lg: Poster and Letter. md: Feature and Card. sm: Hub, whose name shares its row
  * with the mark and the raised figures */
 export type TOrgNameScale = "lg" | "md" | "sm";
 

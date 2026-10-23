@@ -22,6 +22,9 @@ const rendered = vi.hoisted(() => ({
     return <p>{name} layout</p>;
   },
 }));
+vi.mock("#/components/org-page/layouts/card", () => ({
+  Card: rendered.stub("card"),
+}));
 vi.mock("#/components/org-page/layouts/poster", () => ({
   Poster: rendered.stub("poster"),
 }));
@@ -95,7 +98,7 @@ const mount = (layout: string) => {
 };
 
 describe("public org page", () => {
-  test.each(["poster", "letter", "hub", "feature"])(
+  test.each(["card", "poster", "letter", "hub", "feature"])(
     "renders the %s layout when the loader picks it",
     async (layout) => {
       const screen = await mount(layout);

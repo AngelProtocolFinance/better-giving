@@ -792,8 +792,17 @@ describe("profile shape", () => {
     expect(d.now).toBeLessThanOrEqual(Date.now());
   });
 
+  it("gives an org with no story and nothing listed the card, with no word from Jev", async () => {
+    const npo = await seed_npo({ tagline: "Water first" });
+
+    const d = await load(npo.slug!);
+    await Promise.all([d.funds, d.media, d.programs]);
+
+    expect([d.layout, d.layout_by]).toEqual(["card", "threshold"]);
+  });
+
   it("takes the layout Jev picks from the measures", async () => {
-    // no story and no items: the thresholds would say poster
+    // no story and no items: the thresholds would say card
     const npo = await seed_npo();
     jev_choice.mockClear().mockResolvedValueOnce("letter");
 

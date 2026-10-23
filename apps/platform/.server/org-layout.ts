@@ -11,12 +11,14 @@ const SHORT = `story up to about ${STORY_SHORT_MAX} characters (or none)`;
 const LONG = `story longer than about ${STORY_SHORT_MAX} characters`;
 const ONE_ROW = `0–${ROW_MAX} items in total`;
 const MANY = `${ROW_MAX + 1} or more items in total`;
+const POSTER = `a short story (up to about ${STORY_SHORT_MAX} characters) and ${ONE_ROW}, or no story and 1–${ROW_MAX} items`;
 
 const LAYOUT_QUESTION: IJevChoice<TOrgLayout> = {
   instructions:
     "Which layout should this nonprofit's public profile page use, given how much room its content takes? Story length is plain-text characters. Items are its campaigns, fundraisers, programs and videos together. Banner, logo, tagline and name length shape the hero inside any layout, not the choice between them.",
   criteria: {
-    poster: `${SHORT} and ${ONE_ROW}: hero-led, a single screen with who they are, why, Donate, and up to ${ROW_MAX} ways to help`,
+    card: "no story at all and 0 items: a compact centered identity card with Donate",
+    poster: `${POSTER}: hero-led, a single screen with who they are, why, Donate, and up to ${ROW_MAX} ways to help`,
     letter: `${LONG} and ${ONE_ROW}: editorial, a reading column with a large lead, the ways to help at the end, and a slim give bar that follows the reader`,
     hub: `${SHORT} and ${MANY}: a compact identity header, then a tab for each kind of item, with counts`,
     feature: `${LONG} and ${MANY}: the story beside a sticky give panel, then one swipeable row per kind of item`,
