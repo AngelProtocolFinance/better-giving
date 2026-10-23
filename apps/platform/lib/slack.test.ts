@@ -102,6 +102,24 @@ describe("Slack.send_alert", () => {
     });
   });
 
+  test("escapes a channel mention in the title", async () => {
+    mock_fetch(() => Response.json({ ok: true }));
+    await new Slack(CHANNEL, TOKEN).send_alert({
+      from: "grants-processor",
+      title: "grant for <!channel> stalled",
+    });
+
+    const req = posted();
+    expect(req.body.text).toBe("grant for &lt;!channel&gt; stalled");
+    expect(alert_blocks()[0]).toEqual({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*grant for &lt;!channel&gt; stalled*",
+      },
+    });
+  });
+
   test("posts an error in red with the title prefixed ERROR:", async () => {
     mock_fetch(() => Response.json({ ok: true }));
     await new Slack(CHANNEL, TOKEN).send_alert({
@@ -121,6 +139,22 @@ describe("Slack.send_alert", () => {
         type: "mrkdwn",
         text: "*ERROR:Chariot Grant Without A Donation*",
       },
+    });
+  });
+
+  test("escapes an ampersand in a field value", async () => {
+    mock_fetch(() => Response.json({ ok: true }));
+    await new Slack(CHANNEL, TOKEN).send_alert({
+      from: "grants-processor",
+      title: "payout recorded",
+      fields: [{ name: "nonprofit", value: "A & B" }],
+    });
+
+    const blocks = alert_blocks();
+    const fields_block = blocks.find((block) => "fields" in block);
+    expect(fields_block).toEqual({
+      type: "section",
+      fields: [{ type: "mrkdwn", text: "*nonprofit*\nA &amp; B" }],
     });
   });
 
@@ -188,6 +222,21 @@ describe("Slack.send_alert", () => {
         title: "No grants to process",
       })
     ).resolves.toBeInstanceOf(Response);
+  });
+
+  test("escapes a less-than in the body before the section limit", async () => {
+    mock_fetch(() => Response.json({ ok: true }));
+    const body = `<${"c".repeat(section_text_max - 1)}`;
+    await new Slack(CHANNEL, TOKEN).send_alert({
+      from: "grants-processor",
+      title: "payouts claimed but not settled",
+      body,
+    });
+
+    const escaped = `&lt;${"c".repeat(section_text_max - 1)}`;
+    const texts = body_sections(alert_blocks());
+    expect(texts.every((text) => text.length <= section_text_max)).toBe(true);
+    expect(texts.join("")).toBe(escaped);
   });
 
   test("posts a body of the section maximum as one section", async () => {

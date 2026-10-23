@@ -42,7 +42,9 @@ export class Slack {
   }
 
   async send_alert({ type = "NOTICE", ...alert }: Alert) {
-    const visible = type === "NOTICE" ? alert.title : `ERROR:${alert.title}`;
+    const visible = escape_mrkdwn(
+      type === "NOTICE" ? alert.title : `ERROR:${alert.title}`
+    );
     const color = type === "NOTICE" ? BLUE : RED;
     const blocks: Block[] = [
       {
@@ -52,7 +54,7 @@ export class Slack {
     ];
     if (alert.body) {
       // one post. a second message that fails is retried, duplicating the first chunk
-      for (const text of chunk_section_text(alert.body)) {
+      for (const text of chunk_section_text(escape_mrkdwn(alert.body))) {
         blocks.push({
           type: "section",
           text: { type: "mrkdwn", text },
@@ -64,13 +66,13 @@ export class Slack {
         type: "section",
         fields: alert.fields.map((f) => ({
           type: "mrkdwn",
-          text: `*${f.name}*\n${f.value}`,
+          text: `*${escape_mrkdwn(f.name)}*\n${escape_mrkdwn(f.value)}`,
         })),
       });
     }
     blocks.push({
       type: "context",
-      elements: [{ type: "mrkdwn", text: alert.from }],
+      elements: [{ type: "mrkdwn", text: escape_mrkdwn(alert.from) }],
     });
 
     const res = await global.fetch(POST_MESSAGE, {
@@ -92,6 +94,14 @@ export class Slack {
     if (failure) throw failure;
     return res;
   }
+}
+
+// slack parses <!channel>, <!here>, and <!everyone> in mrkdwn
+function escape_mrkdwn(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function chunk_section_text(text: string): string[] {
