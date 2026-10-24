@@ -5,7 +5,7 @@ import { is_brand_ground, use_ground } from "./brand-band";
 interface IDonateButton {
   /** the donate route; the caller's, never built here */
   to: string;
-  /** lg where the boards set Donate large: the hero */
+  /** lg in the hero */
   size?: "md" | "lg";
   /** the hero's Donate takes one, so the header can tell when it has left */
   ref?: Ref<HTMLAnchorElement>;
