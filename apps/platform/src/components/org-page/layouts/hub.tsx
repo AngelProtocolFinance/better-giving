@@ -11,6 +11,7 @@ import { OrgMeta } from "../org-meta";
 import { OrgName } from "../org-name";
 import { QuoteStrip } from "../quote-strip";
 import { RaisedStats } from "../raised-stats";
+import { SECTION_HEADING } from "../section-heading";
 import { VideoSet } from "../video-set";
 import { OrgPageFrame } from "./org-page-frame";
 import type { IOrgLayout } from "./types";
@@ -26,8 +27,6 @@ const LABEL: Record<Exclude<TTab, "give">, string> = {
   videos: "Videos",
   messages: "Messages",
 };
-
-const H2 = "text-xl font-bold lg:text-2xl";
 
 /** short or no story, 4+ items: a compact identity hero, then a tab per kind
  * of item. a kind with one item sits above the tabs as Featured, the kind
@@ -195,7 +194,7 @@ function Section({ heading, children }: ISection) {
   const id = useId();
   return (
     <section aria-labelledby={id} className="flex flex-col gap-3 md:gap-4">
-      <h2 id={id} className={H2}>
+      <h2 id={id} className={SECTION_HEADING}>
         {heading}
       </h2>
       {children}

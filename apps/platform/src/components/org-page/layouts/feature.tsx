@@ -12,6 +12,7 @@ import { OrgMeta } from "../org-meta";
 import { OrgName } from "../org-name";
 import { QuoteStrip } from "../quote-strip";
 import { RaisedStats } from "../raised-stats";
+import { SECTION_HEADING } from "../section-heading";
 import { SwipeRow } from "../swipe-row";
 import { VideoSet } from "../video-set";
 import { OrgPageFrame } from "./org-page-frame";
@@ -36,8 +37,6 @@ const ANCHOR: Record<TKind | "story", string> = {
   programs: "programs",
   videos: "videos",
 };
-
-const H2 = "text-xl font-bold lg:text-2xl";
 
 /** clears the sticky header when an anchor lands on a section */
 const ANCHORED = "scroll-mt-20";
@@ -288,7 +287,7 @@ function Story({ json, clamp }: IStory) {
       aria-labelledby={heading_id}
       className={`flex min-w-0 flex-col gap-4 ${ANCHORED}`}
     >
-      <h2 id={heading_id} className={H2}>
+      <h2 id={heading_id} className={SECTION_HEADING}>
         Our story
       </h2>
       {/* no gap over the button: while clamped, the fade is the gap */}
@@ -378,7 +377,7 @@ function Section({ id, heading, children }: ISection) {
       aria-labelledby={heading_id}
       className={`flex flex-col gap-3 ${ANCHORED}`}
     >
-      <h2 id={heading_id} className={H2}>
+      <h2 id={heading_id} className={SECTION_HEADING}>
         {heading}
       </h2>
       {children}

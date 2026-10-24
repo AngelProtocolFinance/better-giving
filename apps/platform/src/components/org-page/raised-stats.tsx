@@ -55,7 +55,7 @@ export function RaisedStats({
       {goal != null && (
         <>
           <GoalBar raised={raised} goal={goal} />
-          <p className={`text-xs ${muted}`}>
+          <p className={`figures text-xs ${muted}`}>
             {to_usd(raised)} of {to_usd(goal)} goal
           </p>
         </>
@@ -111,7 +111,7 @@ function Stat({ figure, label, size, muted }: IStat) {
   // the space is dropped by the flex column and kept for assistive tech
   return (
     <p className="flex flex-col gap-1">
-      <strong className={`leading-none ${size}`}>{figure}</strong>{" "}
+      <strong className={`figures leading-none ${size}`}>{figure}</strong>{" "}
       <span className={`text-sm ${muted}`}>{label}</span>
     </p>
   );

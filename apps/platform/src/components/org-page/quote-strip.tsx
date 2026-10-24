@@ -4,8 +4,9 @@ import type { IDonorMessage } from "./items";
 
 export interface IQuoteStrip {
   messages: IDonorMessage[];
-  /** `light` on the page, `dark` on the brand's deep ground */
-  tone: "light" | "dark";
+  /** `light` on the page, `dark` on the brand's deep ground, `pull` a
+   * pull-quote set into a reading column: no fill, a brand rule on its left */
+  tone: "light" | "dark" | "pull";
   /** set while more pages exist. called when the reader reaches the last
    * loaded message, and again if they press next there before it lands, so
    * the caller drops a call made while its fetch is in flight */
@@ -15,16 +16,30 @@ export interface IQuoteStrip {
 
 const TONE = {
   light: {
-    ground: "bg-band text-gray-12",
+    ground: "rounded bg-band p-5 text-gray-12 md:p-6",
     mark: "text-primary",
+    quote: "md:text-lg",
+    column_mark: true,
+    meta: "text-gray-11",
+    next: "link",
+  },
+  // the reading column's own edge carries the rule, so the inset is the
+  // left side's alone; the quote is a size up from the story it sits in
+  pull: {
+    ground: "border-l-4 border-primary pl-5 text-gray-12 md:pl-6",
+    mark: "text-primary",
+    quote: "text-lg md:text-xl",
+    column_mark: false,
     meta: "text-gray-11",
     next: "link",
   },
   // white on the deep fill is Lc 99.6, and has no hover rung (ledger: the
   // --primary-fg alpha ladder is unmeasured)
   dark: {
-    ground: "bg-primary-deep text-primary-fg",
+    ground: "rounded bg-primary-deep p-5 text-primary-fg md:p-6",
     mark: "",
+    quote: "md:text-lg",
+    column_mark: true,
     meta: "",
     next: "focus-visible:outline-2 focus-visible:outline-primary-fg focus-visible:outline-offset-2",
   },
@@ -70,20 +85,22 @@ export function QuoteStrip({
 
   const has_next = n > 1 || !!on_more;
 
-  // a phone has no room for the mark as a column: it opens the message
-  // inline, and next shares the donor's line, laid over the caption's cell
+  // a phone has no room for the mark as a column, and a pull-quote has none
+  // at any width: it opens the message inline, and on a phone next shares the donor's line, laid over the caption's cell
   // so the message keeps the full width
   return (
     <section
       aria-label="Donor messages"
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center rounded p-5 md:flex md:gap-6 md:p-6 ${t.ground} ${classes}`}
+      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center md:flex md:gap-6 ${t.ground} ${classes}`}
     >
-      <span
-        aria-hidden
-        className={`text-5xl font-bold leading-none max-md:hidden ${t.mark}`}
-      >
-        “
-      </span>
+      {t.column_mark && (
+        <span
+          aria-hidden
+          className={`text-5xl font-bold leading-none max-md:hidden ${t.mark}`}
+        >
+          “
+        </span>
+      )}
       {/* next changes the whole figure, so it is what's announced: the
           position, the message and its donor */}
       <figure
@@ -94,8 +111,11 @@ export function QuoteStrip({
         {/* the position alone: messages arrive a page at a time, so there is
             no total to give */}
         {has_next && <span className="sr-only">Message {at + 1}</span>}
-        <blockquote className="break-words md:text-lg">
-          <span aria-hidden className={`font-bold md:hidden ${t.mark}`}>
+        <blockquote className={`break-words ${t.quote}`}>
+          <span
+            aria-hidden
+            className={`font-bold ${t.column_mark ? "md:hidden" : ""} ${t.mark}`}
+          >
             “{" "}
           </span>
           {m.message}

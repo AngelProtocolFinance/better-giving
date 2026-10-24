@@ -76,7 +76,7 @@ export function Letter(props: IOrgLayout) {
           />
           <QuoteStrip
             messages={props.messages}
-            tone="light"
+            tone="pull"
             on_more={props.on_more_messages}
             classes="max-w-3xl"
           />

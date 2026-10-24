@@ -118,9 +118,9 @@ describe("org hero", () => {
     const [short_h1, long_h1] = screen
       .getByRole("heading", { level: 1 })
       .elements();
-    expect(short_h1).toHaveClass("text-4xl", "md:text-6xl");
-    expect(long_h1).toHaveClass("text-3xl", "md:text-5xl");
-    expect(long_h1).not.toHaveClass("md:text-6xl");
+    expect(short_h1).toHaveClass("hero-heading");
+    expect(long_h1).toHaveClass("text-2xl", "md:text-3xl", "lg:text-5xl");
+    expect(long_h1).not.toHaveClass("hero-heading");
 
     const s = getComputedStyle(long_h1);
     expect(s.webkitLineClamp).toBe("none");

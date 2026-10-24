@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { GiveCard } from "./give-card";
-import type { IGiveItem } from "./items";
+import { type IGiveItem, names_kind } from "./items";
+import { SECTION_HEADING } from "./section-heading";
 
 export interface ISwipeRow {
   /** the section's heading, which also names the scrolling row */
@@ -20,11 +21,12 @@ export function SwipeRow({ heading, items, now }: ISwipeRow) {
   const heading_id = `${id}-heading`;
   const list_id = `${id}-list`;
   const [expanded, set_expanded] = useState(false);
+  const show_kind = names_kind(items);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-baseline gap-3">
-        <h2 id={heading_id} className="grow text-xl font-bold lg:text-2xl">
+        <h2 id={heading_id} className={`grow ${SECTION_HEADING}`}>
           {heading}
         </h2>
         <button
@@ -45,7 +47,12 @@ export function SwipeRow({ heading, items, now }: ISwipeRow) {
         >
           {items.map((x) => (
             <li key={x.id}>
-              <GiveCard item={x} orientation="vertical" now={now} />
+              <GiveCard
+                item={x}
+                orientation="vertical"
+                now={now}
+                show_kind={show_kind}
+              />
             </li>
           ))}
         </ul>
@@ -60,7 +67,12 @@ export function SwipeRow({ heading, items, now }: ISwipeRow) {
           <ul className="grid auto-cols-[75%] grid-flow-col gap-4 md:auto-cols-[30%]">
             {items.map((x) => (
               <li key={x.id} className="snap-start">
-                <GiveCard item={x} orientation="vertical" now={now} />
+                <GiveCard
+                  item={x}
+                  orientation="vertical"
+                  now={now}
+                  show_kind={show_kind}
+                />
               </li>
             ))}
           </ul>

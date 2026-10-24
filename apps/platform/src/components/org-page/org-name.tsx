@@ -4,10 +4,11 @@ import { NAME_DISPLAY_MAX } from "@/org-shape";
  * with the mark and the raised figures */
 export type TOrgNameScale = "lg" | "md" | "sm";
 
-/** [display, one rung down the type ladder] at each width. 4_5xl carries no
- * line height of its own (theme.css), so its step names one */
+/** [display, one rung down the type ladder] at each width. lg's display is
+ * the marketing hero's role, and its step sits a rung under it at each width. 4_5xl carries no line height of its own
+ * (theme.css), so its step names one */
 const SIZE: Record<TOrgNameScale, [string, string]> = {
-  lg: ["text-4xl md:text-6xl", "text-3xl md:text-5xl"],
+  lg: ["hero-heading", "text-2xl md:text-3xl lg:text-5xl"],
   md: ["text-3xl md:text-5xl", "text-2xl md:text-4_5xl/tight"],
   sm: ["text-3xl md:text-4xl", "text-2xl md:text-3xl"],
 };

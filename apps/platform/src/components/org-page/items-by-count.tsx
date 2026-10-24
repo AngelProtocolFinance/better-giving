@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { GiveCard } from "./give-card";
-import type { IGiveItem, IProgramItem, IVideoItem, TOrgItem } from "./items";
+import {
+  type IGiveItem,
+  type IProgramItem,
+  type IVideoItem,
+  names_kind,
+  type TOrgItem,
+} from "./items";
 import { ProgramRow } from "./program-row";
 import { VideoSet } from "./video-set";
 
@@ -25,6 +31,7 @@ export function ItemsByCount({ items, now, rows = false }: IItemsByCount) {
   );
   const programs = items.filter((x): x is IProgramItem => x.kind === "program");
   const videos = items.filter((x): x is IVideoItem => x.kind === "video");
+  const show_kind = names_kind(items);
   return (
     <div className="flex flex-col gap-4">
       {give.length > 0 &&
@@ -32,18 +39,23 @@ export function ItemsByCount({ items, now, rows = false }: IItemsByCount) {
           <ul data-count={give.length} className="grid gap-4">
             {give.map((x) => (
               <li key={x.id}>
-                <GiveCard item={x} orientation="horizontal" now={now} />
+                <GiveCard
+                  item={x}
+                  orientation="horizontal"
+                  now={now}
+                  show_kind={show_kind}
+                />
               </li>
             ))}
           </ul>
         ) : (
-          <GiveByCount items={give} now={now} />
+          <GiveByCount items={give} now={now} show_kind={show_kind} />
         ))}
       {programs.length > 0 && (
         <ul data-count={programs.length} className="grid gap-4">
           {programs.map((p) => (
             <li key={p.id}>
-              <ProgramRow item={p} />
+              <ProgramRow item={p} show_kind={show_kind} />
             </li>
           ))}
         </ul>
@@ -56,15 +68,17 @@ export function ItemsByCount({ items, now, rows = false }: IItemsByCount) {
 interface IGiveByCount {
   items: IGiveItem[];
   now: number;
+  show_kind: boolean;
 }
 
-function GiveByCount({ items, now }: IGiveByCount) {
+function GiveByCount({ items, now, show_kind }: IGiveByCount) {
   const n = items.length;
   if (n > 3) {
     return (
       <RevealGrid
         items={items}
         now={now}
+        show_kind={show_kind}
         first={{ phone: 3, wide: 3 }}
         label={(_, total) => `See all ${total}`}
       />
@@ -80,7 +94,12 @@ function GiveByCount({ items, now }: IGiveByCount) {
     <ul data-count={n} className={`grid gap-4 ${grid}`}>
       {items.map((x) => (
         <li key={x.id}>
-          <GiveCard item={x} orientation={orientation} now={now} />
+          <GiveCard
+            item={x}
+            orientation={orientation}
+            now={now}
+            show_kind={show_kind}
+          />
         </li>
       ))}
     </ul>
@@ -88,7 +107,7 @@ function GiveByCount({ items, now }: IGiveByCount) {
 }
 
 export interface IShowMoreGrid {
-  /** one kind, as a tab holds it */
+  /** a tab's items: one kind, or campaigns beside supporter campaigns */
   items: (IGiveItem | IProgramItem)[];
   /** epoch ms, see `GiveCard` */
   now: number;
@@ -101,6 +120,7 @@ export function ShowMoreGrid({ items, now }: IShowMoreGrid) {
     <RevealGrid
       items={items}
       now={now}
+      show_kind={names_kind(items)}
       first={{ phone: 3, wide: 6 }}
       label={(hidden) => `Show ${hidden} more`}
     />
@@ -113,6 +133,7 @@ const WIDE = "(width >= 48rem)";
 interface IRevealGrid {
   items: (IGiveItem | IProgramItem)[];
   now: number;
+  show_kind: boolean;
   /** how many show before the reveal, under and from `md` */
   first: { phone: number; wide: number };
   label: (hidden: number, total: number) => string;
@@ -121,7 +142,7 @@ interface IRevealGrid {
 /** the rest are in the dom from the start, hidden by css alone, so the server
  * render needs no viewport. the reveal is one way: its button goes, and focus
  * moves to the first item it brought in */
-function RevealGrid({ items, now, first, label }: IRevealGrid) {
+function RevealGrid({ items, now, show_kind, first, label }: IRevealGrid) {
   const [revealed_from, set_revealed_from] = useState<number | null>(null);
   const list = useRef<HTMLUListElement>(null);
 
@@ -148,11 +169,16 @@ function RevealGrid({ items, now, first, label }: IRevealGrid) {
         {items.map((x, i) =>
           x.kind === "program" ? (
             <li key={x.id} className={`col-span-full ${held(i)}`}>
-              <ProgramRow item={x} />
+              <ProgramRow item={x} show_kind={show_kind} />
             </li>
           ) : (
             <li key={x.id} className={held(i)}>
-              <GiveCard item={x} orientation="vertical" now={now} />
+              <GiveCard
+                item={x}
+                orientation="vertical"
+                now={now}
+                show_kind={show_kind}
+              />
             </li>
           )
         )}
