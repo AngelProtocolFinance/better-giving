@@ -119,6 +119,9 @@
     "EmptyRow": "  /** how many columns the table has \u2014 the cell spans all of them. */\n  col_span: number;\n  children: React.ReactNode;\n  heading?: string;\n  action?: React.ReactNode;\n  classes?: string;"
   },
   "overrides": {
+    "Increments": {
+      "cardMode": "column"
+    },
     "Accordion": {
       "cardMode": "column"
     },

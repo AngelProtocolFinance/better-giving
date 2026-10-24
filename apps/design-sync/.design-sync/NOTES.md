@@ -252,6 +252,8 @@ itself calls expected; there is nothing to set `cfg.tokensPkg` to.
 table is wider than a grid cell by nature, so every component that renders one lands here.
 `Accordion`, `Tabs`, `RadioGroup` and `Slider` joined it on 2026-09-14, their first sync: each
 stretches to its container, so a story wider than a grid cell is the component working as designed.
+`Increments` joined it on 2026-10-24: its amount/description rows outgrew a grid cell once the
+field shells widened, same reason.
 The validator's remediation text names `preview-rebuild.mjs` (`.ds-sync/lib/preview-rebuild.mjs`); a full
 `package-build.mjs` run does the same job and is what the driver runs.
 
