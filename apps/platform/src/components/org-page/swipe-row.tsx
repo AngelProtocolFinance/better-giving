@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { GiveCard } from "./give-card";
 import { type IGiveItem, names_kind } from "./items";
+import { REVEAL_IN, reveal_delay } from "./reveal";
 import { SECTION_HEADING } from "./section-heading";
 
 export interface ISwipeRow {
@@ -45,8 +46,8 @@ export function SwipeRow({ heading, items, now }: ISwipeRow) {
           data-count={items.length}
           className="grid gap-4 md:grid-cols-3"
         >
-          {items.map((x) => (
-            <li key={x.id}>
+          {items.map((x, i) => (
+            <li key={x.id} className={REVEAL_IN} style={reveal_delay(i)}>
               <GiveCard
                 item={x}
                 orientation="vertical"

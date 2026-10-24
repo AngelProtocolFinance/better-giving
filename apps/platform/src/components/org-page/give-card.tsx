@@ -37,6 +37,11 @@ const KIND: Record<IGiveItem["kind"], string> = {
   supporter: "Supporter campaign",
 };
 
+/** a card that is wholly a link: hover firms the edge, press nudges it like
+ * `.btn-primary`. children react through the `card` group */
+export const CARD_LINK =
+  "group/card transition-colors hover:border-gray-7 active:translate-y-px";
+
 /** a campaign or supporter campaign. the title is the card's one link, stretched over
  * it, so the link's name stays the title. a goal's bar and figures sit on the
  * card's bottom edge, so neighbours in a row align with or without an end
@@ -48,7 +53,7 @@ export function GiveCard({ item, orientation, now, show_kind }: IGiveCard) {
   const ends = ends_label(item.ends_at, now);
   return (
     <article
-      className={`relative grid h-full grid-rows-[auto_1fr] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2 ${beside ? "md:grid-cols-[auto_minmax(0,1fr)] md:grid-rows-1" : ""}`}
+      className={`${CARD_LINK} relative grid h-full grid-rows-[auto_1fr] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2 ${beside ? "md:grid-cols-[auto_minmax(0,1fr)] md:grid-rows-1" : ""}`}
     >
       <ImageFrame src={item.image} classes={THUMB[orientation]} />
       <div className="flex min-w-0 flex-col gap-2 p-4">
@@ -92,11 +97,17 @@ interface IImageFrame {
 
 /** the 4:1 slot, the image as uploaded filling it exactly, so nothing is
  * re-cropped; with no image the fill is the frame. its width is the caller's:
- * a grid cell stretches it to the column */
+ * a grid cell stretches it to the column. zooms on a `CARD_LINK` hover */
 export function ImageFrame({ src, classes = "" }: IImageFrame) {
   return (
     <div className={`aspect-4/1 overflow-hidden bg-gray-3 ${classes}`}>
-      {src && <Image src={src} alt="" className="size-full object-cover" />}
+      {src && (
+        <Image
+          src={src}
+          alt=""
+          className="size-full object-cover transition-[scale] duration-slow motion-safe:group-hover/card:scale-103"
+        />
+      )}
     </div>
   );
 }

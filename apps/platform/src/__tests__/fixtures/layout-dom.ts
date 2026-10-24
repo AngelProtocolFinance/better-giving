@@ -20,9 +20,12 @@ export const pinned_to_bottom = (root: Element) =>
     );
   });
 
-/** the header's Donate, when it shows one */
+/** the header's Donate, when it shows one: one that waits is mounted and
+ * out of the layout until then */
 export const header_donate = (root: Element) =>
-  donates(root.querySelector("header") as HTMLElement)[0];
+  donates(root.querySelector("header") as HTMLElement).find((a) =>
+    a.checkVisibility()
+  ) as HTMLAnchorElement;
 
 /** scrolls the hero's shown Donate past the top of the viewport, under the
  * pinned header */

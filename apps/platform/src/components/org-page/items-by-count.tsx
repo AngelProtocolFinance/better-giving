@@ -8,6 +8,7 @@ import {
   type TOrgItem,
 } from "./items";
 import { ProgramRow } from "./program-row";
+import { REVEAL_IN, reveal_delay } from "./reveal";
 import { VideoSet } from "./video-set";
 
 export interface IItemsByCount {
@@ -157,22 +158,30 @@ function RevealGrid({ items, now, show_kind, first, label }: IRevealGrid) {
   const hidden_wide = Math.max(0, n - first.wide);
 
   function held(i: number): string {
-    if (open) return "";
+    if (revealed_from != null) return i >= revealed_from ? REVEAL_IN : "";
     if (i >= first.wide) return "hidden";
     if (i >= first.phone) return "max-md:hidden";
     return "";
   }
+  const delay = (i: number) =>
+    revealed_from != null && i >= revealed_from
+      ? reveal_delay(i - revealed_from)
+      : undefined;
 
   return (
     <div className="flex flex-col gap-4">
       <ul ref={list} data-count={n} className="grid gap-4 md:grid-cols-3">
         {items.map((x, i) =>
           x.kind === "program" ? (
-            <li key={x.id} className={`col-span-full ${held(i)}`}>
+            <li
+              key={x.id}
+              className={`col-span-full ${held(i)}`}
+              style={delay(i)}
+            >
               <ProgramRow item={x} show_kind={show_kind} />
             </li>
           ) : (
-            <li key={x.id} className={held(i)}>
+            <li key={x.id} className={held(i)} style={delay(i)}>
               <GiveCard
                 item={x}
                 orientation="vertical"

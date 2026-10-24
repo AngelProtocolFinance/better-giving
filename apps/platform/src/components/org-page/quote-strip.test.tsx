@@ -43,6 +43,9 @@ describe("QuoteStrip", () => {
     await expect.element(position).toHaveTextContent("Message 2");
     expect(live?.textContent).toContain("Message body 2");
     expect(live?.textContent).toContain("Donor 2");
+    // the message eases in as a new node; the region around it is the same
+    // one, or a screen reader would meet it new and say nothing
+    expect(position.element().closest('[aria-live="polite"]')).toBe(live);
 
     await next.click();
     await next.click();

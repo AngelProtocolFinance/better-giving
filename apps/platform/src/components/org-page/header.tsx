@@ -5,6 +5,7 @@ import { Share } from "#/routes/_app.fundraisers.$fund_id/share";
 import type { INpoBookmark } from "#/types/user";
 import { DonateButton } from "./donate";
 import { OrgMark } from "./org-mark";
+import { SectionLink } from "./section-link";
 
 interface IShareTarget {
   recipientName: string;
@@ -37,6 +38,13 @@ interface IOrgHeader {
    * here, so a page that passes them carries its own strip there */
   sections?: IHeaderSection[];
 }
+
+/** a Donate that waits rises in once the hero's are gone, and sinks out as
+ * one returns; `display` goes last, so the exit is seen */
+const DONATE_IN =
+  "transition-[opacity,translate,display] transition-discrete duration-base ease-out starting:translate-y-1 starting:opacity-0";
+const DONATE_OUT =
+  "hidden translate-y-1 opacity-0 transition-[opacity,translate,display] transition-discrete duration-base ease-in";
 
 /** the nonprofit's own masthead — its mark, not Better Giving's. it pins to
  * the top, and lifts once stuck */
@@ -73,10 +81,8 @@ export function OrgHeader({
     for (const t of targets) observer.observe(t);
     return () => observer.disconnect();
   }, [donate_after]);
-  const show_donate =
-    donate_to &&
-    (!donate_after ||
-      donate_after.every((x) => x !== null && gone.includes(x)));
+  const donate_in =
+    !donate_after || donate_after.every((x) => x !== null && gone.includes(x));
 
   return (
     <header
@@ -99,12 +105,12 @@ export function OrgHeader({
             <ul className="flex items-center">
               {sections.map((s) => (
                 <li key={s.id}>
-                  <a
-                    href={`#${s.id}`}
-                    className="link inline-flex min-h-11 items-center px-3 font-semibold"
+                  <SectionLink
+                    id={s.id}
+                    classes="link inline-flex min-h-11 items-center px-3 font-semibold"
                   >
                     {s.label}
-                  </a>
+                  </SectionLink>
                 </li>
               ))}
             </ul>
@@ -119,8 +125,11 @@ export function OrgHeader({
               idle_ink="text-primary"
             />
           )}
-          {show_donate && (
-            <DonateButton to={donate_to} classes="ml-1 max-sm:px-4 sm:ml-2" />
+          {donate_to && (
+            <DonateButton
+              to={donate_to}
+              classes={`ml-1 max-sm:px-4 sm:ml-2 ${donate_after ? (donate_in ? DONATE_IN : DONATE_OUT) : ""}`}
+            />
           )}
         </div>
       </div>

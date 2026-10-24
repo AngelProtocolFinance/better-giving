@@ -13,6 +13,7 @@ import { OrgName } from "../org-name";
 import { QuoteStrip } from "../quote-strip";
 import { RaisedStats } from "../raised-stats";
 import { SECTION_HEADING } from "../section-heading";
+import { SectionLink } from "../section-link";
 import { SwipeRow } from "../swipe-row";
 import { VideoSet } from "../video-set";
 import { OrgPageFrame } from "./org-page-frame";
@@ -218,12 +219,12 @@ function SectionStrip({ sections }: ISectionStrip) {
         {sections.map((s) => (
           // the first label's text, not its target, on the page's edge
           <li key={s.id} className="shrink-0 first:-ml-2.5">
-            <a
-              href={`#${s.id}`}
-              className="link flex min-h-11 items-center px-2.5 font-semibold"
+            <SectionLink
+              id={s.id}
+              classes="link flex min-h-11 items-center px-2.5 font-semibold"
             >
               {s.label}
-            </a>
+            </SectionLink>
           </li>
         ))}
       </ul>
@@ -292,11 +293,7 @@ function Story({ json, clamp }: IStory) {
       </h2>
       {/* no gap over the button: while clamped, the fade is the gap */}
       <div className="flex flex-col">
-        <div
-          id={body_id}
-          ref={body}
-          className={clamped ? "relative max-h-120 overflow-hidden" : ""}
-        >
+        <div id={body_id} ref={body} className={clamp ? story_box(open) : ""}>
           <RichText
             readOnly
             content={{ value: json }}
@@ -305,11 +302,11 @@ function Story({ json, clamp }: IStory) {
                 "flex max-w-3xl flex-col gap-4 text-base leading-relaxed md:text-lg",
             }}
           />
-          {clamped && cut && (
+          {clamp && cut && (
             <div
               ref={fade}
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-b from-transparent to-background"
+              className={`pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-b from-transparent to-background ${open ? "opacity-0 transition-opacity duration-slow ease-in" : ""}`}
             />
           )}
         </div>
@@ -327,6 +324,16 @@ function Story({ json, clamp }: IStory) {
       </div>
     </section>
   );
+}
+
+/** a story past the clamp. opening grows the box to its content's height
+ * where `interpolate-size` is supported, and snaps where it is not; closing
+ * snaps, since the cut is measured against the box at rest. open, it clips
+ * the block axis alone, so a link's focus ring at the column's edge shows */
+function story_box(open: boolean): string {
+  return open
+    ? "relative max-h-max overflow-y-clip transition-[max-height] duration-slow ease-out [interpolate-size:allow-keywords]"
+    : "relative max-h-120 overflow-hidden";
 }
 
 /** the bottom of the last whole line that ends within `cap` of `box`'s top,

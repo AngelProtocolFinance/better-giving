@@ -202,8 +202,11 @@ describe("Feature", () => {
       await expect
         .element(screen.getByRole("button", { name: "Show less" }))
         .toHaveAttribute("aria-expanded", "true");
-      expect(body.getBoundingClientRect().height).toBeGreaterThan(box.height);
-      expect(body.querySelector(":scope > [aria-hidden]")).toBeNull();
+      // it grows open and the fade dissolves, both over a transition
+      await vi.waitFor(() => {
+        expect(body.getBoundingClientRect().height).toBeGreaterThan(box.height);
+        expect(getComputedStyle(fade as HTMLElement).opacity).toBe("0");
+      });
       await expect
         .element(screen.getByRole("link", { name: "the annual report" }))
         .toBeVisible();

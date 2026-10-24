@@ -43,6 +43,10 @@ const TONE = {
   },
 } as const;
 
+/** a message next brings in, from the reading direction */
+const STEP_IN =
+  "transition-[opacity,translate] duration-base ease-out starting:translate-x-2 starting:opacity-0";
+
 /** one donor message at a time, with its donor and a next control; never the
  * amount. past the last loaded message it waits for `on_more`'s page, or
  * wraps to the first when there is none. nothing when there are no messages */
@@ -53,6 +57,8 @@ export function QuoteStrip({
   classes = "",
 }: IQuoteStrip) {
   const [index, set_index] = useState(0);
+  // the first message is already there; only one that next brings eases in
+  const [stepped, set_stepped] = useState(false);
   // the index the next page's first message will take, while waiting on it
   const [waiting_at, set_waiting_at] = useState<number | null>(null);
   const n = messages.length;
@@ -68,6 +74,7 @@ export function QuoteStrip({
   const t = TONE[tone];
 
   function next() {
+    set_stepped(true);
     if (at < n - 1) {
       set_index(at + 1);
       if (at + 1 === n - 1) on_more?.();
@@ -82,6 +89,7 @@ export function QuoteStrip({
   }
 
   const has_next = n > 1 || !!on_more;
+  const step_in = stepped ? STEP_IN : "";
 
   // a phone (and a pull-quote at any width) has no room for the mark as a
   // column: it opens the message inline. on a phone next shares the donor's
@@ -109,7 +117,12 @@ export function QuoteStrip({
         {/* the position alone: messages arrive a page at a time, so there is
             no total to give */}
         {has_next && <span className="sr-only">Message {at + 1}</span>}
-        <blockquote className={`break-words ${t.quote}`}>
+        {/* keyed, so each message is a new node and eases in; the figure
+            itself stays, which is what keeps it a live region */}
+        <blockquote
+          key={`q${at}`}
+          className={`break-words ${t.quote} ${step_in}`}
+        >
           <span
             aria-hidden
             className={`font-bold ${t.column_mark ? "md:hidden" : ""} ${t.mark}`}
@@ -119,7 +132,8 @@ export function QuoteStrip({
           {m.message}
         </blockquote>
         <figcaption
-          className={`text-sm ${t.meta} ${has_next ? "max-md:flex max-md:min-h-11 max-md:items-center max-md:pr-14" : ""}`}
+          key={`c${at}`}
+          className={`text-sm ${t.meta} ${step_in} ${has_next ? "max-md:flex max-md:min-h-11 max-md:items-center max-md:pr-14" : ""}`}
         >
           {m.name}
         </figcaption>
@@ -129,9 +143,12 @@ export function QuoteStrip({
           type="button"
           aria-label="Next message"
           onClick={next}
-          className={`glyph-btn col-start-2 row-start-1 size-11 shrink-0 self-end ${t.next}`}
+          className={`group/next glyph-btn col-start-2 row-start-1 size-11 shrink-0 self-end ${t.next}`}
         >
-          <ArrowRight aria-hidden className="icon-lg" />
+          <ArrowRight
+            aria-hidden
+            className="icon-lg transition-[translate] motion-safe:group-hover/next:translate-x-0.5"
+          />
         </button>
       )}
     </section>
