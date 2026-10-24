@@ -1,5 +1,11 @@
 import { Badge, type BadgeTone, ExtLink } from "@better-giving/ui";
-import { BadgeCheck, Globe, type LucideIcon, MapPin } from "lucide-react";
+import {
+  BadgeCheck,
+  Globe,
+  Heart,
+  type LucideIcon,
+  MapPin,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { website_link } from "#/routes/org.$org.$campaign/format";
 import type { INpoPublic } from "$/pg/queries/npo";
@@ -27,7 +33,7 @@ const BADGE_TONE: Record<TGround, BadgeTone> = {
 
 /** the org's facts, each in its own place: the designation as a badge, then
  * the country, the website named by its host, and the registration, each
- * behind its glyph. "Other" is no designation and is left out, as is any
+ * behind its glyph, the badge's in its own ink. "Other" is no designation and is left out, as is any
  * fact that is missing */
 export function OrgMeta({ npo, credential, classes = "" }: IOrgMeta) {
   const ground = use_ground();
@@ -48,7 +54,10 @@ export function OrgMeta({ npo, credential, classes = "" }: IOrgMeta) {
     >
       {npo.endow_designation !== "Other" && (
         <li className="flex">
-          <Badge tone={BADGE_TONE[ground]}>{npo.endow_designation}</Badge>
+          <Badge tone={BADGE_TONE[ground]}>
+            <Heart aria-hidden className="icon-xs mr-1" />
+            {npo.endow_designation}
+          </Badge>
         </li>
       )}
       {npo.hq_country && <Fact icon={MapPin}>{npo.hq_country}</Fact>}

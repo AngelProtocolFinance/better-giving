@@ -5,7 +5,10 @@ import { cleanup, render } from "vitest-browser-react";
 import {
   BANNER,
   donates,
+  give_panel,
   header_donate,
+  imgs_outside_panel,
+  panel_banner,
   pinned_to_bottom,
   scroll_past_hero_donate,
 } from "#/__tests__/fixtures/layout-dom";
@@ -166,20 +169,74 @@ describe("Hub", () => {
     expect(box.left).toBeCloseTo(heading.left, 0);
   });
 
-  test("the name clears the banner", async () => {
+  test("the band is the tint with no banner across the page and no mark over it; the banner is the give card's top at 4:1", async () => {
     await page.viewport(1440, 900);
     const screen = await mount(
       org_layout({ give: many(give, 4), npo: npo({ image: BANNER }) })
     );
     const h1 = screen.getByRole("heading", { level: 1 }).element();
-    const banner = screen.container.querySelector("main img") as HTMLElement;
     await expect
       .element(screen.getByRole("heading", { level: 1 }))
       .toBeVisible();
-    expect(h1.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-      banner.getBoundingClientRect().bottom + 16
+    const main = screen.container.querySelector("main") as HTMLElement;
+    const band = main.firstElementChild as HTMLElement;
+    expect(band).toHaveClass("bg-band");
+    expect(band).toContainElement(h1 as HTMLElement);
+    const panel = give_panel(screen.container);
+    await expect.poll(() => panel_banner(panel)?.ratio ?? 0).toBeCloseTo(4, 1);
+    expect(panel_banner(panel)?.flush).toBe(true);
+    expect(imgs_outside_panel(screen.container)).toEqual([]);
+    // the mark sits inside the band, not risen out of it
+    const mark = band.querySelector("[data-monogram]") as HTMLElement;
+    expect(mark.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      band.getBoundingClientRect().top
     );
   });
+
+  test("with no banner the band stays the tint and the give card starts at the figures", async () => {
+    const screen = await mount(
+      org_layout({ give: many(give, 4), npo: npo({ image: null }) })
+    );
+    await expect
+      .element(screen.getByRole("heading", { level: 1 }))
+      .toBeVisible();
+    const main = screen.container.querySelector("main") as HTMLElement;
+    expect(main.firstElementChild).toHaveClass("bg-band");
+    expect(main.querySelector("img")).toBeNull();
+    const panel = give_panel(screen.container);
+    expect(panel_banner(panel)).toBeNull();
+    expect(panel.firstElementChild?.querySelector("strong")).toHaveTextContent(
+      "$3,322"
+    );
+    const [donate] = donates(panel);
+    expect(donate).toHaveClass("btn-primary");
+  });
+
+  test.each([
+    [375, 812],
+    [1440, 900],
+  ])(
+    "the facts row comes before the name, in the dom and on screen, at %i",
+    async (w, h) => {
+      await page.viewport(w, h);
+      const screen = await mount(org_layout({ give: many(give, 4) }));
+      const h1 = screen.getByRole("heading", { level: 1 });
+      await expect.element(h1).toBeVisible();
+      const facts = screen
+        .getByText(EIN, { exact: true })
+        .element()
+        .closest("ul") as HTMLElement;
+      expect(follows(facts, h1.element())).toBe(true);
+      expect(facts.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        h1.element().getBoundingClientRect().top
+      );
+      // and never between the tagline and the story
+      const tagline = screen
+        .getByText("Every adult a reader.", { exact: true })
+        .element();
+      expect(follows(facts, tagline)).toBe(true);
+    }
+  );
 
   test("no registration, no line", async () => {
     const screen = await mount(
@@ -210,6 +267,14 @@ describe("Hub", () => {
     await expect
       .element(featured.getByTitle("Field visit 1"))
       .toBeInTheDocument();
+
+    // the count is in muted ink beside the label
+    const count = screen
+      .getByRole("tab", { name: "Programs 5" })
+      .element()
+      .querySelector("span") as HTMLElement;
+    expect(count).toHaveTextContent("5");
+    expect(count).toHaveClass("text-gray-11");
 
     // the most-stocked kind is open first
     await expect
@@ -321,7 +386,7 @@ describe("Hub", () => {
     [375, 812],
     [1440, 900],
   ])(
-    "the figures and Donate come before the story in reading order as on screen at %i",
+    "the give card comes before the story in reading order; a phone shows it above, wider it is the story's right-hand column, at %i",
     async (w, h) => {
       await page.viewport(w, h);
       const screen = await mount(
@@ -335,9 +400,10 @@ describe("Hub", () => {
       const main = screen.container.querySelector("main") as HTMLElement;
       const [donate] = donates(main);
       expect(follows(donate, link.element())).toBe(true);
-      expect(donate.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-        link.element().getBoundingClientRect().top
-      );
+      const d = donate.getBoundingClientRect();
+      const l = link.element().getBoundingClientRect();
+      if (w < 768) expect(d.bottom).toBeLessThanOrEqual(l.top);
+      else expect(l.right).toBeLessThanOrEqual(d.left);
       // the website link is in the meta row, read before Donate too
       const site = screen
         .getByText(EIN, { exact: true })
@@ -346,21 +412,6 @@ describe("Hub", () => {
       expect(follows(site, donate)).toBe(true);
     }
   );
-
-  test("with no banner a story link on the brand band takes the band's ink", async () => {
-    const screen = await mount(
-      org_layout({
-        give: many(give, 4),
-        npo: npo({ image: null, overview_pt: linked_story() }),
-      })
-    );
-    const link = screen.getByRole("link", { name: "how we teach" });
-    await expect.element(link).toBeVisible();
-    const h1 = screen.getByRole("heading", { level: 1 }).element();
-    expect(getComputedStyle(link.element()).color).toBe(
-      getComputedStyle(h1).color
-    );
-  });
 
   test("a failed list that loaded some keeps them, with its line under them", async () => {
     const screen = await mount(
@@ -412,7 +463,7 @@ describe("Hub", () => {
       .toBeVisible();
   });
 
-  test("on a phone the header's Donate waits until the hero's has scrolled away", async () => {
+  test("on a phone the header's Donate waits until the card's has scrolled away", async () => {
     await page.viewport(375, 812);
     const screen = await mount(org_layout({ give: many(give, 4) }));
     const root = screen.container;

@@ -121,7 +121,9 @@ export function OrgHeader({
           {bookmark && (
             <BookmarkBtn
               npo={bookmark}
-              classes="size-11 text-primary hover:bg-secondary"
+              // overlaps Share's target, so the glyphs sit ~20px apart and each
+              // target stays 44px
+              classes={`size-11 text-primary hover:bg-secondary ${share ? "-ml-2" : ""}`}
               idle_ink="text-primary"
             />
           )}

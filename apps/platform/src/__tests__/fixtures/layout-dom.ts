@@ -4,6 +4,38 @@ export const BANNER = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="4"><rect width="16" height="4" fill="teal"/></svg>'
 )}`;
 
+/** the hero's give card */
+export const give_panel = (root: Element) =>
+  root.querySelector('main aside[aria-label^="Give to"]') as HTMLElement;
+
+/** every img in main outside the give card: a banner across the page would
+ * be one */
+export const imgs_outside_panel = (root: Element) =>
+  Array.from(root.querySelectorAll("main img")).filter(
+    (img) => !give_panel(root).contains(img)
+  );
+
+/** the give card's banner: its first child, at 4:1 and flush with its top
+ * and sides; null when the card starts elsewhere */
+export function panel_banner(panel: Element): {
+  ratio: number;
+  flush: boolean;
+} | null {
+  const img = panel.firstElementChild;
+  if (!(img instanceof HTMLImageElement)) return null;
+  const b = img.getBoundingClientRect();
+  const p = panel.getBoundingClientRect();
+  const s = getComputedStyle(panel);
+  const edge = Number.parseFloat(s.borderTopWidth);
+  return {
+    ratio: b.width / b.height,
+    flush:
+      Math.abs(b.top - p.top - edge) <= 1 &&
+      Math.abs(b.left - p.left - edge) <= 1 &&
+      Math.abs(p.right - b.right - edge) <= 1,
+  };
+}
+
 /** the Donate links under `root`, by their visible name */
 export const donates = (root: Element) =>
   Array.from(root.querySelectorAll("a")).filter(

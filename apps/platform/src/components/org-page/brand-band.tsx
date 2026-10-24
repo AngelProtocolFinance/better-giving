@@ -4,7 +4,7 @@ import { createContext, type ReactNode, use } from "react";
  * own for everything inside it, so a part picks its ink without being told */
 export type TGround = "page" | "tint" | "primary" | "deep";
 
-const GroundContext = createContext<TGround>("page");
+export const GroundContext = createContext<TGround>("page");
 
 export const use_ground = () => use(GroundContext);
 
@@ -21,7 +21,7 @@ const FILL: Record<Exclude<TGround, "page">, string> = {
 };
 
 interface IBrandBand {
-  /** tint: the light hero ground. primary: the no-banner hero. deep: Poster's
+  /** tint: Hub and Feature's hero. primary: the brand fill. deep: Poster's
    * hero */
   tone: Exclude<TGround, "page">;
   children: ReactNode;

@@ -58,6 +58,27 @@ describe("org header", () => {
     }
   });
 
+  it.each([1280, 375])(
+    "sets Share and Favorite's glyphs close, each still a 44px target, at %i",
+    async (w) => {
+      await page.viewport(w, 800);
+      const screen = await render(header());
+      const share = screen.getByRole("button", { name: "Share", exact: true });
+      const fav = screen.getByRole("link", { name: "Add to favorites" });
+      await expect.element(fav).toBeVisible();
+      for (const el of [share.element(), fav.element()]) {
+        const r = el.getBoundingClientRect();
+        expect(r.width).toBeGreaterThanOrEqual(44);
+        expect(r.height).toBeGreaterThanOrEqual(44);
+      }
+      const glyph = (el: Element) =>
+        (el.querySelector("svg") as SVGElement).getBoundingClientRect();
+      const gap = glyph(fav.element()).left - glyph(share.element()).right;
+      expect(gap).toBeGreaterThan(0);
+      expect(gap).toBeLessThanOrEqual(20);
+    }
+  );
+
   it("leads with the monogram when the org has no logo", async () => {
     const screen = await render(header());
     const home = screen.getByRole("link", { name: "Acme Relief" });

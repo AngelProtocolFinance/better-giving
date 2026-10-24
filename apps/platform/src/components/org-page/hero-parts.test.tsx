@@ -251,7 +251,7 @@ describe("raised stats", () => {
           raised={3322}
           donors={null}
           target="8000"
-          variant="panel"
+          variant="card-lg"
         />
       </>
     );

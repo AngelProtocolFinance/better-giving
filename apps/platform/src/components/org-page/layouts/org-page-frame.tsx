@@ -8,9 +8,6 @@ interface IOrgPageFrame {
   page: IOrgLayout;
   /** the hero's Donate: the header's waits until it has scrolled away */
   hero_donate: HTMLElement | null;
-  /** the hero's phone Donate, where the layout hides `hero_donate` below md
-   * and shows this one instead; the header waits on whichever is shown */
-  hero_donate_phone?: HTMLElement | null;
   sections?: IHeaderSection[];
   /** the page's main content, hero first */
   children: ReactNode;
@@ -20,19 +17,12 @@ interface IOrgPageFrame {
 export function OrgPageFrame({
   page,
   hero_donate,
-  hero_donate_phone,
   sections,
   children,
 }: IOrgPageFrame) {
   const { npo } = page;
   // stable, so the header's observer is not rebuilt on every render
-  const donate_after = useMemo(
-    () =>
-      hero_donate_phone === undefined
-        ? [hero_donate]
-        : [hero_donate, hero_donate_phone],
-    [hero_donate, hero_donate_phone]
-  );
+  const donate_after = useMemo(() => [hero_donate], [hero_donate]);
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background text-gray-12">
       <OrgHeader

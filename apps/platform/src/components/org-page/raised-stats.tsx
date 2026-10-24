@@ -12,9 +12,9 @@ interface IRaisedStats {
   donors: number | null;
   /** the org's goal setting; no goal, no bar */
   target: INpoPublic["target"];
-  /** the figures. size: inline (Poster, Hub, Card), stacked over a rule (Letter),
-   * panel, largest (Feature's give panel) */
-  variant: "inline" | "stacked" | "panel";
+  /** the figures. size: inline (Card), stacked over a rule (Letter), card and
+   * card-lg (the give panel) */
+  variant: "inline" | "stacked" | "card" | "card-lg";
   classes?: string;
 }
 
@@ -41,7 +41,7 @@ export function RaisedStats({
       />
     ) : (
       <p
-        className={`font-bold ${variant === "panel" ? "text-2xl" : "text-lg md:text-xl"}`}
+        className={`font-bold ${variant.startsWith("card") ? "text-2xl" : "text-lg md:text-xl"}`}
       >
         {FIRST_GIFT}
       </p>
@@ -75,7 +75,8 @@ interface IFigures {
 const FIGURE: Record<IRaisedStats["variant"], string> = {
   inline: "text-lg md:text-xl",
   stacked: "text-2xl md:text-3xl",
-  panel: "text-3xl lg:text-4xl",
+  card: "text-2xl",
+  "card-lg": "text-2xl md:text-3xl",
 };
 
 /** each stat a large figure over its small label, side by side */
