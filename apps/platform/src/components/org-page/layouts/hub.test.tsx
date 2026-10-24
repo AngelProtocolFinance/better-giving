@@ -249,7 +249,7 @@ describe("Hub", () => {
     await expect.poll(() => panel_banner(panel)?.ratio ?? 0).toBeCloseTo(4, 1);
     expect(panel_banner(panel)?.flush).toBe(true);
     expect(imgs_outside_panel(screen.container)).toEqual([]);
-    // the mark sits inside the band, not risen out of it
+    // the mark sits inside the band
     const mark = band.querySelector("[data-monogram]") as HTMLElement;
     expect(mark.getBoundingClientRect().top).toBeGreaterThanOrEqual(
       band.getBoundingClientRect().top

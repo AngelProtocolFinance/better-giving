@@ -24,7 +24,7 @@ interface IGivePanel {
 /** the banner, the figures and Donate on a light card. a media frame: the
  * banner bleeds to its edges, so the inset is the body's. inside, the ground is
  * the page's whatever band it sits on. on a brand band the fill is its edge,
- * and the page's ring comes back, since the band's white one vanishes on this
+ * and the ring is the page's, since the band's white one vanishes on this
  * surface: blue-8 is --ring's step in packages/brand/src/colors.css */
 export function GivePanel({
   name,
