@@ -5,14 +5,13 @@ import type { IProgramItem } from "./items";
 
 export interface IProgramRow {
   item: IProgramItem;
-  /** the "Program" line: set where the list mixes kinds, see `names_kind` */
+  /** show the kind line, see `names_kind` */
   show_kind: boolean;
 }
 
-/** a program is a full-width row at any count: from sm its 4:1 thumbnail
- * inside the row's inset, centred against the text beside it; a phone has no
- * room for both, so the image runs across the top. the title is the row's one
- * link, stretched over it */
+/** a program is a full-width row at any count: from sm a 4:1 thumbnail
+ * centred beside the text; a phone has no room for both, so the image runs
+ * across the top. the title is the row's one link, stretched over it */
 export function ProgramRow({ item, show_kind }: IProgramRow) {
   return (
     <article className="relative grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[auto_minmax(0,1fr)_auto] overflow-hidden rounded border bg-panel text-gray-12 has-[h3_a:focus-visible]:outline-2 has-[h3_a:focus-visible]:outline-ring has-[h3_a:focus-visible]:-outline-offset-2">

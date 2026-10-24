@@ -107,7 +107,7 @@ function GiveByCount({ items, now, show_kind }: IGiveByCount) {
 }
 
 export interface IShowMoreGrid {
-  /** a tab's items: one kind, or campaigns beside supporter campaigns */
+  /** a tab's items */
   items: (IGiveItem | IProgramItem)[];
   /** epoch ms, see `GiveCard` */
   now: number;

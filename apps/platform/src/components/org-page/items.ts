@@ -58,9 +58,8 @@ export function ends_label(ends_at: string | null, now: number): string | null {
   return days === 1 ? "Ends in 1 day" : `Ends in ${days} days`;
 }
 
-/** whether a card names its kind: only where its list mixes kinds, since a
- * single-kind list sits under a heading or tab that already names it. a video
- * carries no kind line, but counts as a kind: beside one, a program is named */
+/** a card names its kind only in a mixed list; a single-kind list's heading
+ * already does. videos carry no kind line but still count as a kind */
 export function names_kind(items: TOrgItem[]): boolean {
   return new Set(items.map((x) => x.kind)).size > 1;
 }

@@ -9,10 +9,10 @@ import { ends_label, type IGiveItem } from "./items";
  * - `vertical`: a third of a row, or a swipe row's card; the 4:1 image
  *   across the top.
  * - `horizontal`: a half, or a row in a reading column; from md the image is
- *   an inset thumbnail on the left, centred against the text beside it.
- * - `feature`: a lone item across the whole row, laid out as `horizontal`
- *   with a larger thumbnail, and room for its excerpt.
- * a phone always has the image across the top. */
+ *   a thumbnail on the left, centred against the text.
+ * - `feature`: a lone item across the whole row, laid out as `horizontal`,
+ *   with a larger thumbnail and room for its excerpt.
+ * a phone always has the image on top. */
 export type TCardOrientation = "vertical" | "horizontal" | "feature";
 
 export interface IGiveCard {
@@ -21,13 +21,11 @@ export interface IGiveCard {
   /** epoch ms the end date counts down from: the loader's clock, so the
    * server render and hydration agree */
   now: number;
-  /** the "Campaign" / "Supporter campaign" line: set where the list mixes
-   * kinds, see `names_kind` */
+  /** show the kind line, see `names_kind` */
   show_kind: boolean;
 }
 
-/** from md, beside the text: inside the card's inset with its own corner,
- * centred down the card. the text column's own padding is the gap to it */
+/** beside the text from md: an inset thumbnail */
 const THUMB: Record<TCardOrientation, string> = {
   vertical: "",
   horizontal: "md:my-4 md:ml-4 md:w-40 md:self-center md:rounded lg:w-48",

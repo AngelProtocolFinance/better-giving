@@ -4,8 +4,8 @@ import type { IDonorMessage } from "./items";
 
 export interface IQuoteStrip {
   messages: IDonorMessage[];
-  /** `light` on the page, `dark` on the brand's deep ground, `pull` a
-   * pull-quote set into a reading column: no fill, a brand rule on its left */
+  /** `light` on the page, `dark` on the brand's deep ground, `pull` in a
+   * reading column */
   tone: "light" | "dark" | "pull";
   /** set while more pages exist. called when the reader reaches the last
    * loaded message, and again if they press next there before it lands, so
@@ -23,8 +23,6 @@ const TONE = {
     meta: "text-gray-11",
     next: "link",
   },
-  // the reading column's own edge carries the rule, so the inset is the
-  // left side's alone; the quote is a size up from the story it sits in
   pull: {
     ground: "border-l-4 border-primary pl-5 text-gray-12 md:pl-6",
     mark: "text-primary",
@@ -85,9 +83,9 @@ export function QuoteStrip({
 
   const has_next = n > 1 || !!on_more;
 
-  // a phone has no room for the mark as a column, and a pull-quote has none
-  // at any width: it opens the message inline, and on a phone next shares the donor's line, laid over the caption's cell
-  // so the message keeps the full width
+  // a phone (and a pull-quote at any width) has no room for the mark as a
+  // column: it opens the message inline. on a phone next shares the donor's
+  // line, laid over the caption's cell, so the message keeps the full width
   return (
     <section
       aria-label="Donor messages"
