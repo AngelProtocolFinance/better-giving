@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo } from "react";
+import type { ReactNode } from "react";
 import { org_href } from "#/helpers/org-href";
 import { OrgFooter } from "../footer";
 import { type IHeaderSection, OrgHeader } from "../header";
@@ -21,8 +21,6 @@ export function OrgPageFrame({
   children,
 }: IOrgPageFrame) {
   const { npo } = page;
-  // stable, so the header's observer is not rebuilt on every render
-  const donate_after = useMemo(() => [hero_donate], [hero_donate]);
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background text-gray-12">
       <OrgHeader
@@ -32,7 +30,7 @@ export function OrgPageFrame({
         bookmark={{ id: npo.id, name: npo.name, logo: npo.logo ?? undefined }}
         share={page.share}
         donate_to={page.donate_to}
-        donate_after={donate_after}
+        donate_after={hero_donate}
         sections={sections}
       />
       <main className="flex flex-1 flex-col">{children}</main>

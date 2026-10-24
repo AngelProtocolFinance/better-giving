@@ -1,11 +1,8 @@
-import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { reset_viewport } from "#/__tests__/fixtures/viewport";
 import { NAME_DISPLAY_MAX } from "@/org-shape";
-import { BrandBand } from "./brand-band";
-import { DonateButton } from "./donate";
 import { OrgBanner } from "./org-banner";
 import { OrgMark } from "./org-mark";
 import { OrgMeta } from "./org-meta";
@@ -176,23 +173,6 @@ describe("org hero", () => {
     expect(bare.querySelectorAll("li")).toHaveLength(1);
   });
 
-  test("on the brand fill the badge takes the on-primary tone and the row the band's ink", async () => {
-    const screen = await render(
-      <BrandBand tone="primary">
-        <OrgMeta
-          npo={{ endow_designation: "Charity", hq_country: "Kenya", url: null }}
-          credential={null}
-        />
-      </BrandBand>
-    );
-    const list = screen.getByRole("list").element();
-    expect(list).not.toHaveClass("text-gray-11");
-    expect(list.querySelector("[data-tone]")).toHaveAttribute(
-      "data-tone",
-      "on-primary"
-    );
-  });
-
   test("a meta row that wraps on a phone keeps each glyph on its item's first line", async () => {
     await page.viewport(375, 812);
     const screen = await render(
@@ -295,25 +275,5 @@ describe("raised stats", () => {
       "$3,322 raised",
       "12,345 donors",
     ]);
-  });
-});
-
-describe("donate", () => {
-  test("Donate inverts on a brand band, where the primary fill would vanish", async () => {
-    const screen = await render(
-      <MemoryRouter>
-        <DonateButton to="/donate/7" />
-        <BrandBand tone="deep">
-          <DonateButton to="/donate/7" size="lg" />
-        </BrandBand>
-      </MemoryRouter>
-    );
-    const [plain, inverse] = screen
-      .getByRole("link", { name: "Donate" })
-      .elements();
-    expect(plain).toHaveAttribute("href", "/donate/7");
-    expect(plain).toHaveClass("btn-primary");
-    expect(inverse).toHaveClass("bg-primary-fg", "text-primary", "btn-lg");
-    expect(inverse).not.toHaveClass("btn-primary");
   });
 });

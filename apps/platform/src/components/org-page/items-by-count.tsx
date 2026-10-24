@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type TransitionEvent, useEffect, useRef, useState } from "react";
 import { GiveCard } from "./give-card";
 import {
   type IGiveItem,
@@ -18,6 +18,9 @@ export interface IItemsByCount {
   /** every campaign a `horizontal` row, one per line, whatever the count, so
    * it lines up with the program rows: a reading column's list */
   rows?: boolean;
+  /** each card names its kind; by default when `items` mixes kinds. a caller
+   * that lays out part of a list elsewhere passes the whole list's answer */
+  show_kind?: boolean;
 }
 
 /** a list laid out by its own count, never leaving an empty slot: 1 is a
@@ -25,14 +28,18 @@ export interface IItemsByCount {
  * are rows and videos follow their own rule whatever the count, so a mixed
  * list renders campaigns and supporter campaigns, then programs, then videos. on a
  * phone every count is a single stack. nothing for no items */
-export function ItemsByCount({ items, now, rows = false }: IItemsByCount) {
+export function ItemsByCount({
+  items,
+  now,
+  rows = false,
+  show_kind = names_kind(items),
+}: IItemsByCount) {
   if (items.length === 0) return null;
   const give = items.filter(
     (x): x is IGiveItem => x.kind === "campaign" || x.kind === "supporter"
   );
   const programs = items.filter((x): x is IProgramItem => x.kind === "program");
   const videos = items.filter((x): x is IVideoItem => x.kind === "video");
-  const show_kind = names_kind(items);
   return (
     <div className="flex flex-col gap-4">
       {give.length > 0 &&
@@ -142,9 +149,12 @@ interface IRevealGrid {
 
 /** the rest are in the dom from the start, hidden by css alone, so the server
  * render needs no viewport. the reveal is one way: its button goes, and focus
- * moves to the first item it brought in */
+ * moves to the first item it brought in. the rise plays once: a tab panel
+ * hidden and shown again would replay `@starting-style`, so the entrance
+ * classes go once the last item has settled */
 function RevealGrid({ items, now, show_kind, first, label }: IRevealGrid) {
   const [revealed_from, set_revealed_from] = useState<number | null>(null);
+  const [rising, set_rising] = useState(false);
   const list = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
@@ -157,20 +167,33 @@ function RevealGrid({ items, now, show_kind, first, label }: IRevealGrid) {
   const hidden_phone = Math.max(0, n - first.phone);
   const hidden_wide = Math.max(0, n - first.wide);
 
+  const rises = (i: number) =>
+    rising && revealed_from != null && i >= revealed_from;
   function held(i: number): string {
-    if (revealed_from != null) return i >= revealed_from ? REVEAL_IN : "";
+    if (revealed_from != null) return rises(i) ? REVEAL_IN : "";
     if (i >= first.wide) return "hidden";
     if (i >= first.phone) return "max-md:hidden";
     return "";
   }
   const delay = (i: number) =>
-    revealed_from != null && i >= revealed_from
+    revealed_from != null && rises(i)
       ? reveal_delay(i - revealed_from)
       : undefined;
+  // the last item has the longest delay, so it settles last; a panel hidden
+  // mid-rise cancels it
+  function settle(e: TransitionEvent<HTMLUListElement>) {
+    if (e.target === e.currentTarget.lastElementChild) set_rising(false);
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <ul ref={list} data-count={n} className="grid gap-4 md:grid-cols-3">
+      <ul
+        ref={list}
+        data-count={n}
+        className="grid gap-4 md:grid-cols-3"
+        onTransitionEnd={settle}
+        onTransitionCancel={settle}
+      >
         {items.map((x, i) =>
           x.kind === "program" ? (
             <li
@@ -195,11 +218,12 @@ function RevealGrid({ items, now, show_kind, first, label }: IRevealGrid) {
       {!open && hidden_phone > 0 && (
         <button
           type="button"
-          onClick={() =>
+          onClick={() => {
+            set_rising(true);
             set_revealed_from(
               window.matchMedia(WIDE).matches ? first.wide : first.phone
-            )
-          }
+            );
+          }}
           className={`btn btn-secondary self-center ${hidden_wide === 0 ? "md:hidden" : ""}`}
         >
           {hidden_phone === hidden_wide ? (

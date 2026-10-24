@@ -29,11 +29,10 @@ interface IOrgHeader {
   share?: IShareTarget;
   /** a Donate button to this href, when given */
   donate_to?: string;
-  /** the hero's own Donates, one per width where a layout splits them. given,
-   * the header's Donate waits until none is in view (one hidden at this width
-   * never is); an entry is null while it mounts. omitted, Donate always shows.
-   * a new array re-observes, so the caller keeps it stable */
-  donate_after?: readonly (Element | null)[];
+  /** the hero's own Donate. given, the header's Donate waits until it is out
+   * of view (one with no box never is in view); null while it mounts.
+   * omitted, Donate always shows */
+  donate_after?: Element | null;
   /** in-page links to these sections, from lg; narrower screens get none
    * here, so a page that passes them carries its own strip there */
   sections?: IHeaderSection[];
@@ -59,30 +58,25 @@ export function OrgHeader({
   sections = [],
 }: IOrgHeader) {
   const bar = useRef<HTMLDivElement>(null);
-  // the watched elements themselves, once reported out of view: a new element
+  // the watched element itself, once reported out of view: a new element
   // counts as in view until its first report, without a reset
-  const [gone, set_gone] = useState<readonly Element[]>([]);
+  const [gone, set_gone] = useState<Element | null>(null);
   useEffect(() => {
-    const targets = donate_after?.filter((x) => x !== null) ?? [];
-    if (targets.length === 0) return;
+    if (!donate_after) return;
     // the header pins over the page's top edge, so under it is out of view
     const under = bar.current?.offsetHeight ?? 0;
-    const out = new Set<Element>();
     const observer = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) out.delete(e.target);
-          else out.add(e.target);
-        }
-        set_gone([...out]);
+        const e = entries[entries.length - 1];
+        set_gone(e.isIntersecting ? null : e.target);
       },
       { rootMargin: `-${under}px 0px 0px 0px` }
     );
-    for (const t of targets) observer.observe(t);
+    observer.observe(donate_after);
     return () => observer.disconnect();
   }, [donate_after]);
-  const donate_in =
-    !donate_after || donate_after.every((x) => x !== null && gone.includes(x));
+  const waits = donate_after !== undefined;
+  const donate_in = !waits || (donate_after !== null && gone === donate_after);
 
   return (
     <header
@@ -121,16 +115,16 @@ export function OrgHeader({
           {bookmark && (
             <BookmarkBtn
               npo={bookmark}
-              // overlaps Share's target, so the glyphs sit ~20px apart and each
-              // target stays 44px
-              classes={`size-11 text-primary hover:bg-secondary ${share ? "-ml-2" : ""}`}
+              // overlaps Share's 44px target by 4px, so the glyphs sit 20px
+              // apart; Favorite, later in the dom, takes those 4px
+              classes={`size-11 text-primary hover:bg-secondary ${share ? "-ml-1" : ""}`}
               idle_ink="text-primary"
             />
           )}
           {donate_to && (
             <DonateButton
               to={donate_to}
-              classes={`ml-1 max-sm:px-4 sm:ml-2 ${donate_after ? (donate_in ? DONATE_IN : DONATE_OUT) : ""}`}
+              classes={`ml-1 max-sm:px-4 sm:ml-2 ${waits ? (donate_in ? DONATE_IN : DONATE_OUT) : ""}`}
             />
           )}
         </div>

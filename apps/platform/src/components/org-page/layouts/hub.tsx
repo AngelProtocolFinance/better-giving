@@ -3,7 +3,7 @@ import { type ReactNode, useId, useState } from "react";
 import { RichText, to_text } from "#/components/rich-text";
 import { BrandBand } from "../brand-band";
 import { GivePanel } from "../give-panel";
-import type { TOrgItem } from "../items";
+import { names_kind, type TOrgItem } from "../items";
 import { ItemsByCount, ShowMoreGrid } from "../items-by-count";
 import { OrgMark } from "../org-mark";
 import { OrgMeta } from "../org-meta";
@@ -93,7 +93,12 @@ export function Hub(props: IOrgLayout) {
         {featured.length > 0 && (
           <Section heading="Featured">
             <div className="flex flex-col gap-4">
-              <ItemsByCount items={featured_cards} now={now} />
+              {/* the video beside them is a kind too */}
+              <ItemsByCount
+                items={featured_cards}
+                now={now}
+                show_kind={names_kind(featured)}
+              />
               {/* a lone video at the content's full width outweighs the
                   tabs under it, so it takes the reading measure, on the
                   heading's edge */}

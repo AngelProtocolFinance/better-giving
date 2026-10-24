@@ -169,6 +169,68 @@ describe("Hub", () => {
     expect(box.left).toBeCloseTo(heading.left, 0);
   });
 
+  test("a lone campaign beside a lone video is a mixed Featured, so the card names its kind", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      org_layout({
+        give: [give(1)],
+        programs: many(program, 4),
+        videos: [video(1)],
+      })
+    );
+    const featured = screen.getByRole("region", { name: "Featured" });
+    await expect
+      .element(featured.getByTitle("Field visit 1"))
+      .toBeInTheDocument();
+    await expect
+      .element(featured.getByText("Campaign", { exact: true }))
+      .toBeVisible();
+  });
+
+  test("a reveal and a message step play once: shown again, a tab does not replay them", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      org_layout({
+        give: many(give, 2),
+        programs: many(program, 8),
+        messages: many(message, 3),
+        on_more_messages: vi.fn(),
+      })
+    );
+    const entering = (els: Element[]) =>
+      els.filter((el) => /\bstarting:/.test(el.className));
+    const panel = () => screen.getByRole("tabpanel").element() as HTMLElement;
+
+    await screen.getByRole("button", { name: "Show 2 more" }).click();
+    await expect
+      .element(screen.getByRole("link", { name: "School meals 8" }))
+      .toBeVisible();
+    const items = () => [...panel().querySelectorAll("[data-count] > li")];
+    // it rises, then settles
+    await expect.poll(() => entering(items())).toEqual([]);
+
+    await screen.getByRole("tab", { name: /^Messages/ }).click();
+    await screen.getByRole("button", { name: "Next message" }).click();
+    await expect
+      .element(screen.getByText("Keep up the good work, from donor 2."))
+      .toBeVisible();
+    const step = () => [...panel().querySelectorAll("blockquote, figcaption")];
+    await expect.poll(() => entering(step())).toEqual([]);
+
+    await screen.getByRole("tab", { name: "Campaigns 2" }).click();
+    await screen.getByRole("tab", { name: "Programs 8" }).click();
+    await expect
+      .element(screen.getByRole("link", { name: "School meals 8" }))
+      .toBeVisible();
+    expect(entering(items())).toEqual([]);
+
+    await screen.getByRole("tab", { name: /^Messages/ }).click();
+    await expect
+      .element(screen.getByText("Keep up the good work, from donor 2."))
+      .toBeVisible();
+    expect(entering(step())).toEqual([]);
+  });
+
   test("the band is the tint with no banner across the page and no mark over it; the banner is the give card's top at 4:1", async () => {
     await page.viewport(1440, 900);
     const screen = await mount(

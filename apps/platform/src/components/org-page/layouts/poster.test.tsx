@@ -1,6 +1,6 @@
 import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import {
   BANNER,
@@ -170,6 +170,27 @@ describe("Poster", () => {
     expect(donate).toHaveClass("btn-primary");
     const label = screen.getByText("raised", { exact: true }).element();
     expect(label).toHaveClass("text-gray-11");
+  });
+
+  test("the card's Donate takes the page's focus ring, not the deep band's white one", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount();
+    const panel = give_panel(screen.container);
+    const [donate] = donates(panel);
+    await expect.poll(() => donate.checkVisibility()).toBe(true);
+    const band = panel.closest(".bg-primary-deep") as HTMLElement;
+    const ring = (el: Element) => getComputedStyle(el).outlineColor;
+    // the base layer draws every outline in --ring, so the colour a keyboard
+    // focus would show is readable at rest
+    expect(ring(donate)).toBe(ring(document.body));
+    expect(ring(donate)).not.toBe(ring(band));
+
+    await userEvent.keyboard("{Tab}");
+    donate.focus();
+    await expect.poll(() => donate.matches(":focus-visible")).toBe(true);
+    const s = getComputedStyle(donate);
+    expect(s.outlineStyle).toBe("solid");
+    expect(s.outlineColor).toBe(ring(document.body));
   });
 
   test.each([

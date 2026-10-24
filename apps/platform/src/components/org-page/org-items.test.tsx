@@ -543,4 +543,25 @@ describe("SwipeRow", () => {
     await expect.element(toggle).toHaveAttribute("aria-expanded", "false");
     await expect.element(region).toBeVisible();
   });
+
+  test('"See all" rises in only the cards that were not already in view', async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(
+      <SwipeRow heading="Campaigns" items={gives(5)} now={NOW} />
+    );
+    const row = screen.getByRole("region", { name: "Campaigns" });
+    await expect.element(row).toBeVisible();
+    await screen.getByRole("button", { name: "See all 5" }).click();
+    await expect
+      .element(screen.getByRole("link", { name: "Clean water 5" }))
+      .toBeVisible();
+
+    const items = [...list_of(screen.container).children] as HTMLElement[];
+    const rises = items.map((li) => /\bstarting:/.test(li.className));
+    // three whole cards show in the row at this width; the fourth is cut off
+    expect(rises).toEqual([false, false, false, true, true]);
+    // the stagger counts from the first card that rises
+    expect(items[3].style.transitionDelay).toContain("* 0 /");
+    expect(items[4].style.transitionDelay).toContain("* 1 /");
+  });
 });

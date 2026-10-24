@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { type TransitionEvent, useState } from "react";
 import type { IDonorMessage } from "./items";
 
 export interface IQuoteStrip {
@@ -57,8 +57,10 @@ export function QuoteStrip({
   classes = "",
 }: IQuoteStrip) {
   const [index, set_index] = useState(0);
-  // the first message is already there; only one that next brings eases in
-  const [stepped, set_stepped] = useState(false);
+  // the index next is bringing in, until it has eased in. the first message is
+  // already there, and one that has settled stays put when a hidden tab panel
+  // is shown again, which would otherwise replay `@starting-style`
+  const [stepping_to, set_stepping_to] = useState<number | null>(null);
   // the index the next page's first message will take, while waiting on it
   const [waiting_at, set_waiting_at] = useState<number | null>(null);
   const n = messages.length;
@@ -74,22 +76,28 @@ export function QuoteStrip({
   const t = TONE[tone];
 
   function next() {
-    set_stepped(true);
     if (at < n - 1) {
+      set_stepping_to(at + 1);
       set_index(at + 1);
       if (at + 1 === n - 1) on_more?.();
       return;
     }
     if (on_more) {
+      set_stepping_to(n);
       set_waiting_at(n);
       on_more();
       return;
     }
+    set_stepping_to(0);
     set_index(0);
   }
 
   const has_next = n > 1 || !!on_more;
-  const step_in = stepped ? STEP_IN : "";
+  const step_in = stepping_to === at ? STEP_IN : "";
+
+  function settle(e: TransitionEvent<HTMLElement>) {
+    if (e.target === e.currentTarget) set_stepping_to(null);
+  }
 
   // a phone (and a pull-quote at any width) has no room for the mark as a
   // column: it opens the message inline. on a phone next shares the donor's
@@ -133,6 +141,10 @@ export function QuoteStrip({
         </blockquote>
         <figcaption
           key={`c${at}`}
+          // the quote and its caption ease in together; a panel hidden
+          // mid-step cancels it
+          onTransitionEnd={settle}
+          onTransitionCancel={settle}
           className={`text-sm ${t.meta} ${step_in} ${has_next ? "max-md:flex max-md:min-h-11 max-md:items-center max-md:pr-14" : ""}`}
         >
           {m.name}

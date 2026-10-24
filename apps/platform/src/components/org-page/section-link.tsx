@@ -18,17 +18,18 @@ export function SectionLink({ id, classes = "", children }: ISectionLink) {
 }
 
 /** not root `scroll-behavior`, or every route change would glide too. the
- * hash replaces: an entry the router didn't make would pop back on Back */
+ * hash replaces: an entry the router didn't make would pop back on Back. under
+ * reduced motion it jumps, but by the same path, so Back behaves the same */
 function glide(e: MouseEvent<HTMLAnchorElement>) {
   if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
     return;
   }
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const { hash } = e.currentTarget;
   const target = document.getElementById(hash.slice(1));
   if (!target) return;
   e.preventDefault();
-  target.scrollIntoView({ behavior: "smooth" });
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
   focus_without_ring(target, { preventScroll: true });
   window.history.replaceState(window.history.state, "", hash);
 }
