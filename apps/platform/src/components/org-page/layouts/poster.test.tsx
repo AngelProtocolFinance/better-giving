@@ -16,6 +16,7 @@ import {
   above_fold,
   EIN,
   give,
+  header_donate_in_view,
   in_view,
   LONG_NAME,
   many,
@@ -384,7 +385,7 @@ describe("Poster", () => {
     expect(header_donate(root)).toBeUndefined();
     scroll_past_hero_donate(root);
     await expect.poll(() => header_donate(root)).toBeDefined();
-    await expect.poll(() => in_view(header_donate(root))).toBe(true);
+    await expect.poll(() => header_donate_in_view(root)).toBe(true);
   });
 
   test.each([

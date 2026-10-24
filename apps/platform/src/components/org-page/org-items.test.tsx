@@ -431,6 +431,34 @@ describe("ShowMoreGrid", () => {
     expect(screen.getByRole("button", { name: /more/ }).query()).toBeNull();
   });
 
+  test("a reveal rises in only what it brought, the first at no delay", async () => {
+    await page.viewport(1440, 900);
+    const screen = await mount(<ShowMoreGrid items={gives(8)} now={NOW} />);
+    await screen.getByRole("button", { name: "Show 2 more" }).click();
+    await expect
+      .element(screen.getByRole("link", { name: "Clean water 8", exact: true }))
+      .toBeVisible();
+
+    const items = [...list_of(screen.container).children] as HTMLElement[];
+    const rises = items.map((li) => /\bstarting:/.test(li.className));
+    expect(rises).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+    ]);
+    // what was there before the press carries no delay either
+    expect(items.slice(0, 6).map((li) => li.style.transitionDelay)).toEqual(
+      Array(6).fill("")
+    );
+    expect(items[6].style.transitionDelay).toContain("* 0 /");
+    expect(items[7].style.transitionDelay).toContain("* 1 /");
+  });
+
   test("a phone shows 3 first", async () => {
     await page.viewport(375, 812);
     const screen = await mount(<ShowMoreGrid items={gives(8)} now={NOW} />);

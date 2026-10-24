@@ -12,6 +12,7 @@ import {
 import {
   above_fold,
   EIN,
+  header_donate_in_view,
   in_view,
   LONG_NAME,
   message,
@@ -270,7 +271,7 @@ describe("Card", () => {
 
       scroll_past_hero_donate(root);
       await expect.poll(() => header_donate(root)).toBeDefined();
-      await expect.poll(() => in_view(header_donate(root))).toBe(true);
+      await expect.poll(() => header_donate_in_view(root)).toBe(true);
 
       window.scrollTo(0, 0);
       await expect.poll(() => header_donate(root)).toBeUndefined();

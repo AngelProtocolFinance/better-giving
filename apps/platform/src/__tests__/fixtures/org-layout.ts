@@ -7,7 +7,7 @@ import type {
 import type { IOrgLayout } from "#/components/org-page/layouts/types";
 import { to_text } from "#/components/rich-text/helpers";
 import type { INpoPublic } from "$/pg/queries/npo";
-import { BANNER } from "./layout-dom";
+import { BANNER, header_donate } from "./layout-dom";
 
 /** the clock the cards count end dates from */
 export const NOW = Date.parse("2026-10-01T12:00:00Z");
@@ -38,6 +38,15 @@ export function in_view(el: Element): boolean {
     r.bottom <= window.innerHeight &&
     r.right <= window.innerWidth
   );
+}
+
+/** the header's Donate is shown and wholly in the viewport; throws, naming
+ * the cause, when the header shows none, so a poll over it reports that and
+ * not a TypeError from `in_view(undefined)` */
+export function header_donate_in_view(root: Element): boolean {
+  const donate = header_donate(root);
+  if (!donate) throw new Error("the header shows no Donate link");
+  return in_view(donate);
 }
 
 /** room the first screen keeps under Donate, so a wrap the fixture didn't
